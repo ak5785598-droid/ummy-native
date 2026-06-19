@@ -1,0 +1,60 @@
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native build outputs
+.android/
+.ios/
+.kotlin/
+
+# Android
+android/.gradle/
+android/app/build/
+android/app/release/
+android/app/.cxx/
+*.apk
+*.aab
+
+# iOS
+ios/build/
+ios/Pods/
+
+# Metro
+.metro-health-check*
+
+# Environment / Secrets
+.env
+.env.local
+.env.development
+.env.production
+.env*.local
+
+# Debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+
+# Keystore files (send separately to partner)
+*.jks
+*.p8
+*.p12
+*.key
+debug.keystore
+release.keystore
+
+# TypeScript
+*.tsbuildinfo
+
+# macOS
+.DS_Store
+*.pem
+
+# Scratch / temp
+scratch/
+*.tmp

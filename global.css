@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: hsl(280, 100%, 99%);
+    --foreground: hsl(270, 100%, 5%);
+    --primary: hsl(282, 100%, 58%);
+    --primary-foreground: hsl(0, 0%, 100%);
+    --secondary: hsl(270, 40%, 97%);
+    --secondary-foreground: hsl(270, 100%, 8%);
+    --accent: hsl(280, 100%, 66%);
+    --accent-foreground: hsl(0, 0%, 100%);
+    --border: hsl(270, 20%, 90%);
+    --input: hsl(270, 20%, 90%);
+    --ring: hsl(291, 64%, 42%);
+  }
+}
