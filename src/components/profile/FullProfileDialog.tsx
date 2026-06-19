@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, Dimensions, StyleSheet, ScrollView, StatusBar,  } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Dimensions, StyleSheet, ScrollView, StatusBar } from 'react-native';
 import { ChevronLeft, Pencil, Heart, MessageCircle, MoreHorizontal, Calendar } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
@@ -118,6 +118,7 @@ export function FullProfileDialog({
   if (!profile) return null;
 
   const images = profile.spaceImages || [];
+  // User ID seedha text format mein, koi badge ya budget nahi
   const displayID = displayId || profile.accountNumber || '000000';
   const hasOfficialTag = profile.isOfficial || profile.tags?.includes('Official');
   const isSeller = profile.isSeller || profile.tags?.some((t: string) => ['Seller', 'Seller center', 'Coin Seller'].includes(t));
@@ -168,50 +169,6 @@ export function FullProfileDialog({
               </AvatarFrame>
             </View>
 
-            {/* Action Buttons (Follow / Chat) if not own profile */}
-            {!isOwnProfile && (
-              <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
-                  <TouchableOpacity
-                    onPress={onFollow}
-                    style={{
-                      height: 36,
-                      paddingHorizontal: 16,
-                      borderRadius: 18,
-                      borderWidth: 1.5,
-                      borderColor: '#EC4899',
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 4,
-                    }}
-                  >
-                    <Heart size={14} color="#EC4899" fill={followData ? '#EC4899' : 'transparent'} />
-                    <Text style={{ fontSize: 12, fontWeight: '800', color: '#EC4899' }}>
-                      {followData ? 'Joined' : 'Follow'}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => {
-                      onOpenChange(false);
-                      if (onChat) onChat(profile);
-                    }}
-                    style={{
-                      height: 36,
-                      paddingHorizontal: 16,
-                      borderRadius: 18,
-                      backgroundColor: '#2563EB',
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 4,
-                    }}
-                  >
-                    <MessageCircle size={14} color="#FFFFFF" />
-                    <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFFFFF' }}>Chat</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-
             {/* Name + GenderAge + Flag */}
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
               <Text style={{ fontSize: 24, fontWeight: '800', color: '#1E293B' }}>{profile.username}</Text>
@@ -219,23 +176,15 @@ export function FullProfileDialog({
               <Text style={{ fontSize: 20 }}>🇮🇳</Text>
             </View>
 
-            {/* Tags / Badges */}
+            {/* User ID - Sirf plain text, koi badge nahi, koi shiny gradient nahi */}
+            <View style={{ alignItems: 'center', marginTop: 8 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#64748B', letterSpacing: 1 }}>
+                ID: {displayID}
+              </Text>
+            </View>
+
+            {/* Tags / Badges - Official, Seller wagera ke liye */}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 8 }}>
-              {hasOfficialTag ? (
-                <SVGA_GlossyID label={`ID: ${displayID}`} />
-              ) : (
-                <View style={{ borderRadius: 12, overflow: 'hidden', alignSelf: 'flex-start' }}>
-                  <LinearGradient
-                    colors={profile.isAdmin ? ['#fbbf24', '#f59e0b', '#b45309'] : ['#94a3b8', '#475569', '#1e293b']}
-                    start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1.5, borderColor: profile.isAdmin ? '#fbbf2450' : '#94a3b850' }}
-                  >
-                    <Text style={{ fontSize: 10 }}>{profile.isAdmin ? '👑' : '🛡️'}</Text>
-                    <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff', letterSpacing: -0.2, textTransform: 'uppercase' }}>ID: {displayID}</Text>
-                    <Text style={{ fontSize: 8 }}>✨</Text>
-                  </LinearGradient>
-                </View>
-              )}
               {hasOfficialTag && <SVGA_OfficialTag />}
               {isSeller && <SVGA_SellerTag />}
               {profile.tags?.includes('CS Leader') && <SVGA_CSLeaderTag />}
@@ -369,7 +318,112 @@ export function FullProfileDialog({
 
           </View>
         </ScrollView>
+
+        {/* Bottom Actions - Follow aur Chat buttons + Tab navigation niche fixed */}
+        {!isOwnProfile && (
+          <View style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: '#FFFFFF',
+            borderTopWidth: 1,
+            borderTopColor: '#F1F5F9',
+            paddingHorizontal: 20,
+            paddingVertical: 12,
+            paddingBottom: 34, // safe area ke liye extra padding
+            flexDirection: 'row',
+            gap: 12,
+          }}>
+            {/* Follow Button */}
+            <TouchableOpacity
+              onPress={onFollow}
+              disabled={isProcessingFollow}
+              style={{
+                flex: 1,
+                height: 48,
+                borderRadius: 24,
+                borderWidth: 2,
+                borderColor: '#EC4899',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                backgroundColor: followData ? '#EC4899' : 'transparent',
+              }}
+            >
+              <Heart 
+                size={18} 
+                color={followData ? '#FFFFFF' : '#EC4899'} 
+                fill={followData ? '#FFFFFF' : 'transparent'} 
+              />
+              <Text style={{ 
+                fontSize: 15, 
+                fontWeight: '800', 
+                color: followData ? '#FFFFFF' : '#EC4899' 
+              }}>
+                {followData ? 'Following' : 'Follow'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Chat Button */}
+            <TouchableOpacity
+              onPress={() => {
+                onOpenChange(false);
+                if (onChat) onChat(profile);
+              }}
+              style={{
+                flex: 1,
+                height: 48,
+                borderRadius: 24,
+                backgroundColor: '#2563EB',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+              }}
+            >
+              <MessageCircle size={18} color="#FFFFFF" />
+              <Text style={{ fontSize: 15, fontWeight: '800', color: '#FFFFFF' }}>
+                Chat
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Agar own profile hai to sirf edit button dikhao niche */}
+        {isOwnProfile && (
+          <View style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: '#FFFFFF',
+            borderTopWidth: 1,
+            borderTopColor: '#F1F5F9',
+            paddingHorizontal: 20,
+            paddingVertical: 12,
+            paddingBottom: 34,
+          }}>
+            <TouchableOpacity
+              style={{
+                height: 48,
+                borderRadius: 24,
+                backgroundColor: '#F1F5F9',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+              }}
+            >
+              <Pencil size={18} color="#64748B" />
+              <Text style={{ fontSize: 15, fontWeight: '800', color: '#64748B' }}>
+                Edit Profile
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </Modal>
   );
-}
+    }
