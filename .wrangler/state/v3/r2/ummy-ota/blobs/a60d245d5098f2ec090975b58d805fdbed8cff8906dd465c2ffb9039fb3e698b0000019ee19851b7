@@ -1,0 +1,8 @@
+{
+  "id": "initial-1.0.0",
+  "createdAt": "2026-06-20T00:00:00Z",
+  "runtimeVersion": "1.0.0",
+  "platform": "android",
+  "assets": [],
+  "bundle": "/bundle.js"
+}

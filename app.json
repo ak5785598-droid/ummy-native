@@ -1,0 +1,81 @@
+{
+  "expo": {
+    "name": "Ummy",
+    "slug": "ummy-native",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/ummy-logon.png",
+    "splash": {
+      "image": "./assets/images/splash_blank.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#37005f"
+    },
+    "scheme": "ummynative",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "icon": "./assets/images/ummy-logon.png"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#37005f",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.INTERNET",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.INTERNET"
+      ],
+      "package": "app.vercel.ummy_chat.twa",
+      "googleServicesFile": "./google-services.json"
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/ummy-logon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "largeHeap": true
+          },
+          "ios": {
+            "deploymentTarget": "16.4"
+          }
+        }
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      "@react-native-google-signin/google-signin",
+      [
+        "react-native-fbsdk-next",
+        {
+          "appID": "123456789012345",
+          "clientToken": "dummy_token",
+          "displayName": "Ummy"
+        }
+      ],
+      "expo-font"
+    ],
+    "updates": {
+      "enabled": true,
+      "url": "https://ummy-ota.ak5785598.workers.dev/api/manifest?slug=ummy-native",
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_LOAD"
+    },
+    "runtimeVersion": "1.0.0",
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
