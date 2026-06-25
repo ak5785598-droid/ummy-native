@@ -468,7 +468,7 @@ export default function RoomScreen() {
       if (isPlayOpen) { setIsPlayOpen(false); return true; }
       if (isMessagesOpen) { setIsMessagesOpen(false); return true; }
       if (showLanguagePicker) { setShowLanguagePicker(false); return true; }
-      try { router.back(); } catch {}
+      setShowExitDialog(true);
       return true;
     };
     const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
