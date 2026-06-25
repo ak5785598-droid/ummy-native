@@ -70,6 +70,17 @@ emoji_*.gif
 replace.js
 generate-icons.js
 
+# temp MP4s
+*_tmp_*.mp4
+*_h264_*.mp4
+
+# frame GIFs (stored on Firebase Storage, not needed in git)
+assets/animations/frame_*.gif
+assets/animations/frame *.gif
+assets/animations/fire_ring_*.gif
+assets/animations/frames_tmp/
+assets/animations/download.png
+
 # generated native folders
 /ios
 
