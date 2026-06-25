@@ -43,6 +43,33 @@ example
 # scratch scripts
 scratch/
 
+# OTA build output
+dist-ota/
+
+# Wrangler state
+.wrangler/
+
+# temp/debug files
+*.tmp
+crash*.txt
+logcat_*.txt
+build-log.txt
+
+# temp images from frame processing
+_check_*.gif
+_check_*.png
+_fax_*.png
+_hist_*.png
+anim_135828.png
+dance_frame.png
+music_frame.png
+thinking_frame1.png
+welcome_check.png
+ezgif_*.png
+emoji_*.gif
+replace.js
+generate-icons.js
+
 # generated native folders
 /ios
 
