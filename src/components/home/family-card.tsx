@@ -80,7 +80,6 @@ export function FamilyCard({ onPress }: FamilyCardProps) {
   }, [mode, activeIndex, familiesCount]);
 
   const currentFamily = topFamilies?.[activeIndex];
-  const medal = activeIndex === 0 ? '🥇' : activeIndex === 1 ? '🥈' : '🥉';
   const frameColor = activeIndex === 0 ? '#38bdf8' : activeIndex === 1 ? '#cbd5e1' : '#d97706';
 
   return (
@@ -122,9 +121,6 @@ export function FamilyCard({ onPress }: FamilyCardProps) {
                     source={{ uri: currentFamily.bannerUrl || 'https://picsum.photos/100' }}
                     style={styles.avatar}
                   />
-                  <View style={styles.medalBadge}>
-                    <Text style={styles.medalText}>{medal}</Text>
-                  </View>
                 </View>
                 <Text numberOfLines={1} style={styles.nameText}>{currentFamily.name || 'Family'}</Text>
                 <Text style={styles.wealthText}>🛡️ {currentFamily.totalWealth?.toLocaleString() || 0}</Text>
@@ -152,10 +148,9 @@ export function FamilyCard({ onPress }: FamilyCardProps) {
                       source={{ uri: topFamilies[1].bannerUrl || 'https://picsum.photos/100' }}
                       style={[styles.podiumAvatar, { borderColor: '#cbd5e1' }]}
                     />
-                    <View style={styles.podiumMedalBadge}><Text style={styles.medalText}>🥈</Text></View>
                   </View>
                 ) : (
-                  <View style={[styles.podiumAvatar, styles.placeholderAvatar, { borderColor: '#cbd5e1', borderWidth: 1.5 }]}><Text style={styles.medalText}>🥈</Text></View>
+                  <View style={[styles.podiumAvatar, styles.placeholderAvatar, { borderColor: '#cbd5e1', borderWidth: 1.5 }]} />
                 )}
               </View>
 
@@ -168,10 +163,9 @@ export function FamilyCard({ onPress }: FamilyCardProps) {
                       source={{ uri: topFamilies[0].bannerUrl || 'https://picsum.photos/100' }}
                       style={[styles.podiumAvatarLarge, { borderColor: '#38bdf8' }]}
                     />
-                    <View style={styles.podiumMedalBadgeLarge}><Text style={styles.medalTextLarge}>🥇</Text></View>
                   </View>
                 ) : (
-                  <View style={[styles.podiumAvatarLarge, styles.placeholderAvatar, { borderColor: '#38bdf8', borderWidth: 2 }]}><Text style={styles.medalTextLarge}>🥇</Text></View>
+                  <View style={[styles.podiumAvatarLarge, styles.placeholderAvatar, { borderColor: '#38bdf8', borderWidth: 2 }]} />
                 )}
               </View>
 
@@ -184,10 +178,9 @@ export function FamilyCard({ onPress }: FamilyCardProps) {
                       source={{ uri: topFamilies[2].bannerUrl || 'https://picsum.photos/100' }}
                       style={[styles.podiumAvatar, { borderColor: '#d97706' }]}
                     />
-                    <View style={styles.podiumMedalBadge}><Text style={styles.medalText}>🥉</Text></View>
                   </View>
                 ) : (
-                  <View style={[styles.podiumAvatar, styles.placeholderAvatar, { borderColor: '#d97706', borderWidth: 1.5 }]}><Text style={styles.medalText}>🥉</Text></View>
+                  <View style={[styles.podiumAvatar, styles.placeholderAvatar, { borderColor: '#d97706', borderWidth: 1.5 }]} />
                 )}
               </View>
             </View>

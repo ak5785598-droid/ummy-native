@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import { useUser, useFirestore } from '@/firebase/provider';
 import { useUserProfile } from '@/hooks/use-user-profile';
 import { doc, increment, serverTimestamp, updateDoc } from '@/firebase/firestore-compat';
+import { GoldenCoin } from '@/components/GoldenCoin';
 
 export default function BonusScreen() {
   const router = useRouter();
@@ -36,6 +37,7 @@ export default function BonusScreen() {
         'updatedAt': serverTimestamp(),
       };
       await updateDoc(profileRef, updateData);
+      await updateDoc(userRef, { 'wallet.coins': increment(bonusAmount), 'updatedAt': serverTimestamp() });
       Alert.alert('🎉 Bonus Claimed!', `${bonusAmount.toLocaleString()} Gold Coins credited to your account.`);
     } catch (error: any) {
       Alert.alert('Claim Failed', error.message || 'Something went wrong.');
@@ -66,7 +68,7 @@ export default function BonusScreen() {
 
             {/* Coin + Amount */}
             <View style={styles.goldAmtRow}>
-              <Text style={styles.coinEmoji}>🪙</Text>
+              <GoldenCoin size={72} />
               <Text style={styles.bonusAmt}>{bonusAmount}</Text>
             </View>
 

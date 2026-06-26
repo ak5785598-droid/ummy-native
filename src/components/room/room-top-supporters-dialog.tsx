@@ -4,6 +4,7 @@ import { X, Crown, Gift } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { TopSupporter } from '../../lib/types';
 import { Image } from 'expo-image';
+import { GoldenCoin } from '../GoldenCoin';
 
 interface RoomTopSupportersDialogProps {
   visible: boolean;
@@ -161,7 +162,7 @@ export function RoomTopSupportersDialog({ visible, onClose, supporters = [] }: R
                         </View>
                         <Text style={{ color: '#cbd5e1', fontSize: 11, fontWeight: '900', marginTop: 10, textAlign: 'center' }} numberOfLines={1}>{top3[1].username}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3, backgroundColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 }}>
-                          <Text style={{ fontSize: 10 }}>🪙</Text>
+                          <GoldenCoin size={10} />
                           <Text style={{ color: '#94a3b8', fontSize: 10, fontWeight: '900' }}>{(top3[1].displayAmount / 1000000 >= 1 ? `${(top3[1].displayAmount / 1000000).toFixed(1)}M` : top3[1].displayAmount.toLocaleString())}</Text>
                         </View>
                       </>
@@ -191,7 +192,7 @@ export function RoomTopSupportersDialog({ visible, onClose, supporters = [] }: R
                         </View>
                         <Text style={{ color: '#fbbf24', fontSize: 12, fontWeight: '900', marginTop: 10, textAlign: 'center' }} numberOfLines={1}>{top3[0].username}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3, backgroundColor: 'rgba(251,191,36,0.1)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 }}>
-                          <Text style={{ fontSize: 10 }}>🪙</Text>
+                          <GoldenCoin size={10} />
                           <Text style={{ color: '#fbbf24', fontSize: 11, fontWeight: '900' }}>{(top3[0].displayAmount / 1000000 >= 1 ? `${(top3[0].displayAmount / 1000000).toFixed(1)}M` : top3[0].displayAmount.toLocaleString())}</Text>
                         </View>
                       </>
@@ -219,7 +220,7 @@ export function RoomTopSupportersDialog({ visible, onClose, supporters = [] }: R
                         </View>
                         <Text style={{ color: '#d97706', fontSize: 11, fontWeight: '900', marginTop: 10, textAlign: 'center' }} numberOfLines={1}>{top3[2].username}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3, backgroundColor: 'rgba(217,119,6,0.1)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 }}>
-                          <Text style={{ fontSize: 10 }}>🪙</Text>
+                          <GoldenCoin size={10} />
                           <Text style={{ color: '#d97706', fontSize: 10, fontWeight: '900' }}>{(top3[2].displayAmount / 1000000 >= 1 ? `${(top3[2].displayAmount / 1000000).toFixed(1)}M` : top3[2].displayAmount.toLocaleString())}</Text>
                         </View>
                       </>
@@ -250,7 +251,7 @@ export function RoomTopSupportersDialog({ visible, onClose, supporters = [] }: R
                         <Text style={{ color: 'white', fontSize: 13, fontWeight: '900' }} numberOfLines={1}>{s.username}</Text>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
-                        <Text style={{ fontSize: 10 }}>🪙</Text>
+                        <GoldenCoin size={10} />
                         <Text style={{ color: '#fca5a5', fontSize: 12, fontWeight: '900' }}>
                           {s.displayAmount / 1000000 >= 1 ? `${(s.displayAmount / 1000000).toFixed(1)}M` : s.displayAmount.toLocaleString()}
                         </Text>

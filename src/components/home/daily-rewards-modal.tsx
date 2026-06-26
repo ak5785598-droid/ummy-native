@@ -5,6 +5,7 @@ import { X, Crown, Gift, Flame } from 'lucide-react-native';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '../../firebase/provider';
 import { doc, serverTimestamp, increment } from '@/firebase/firestore-compat';
 import { updateDocumentNonBlocking } from '../../lib/non-blocking-writes';
+import { GoldenCoin } from '../GoldenCoin';
 
 interface DailyRewardsModalProps {
   visible: boolean;
@@ -161,7 +162,11 @@ export function DailyRewardsModal({ visible, onClose }: DailyRewardsModalProps) 
                   <Text style={{ fontSize: 9, fontWeight: 'bold', color: isActive ? '#d97706' : '#94a3b8', textTransform: 'uppercase' }}>
                     Day {reward.day}
                   </Text>
-                  <Text style={{ fontSize: 18, marginVertical: 4 }}>{reward.emoji}</Text>
+                  {reward.emoji === '🪙' ? (
+                    <View style={{ marginVertical: 3 }}><GoldenCoin size={32} /></View>
+                  ) : (
+                    <Text style={{ fontSize: 18, marginVertical: 4 }}>{reward.emoji}</Text>
+                  )}
                   <Text style={{ fontSize: 11, fontWeight: 'bold', color: isActive ? '#92400e' : '#475569' }}>
                     {reward.coins.toLocaleString()}
                   </Text>
@@ -192,7 +197,11 @@ export function DailyRewardsModal({ visible, onClose }: DailyRewardsModalProps) 
                   <Text style={{ fontSize: 9, fontWeight: 'bold', color: isActive ? '#d97706' : '#94a3b8', textTransform: 'uppercase' }}>
                     Day {reward.day}
                   </Text>
-                  <Text style={{ fontSize: 18, marginVertical: 4 }}>{reward.emoji}</Text>
+                  {reward.emoji === '🪙' ? (
+                    <View style={{ marginVertical: 3 }}><GoldenCoin size={32} /></View>
+                  ) : (
+                    <Text style={{ fontSize: 18, marginVertical: 4 }}>{reward.emoji}</Text>
+                  )}
                   <Text style={{ fontSize: 11, fontWeight: 'bold', color: isActive ? '#92400e' : '#475569' }}>
                     {reward.coins.toLocaleString()}
                   </Text>

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Modal, TextInput, FlatList, RefreshControl, Keyboard, Platform, LayoutAnimation, UIManager, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Modal, TextInput, FlatList, RefreshControl, Keyboard, Platform, LayoutAnimation, UIManager, Alert, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Search, Shield, Heart, ChevronRight, Send, X, Image as ImageIcon, MoreHorizontal, Loader, Check, CheckCheck, Gift, Mic, Smile, Plus } from 'lucide-react-native';
@@ -47,6 +47,32 @@ export default function MessagesScreen() {
       });
     } catch (e) {}
   }, [navigation, activeChatId]);
+
+  // Handle hardware back button
+  useEffect(() => {
+    const onBackPress = () => {
+      if (activeChatId) {
+        setActiveChatId(null);
+        setSelectedRecipient(null);
+        return true;
+      }
+      if (showOfficial) {
+        setShowOfficial(false);
+        return true;
+      }
+      if (showSystem) {
+        setShowSystem(false);
+        return true;
+      }
+      if (showRequests) {
+        setShowRequests(false);
+        return true;
+      }
+      return false;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [activeChatId, showOfficial, showSystem, showRequests]);
 
   const chatsQuery = useMemo(() => {
     if (!firestore || !user?.uid) return null;

@@ -9,6 +9,7 @@ import { collection, query, where, orderBy, limit, onSnapshot } from '@/firebase
 import { useCollection, useMemoFirebase } from '../../firebase/provider';
 import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, Stop, Rect, Circle } from 'react-native-svg';
 import { Image } from 'expo-image';
+import { GoldenCoin } from '../../components/GoldenCoin';
 
 const TABS = [
   { key: 'rich', label: 'Honor', icon: Crown },
@@ -444,7 +445,7 @@ export default function LeaderboardScreen() {
                   <Text className="text-white text-sm font-bold flex-1" numberOfLines={1}>{getLabel(item)}</Text>
                   <View className="flex-row items-center gap-1">
                     <Text className="text-amber-400 text-xs font-bold">{formatValue(getValue(item))}</Text>
-                    <Text className="text-amber-400 text-[10px]">🪙</Text>
+                    <GoldenCoin size={10} />
                   </View>
                 </TouchableOpacity>
               );
@@ -728,7 +729,7 @@ function PodiumCard({ rank, value, label, avatar, onPress }: { rank: number; val
         >
           {formatValue(value)}
         </Text>
-        <Text className="text-[8px] ml-0.5">🪙</Text>
+        <View style={{ marginLeft: 2 }}><GoldenCoin size={8} /></View>
       </View>
     </TouchableOpacity>
   );

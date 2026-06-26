@@ -87,7 +87,12 @@ function LuckySpin({ visible, onClose }: { visible: boolean; onClose: () => void
   const handleSpin = async () => {
     if (spinning || !firestore || !user?.uid) return;
     const cost = 100;
-    if ((profile?.wallet?.coins || 0) < cost) return Alert.alert('Insufficient coins', 'You need 100 coins to spin');
+    try {
+      const profileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
+      const snap = await getDoc(profileRef);
+      const freshCoins = snap.exists() ? ((snap.data() as any)?.wallet?.coins ?? (profile?.wallet?.coins ?? 0)) : (profile?.wallet?.coins ?? 0);
+      if (freshCoins < cost) return Alert.alert('Insufficient coins', 'You need 100 coins to spin');
+    } catch { return; }
     setSpinning(true); setResult(null);
     const targetIndex = Math.floor(Math.random() * segments.length);
     const targetAngle = 360 * 5 + targetIndex * segmentAngle;
@@ -97,7 +102,9 @@ function LuckySpin({ visible, onClose }: { visible: boolean; onClose: () => void
       const winAmount = cost * multiplier;
       try {
         const batch = writeBatch(firestore);
-        batch.update(doc(firestore, 'users', user.uid, 'profile', user.uid), { 'wallet.coins': increment(winAmount - cost), updatedAt: serverTimestamp() });
+        const updateData = { 'wallet.coins': increment(winAmount - cost), updatedAt: serverTimestamp() };
+        batch.set(doc(firestore, 'users', user.uid, 'profile', user.uid), updateData, { merge: true });
+        batch.set(doc(firestore, 'users', user.uid), updateData, { merge: true });
         await batch.commit();
       } catch (e) {}
       setResult(winAmount); setSpinning(false);
@@ -168,7 +175,12 @@ function DiceDuel({ visible, onClose }: { visible: boolean; onClose: () => void 
 
   const handleRoll = async () => {
     if (rolling || !firestore || !user?.uid) return;
-    if ((profile?.wallet?.coins || 0) < bet) return Alert.alert('Insufficient coins', `You need ${bet} coins`);
+    try {
+      const profileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
+      const snap = await getDoc(profileRef);
+      const freshCoins = snap.exists() ? ((snap.data() as any)?.wallet?.coins ?? (profile?.wallet?.coins ?? 0)) : (profile?.wallet?.coins ?? 0);
+      if (freshCoins < bet) return Alert.alert('Insufficient coins', `You need ${bet} coins`);
+    } catch { return; }
     setRolling(true); setResult(null);
 
     const pRoll = Math.floor(Math.random() * 6) + 1;
@@ -186,13 +198,17 @@ function DiceDuel({ visible, onClose }: { visible: boolean; onClose: () => void 
         setLastWon(winAmount);
         try {
           const batch = writeBatch(firestore);
-          batch.update(doc(firestore, 'users', user.uid, 'profile', user.uid), { 'wallet.coins': increment(winAmount - bet), 'stats.dailyGameWins': increment(1), updatedAt: serverTimestamp() });
+          const updateData = { 'wallet.coins': increment(winAmount - bet), 'stats.dailyGameWins': increment(1), updatedAt: serverTimestamp() };
+          batch.set(doc(firestore, 'users', user.uid, 'profile', user.uid), updateData, { merge: true });
+          batch.set(doc(firestore, 'users', user.uid), { 'wallet.coins': increment(winAmount - bet), updatedAt: serverTimestamp() }, { merge: true });
           batch.commit();
         } catch (e) {}
       } else if (w === 'lose') {
         try {
           const batch = writeBatch(firestore);
-          batch.update(doc(firestore, 'users', user.uid, 'profile', user.uid), { 'wallet.coins': increment(-bet), updatedAt: serverTimestamp() });
+          const updateData = { 'wallet.coins': increment(-bet), updatedAt: serverTimestamp() };
+          batch.set(doc(firestore, 'users', user.uid, 'profile', user.uid), updateData, { merge: true });
+          batch.set(doc(firestore, 'users', user.uid), updateData, { merge: true });
           batch.commit();
         } catch (e) {}
       }
@@ -297,7 +313,9 @@ function GoldenChest({ visible, onClose }: { visible: boolean; onClose: () => vo
     setTimeout(async () => {
       try {
         const batch = writeBatch(firestore);
-        batch.update(doc(firestore, 'users', user.uid, 'profile', user.uid), { 'wallet.coins': increment(coinsReward), 'wallet.diamonds': increment(diamondReward), lastChestOpen: serverTimestamp(), updatedAt: serverTimestamp() });
+        const chestData = { 'wallet.coins': increment(coinsReward), 'wallet.diamonds': increment(diamondReward), lastChestOpen: serverTimestamp(), updatedAt: serverTimestamp() };
+        batch.set(doc(firestore, 'users', user.uid, 'profile', user.uid), chestData, { merge: true });
+        batch.set(doc(firestore, 'users', user.uid), { 'wallet.coins': increment(coinsReward), 'wallet.diamonds': increment(diamondReward), updatedAt: serverTimestamp() }, { merge: true });
         await batch.commit();
       } catch (e) {}
       setReward({ coins: coinsReward, diamonds: diamondReward });

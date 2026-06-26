@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { Languages } from 'lucide-react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { Languages, Trash2 } from 'lucide-react-native';
 import { Message } from '../../lib/types';
 import { useTranslation } from '../../hooks/use-translation';
 import { Image } from 'expo-image';
@@ -13,9 +13,11 @@ interface RoomChatAreaProps {
   onImagePress?: (url: string) => void;
   targetLanguage: string;
   sourceLanguage?: string;
+  canManage?: boolean;
+  onDeleteMessage?: (messageId: string) => void;
 }
 
-export function RoomChatArea({ messages, chatClearedAt, onMessagePress, onAvatarPress, onImagePress, targetLanguage, sourceLanguage }: RoomChatAreaProps) {
+export function RoomChatArea({ messages, chatClearedAt, onMessagePress, onAvatarPress, onImagePress, targetLanguage, sourceLanguage, canManage, onDeleteMessage }: RoomChatAreaProps) {
   const scrollViewRef = useRef<ScrollView>(null);
   const [translatedTexts, setTranslatedTexts] = useState<Record<string, string>>({});
   const { translateMessage, translating } = useTranslation();
@@ -57,6 +59,8 @@ export function RoomChatArea({ messages, chatClearedAt, onMessagePress, onAvatar
           <ChatMessageRow
             key={msg.id}
             message={msg}
+            canManage={canManage}
+            onDeleteMessage={onDeleteMessage}
             onPress={() => onMessagePress?.(msg)}
             onAvatarPress={() => onAvatarPress?.(msg.senderId)}
             onTranslate={() => handleTranslate(msg.id, msg.content || msg.text || '')}
@@ -78,9 +82,11 @@ interface ChatMessageRowProps {
   onTranslate?: () => void;
   translationText?: string;
   isTranslating?: boolean;
+  canManage?: boolean;
+  onDeleteMessage?: (messageId: string) => void;
 }
 
-const ChatMessageRow = React.memo(function ChatMessageRow({ message, onPress, onAvatarPress, onImagePress, onTranslate, translationText, isTranslating }: ChatMessageRowProps) {
+const ChatMessageRow = React.memo(function ChatMessageRow({ message, onPress, onAvatarPress, onImagePress, onTranslate, translationText, isTranslating, canManage, onDeleteMessage }: ChatMessageRowProps) {
   if (message.type === 'system') {
     return (
       <View style={styles.systemRow}>
@@ -101,11 +107,11 @@ const ChatMessageRow = React.memo(function ChatMessageRow({ message, onPress, on
 
   if (message.type === 'gift') {
     return (
-      <TouchableOpacity onPress={onPress} style={styles.msgRow}>
+      <View style={styles.msgRow}>
         <TouchableOpacity onPress={onAvatarPress}>
           <Image cachePolicy="memory-disk" source={{ uri: message.senderAvatar || 'https://picsum.photos/100' }} style={styles.avatar} />
         </TouchableOpacity>
-        <View style={styles.msgContentWrapper}>
+        <TouchableOpacity onPress={onPress} style={styles.msgContentWrapper}>
           <Text style={styles.giftSenderName}>{message.senderName}</Text>
           <View style={styles.giftMessageBubble}>
             <View style={styles.giftInnerRow}>
@@ -113,8 +119,13 @@ const ChatMessageRow = React.memo(function ChatMessageRow({ message, onPress, on
               <Text style={styles.giftText}>{message.text || `sent ${message.giftName}`}</Text>
             </View>
           </View>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+        {canManage && onDeleteMessage && (
+          <TouchableOpacity onPress={() => { Alert.alert('Delete', 'Delete this gift message?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => onDeleteMessage(message.id) }]); }} style={{ padding: 4, marginLeft: 2 }}>
+            <Trash2 size={12} color="#ef4444" />
+          </TouchableOpacity>
+        )}
+      </View>
     );
   }
 
@@ -154,11 +165,11 @@ const ChatMessageRow = React.memo(function ChatMessageRow({ message, onPress, on
   }
 
   return (
-    <TouchableOpacity onPress={onPress} style={styles.msgRow}>
+    <View style={styles.msgRow}>
       <TouchableOpacity onPress={onAvatarPress}>
         <Image cachePolicy="memory-disk" source={{ uri: message.senderAvatar || 'https://picsum.photos/100' }} style={styles.avatar} />
       </TouchableOpacity>
-      <View style={styles.msgContentWrapper}>
+      <TouchableOpacity onPress={onPress} style={styles.msgContentWrapper}>
         <View style={styles.nameHeaderRow}>
           <Text style={styles.senderName}>{message.senderName}</Text>
           {onTranslate && message.type === 'text' && (message.content || message.text) && (
@@ -187,8 +198,13 @@ const ChatMessageRow = React.memo(function ChatMessageRow({ message, onPress, on
             <Text style={styles.translationText}>{translationText}</Text>
           </View>
         )}
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+      {canManage && onDeleteMessage && (
+        <TouchableOpacity onPress={() => { Alert.alert('Delete', 'Delete this message?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => onDeleteMessage(message.id) }]); }} style={{ padding: 4, marginLeft: 2 }}>
+          <Trash2 size={12} color="#ef4444" />
+        </TouchableOpacity>
+      )}
+    </View>
   );
 });
 

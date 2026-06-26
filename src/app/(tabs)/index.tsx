@@ -164,7 +164,7 @@ export default function HomeScreen() {
   const followedRoomData = useMemo(() => {
     if (!followedRooms || !allRooms) return [];
     return followedRooms.map((fr: any) => {
-      const room = allRooms.find((r: any) => r.id === fr.roomId);
+      const room = allRooms.find((r: any) => r.id === fr.id);
       return room ? { ...room, followedAt: fr.followedAt } : null;
     }).filter(Boolean) as Room[];
   }, [followedRooms, allRooms]);
@@ -179,7 +179,7 @@ export default function HomeScreen() {
         return visitedAt > oneDayAgo;
       })
       .map((rv: any) => {
-        const room = allRooms.find((r: any) => r.id === rv.roomId);
+        const room = allRooms.find((r: any) => r.id === rv.id);
         return room ? { ...room, visitedAt: rv.visitedAt } : null;
       })
       .filter(Boolean) as Room[];
@@ -303,21 +303,35 @@ export default function HomeScreen() {
           </>
         ) : (
           <View className="px-4 pt-4">
-            <TouchableOpacity 
-              onPress={() => router.push('/profile')}
-              className="flex-row items-center bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-4"
-            >
-              <Image cachePolicy="memory-disk" source={{ uri: userProfile?.avatarUrl || 'https://picsum.photos/200' }} 
-                className="w-16 h-16 rounded-full mr-4"
-              />
-              <View className="flex-1">
-                <Text className="text-lg font-bold text-slate-800">{userProfile?.username || 'User'}</Text>
-                <Text className="text-sm text-slate-500">ID: {userProfile?.accountNumber || '000000'}</Text>
-                <View className="flex-row items-center mt-1">
-                  <Text className="text-amber-600 font-bold text-sm">{userProfile?.wallet?.coins?.toFixed(0) || '0'} Coins</Text>
+            <View className="flex-row items-center bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-4">
+              <TouchableOpacity onPress={() => router.push('/profile')} className="flex-row items-center flex-1">
+                <Image cachePolicy="memory-disk" source={{ uri: userProfile?.avatarUrl || 'https://picsum.photos/200' }} 
+                  className="w-16 h-16 rounded-full mr-4"
+                />
+                <View className="flex-1">
+                  <Text className="text-lg font-bold text-slate-800">{userProfile?.username || 'User'}</Text>
+                  <Text className="text-sm text-slate-500">ID: {userProfile?.accountNumber || '000000'}</Text>
+                  <View className="flex-row items-center mt-1">
+                    <Text className="text-amber-600 font-bold text-sm">{userProfile?.wallet?.coins?.toFixed(0) || '0'} Coins</Text>
+                  </View>
                 </View>
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+              {hasOwnRoom && myRoom ? (
+                <TouchableOpacity
+                  onPress={() => enterRoom(myRoom)}
+                  className="shrink-0 bg-slate-900 rounded-2xl px-4 py-2 ml-2"
+                >
+                  <Text className="text-white text-xs font-bold uppercase tracking-widest">My Room</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => setShowCreateRoom(true)}
+                  className="shrink-0 bg-slate-900 rounded-2xl px-4 py-2 ml-2"
+                >
+                  <Text className="text-white text-xs font-bold uppercase tracking-widest">Create</Text>
+                </TouchableOpacity>
+              )}
+            </View>
 
             <View className="flex-row items-center gap-4 mb-4">
               <TouchableOpacity onPress={() => setMeTab('following')}>

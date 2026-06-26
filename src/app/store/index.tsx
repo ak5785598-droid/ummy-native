@@ -8,9 +8,10 @@ import {
 import { useRouter } from 'expo-router';
 import { useUser, useFirestore } from '@/firebase/provider';
 import { useUserProfile } from '@/hooks/use-user-profile';
-import { collection, query, orderBy, onSnapshot, doc, increment, serverTimestamp, arrayUnion, updateDoc, where, getDocs, limit as firestoreLimit } from '@/firebase/firestore-compat';
+import { collection, query, orderBy, onSnapshot, doc, increment, serverTimestamp, arrayUnion, updateDoc, where, getDocs, limit as firestoreLimit, writeBatch } from '@/firebase/firestore-compat';
 import { Image } from 'expo-image';
 import { AvatarFrame } from '@/components/profile/AvatarFrame';
+import { GoldenCoin } from '@/components/GoldenCoin';
 
 const LOCAL_FRAME_ASSETS: Record<string, any> = {
   'sea_sands': require('../../../assets/images/sea_sands_frame.png'),
@@ -210,7 +211,10 @@ export default function StoreScreen() {
         updateData['inventory.activeEntryEffect'] = entryType;
         updateData['inventory.activeEntryVideoUrl'] = entryVideo;
       }
-      await updateDoc(profileRef, updateData);
+      const batch = writeBatch(firestore);
+      batch.set(profileRef, updateData, { merge: true });
+      batch.set(userRef, { 'wallet.coins': increment(-finalPrice), updatedAt: serverTimestamp() }, { merge: true });
+      await batch.commit();
       Alert.alert('✅ Purchase Successful!', `${previewItem.name} added to your inventory.`);
       setPreviewItem(null);
     } catch (err: any) {
@@ -251,16 +255,21 @@ export default function StoreScreen() {
       const expiryDate = new Date();
       expiryDate.setDate(expiryDate.getDate() + selectedDuration);
       const senderProfileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
+      const senderUserRef = doc(firestore, 'users', user.uid);
       const recipientProfileRef = doc(firestore, 'users', selectedRecipient.uid, 'profile', selectedRecipient.uid);
-      await updateDoc(senderProfileRef, {
+      const deductData = {
         'wallet.coins': increment(-finalPrice),
         updatedAt: serverTimestamp(),
-      });
-      await updateDoc(recipientProfileRef, {
+      };
+      const batch = writeBatch(firestore);
+      batch.set(senderProfileRef, deductData, { merge: true });
+      batch.set(senderUserRef, deductData, { merge: true });
+      batch.set(recipientProfileRef, {
         'inventory.ownedItems': arrayUnion(previewItem.id),
         [`inventory.expiries.${previewItem.id}`]: expiryDate.toISOString(),
         updatedAt: serverTimestamp(),
-      });
+      }, { merge: true });
+      await batch.commit();
       Alert.alert('✅ Gift Sent!', `${previewItem.name} sent to ${selectedRecipient.username || 'user'}.`);
       setSelectedRecipient(null);
       setShowRecipientSearch(false);
@@ -448,7 +457,7 @@ export default function StoreScreen() {
             <Text style={{ fontSize: 11, fontWeight: '700', color: '#ef4444' }}>Not for Sale</Text>
           ) : (
             <View style={styles.priceRow}>
-              <Text style={styles.coinEmoji}>{'\u{1FA99}'}</Text>
+              <GoldenCoin size={20} />
               <Text style={styles.priceText}>{item.price?.toLocaleString()}</Text>
             </View>
           )}
@@ -466,8 +475,9 @@ export default function StoreScreen() {
             <ChevronLeft size={24} color="#0f172a" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Store</Text>
-          <View style={styles.coinBadge}>
-            <Text style={styles.coinBadgeText}>🪙 {(userProfile?.wallet?.coins || 0).toLocaleString()}</Text>
+          <View style={[styles.coinBadge, { flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+            <GoldenCoin size={24} />
+            <Text style={styles.coinBadgeText}>{(userProfile?.wallet?.coins || 0).toLocaleString()}</Text>
           </View>
         </View>
 
@@ -604,9 +614,12 @@ export default function StoreScreen() {
                       style={[styles.durationChip, selectedDuration === d && styles.durationChipActive]}
                     >
                       <Text style={[styles.durationText, selectedDuration === d && styles.durationTextActive]}>{d} Days</Text>
-                      <Text style={[styles.durationPrice, selectedDuration === d && styles.durationTextActive]}>
-                        🪙 {getPrice(previewItem.price, d).toLocaleString()}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
+                        <GoldenCoin size={18} />
+                        <Text style={[styles.durationPrice, { marginTop: 0 }, selectedDuration === d && styles.durationTextActive]}>
+                          {getPrice(previewItem.price, d).toLocaleString()}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -626,7 +639,11 @@ export default function StoreScreen() {
                       {isProcessing ? (
                         <ActivityIndicator color="#fff" size="small" />
                       ) : (
-                        <Text style={styles.buyBtnText}>Buy 🪙 {getPrice(previewItem.price, selectedDuration).toLocaleString()}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                          <Text style={styles.buyBtnText}>Buy</Text>
+                          <GoldenCoin size={24} />
+                          <Text style={styles.buyBtnText}>{getPrice(previewItem.price, selectedDuration).toLocaleString()}</Text>
+                        </View>
                       )}
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -706,7 +723,11 @@ export default function StoreScreen() {
                 {isProcessing ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
-                  <Text style={styles.sendBtnText}>Send to {selectedRecipient.username} 🪙 {getPrice(previewItem?.price || 0, selectedDuration).toLocaleString()}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <Text style={styles.sendBtnText}>Send to {selectedRecipient.username}</Text>
+                    <GoldenCoin size={24} />
+                    <Text style={styles.sendBtnText}>{getPrice(previewItem?.price || 0, selectedDuration).toLocaleString()}</Text>
+                  </View>
                 )}
               </TouchableOpacity>
             )}

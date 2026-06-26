@@ -155,7 +155,7 @@ export function GiftAnimationOverlay({ events }: GiftAnimationOverlayProps) {
 
         <View style={{ position: 'absolute', bottom: 160, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16, paddingHorizontal: 24, paddingVertical: 12, alignItems: 'center' }}>
           <Text style={{ color: 'white', fontSize: 14, fontWeight: 'bold' }}>
-            {latestEvent.senderName} sent {latestEvent.giftName}
+            {latestEvent.senderName} sent {latestEvent.giftName} {latestEvent.quantity > 1 ? `x${latestEvent.quantity}` : ''}
           </Text>
           {latestEvent.multiplier && latestEvent.multiplier > 1 && (
             <Text style={{ color: '#fbbf24', fontSize: 12, fontWeight: 'bold', marginTop: 4 }}>

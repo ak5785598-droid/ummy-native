@@ -2,8 +2,22 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import { Image } from 'expo-image';
+import { useUser } from '../../firebase/provider';
+import { useUserProfile } from '../../hooks/use-user-profile';
+
+const CREATOR_ID = '901piBzTQ0VzCtAvlyyobwvAaTs1';
 
 export function RewardsTab() {
+  const { user } = useUser();
+  const { profile: adminProfile } = useUserProfile(user?.uid);
+
+  const adminId = user?.uid || 'unknown';
+  const adminName = adminProfile?.username || user?.email || 'Unknown Admin';
+  const isCreator = user?.uid === CREATOR_ID;
+  const adminRole = isCreator ? 'Creator' : (
+    adminProfile?.tags?.some((t: string) => ['Seller', 'Seller center', 'Coin Seller'].includes(t)) ? 'Seller' : 'Admin'
+  );
+
   const [userIdInput, setUserIdInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [foundUser, setFoundUser] = useState<any>(null);
@@ -63,9 +77,9 @@ export function RewardsTab() {
       const logRef = firestore().collection('coin_audit_logs').doc();
       batch.set(logRef, {
         id: logRef.id,
-        adminId: '901piBzTQ0VzCtAvlyyobwvAaTs1',
-        adminName: 'Creator Admin',
-        adminRole: 'Creator',
+        adminId: adminId,
+        adminName: adminName,
+        adminRole: adminRole,
         targetId: foundUser.id,
         targetName: foundUser.username || 'Unknown User',
         targetAccount: foundUser.accountNumber || 'N/A',

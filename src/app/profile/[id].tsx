@@ -18,6 +18,7 @@ import { ReportUserDialog } from '../../components/profile/ReportUserDialog';
 import { FullProfileDialog } from '../../components/profile/FullProfileDialog';
 import { MedalModal } from '../../components/profile/MedalModal';
 import { Image } from 'expo-image';
+import { PremiumDiamond } from '@/components/PremiumDiamond';
 import {
   SVGA_OfficialTag,
   SVGA_SellerTag,
@@ -269,7 +270,7 @@ export default function ProfileScreen() {
   });
 
   const currentDBId = liveID || profile?.accountNumber;
-  const isCorrectFormat = /^\d{6}$/.test(String(currentDBId)) || (userId === CREATOR_ID && String(currentDBId) === '0000');
+  const isCorrectFormat = currentDBId && String(currentDBId).trim().length > 0;
   const displayID = isCorrectFormat ? String(currentDBId) : fallbackID;
 
   // ID sync
@@ -278,11 +279,11 @@ export default function ProfileScreen() {
       if (!isOwnProfile || !profile || !firestore || !userId) return;
       if ((profile as any).accountNumberLocked) return;
       const currentID = profile.accountNumber;
-      const isStrictlySixDigits = /^\d{6}$/.test(String(currentID));
+      const hasValidID = currentID && String(currentID).trim().length > 0;
       const isCreator = userId === CREATOR_ID;
 
       if (isCreator && currentID === '0000') return;
-      if (!isCreator && currentID && isStrictlySixDigits) return;
+      if (!isCreator && hasValidID) return;
 
       try {
         const uRef = doc(firestore, 'users', userId);
@@ -291,8 +292,8 @@ export default function ProfileScreen() {
         
         if (userData) {
           const dbID = userData.accountNumber;
-          const isDbIdValid = /^\d{6}$/.test(String(dbID));
-          if ((isCreator && dbID === '0000') || (!isCreator && dbID && isDbIdValid)) {
+          const isDbIdValid = dbID && String(dbID).trim().length > 0;
+          if ((isCreator && dbID === '0000') || (!isCreator && isDbIdValid)) {
             return;
           }
         }
@@ -562,9 +563,7 @@ export default function ProfileScreen() {
                 style={{ position: 'absolute', inset: 0, borderRadius: 16 }}
               />
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 10 }}>
-                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 14 }}>💎</Text>
-                </View>
+                <PremiumDiamond size={28} />
                 <Text style={{ fontSize: 10, fontWeight: '900', color: 'white', textTransform: 'uppercase', letterSpacing: 1, opacity: 0.9 }}>Diamonds</Text>
               </View>
               <Text style={{ 

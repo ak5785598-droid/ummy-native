@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import storage from '@react-native-firebase/storage';
+import { GoldenCoin } from '../../components/GoldenCoin';
 
 const CREATE_COST = 100000;
 
@@ -76,6 +77,7 @@ export default function CreateFamilyPage() {
       const familyRef = doc(firestore, 'families', familyId);
 
       await setDoc(userRef, {
+        'wallet.coins': increment(-CREATE_COST),
         familyId,
         updatedAt: serverTimestamp()
       }, { merge: true });
@@ -188,7 +190,7 @@ export default function CreateFamilyPage() {
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Text style={{ color: '#EAB308', fontSize: 20, fontWeight: '900' }}>{CREATE_COST.toLocaleString()}</Text>
-              <Text style={{ color: '#EAB308', fontSize: 12, fontWeight: '700' }}>🪙</Text>
+              <GoldenCoin size={28} />
             </View>
           </View>
 

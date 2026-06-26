@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Platform } from 'react-native';
 import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, RadialGradient, Stop, Circle, Rect, Ellipse, Text as SvgText, G } from 'react-native-svg';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { Sparkles, DollarSign } from 'lucide-react-native';
+import { GoldenCoin } from '../GoldenCoin';
 
 const serifFont = Platform.OS === 'ios' ? 'Georgia' : 'serif';
 
@@ -392,9 +393,7 @@ SVGA_VIPBanner.displayName = 'SVGA_VIPBanner';
 // ✅ QUICK ACTION ICONS
 // ============================================================
 export const SVGA_GoldDollar = React.memo(() => (
-  <View style={{ height: 28, width: 28, borderRadius: 14, backgroundColor: '#FDB931', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#FFE770' }}>
-    <DollarSign size={16} color="#5C4000" strokeWidth={3} />
-  </View>
+  <GoldenCoin size={32} />
 ));
 SVGA_GoldDollar.displayName = 'SVGA_GoldDollar';
 

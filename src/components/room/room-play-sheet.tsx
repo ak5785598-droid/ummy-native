@@ -6,11 +6,11 @@ import { ChevronLeft, Music, Play, Upload, Search, Trash2, Power } from 'lucide-
 
 const GAME_CONTROLLER = require('../../../assets/images/play-icons/game_controller.jpg');
 const ICON_GAMES = require('../../../assets/images/play-icons/icon_games.jpg');
-const ICON_MUSIC = require('../../../assets/images/play-icons/music_notes.jpg');
+const ICON_MUSIC = require('../../../assets/images/play-icons/icon_music.png');
 const ICON_CLEAN = require('../../../assets/images/play-icons/icon_clean.png');
 const ICON_PUBLIC_MSG = require('../../../assets/images/play-icons/icon_public_msg.png');
 const ICON_GIFT_EFFECTS = require('../../../assets/images/play-icons/icon_gift_effects.png');
-const ICON_YOUTUBE = require('../../../assets/images/play-icons/icon_youtube.png');
+const ICON_YOUTUBE = require('../../../assets/images/play-icons/icon_youtube.jpg');
 const ICON_NETMIRROR = require('../../../assets/images/play-icons/icon_netmirror.jpg');
 const ICON_MOVIE = require('../../../assets/images/play-icons/icon_movie.png');
 const ICON_SCREEN = require('../../../assets/images/play-icons/icon_screen.png');
@@ -23,6 +23,7 @@ import { Room, RoomParticipant } from '../../lib/types';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import * as DocumentPicker from 'expo-document-picker';
 import { Image } from 'expo-image';
+import { GoldenCoin } from '../GoldenCoin';
 
 interface RoomPlaySheetProps {
   visible: boolean;
@@ -362,8 +363,8 @@ export function RoomPlaySheet({ visible, onClose, roomId, room, participants, on
                     >
                       <Image
                         source={opt.icon}
-                        style={{ width: 46, height: 46 }}
-                        contentFit="contain"
+                        style={{ width: '100%', height: '100%' }}
+                        contentFit="cover"
                       />
                       {opt.showDot && (
                         <View style={{

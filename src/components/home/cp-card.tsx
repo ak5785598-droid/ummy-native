@@ -80,7 +80,6 @@ export function CpCard({ onPress }: CpCardProps) {
   }, [mode, activeIndex, cpCount]);
 
   const currentCp = topCp?.[activeIndex];
-  const medal = activeIndex === 0 ? '🥇' : activeIndex === 1 ? '🥈' : '🥉';
   const heartEmoji = activeIndex === 0 ? '💖' : activeIndex === 1 ? '❤️' : '💕';
   return (
     <TouchableOpacity
@@ -126,9 +125,6 @@ export function CpCard({ onPress }: CpCardProps) {
                     source={{ uri: currentCp.user2Avatar || 'https://picsum.photos/100' }}
                     style={[styles.avatar, styles.rightAvatar]}
                   />
-                  <View style={styles.medalBadge}>
-                    <Text style={styles.medalText}>{medal}</Text>
-                  </View>
                 </View>
                 <Text numberOfLines={1} style={styles.nameText}>
                   {currentCp.user1Name || 'User1'} & {currentCp.user2Name || 'User2'}
@@ -166,10 +162,9 @@ export function CpCard({ onPress }: CpCardProps) {
                       source={{ uri: topCp[1].user2Avatar || 'https://picsum.photos/100' }}
                       style={[styles.podiumAvatarSmall, styles.rightAvatar, { borderColor: '#cbd5e1' }]}
                     />
-                    <View style={styles.podiumMedalBadge}><Text style={styles.medalText}>🥈</Text></View>
                   </View>
                 ) : (
-                  <View style={[styles.podiumAvatarSmall, styles.placeholderAvatar, { borderColor: '#cbd5e1', borderWidth: 1 }]}><Text style={styles.medalText}>🥈</Text></View>
+                  <View style={[styles.podiumAvatarSmall, styles.placeholderAvatar, { borderColor: '#cbd5e1', borderWidth: 1 }]} />
                 )}
               </View>
 
@@ -187,10 +182,9 @@ export function CpCard({ onPress }: CpCardProps) {
                       source={{ uri: topCp[0].user2Avatar || 'https://picsum.photos/100' }}
                       style={[styles.podiumAvatarMedium, styles.rightAvatar, { borderColor: '#fbbf24' }]}
                     />
-                    <View style={styles.podiumMedalBadgeLarge}><Text style={styles.medalTextLarge}>🥇</Text></View>
                   </View>
                 ) : (
-                  <View style={[styles.podiumAvatarMedium, styles.placeholderAvatar, { borderColor: '#fbbf24', borderWidth: 1.5 }]}><Text style={styles.medalTextLarge}>🥇</Text></View>
+                  <View style={[styles.podiumAvatarMedium, styles.placeholderAvatar, { borderColor: '#fbbf24', borderWidth: 1.5 }]} />
                 )}
               </View>
 
@@ -208,10 +202,9 @@ export function CpCard({ onPress }: CpCardProps) {
                       source={{ uri: topCp[2].user2Avatar || 'https://picsum.photos/100' }}
                       style={[styles.podiumAvatarSmall, styles.rightAvatar, { borderColor: '#d97706' }]}
                     />
-                    <View style={styles.podiumMedalBadge}><Text style={styles.medalText}>🥉</Text></View>
                   </View>
                 ) : (
-                  <View style={[styles.podiumAvatarSmall, styles.placeholderAvatar, { borderColor: '#d97706', borderWidth: 1 }]}><Text style={styles.medalText}>🥉</Text></View>
+                  <View style={[styles.podiumAvatarSmall, styles.placeholderAvatar, { borderColor: '#d97706', borderWidth: 1 }]} />
                 )}
               </View>
             </View>

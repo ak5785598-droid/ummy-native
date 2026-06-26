@@ -180,7 +180,7 @@ export default function OnboardingScreen() {
 
   return (
     <View className="flex-1">
-      <LinearGradient colors={['#ff8ebb', '#ffade0', '#f472b6']} className="absolute inset-0" />
+      <LinearGradient colors={['#0a0026', '#B027FF', '#6b0643']} className="absolute inset-0" />
       <View className="absolute inset-0 bg-black/30" />
 
       <View className="flex-row justify-center gap-2 pt-16 pb-6">

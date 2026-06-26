@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, Linking, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, Linking, StyleSheet, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, RefreshCw, Send, CheckCircle2, AlertCircle } from 'lucide-react-native';
@@ -8,6 +8,8 @@ import { useUser } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import firestore from '@react-native-firebase/firestore';
 import { Image } from 'expo-image';
+import { GoldenCoin } from '../../components/GoldenCoin';
+import { PremiumDiamond } from '../../components/PremiumDiamond';
 
 const COIN_PACKAGES = [
   { id: 'p1', amount: '50,000', price: '10', bonus: null },
@@ -58,6 +60,19 @@ export default function WalletScreen() {
       });
     return () => unsub();
   }, []);
+
+  // Handle hardware back button
+  useEffect(() => {
+    const onBackPress = () => {
+      if (activeTab === 'Diamonds') {
+        setActiveTab('Coins');
+        return true;
+      }
+      return false;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [activeTab]);
 
   const coins = userProfile?.wallet?.coins || 0;
   const diamonds = userProfile?.wallet?.diamonds || 0;
@@ -142,13 +157,15 @@ export default function WalletScreen() {
       const uRef = firestore().collection('users').doc(user.uid);
       const pRef = firestore().collection('users').doc(user.uid).collection('profile').doc(user.uid);
 
-      batch.update(pRef, {
+      const exchangeUpdate = {
         'wallet.diamonds': firestore.FieldValue.increment(-reqDiamonds),
         'wallet.coins': firestore.FieldValue.increment(resCoins),
         updatedAt: firestore.FieldValue.serverTimestamp()
-      });
+      };
 
-      // Audit Log
+      batch.set(pRef, exchangeUpdate, { merge: true });
+      batch.set(uRef, exchangeUpdate, { merge: true });
+
       const auditRef = firestore().collection('users').doc(user.uid).collection('diamondExchanges').doc();
       batch.set(auditRef, {
         id: auditRef.id,
@@ -188,11 +205,14 @@ export default function WalletScreen() {
       const uRef = firestore().collection('users').doc(user.uid);
       const pRef = firestore().collection('users').doc(user.uid).collection('profile').doc(user.uid);
 
-      batch.update(pRef, {
+      const exchangeUpdate = {
         'wallet.diamonds': firestore.FieldValue.increment(-reqDiamonds),
         'wallet.coins': firestore.FieldValue.increment(resCoins),
         updatedAt: firestore.FieldValue.serverTimestamp()
-      });
+      };
+
+      batch.set(pRef, exchangeUpdate, { merge: true });
+      batch.set(uRef, exchangeUpdate, { merge: true });
 
       const auditRef = firestore().collection('users').doc(user.uid).collection('diamondExchanges').doc();
       batch.set(auditRef, {
@@ -239,37 +259,61 @@ export default function WalletScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, padding: 16 }}>
+      <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 6, paddingBottom: 32 }}>
         {/* Balances card */}
-        <View style={styles.balanceGrid}>
-          <LinearGradient colors={['#FFD700', '#FDB931', '#9E7302']} style={styles.balanceCard}>
-            <Text style={styles.cardLabel}>Coins Balance</Text>
-            <Text style={styles.cardValue}>🪙 {coins.toLocaleString()}</Text>
-          </LinearGradient>
-          <LinearGradient colors={['#00D2FF', '#3a7bd5', '#004e92']} style={styles.balanceCard}>
-            <Text style={styles.cardLabel}>Diamonds</Text>
-            <Text style={styles.cardValue}>💎 {diamonds.toLocaleString()}</Text>
-          </LinearGradient>
+        <View style={{ marginBottom: 20 }}>
+          {activeTab === 'Coins' ? (
+            <LinearGradient colors={['#FFD700', '#FDB931', '#9E7302']} start={{x:0, y:0}} end={{x:1, y:1}} style={{ padding: 16, borderRadius: 20, minHeight: 90, justifyContent: 'center' }}>
+              <Text style={styles.cardLabel}>Coins Balance</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                <Text style={[styles.cardValue, { fontSize: 26 }]} numberOfLines={1}>{coins.toLocaleString()}</Text>
+                <GoldenCoin size={36} />
+              </View>
+            </LinearGradient>
+          ) : (
+            <LinearGradient colors={['#00D2FF', '#3a7bd5', '#004e92']} start={{x:0, y:0}} end={{x:1, y:1}} style={{ padding: 16, borderRadius: 20, minHeight: 90, justifyContent: 'center' }}>
+              <Text style={styles.cardLabel}>Diamonds</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                <Text style={[styles.cardValue, { fontSize: 26 }]} numberOfLines={1}>{diamonds.toLocaleString()}</Text>
+                <PremiumDiamond size={36} />
+              </View>
+            </LinearGradient>
+          )}
         </View>
 
         {activeTab === 'Coins' ? (
           <View style={{ marginBottom: 40 }}>
             <Text style={styles.sectionTitle}>Select Coin Recharge Package</Text>
 
-            {/* Packages Grid */}
-            <View style={styles.grid}>
+            {/* Packages List */}
+            <View style={{ gap: 10, marginBottom: 20 }}>
               {COIN_PACKAGES.map(pkg => {
                 const selected = selectedPackageId === pkg.id;
                 return (
                   <TouchableOpacity
                     key={pkg.id}
                     onPress={() => setSelectedPackageId(pkg.id)}
-                    style={[styles.pkgCard, selected && styles.pkgCardSelected]}
+                    style={{
+                      width: '100%',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: 16,
+                      borderRadius: 16,
+                      borderWidth: 1.5,
+                      borderColor: selected ? '#7c3aed' : '#e2e8f0',
+                      backgroundColor: selected ? '#f5f3ff' : '#f8fafc',
+                    }}
                   >
-                    <Text style={styles.pkgCoins}>🪙 {pkg.amount}</Text>
-                    {pkg.bonus && <Text style={styles.pkgBonus}>Bonus: {pkg.bonus.toLocaleString()}</Text>}
-                    <View style={styles.pkgPriceBadge}>
-                      <Text style={styles.pkgPrice}>₹{pkg.price}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <GoldenCoin size={22} />
+                      <View>
+                        <Text style={{ fontSize: 16, fontWeight: '900', color: '#1e293b' }}>{pkg.amount}</Text>
+                        {pkg.bonus && <Text style={{ fontSize: 10, fontWeight: '800', color: '#10b981', textTransform: 'uppercase', marginTop: 2 }}>Bonus: +{pkg.bonus.toLocaleString()}</Text>}
+                      </View>
+                    </View>
+                    <View style={{ backgroundColor: '#7c3aed', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10 }}>
+                      <Text style={{ color: '#fff', fontSize: 13, fontWeight: '900' }}>₹{pkg.price}</Text>
                     </View>
                   </TouchableOpacity>
                 );
@@ -322,17 +366,34 @@ export default function WalletScreen() {
             <Text style={styles.sectionTitle}>Preset Exchange Vaults</Text>
 
             {/* Diamond Exchange Presets */}
-            <View style={styles.grid}>
+            <View style={{ gap: 10, marginBottom: 20 }}>
               {DIAMOND_EXCHANGE_PACKAGES.map(pkg => {
                 const selected = selectedDiamondId === pkg.id;
                 return (
                   <TouchableOpacity
                     key={pkg.id}
                     onPress={() => setSelectedDiamondId(pkg.id)}
-                    style={[styles.pkgCard, selected && styles.pkgCardSelected]}
+                    style={{
+                      width: '100%',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: 16,
+                      borderRadius: 16,
+                      borderWidth: 1.5,
+                      borderColor: selected ? '#7c3aed' : '#e2e8f0',
+                      backgroundColor: selected ? '#f5f3ff' : '#f8fafc',
+                    }}
                   >
-                    <Text style={styles.pkgCoins}>💎 {pkg.diamonds.toLocaleString()}</Text>
-                    <Text style={styles.pkgBonus}>Receive: 🪙 {pkg.coins.toLocaleString()}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <PremiumDiamond size={24} />
+                      <Text style={{ fontSize: 16, fontWeight: '900', color: '#1e293b' }}>{pkg.diamonds.toLocaleString()}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(16,185,129,0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#10b981', textTransform: 'uppercase' }}>Receive:</Text>
+                      <GoldenCoin size={18} />
+                      <Text style={{ fontSize: 13, fontWeight: '900', color: '#10b981' }}>{pkg.coins.toLocaleString()}</Text>
+                    </View>
                   </TouchableOpacity>
                 );
               })}
@@ -362,9 +423,13 @@ export default function WalletScreen() {
                 style={styles.input}
               />
               {customDiamonds.trim() ? (
-                <Text style={styles.computedText}>
-                  Will receive: 🪙 {Math.floor((parseInt(customDiamonds) || 0) * CONVERSION_RATE).toLocaleString()} Coins
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                  <Text style={styles.computedText}>Will receive: </Text>
+                  <GoldenCoin size={15} />
+                  <Text style={[styles.computedText, { color: '#fbbf24', fontWeight: 'bold' }]}>
+                    {Math.floor((parseInt(customDiamonds) || 0) * CONVERSION_RATE).toLocaleString()} Coins
+                  </Text>
+                </View>
               ) : null}
               <TouchableOpacity
                 onPress={handleCustomExchange}
@@ -404,7 +469,9 @@ const styles = StyleSheet.create({
   tabContainer: {
     flexDirection: 'row',
     backgroundColor: '#f1f5f9',
-    margin: 16,
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 6,
     borderRadius: 14,
     padding: 4
   },

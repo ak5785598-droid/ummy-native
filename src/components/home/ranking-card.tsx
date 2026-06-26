@@ -197,7 +197,6 @@ export function RankingCard({ onPress }: RankingCardProps) {
   }, [mode, activeIndex, usersCount]);
 
   const currentUser = topUsers?.[activeIndex];
-  const medal = activeIndex === 0 ? '🥇' : activeIndex === 1 ? '🥈' : '🥉';
   const frameColor = activeIndex === 0 ? '#fbbf24' : activeIndex === 1 ? '#cbd5e1' : '#d97706';
 
   return (
@@ -240,9 +239,6 @@ export function RankingCard({ onPress }: RankingCardProps) {
                     source={{ uri: currentUser.avatarUrl || 'https://picsum.photos/100' }}
                     style={styles.avatar}
                   />
-                  <View style={styles.medalBadge}>
-                    <Text style={styles.medalText}>{medal}</Text>
-                  </View>
                 </View>
                 <Text numberOfLines={1} style={styles.nameText}>{currentUser.username || 'User'}</Text>
                 <Text style={styles.spentText}>🪙 {currentUser.wallet?.dailySpent?.toLocaleString() || 0}</Text>
@@ -270,10 +266,9 @@ export function RankingCard({ onPress }: RankingCardProps) {
                       source={{ uri: topUsers[1].avatarUrl || 'https://picsum.photos/100' }}
                       style={[styles.podiumAvatar, { borderColor: '#cbd5e1' }]}
                     />
-                    <View style={styles.podiumMedalBadge}><Text style={styles.medalText}>🥈</Text></View>
                   </View>
                 ) : (
-                  <View style={[styles.podiumAvatar, styles.placeholderAvatar, { borderColor: '#cbd5e1', borderWidth: 1.5 }]}><Text style={styles.medalText}>🥈</Text></View>
+                  <View style={[styles.podiumAvatar, styles.placeholderAvatar, { borderColor: '#cbd5e1', borderWidth: 1.5 }]} />
                 )}
               </View>
 
@@ -286,10 +281,9 @@ export function RankingCard({ onPress }: RankingCardProps) {
                       source={{ uri: topUsers[0].avatarUrl || 'https://picsum.photos/100' }}
                       style={[styles.podiumAvatarLarge, { borderColor: '#fbbf24' }]}
                     />
-                    <View style={styles.podiumMedalBadgeLarge}><Text style={styles.medalTextLarge}>🥇</Text></View>
                   </View>
                 ) : (
-                  <View style={[styles.podiumAvatarLarge, styles.placeholderAvatar, { borderColor: '#fbbf24', borderWidth: 2 }]}><Text style={styles.medalTextLarge}>🥇</Text></View>
+                  <View style={[styles.podiumAvatarLarge, styles.placeholderAvatar, { borderColor: '#fbbf24', borderWidth: 2 }]} />
                 )}
               </View>
 
@@ -302,10 +296,9 @@ export function RankingCard({ onPress }: RankingCardProps) {
                       source={{ uri: topUsers[2].avatarUrl || 'https://picsum.photos/100' }}
                       style={[styles.podiumAvatar, { borderColor: '#d97706' }]}
                     />
-                    <View style={styles.podiumMedalBadge}><Text style={styles.medalText}>🥉</Text></View>
                   </View>
                 ) : (
-                  <View style={[styles.podiumAvatar, styles.placeholderAvatar, { borderColor: '#d97706', borderWidth: 1.5 }]}><Text style={styles.medalText}>🥉</Text></View>
+                  <View style={[styles.podiumAvatar, styles.placeholderAvatar, { borderColor: '#d97706', borderWidth: 1.5 }]} />
                 )}
               </View>
             </View>

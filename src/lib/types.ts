@@ -224,6 +224,7 @@ export type Room = {
   hostName?: string;
   hostAvatar?: string;
   updatedAt?: any;
+  bannedUsers?: string[];
 };
 
 export type Gift = {

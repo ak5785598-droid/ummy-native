@@ -106,8 +106,16 @@ export const SellerTransferDialog = ({ trigger }: any) => {
       const receiverProfileRef = firestore().collection('users').doc(foundRecipient.id).collection('profile').doc(foundRecipient.id);
       const receiverNotifRef = firestore().collection('users').doc(foundRecipient.id).collection('notifications').doc();
 
+      batch.update(senderRef, { 
+        'wallet.coins': firestore.FieldValue.increment(-coinsToTransfer),
+        updatedAt: firestore.FieldValue.serverTimestamp()
+      });
       batch.update(senderProfileRef, { 
         'wallet.coins': firestore.FieldValue.increment(-coinsToTransfer),
+        updatedAt: firestore.FieldValue.serverTimestamp()
+      });
+      batch.update(receiverRef, { 
+        'wallet.coins': firestore.FieldValue.increment(coinsToTransfer),
         updatedAt: firestore.FieldValue.serverTimestamp()
       });
       batch.update(receiverProfileRef, { 

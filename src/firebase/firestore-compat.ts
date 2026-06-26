@@ -54,8 +54,12 @@ export const increment = (n: number) => firestore.FieldValue.increment(n);
 export const arrayUnion = (...els: any[]) => firestore.FieldValue.arrayUnion(...els);
 export const arrayRemove = (...els: any[]) => firestore.FieldValue.arrayRemove(...els);
 
-export const getDoc = (ref: any) => ref.get();
-export const getDocs = (ref: any) => ref.get();
+export const getDoc = (ref: any): Promise<any> => {
+  return ref.get();
+};
+export const getDocs = (ref: any): Promise<any> => {
+  return ref.get();
+};
 
 export const setDoc = (ref: any, data: any, options?: { merge?: boolean }) => {
   if (options?.merge) return ref.set(data, { merge: true });

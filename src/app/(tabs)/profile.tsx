@@ -11,6 +11,7 @@ import * as Clipboard from 'expo-clipboard';
 import { useUser, useFirestore, useDoc } from '../../firebase/provider';
 import { collection, query, where, orderBy, limit, doc, serverTimestamp, setDoc } from '@/firebase/firestore-compat';
 import firestore from '@react-native-firebase/firestore';
+import { PremiumDiamond } from '@/components/PremiumDiamond';
 
 // Subcomponents
 import { 
@@ -364,7 +365,7 @@ export default function ProfileScreen() {
             <TouchableOpacity onPress={() => router.push('/wallet')} className="flex-1 h-[85px] rounded-2xl p-4 overflow-hidden">
               <LinearGradient colors={['#00D2FF', '#3a7bd5', '#004e92']} start={{x:0, y:0}} end={{x:1, y:1}} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />
               <View className="flex-row items-center gap-2 z-10">
-                <View className="h-7 w-7 bg-white/20 rounded-full items-center justify-center border border-white/30"><Text>💎</Text></View>
+                <PremiumDiamond size={32} />
                 <Text className="text-[10px] font-black text-white uppercase tracking-widest">Diamonds</Text>
               </View>
               <Text className="font-black text-[20px] text-white tracking-tighter absolute bottom-4 left-5">

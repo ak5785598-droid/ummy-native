@@ -10,6 +10,7 @@ import { getLevelFromSpent } from '../../hooks/use-user-level';
 import { getCpLevelFromValue } from '../../lib/level-utils';
 import { Gift, RoomParticipant } from '../../lib/types';
 import { Image } from 'expo-image';
+import { GoldenCoin } from '../GoldenCoin';
 
 const { width } = Dimensions.get('window');
 
@@ -188,21 +189,21 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
         'level.rich': newLevel,
         updatedAt: serverTimestamp(),
       };
-      batch.set(senderProfileRef, coinUpdate, { merge: true });
-      batch.set(senderUserRef, coinUpdate, { merge: true });
+      batch.update(senderProfileRef, coinUpdate);
+      batch.update(senderUserRef, coinUpdate);
 
       validUids.forEach(uid => {
         const recipientProfileRef = doc(firestore, 'users', uid, 'profile', uid);
         const diamondReward = Math.floor((gift.price * qty) * 0.4);
         
-        batch.set(recipientProfileRef, {
+        batch.update(recipientProfileRef, {
           'wallet.diamonds': increment(diamondReward),
           'stats.dailyGiftsReceived': increment(diamondReward),
           [`stats.receivedGifts.${gift.id || gift.name}`]: increment(qty),
           [`stats.giftDetails.${gift.id || gift.name}_name`]: gift.name || "Gift",
           [`stats.giftDetails.${gift.id || gift.name}_imageUrl`]: gift.imageUrl || null,
           updatedAt: serverTimestamp(),
-        }, { merge: true });
+        });
       });
 
       const supporterRef = doc(firestore, 'chatRooms', roomId, 'topSupporters', user.uid);
@@ -507,17 +508,20 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
                       <Text style={{ fontSize: 28, marginBottom: 2 }}>🎁</Text>
                     )}
                     <Text style={{ color: 'white', fontSize: 9, fontWeight: '700' }} numberOfLines={1}>{gift.name}</Text>
-                    <Text style={{ color: '#fbbf24', fontSize: 8, fontWeight: '700' }}>{gift.price}</Text>
+                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 1 }}>
+                       <GoldenCoin size={15} />
+                       <Text style={{ color: '#fbbf24', fontSize: 10, fontWeight: '700' }}>{gift.price}</Text>
+                     </View>
                   </TouchableOpacity>
                 ))}
               </View>
             </ScrollView>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Text style={{ color: '#fbbf24', fontSize: 14 }}>🪙</Text>
-                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, fontWeight: '700' }}>{userCoins.toLocaleString()}</Text>
-              </View>
+               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                 <GoldenCoin size={26} />
+                 <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 15, fontWeight: '700' }}>{userCoins.toLocaleString()}</Text>
+               </View>
 
               <TouchableOpacity 
                 onPress={() => setShowQuantityPopup(!showQuantityPopup)}

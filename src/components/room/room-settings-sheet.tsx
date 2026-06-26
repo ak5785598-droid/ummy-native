@@ -87,8 +87,7 @@ export function RoomSettingsSheet({ visible, onClose, room, participants }: Room
   const [micEditOpen, setMicEditOpen] = useState(false);
   const [micTestOpen, setMicTestOpen] = useState(false);
   const [showThemeArchitect, setShowThemeArchitect] = useState(false);
-  const [showTransferOwner, setShowTransferOwner] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   const [themePrompt, setThemePrompt] = useState('');
   const [generatingTheme, setGeneratingTheme] = useState(false);
   const [generatedTheme, setGeneratedTheme] = useState<any>(null);
@@ -180,13 +179,6 @@ export function RoomSettingsSheet({ visible, onClose, room, participants }: Room
     setIsUploading(false);
   };
 
-  const handleMuteRoom = async () => {
-    if (!room?.id) return;
-    const newMuted = !isSpeakerMuted;
-    setIsSpeakerMuted(newMuted);
-    await handleUpdate('isMuted', newMuted);
-  };
-
   const handleGenerateTheme = async () => {
     if (!themePrompt.trim() || generatingTheme || !room?.id) return;
     setGeneratingTheme(true);
@@ -225,34 +217,6 @@ export function RoomSettingsSheet({ visible, onClose, room, participants }: Room
       Alert.alert('Error', 'Network error. Failed to generate theme.');
     }
     setGeneratingTheme(false);
-  };
-
-  const handleTransferOwnership = async (newOwnerUid: string) => {
-    if (!firestore || !room?.id) return;
-    try {
-      await updateDoc(doc(firestore, 'chatRooms', room.id), { ownerId: newOwnerUid, updatedAt: serverTimestamp() });
-      Alert.alert('Ownership Transferred', 'Room ownership has been transferred successfully.');
-      setShowTransferOwner(false);
-    } catch (e) {
-      Alert.alert('Error', 'Failed to transfer ownership');
-    }
-  };
-
-  const handleDeleteRoom = async () => {
-    if (!firestore || !room?.id) return;
-    try {
-      const batch = writeBatch(firestore);
-      batch.delete(doc(firestore, 'chatRooms', room.id));
-      (participants || []).forEach(p => {
-        batch.delete(doc(firestore, 'chatRooms', room.id, 'participants', p.uid));
-      });
-      await batch.commit();
-      setShowDeleteConfirm(false);
-      onClose();
-      router.back();
-    } catch (e) {
-      Alert.alert('Error', 'Failed to delete room');
-    }
   };
 
   const goBack = () => {
@@ -319,11 +283,7 @@ export function RoomSettingsSheet({ visible, onClose, room, participants }: Room
                 onOpenMicEdit={() => setMicEditOpen(true)}
                 onOpenMicTest={() => setMicTestOpen(true)}
                 onAvatarUpload={handleAvatarUpload}
-                onClearChat={async () => { if (room?.id && firestore) { await updateDoc(doc(firestore, 'chatRooms', room.id), { chatClearedAt: serverTimestamp(), updatedAt: serverTimestamp() }); }}}
-                onMuteRoom={handleMuteRoom}
                 onOpenThemeArchitect={() => setShowThemeArchitect(true)}
-                onOpenTransferOwner={() => setShowTransferOwner(true)}
-                onOpenDeleteRoom={() => setShowDeleteConfirm(true)}
               />
             )}
           </ScrollView>
@@ -344,14 +304,6 @@ export function RoomSettingsSheet({ visible, onClose, room, participants }: Room
 
         <PopupDialog visible={showThemeArchitect} onClose={() => setShowThemeArchitect(false)}>
           <ThemeArchitectPage prompt={themePrompt} onChange={setThemePrompt} onGenerate={handleGenerateTheme} generating={generatingTheme} onClose={() => { setShowThemeArchitect(false); setThemePrompt(''); }} />
-        </PopupDialog>
-
-        <PopupDialog visible={showTransferOwner} onClose={() => setShowTransferOwner(false)}>
-          <TransferOwnerPage room={room} participants={participants} onTransfer={handleTransferOwnership} onClose={() => setShowTransferOwner(false)} />
-        </PopupDialog>
-
-        <PopupDialog visible={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)}>
-          <DeleteConfirmPage room={room} onDelete={handleDeleteRoom} onClose={() => setShowDeleteConfirm(false)} />
         </PopupDialog>
 
         <PopupDialog visible={micEditOpen} onClose={() => setMicEditOpen(false)}>
@@ -385,8 +337,7 @@ function MainMenu({
   onOpenNameEdit, onOpenAnnouncementEdit, onOpenPasswordEdit,
   onOpenThemeEdit, onOpenAdminEdit, onOpenTagEdit, onOpenMicEdit,
   onOpenMicTest,
-  onAvatarUpload, onClearChat, onMuteRoom, onOpenThemeArchitect,
-  onOpenTransferOwner, onOpenDeleteRoom,
+  onAvatarUpload, onOpenThemeArchitect,
 }: any) {
   const iconColor = 'rgba(0,0,0,0.4)';
   return (
@@ -441,20 +392,7 @@ function MainMenu({
       <MenuItem label="Room Tag" value={room?.category || 'Chat'} onPress={onOpenTagEdit} icon={<Tag size={16} color={iconColor} />} />
       <MenuItem label="Administrators" onPress={onOpenAdminEdit} icon={<UserCheck size={16} color={iconColor} />} />
 
-      {canManage && (
-        <>
-          <View style={{ borderTopWidth: 1, borderColor: 'rgba(0,0,0,0.06)', marginTop: 16 }}>
-            <DangerItem label="Clear Chat" onPress={onClearChat} />
-            <DangerItem label="Mute Room" onPress={onMuteRoom} />
-          </View>
-          {isOwner && (
-            <View style={{ borderTopWidth: 1, borderColor: 'rgba(0,0,0,0.06)', marginTop: 8 }}>
-              <DangerItem label="Transfer Ownership" onPress={onOpenTransferOwner} />
-              <DangerItem label="Delete Room" onPress={onOpenDeleteRoom} destructive />
-            </View>
-          )}
-        </>
-      )}
+
       <View style={{ height: 32 }} />
     </View>
   );
@@ -636,48 +574,6 @@ function ThemeArchitectPage({ prompt, onChange, onGenerate, generating, onClose 
           {generating ? <ActivityIndicator size="small" color="white" /> : <Sparkle size={16} color="white" />}
           <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>{generating ? 'Generating...' : 'Generate ✨'}</Text>
         </TouchableOpacity>
-      </View>
-    </View>
-  );
-}
-
-function TransferOwnerPage({ room, participants, onTransfer, onClose }: any) {
-  const eligible = (participants || []).filter((p: any) => p.uid !== room?.ownerId);
-  return (
-    <View className="p-2">
-      <Text className="text-slate-500 text-xs font-bold uppercase tracking-widest text-center mb-4">Transfer Ownership</Text>
-      {eligible.length === 0 ? (
-        <Text className="text-slate-400 text-sm text-center py-10">No other participants to transfer to</Text>
-      ) : eligible.map((p: RoomParticipant) => (
-        <TouchableOpacity key={p.uid} onPress={() => {
-          Alert.alert('Transfer Ownership', `Transfer room ownership to ${p.name}?`, [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Transfer', style: 'destructive', onPress: () => onTransfer(p.uid) }
-          ]);
-        }} className="flex-row items-center justify-between px-3 py-3 border-b border-slate-100">
-          <View className="flex-row items-center gap-3">
-            <Image cachePolicy="memory-disk" source={{ uri: p.avatarUrl || 'https://picsum.photos/100' }} className="w-10 h-10 rounded-full bg-slate-200" />
-            <Text className="text-slate-800 text-sm font-bold">{p.name}</Text>
-          </View>
-          <Crown size={16} color="#fbbf24" />
-        </TouchableOpacity>
-      ))}
-      <TouchableOpacity onPress={onClose} className="mt-4 bg-slate-100 rounded-2xl py-3.5 items-center mx-3"><Text className="text-slate-600 font-bold text-sm">Cancel</Text></TouchableOpacity>
-    </View>
-  );
-}
-
-function DeleteConfirmPage({ room, onDelete, onClose }: any) {
-  return (
-    <View className="p-6 items-center">
-      <View className="w-16 h-16 rounded-full bg-red-500/10 items-center justify-center mb-4">
-        <Trash2 size={28} color="#ef4444" />
-      </View>
-      <Text className="text-slate-900 text-lg font-bold mb-2">Delete Room?</Text>
-      <Text className="text-slate-500 text-sm text-center mb-6">This will permanently delete "{room?.title || room?.name}" and all its messages. This action cannot be undone.</Text>
-      <View className="flex-row gap-3 w-full">
-        <TouchableOpacity onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 16, paddingVertical: 14, alignItems: 'center' }}><Text style={{ color: '#6b7280', fontWeight: 'bold', fontSize: 14 }}>Cancel</Text></TouchableOpacity>
-        <TouchableOpacity onPress={onDelete} className="flex-1 bg-red-600 rounded-2xl py-3.5 items-center"><Text className="text-white font-bold text-sm">Delete</Text></TouchableOpacity>
       </View>
     </View>
   );

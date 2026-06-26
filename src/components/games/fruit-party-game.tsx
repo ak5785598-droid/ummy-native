@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useUser } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { useFirestore } from '../../firebase/provider';
-import { doc, updateDoc, increment, addDoc, collection, getDoc } from '@/firebase/firestore-compat';
+import { doc, updateDoc, increment, addDoc, collection, getDoc, writeBatch } from '@/firebase/firestore-compat';
 import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Audio } from 'expo-av';
@@ -148,31 +148,39 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
     }
   }, [gameState, timeLeft]);
 
-  const handlePlaceBet = (fruitId: string) => {
-    if (gameState !== 'betting' || !currentUser) return;
-    if (localCoins < selectedChip) {
-      handleGoToWallet();
-      return;
-    }
-    setLocalCoins(p => p - selectedChip);
-    if (firestore) {
-      try { updateDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { 'wallet.coins': increment(-selectedChip) }); } catch {}
-    }
+  const handlePlaceBet = async (fruitId: string) => {
+    if (gameState !== 'betting' || !currentUser || !firestore) return;
+    try {
+      const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
+      const snap = await getDoc(profileRef);
+      const freshCoins = snap.exists() ? ((snap.data() as any)?.wallet?.coins ?? (userProfile?.wallet?.coins ?? 0)) : (userProfile?.wallet?.coins ?? 0);
+      if (freshCoins < selectedChip) { handleGoToWallet(); return; }
+      const batch = writeBatch(firestore);
+      const deductData = { 'wallet.coins': increment(-selectedChip) };
+      batch.set(profileRef, deductData, { merge: true });
+      batch.set(doc(firestore, 'users', currentUser.uid), deductData, { merge: true });
+      await batch.commit();
+      setLocalCoins(p => p - selectedChip);
+    } catch {}
     setDroppedChips(prev => [...prev, { id: `${Date.now()}-${Math.random()}`, fruitId, label: formatChipLabel(selectedChip) }]);
     setMyBets(prev => ({ ...prev, [fruitId]: (prev[fruitId] || 0) + selectedChip }));
   };
 
-  const handleRepeat = () => {
-    if (gameState !== 'betting' || Object.keys(lastBets).length === 0) return;
+  const handleRepeat = async () => {
+    if (gameState !== 'betting' || Object.keys(lastBets).length === 0 || !currentUser || !firestore) return;
     const totalCost = Object.values(lastBets).reduce((s, v) => s + v, 0);
-    if (localCoins < totalCost) {
-      handleGoToWallet();
-      return;
-    }
-    setLocalCoins(p => p - totalCost);
-    if (firestore && currentUser) {
-      try { updateDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { 'wallet.coins': increment(-totalCost) }); } catch {}
-    }
+    try {
+      const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
+      const snap = await getDoc(profileRef);
+      const freshCoins = snap.exists() ? ((snap.data() as any)?.wallet?.coins ?? (userProfile?.wallet?.coins ?? 0)) : (userProfile?.wallet?.coins ?? 0);
+      if (freshCoins < totalCost) { handleGoToWallet(); return; }
+      const batch = writeBatch(firestore);
+      const deductData = { 'wallet.coins': increment(-totalCost) };
+      batch.set(profileRef, deductData, { merge: true });
+      batch.set(doc(firestore, 'users', currentUser.uid), deductData, { merge: true });
+      await batch.commit();
+      setLocalCoins(p => p - totalCost);
+    } catch {}
     const newDrops: typeof droppedChips = [];
     Object.entries(lastBets).forEach(([fruitId, amount]) => {
       for (let i = 0; i < Math.ceil(amount / selectedChip); i++) {
@@ -265,7 +273,11 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
 
     if (winAmount > 0 && currentUser && firestore && userProfile) {
       try {
-        updateDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { 'wallet.coins': increment(winAmount) });
+        const batch = writeBatch(firestore);
+        const winData = { 'wallet.coins': increment(winAmount) };
+        batch.set(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), winData, { merge: true });
+        batch.set(doc(firestore, 'users', currentUser.uid), winData, { merge: true });
+        batch.commit().catch(() => {});
         addDoc(collection(firestore, 'globalGameWins'), {
           gameId: 'fruit-party', roomId: roomId || null, userId: currentUser.uid, username: userProfile.username || 'Guest',
           avatarUrl: userProfile.avatarUrl || null, amount: winAmount, betAmount: totalWagerForGroup, timestamp: new Date(),

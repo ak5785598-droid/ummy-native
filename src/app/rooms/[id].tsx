@@ -326,6 +326,31 @@ export default function RoomScreen() {
     } as any;
   }, [room, id, name, coverUrl, backgroundUrl, roomThemeId]);
 
+  // Record recent visit when room loads (web app parity)
+  useEffect(() => {
+    if (!firestore || !user?.uid || !displayRoom?.id) return;
+    const recordVisit = async () => {
+      try {
+        await setDocumentNonBlocking(
+          doc(firestore, 'users', user.uid, 'recentVisits', displayRoom.id),
+          {
+            id: displayRoom.id,
+            title: displayRoom.name || 'Room',
+            coverUrl: displayRoom.coverUrl || '',
+            roomNumber: displayRoom.roomNumber || '0000',
+            ownerId: displayRoom.ownerId || '',
+            participantCount: participants?.length || 1,
+            visitedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      } catch (e) {
+        // Silently fail
+      }
+    };
+    recordVisit();
+  }, [firestore, user?.uid, displayRoom?.id]);
+
   const [secondaryQueriesReady, setSecondaryQueriesReady] = useState(false);
   useEffect(() => {
     const timer = setTimeout(() => setSecondaryQueriesReady(true), 500);
@@ -735,7 +760,15 @@ export default function RoomScreen() {
 
   const handleTakeSeat = async (seatIdx: number) => {
     if (!firestore || !id || !user?.uid || !userProfile) return;
-    if (isSeatLocked(seatIdx)) return;
+    if ((room?.bannedUsers || []).includes(user.uid)) {
+      Alert.alert('Banned', 'You are banned from this room.');
+      return;
+    }
+    if (isSeatLocked(seatIdx) && !canManageRoom) return;
+    if (isSeatLocked(seatIdx) && canManageRoom) {
+      const currentLocked = room?.lockedSeats || [];
+      await updateDocumentNonBlocking(doc(firestore, 'chatRooms', id), { lockedSeats: currentLocked.filter(s => s !== seatIdx) });
+    }
     const isSeatMuted = room?.mutedSeats?.includes(seatIdx) || false;
     muteOverrideRef.current = isSeatMuted;
     forceUpdate(n => n + 1);
@@ -1000,7 +1033,7 @@ export default function RoomScreen() {
               </View>
             )}
             <View className="mt-2" style={{ flex: 1 }}>
-              <RoomChatArea messages={filteredMessages || []} chatClearedAt={displayRoom.chatClearedAt} onAvatarPress={(uid) => { setFullProfileUid(uid); setShowFullProfile(true); }} onImagePress={(url) => { setPreviewImageUrl(url); setShowImagePreview(true); }} targetLanguage={targetLanguage} sourceLanguage={sourceLanguage} />
+              <RoomChatArea messages={filteredMessages || []} chatClearedAt={displayRoom.chatClearedAt} onAvatarPress={(uid) => { setFullProfileUid(uid); setShowFullProfile(true); }} onImagePress={(url) => { setPreviewImageUrl(url); setShowImagePreview(true); }} targetLanguage={targetLanguage} sourceLanguage={sourceLanguage} canManage={canManageRoom} onDeleteMessage={(msgId) => { if (!firestore || !id) return; deleteDoc(doc(firestore, 'chatRooms', id, 'messages', msgId)); }} />
             </View>
           </ScrollView>
         </View>
@@ -1244,6 +1277,8 @@ export default function RoomScreen() {
         }}
         onViewProfile={(uid) => { setShowProfileCard(false); setFullProfileUid(uid); setShowFullProfile(true); }}
         isLocked={profileCardUser?.seatIndex !== undefined && (room?.lockedSeats || []).includes(profileCardUser.seatIndex)}
+        isBanned={profileCardUser?.uid ? (room?.bannedUsers || []).includes(profileCardUser.uid) : false}
+        onBan={(uid) => { if (!firestore || !id) return; const isBanned = (room?.bannedUsers || []).includes(uid); updateDocumentNonBlocking(doc(firestore, 'chatRooms', id), { bannedUsers: isBanned ? arrayRemove(uid) : arrayUnion(uid) }); }}
         onLockSeat={async (seatIdx) => {
           if (!firestore || !id) return;
           const currentLocked = room?.lockedSeats || [];

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity } from 'react-native';
-import { X, Heart, MessageCircle, Shield, Crown, Mic, MicOff, Gift, AtSign, UserX, Star, Zap, Sparkles } from 'lucide-react-native';
+import { X, Heart, MessageCircle, Shield, Crown, Mic, MicOff, Gift, AtSign, UserX, Star, Zap, Sparkles, UserPlus } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SVGA_OfficialTag, SVGA_SellerTag, SVGA_CSLeaderTag, SVGA_CustomerServiceTag, SVGA_ServiceTag, SVGA_HostTag } from '../profile/NativeSVGs';
 import { Image } from 'expo-image';
@@ -56,13 +56,15 @@ interface RoomProfileCardProps {
   onEcho?: (target: { uid: string; name: string; avatarUrl: string }) => void;
   isLocked?: boolean;
   onLockSeat?: (seatIndex: number) => void;
+  isBanned?: boolean;
+  onBan?: (uid: string) => void;
 }
 
 export function RoomProfileCard({
   visible, onClose, user, isOwner, isModerator, isMe, canManage,
   onSendMessage, onFollow, onReport, onMute, onKick,
   onLeaveSeat, onToggleMod, onSendGift, onMention, onPropose, onViewProfile,
-  onEcho, isLocked, onLockSeat
+  onEcho, isLocked, onLockSeat, isBanned, onBan
 }: RoomProfileCardProps) {
   const { profile } = useUserProfile(user?.uid);
   const [firestoreMedals, setFirestoreMedals] = useState<any[]>([]);
@@ -292,6 +294,22 @@ export function RoomProfileCard({
                     Kick out
                   </Text>
                 </TouchableOpacity>
+              </View>
+              <View className="flex-row items-center justify-center gap-6 mt-2">
+                {onToggleMod && (
+                  <TouchableOpacity onPress={() => { onClose(); onToggleMod(user.uid); }}>
+                    <Text className="text-[10px] font-black uppercase tracking-wider text-purple-500 active:text-purple-600">
+                      {isModerator ? 'Demote' : 'Set Admin'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                {onBan && (
+                  <TouchableOpacity onPress={() => { onClose(); onBan(user.uid); }}>
+                    <Text className="text-[10px] font-black uppercase tracking-wider text-red-600 active:text-red-700">
+                      {isBanned ? 'Unban' : 'Ban'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           )}

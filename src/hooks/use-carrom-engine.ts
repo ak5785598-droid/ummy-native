@@ -157,7 +157,7 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
     if (!gameDocRef || !userId || !userProfile || gameState?.status !== 'lobby') return;
 
     const entryFee = gameState.entryFee || 0;
-    if ((userProfile.coins || 0) < entryFee) return;
+    if ((userProfile?.wallet?.coins || 0) < entryFee) return;
 
     const existingPlayer = gameState.players.find((p: any) => p.uid === userId);
     if (existingPlayer) return;
@@ -189,8 +189,8 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
           const profileRef = doc(firestore!, 'users', userId, 'profile', userId);
           const walletRef = doc(firestore!, 'walletTransactions', `${userId}_${Date.now()}`);
 
-          transaction.update(userRef, { coins: increment(-entryFee) });
-          transaction.update(profileRef, { coins: increment(-entryFee) });
+          transaction.update(userRef, { 'wallet.coins': increment(-entryFee) });
+          transaction.update(profileRef, { 'wallet.coins': increment(-entryFee) });
           transaction.set(walletRef, {
             userId,
             amount: -entryFee,
@@ -338,8 +338,8 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
           const winnerProfileRef = doc(firestore!, 'users', winnerId, 'profile', winnerId);
           const walletRef = doc(firestore!, 'walletTransactions', `win_${winnerId}_${Date.now()}`);
 
-          transaction.update(winnerRef, { coins: increment(prize) });
-          transaction.update(winnerProfileRef, { coins: increment(prize) });
+          transaction.update(winnerRef, { 'wallet.coins': increment(prize) });
+          transaction.update(winnerProfileRef, { 'wallet.coins': increment(prize) });
           transaction.set(walletRef, {
             userId: winnerId,
             amount: prize,

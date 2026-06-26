@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useUser } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { useFirestore } from '../../firebase/provider';
-import { doc, updateDoc, increment, addDoc, collection, getDoc } from '@/firebase/firestore-compat';
+import { doc, updateDoc, increment, addDoc, collection, getDoc, writeBatch } from '@/firebase/firestore-compat';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -110,17 +110,20 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
     }
   }, [gameState, timeLeft]);
 
-  const handlePlaceBet = (factionId: string) => {
-    if (gameState !== 'betting' || !currentUser) return;
-    if (localCoins < selectedChip) return;
-
-    setLocalCoins(p => p - selectedChip);
-    if (firestore) {
-      try {
-        const updateData = { 'wallet.coins': increment(-selectedChip) };
-        updateDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), updateData);
-      } catch {}
-    }
+  const handlePlaceBet = async (factionId: string) => {
+    if (gameState !== 'betting' || !currentUser || !firestore) return;
+    try {
+      const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
+      const snap = await getDoc(profileRef);
+      const freshCoins = snap.exists() ? ((snap.data() as any)?.wallet?.coins ?? (userProfile?.wallet?.coins ?? 0)) : (userProfile?.wallet?.coins ?? 0);
+      if (freshCoins < selectedChip) return;
+      const batch = writeBatch(firestore);
+      const deductData = { 'wallet.coins': increment(-selectedChip) };
+      batch.set(profileRef, deductData, { merge: true });
+      batch.set(doc(firestore, 'users', currentUser.uid), deductData, { merge: true });
+      await batch.commit();
+      setLocalCoins(p => p - selectedChip);
+    } catch {}
     setMyBets(prev => ({ ...prev, [factionId]: (prev[factionId] || 0) + selectedChip }));
     setTotalPots(prev => ({ ...prev, [factionId]: (prev[factionId] || 0) + selectedChip }));
   };
@@ -172,11 +175,14 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
 
     if (winAmount > 0 && currentUser && firestore && userProfile) {
       try {
-        const updateData = {
+        const batch = writeBatch(firestore);
+        const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
+        batch.set(profileRef, {
           'wallet.coins': increment(winAmount),
           'stats.dailyGameWins': increment(winAmount),
-        };
-        updateDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), updateData);
+        }, { merge: true });
+        batch.set(doc(firestore, 'users', currentUser.uid), { 'wallet.coins': increment(winAmount) }, { merge: true });
+        batch.commit().catch(() => {});
         addDoc(collection(firestore, 'globalGameWins'), {
           gameId: 'teen-patti',
           roomId: roomId || null,

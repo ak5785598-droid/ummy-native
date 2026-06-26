@@ -30,7 +30,7 @@ export function RoomSeatMenu({
           {/* Menu Items Container - Web Style 4 Column Layout */}
           <View className="flex-row justify-between items-center">
             {/* 1. Take mic / Take seat — only on unlocked seats */}
-            {!isLocked ? (
+            {(!isLocked || canManage) ? (
               <MenuItem 
                 label="Take mic" 
                 icon={Mic} 

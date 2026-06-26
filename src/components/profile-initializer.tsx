@@ -17,7 +17,7 @@ export function ProfileInitializer() {
       try {
         const userRef = doc(firestore, 'users', uid);
         const profileRef = doc(firestore, 'users', uid, 'profile', uid);
-        const userSnap = await getDoc(userRef);
+        const [userSnap, profileSnap] = await Promise.all([getDoc(userRef), getDoc(profileRef)]);
 
         if (!userSnap.exists) {
           hasInitialized.current = uid;
@@ -40,23 +40,54 @@ export function ProfileInitializer() {
         const lastDate = lastSeen.toDateString();
         const today = now.toDateString();
 
+        const rootWallet = userData.wallet || {};
+        const profileData = profileSnap.exists ? profileSnap.data() : null;
+        const profileWallet = profileData?.wallet || {};
+
         if (today !== lastDate) {
           needsReset = true;
-          resetData.wallet = { ...userData.wallet, dailySpent: 0 };
+          resetData.wallet = {
+            coins: Math.max(rootWallet.coins || 0, profileWallet.coins || 0),
+            diamonds: Math.max(rootWallet.diamonds || 0, profileWallet.diamonds || 0),
+            totalSpent: Math.max(rootWallet.totalSpent || 0, profileWallet.totalSpent || 0),
+            dailySpent: 0,
+            weeklySpent: rootWallet.weeklySpent || profileWallet.weeklySpent || 0,
+            monthlySpent: rootWallet.monthlySpent || profileWallet.monthlySpent || 0,
+          };
         }
 
         if (now.getDay() === 1 && today !== lastDate) {
           needsReset = true;
-          if (!resetData.wallet) resetData.wallet = { ...userData.wallet };
-          resetData.wallet.weeklySpent = 0;
+          if (!resetData.wallet) {
+            resetData.wallet = {
+              coins: Math.max(rootWallet.coins || 0, profileWallet.coins || 0),
+              diamonds: Math.max(rootWallet.diamonds || 0, profileWallet.diamonds || 0),
+              totalSpent: Math.max(rootWallet.totalSpent || 0, profileWallet.totalSpent || 0),
+              dailySpent: Math.max(rootWallet.dailySpent || 0, profileWallet.dailySpent || 0),
+              weeklySpent: 0,
+              monthlySpent: rootWallet.monthlySpent || profileWallet.monthlySpent || 0,
+            };
+          } else {
+            resetData.wallet.weeklySpent = 0;
+          }
         }
 
         const lastMonth = lastSeen.getMonth();
         const lastYear = lastSeen.getFullYear();
         if (now.getMonth() !== lastMonth || now.getFullYear() !== lastYear) {
           needsReset = true;
-          if (!resetData.wallet) resetData.wallet = { ...userData.wallet };
-          resetData.wallet.monthlySpent = 0;
+          if (!resetData.wallet) {
+            resetData.wallet = {
+              coins: Math.max(rootWallet.coins || 0, profileWallet.coins || 0),
+              diamonds: Math.max(rootWallet.diamonds || 0, profileWallet.diamonds || 0),
+              totalSpent: Math.max(rootWallet.totalSpent || 0, profileWallet.totalSpent || 0),
+              dailySpent: Math.max(rootWallet.dailySpent || 0, profileWallet.dailySpent || 0),
+              weeklySpent: Math.max(rootWallet.weeklySpent || 0, profileWallet.weeklySpent || 0),
+              monthlySpent: 0,
+            };
+          } else {
+            resetData.wallet.monthlySpent = 0;
+          }
         }
 
         if (needsReset) {
@@ -69,16 +100,16 @@ export function ProfileInitializer() {
         await batch.commit();
 
         const currentAccNum = String(userData.accountNumber || '');
-        const isStrictlySixDigits = /^\d{6}$/.test(currentAccNum);
+        const hasValidID = currentAccNum.trim().length > 0;
         const isLocked = userData.accountNumberLocked === true;
 
-        if (isLocked && isStrictlySixDigits) {
+        if (isLocked && hasValidID) {
           // ID is locked and valid — never regenerate
-        } else if (!isLocked && uid !== CREATOR_ID && isStrictlySixDigits) {
+        } else if (!isLocked && uid !== CREATOR_ID && hasValidID) {
           // Has valid ID but not locked — lock it now
           await setDoc(userRef, { accountNumberLocked: true }, { merge: true });
           await setDoc(profileRef, { accountNumberLocked: true }, { merge: true });
-        } else if (!isLocked || !isStrictlySixDigits) {
+        } else if (!isLocked || !hasValidID) {
           // No valid ID — generate one
           await runTransaction(firestore, async (tx: any) => {
             let newId = '';
