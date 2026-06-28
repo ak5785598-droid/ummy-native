@@ -281,9 +281,6 @@ export default function ProfileScreen() {
     };
     syncUserID();
   }, [isOwnProfile, profile?.accountNumber, userId]);
-    };
-    syncUserID();
-  }, [isOwnProfile, profile, firestore, userId]);
 
   // Handlers
   const handleFollow = async () => {
