@@ -11,6 +11,7 @@ import { getCpLevelFromValue } from '../../lib/level-utils';
 import { Gift, RoomParticipant } from '../../lib/types';
 import { Image } from 'expo-image';
 import { GoldenCoin } from '../GoldenCoin';
+import { toCDN } from '../../lib/cdn';
 
 const { width } = Dimensions.get('window');
 
@@ -199,10 +200,19 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
         batch.update(recipientProfileRef, {
           'wallet.diamonds': increment(diamondReward),
           'stats.dailyGiftsReceived': increment(diamondReward),
+          'stats.weeklyGiftsReceived': increment(diamondReward),
+          'stats.monthlyGiftsReceived': increment(diamondReward),
           [`stats.receivedGifts.${gift.id || gift.name}`]: increment(qty),
           [`stats.giftDetails.${gift.id || gift.name}_name`]: gift.name || "Gift",
           [`stats.giftDetails.${gift.id || gift.name}_imageUrl`]: gift.imageUrl || null,
           updatedAt: serverTimestamp(),
+        });
+
+        const recipientUserRef = doc(firestore, 'users', uid);
+        batch.update(recipientUserRef, {
+          'stats.dailyGiftsReceived': increment(diamondReward),
+          'stats.weeklyGiftsReceived': increment(diamondReward),
+          'stats.monthlyGiftsReceived': increment(diamondReward),
         });
       });
 
@@ -503,7 +513,7 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
                     }}
                   >
                     {gift.imageUrl ? (
-                      <Image cachePolicy="memory-disk" source={{ uri: gift.imageUrl }} style={{ width: 50, height: 50, marginBottom: 2 }} contentFit="contain" />
+                      <Image cachePolicy="memory-disk" source={{ uri: toCDN(gift.imageUrl) }} style={{ width: 50, height: 50, marginBottom: 2 }} contentFit="contain" />
                     ) : (
                       <Text style={{ fontSize: 28, marginBottom: 2 }}>🎁</Text>
                     )}
