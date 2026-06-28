@@ -186,7 +186,6 @@ export default function ProfileScreen() {
   const { user: currentUser, isUserLoading } = useUser();
   const { profile, isLoading: isProfileLoading } = useUserProfile(id as string);
 
-  const [liveID, setLiveID] = useState<string | null>(null);
   const [isProcessingFollow, setIsProcessingFollow] = useState(false);
   const [followData, setFollowData] = useState<any>(null);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -199,17 +198,6 @@ export default function ProfileScreen() {
   const isOwnProfile = currentUser?.uid === id;
   const userId = id || currentUser?.uid;
 
-  // Real-time listener for account number
-  useEffect(() => {
-    if (!firestore || !userId) return;
-    const userRef = doc(firestore, 'users', userId);
-    const unsub = onSnapshot(userRef, (snap: any) => {
-      if (snap.exists()) {
-        setLiveID(snap.data().accountNumber || null);
-      }
-    });
-    return () => unsub();
-  }, [firestore, userId]);
 
   // Follow status
   useEffect(() => {
@@ -269,61 +257,30 @@ export default function ProfileScreen() {
     return (Math.abs(hash % 900000) + 100000).toString();
   });
 
-  const currentDBId = liveID || profile?.accountNumber;
+  const currentDBId = profile?.accountNumber;
   const isCorrectFormat = currentDBId && String(currentDBId).trim().length > 0;
   const displayID = isCorrectFormat ? String(currentDBId) : fallbackID;
 
-  // ID sync
+  // ID sync — only lock if valid ID exists, NEVER auto-generate new ID here
   useEffect(() => {
     const syncUserID = async () => {
       if (!isOwnProfile || !profile || !firestore || !userId) return;
       if ((profile as any).accountNumberLocked) return;
       const currentID = profile.accountNumber;
       const hasValidID = currentID && String(currentID).trim().length > 0;
-      const isCreator = userId === CREATOR_ID;
 
-      if (isCreator && currentID === '0000') return;
-      if (!isCreator && hasValidID) return;
-
-      try {
+      // If has valid ID, just lock it — don't regenerate
+      if (hasValidID) {
         const uRef = doc(firestore, 'users', userId);
-        const userSnap = await getDoc(uRef);
-        const userData = userSnap?.data?.();
-        
-        if (userData) {
-          const dbID = userData.accountNumber;
-          const isDbIdValid = dbID && String(dbID).trim().length > 0;
-          if ((isCreator && dbID === '0000') || (!isCreator && isDbIdValid)) {
-            return;
-          }
-        }
-        
-        let finalID = '';
-        if (isCreator) {
-          finalID = '0000';
-        } else {
-          let isUnique = false;
-          let attempts = 0;
-          while (!isUnique && attempts < 10) {
-            const randomID = Math.floor(100000 + Math.random() * 900000).toString();
-            const idRef = doc(firestore, 'assigned_ids', randomID);
-            const idSnap = await getDoc(idRef);
-            if (!idSnap?.exists) {
-              await setDoc(idRef, { uid: userId, createdAt: serverTimestamp(), lockedPermanently: true });
-              finalID = randomID;
-              isUnique = true;
-            }
-            attempts++;
-          }
-          if (!isUnique) finalID = Math.floor(100000 + Math.random() * 900000).toString();
-        }
-        
         const pRef = doc(firestore, 'users', userId, 'profile', userId);
-        await setDoc(uRef, { accountNumber: finalID, accountNumberLocked: true, accountNumberLockedAt: serverTimestamp() }, { merge: true });
-        await setDoc(pRef, { accountNumber: finalID, accountNumberLocked: true }, { merge: true });
-      } catch (err: any) {
-        console.warn("ID Generation error:", err);
+        await setDoc(uRef, { accountNumberLocked: true }, { merge: true });
+        await setDoc(pRef, { accountNumberLocked: true }, { merge: true });
+        return;
       }
+      // If no valid ID, let profile-initializer handle it — do NOT generate here
+    };
+    syncUserID();
+  }, [isOwnProfile, profile?.accountNumber, userId]);
     };
     syncUserID();
   }, [isOwnProfile, profile, firestore, userId]);
