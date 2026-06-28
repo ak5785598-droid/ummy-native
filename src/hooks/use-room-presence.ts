@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useFirestore, useUser, useDatabase } from '../firebase/provider';
 import { doc, getDoc, setDoc, deleteDoc, serverTimestamp, writeBatch, increment, collection, getDocs, query, where } from '@/firebase/firestore-compat';
-import { ref, set, onDisconnect, onValue, remove, serverTimestamp as dbServerTimestamp } from 'firebase/database';
+import { ref, set, onDisconnect, onValue, remove, push, serverTimestamp as dbServerTimestamp } from 'firebase/database';
 import { AppState, AppStateStatus } from 'react-native';
 import { setDocumentNonBlocking, updateDocumentNonBlocking, addDocumentNonBlocking } from '../lib/non-blocking-writes';
 import { Room, User } from '../lib/types';
@@ -95,25 +95,32 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
       if (!enteredRooms.has(roomId)) {
         enteredRooms.add(roomId);
         performJoin();
-        const entryType = userProfile?.inventory?.activeEntryEffect || null;
-        const entryVideoUrl = userProfile?.inventory?.activeEntryVideoUrl || null;
-        
-        addDocumentNonBlocking(collection(firestore, 'chatRooms', roomId, 'messages'), {
-          type: 'entrance', 
-          senderId: uid, 
-          senderName: userProfile?.username || user.displayName || 'Anonymous',
-          senderAvatar: userProfile?.avatarUrl || user.photoURL || null,
-          mediaUrl: userProfile?.inventory?.activeEntryMediaUrl || null,
-          entryEffectType: entryType,
-          entryVideoUrl: entryVideoUrl,
-          content: 'entered the room', 
-          timestamp: serverTimestamp(),
-        }).catch(() => {});
+
+        // Skip entrance message if roomInvisible is enabled
+        if (!userProfile?.roomInvisible) {
+          const entryType = userProfile?.inventory?.activeEntryEffect || null;
+          const entryVideoUrl = userProfile?.inventory?.activeEntryVideoUrl || null;
+          
+          const newMsgRef = push(ref(database, `roomMessages/${roomId}`));
+          set(newMsgRef, {
+            id: newMsgRef.key,
+            type: 'entrance', 
+            senderId: uid, 
+            senderName: userProfile?.username || user.displayName || 'Anonymous',
+            senderAvatar: userProfile?.avatarUrl || user.photoURL || null,
+            mediaUrl: userProfile?.inventory?.activeEntryMediaUrl || null,
+            entryEffectType: entryType,
+            entryVideoUrl: entryVideoUrl,
+            content: 'entered the room', 
+            timestamp: Date.now(),
+          }).catch(() => {});
+        }
       } else {
         setDocumentNonBlocking(participantRef, {
           lastSeen: serverTimestamp(),
           name: userProfile?.username || user.displayName || 'Anonymous',
           avatarUrl: userProfile?.avatarUrl || user.photoURL || '',
+          accountNumber: userProfile?.accountNumber || '',
         }, { merge: true });
       }
       lastRoomId.current = roomId;
@@ -121,7 +128,10 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
     }
 
     heartbeatInterval.current = setInterval(() => {
-      setDocumentNonBlocking(participantRef, { lastSeen: serverTimestamp() }, { merge: true });
+      setDocumentNonBlocking(participantRef, {
+        lastSeen: serverTimestamp(),
+        accountNumber: userProfile?.accountNumber || '',
+      }, { merge: true });
     }, 60000);
 
     if (isOwner) {
@@ -194,16 +204,19 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
     const presencePath = `roomPresence/${roomId}/${uid}`;
     presenceRef.current = ref(database, presencePath);
     
-    set(presenceRef.current, {
-      uid,
-      name: userProfile?.username || user.displayName || 'Anonymous',
-      avatarUrl: userProfile?.avatarUrl || user.photoURL || '',
-      joinedAt: dbServerTimestamp(),
-      lastSeen: dbServerTimestamp(),
-      isOnline: true,
-    });
-    
-    onDisconnect(presenceRef.current).remove();
+    // Skip RTDB presence if roomInvisible is enabled
+    if (!userProfile?.roomInvisible) {
+      set(presenceRef.current, {
+        uid,
+        name: userProfile?.username || user.displayName || 'Anonymous',
+        avatarUrl: userProfile?.avatarUrl || user.photoURL || '',
+        joinedAt: dbServerTimestamp(),
+        lastSeen: dbServerTimestamp(),
+        isOnline: true,
+      });
+      
+      onDisconnect(presenceRef.current).remove();
+    }
 
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (nextAppState === 'background') {
@@ -211,7 +224,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
           set(presenceRef.current, null);
         }
       } else if (nextAppState === 'active') {
-        if (presenceRef.current) {
+        if (presenceRef.current && !userProfile?.roomInvisible) {
           set(presenceRef.current, {
             uid,
             name: userProfile?.username || user.displayName || 'Anonymous',

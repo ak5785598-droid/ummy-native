@@ -11,7 +11,7 @@ import { Image } from 'expo-image';
 import storage from '@react-native-firebase/storage';
 import { GoldenCoin } from '../../components/GoldenCoin';
 
-const CREATE_COST = 100000;
+const CREATE_COST = 500000;
 
 export default function CreateFamilyPage() {
   const router = useRouter();
