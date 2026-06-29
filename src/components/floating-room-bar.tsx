@@ -7,6 +7,7 @@ import { useRoomContext } from '../context/room-context';
 import { destroyAgoraEngine } from '../hooks/use-agora-native';
 import { destroyMusicSound } from '../hooks/use-music-sync';
 import { Image } from 'expo-image';
+import { toCDN } from '../lib/cdn';
 import { doc, deleteDoc, increment, getDoc } from '@/firebase/firestore-compat';
 import { useFirestore } from '../firebase/provider';
 import { useUser } from '../firebase/provider';
@@ -111,7 +112,7 @@ export function FloatingRoomBar() {
         >
           <LinearGradient colors={['#7c3aed', '#a855f7']} style={styles.gradient}>
             {room.coverUrl ? (
-              <Image cachePolicy="memory-disk" source={{ uri: room.coverUrl }} style={styles.roomImage} />
+              <Image cachePolicy="memory-disk" source={{ uri: toCDN(room.coverUrl) }} style={styles.roomImage} />
             ) : (
               <View style={styles.placeholder}>
                 <Text style={styles.placeholderText}>{(room.title || 'R')[0]}</Text>

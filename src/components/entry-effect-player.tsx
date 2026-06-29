@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Animated, Dimensions, Easing } from 'react-native';
 import { Image } from 'expo-image';
+import { toCDN } from '../lib/cdn';
 
 const { width, height } = Dimensions.get('window');
 
@@ -67,21 +68,21 @@ export function EntryEffectPlayer({ events }: EntryEffectPlayerProps) {
       >
         {latest.waveUrl ? (
           <Image
-            source={{ uri: latest.waveUrl }}
+            source={{ uri: toCDN(latest.waveUrl) }}
             className="w-10 h-10"
             contentFit="contain"
             cachePolicy="memory-disk"
           />
         ) : latest.frameUrl ? (
           <Image
-            source={{ uri: latest.frameUrl }}
+            source={{ uri: toCDN(latest.frameUrl) }}
             className="w-10 h-10 absolute"
             contentFit="contain"
             cachePolicy="memory-disk"
           />
         ) : null}
         <Image
-          source={{ uri: latest.avatarUrl || 'https://picsum.photos/100' }}
+          source={{ uri: toCDN(latest.avatarUrl) || 'https://picsum.photos/100' }}
           className="w-8 h-8 rounded-full mr-2"
           cachePolicy="memory-disk"
         />

@@ -18,6 +18,7 @@ import rnfbStorage from '@react-native-firebase/storage';
 import { Image } from 'expo-image';
 import { Video } from 'expo-av';
 import { AvatarFrame } from './AvatarFrame';
+import { toCDN } from '../../lib/cdn';
 
 const COUNTRIES = [
   { name: 'India', code: 'IN', flag: '🇮🇳' },
@@ -169,7 +170,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.85,
+      quality: 0.3,
     });
     if (!result.canceled && result.assets?.[0]?.uri) {
       await uploadAvatarFromUri(result.assets[0].uri);
@@ -185,7 +186,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.85,
+      quality: 0.3,
     });
     if (!result.canceled && result.assets?.[0]?.uri) {
       await uploadAvatarFromUri(result.assets[0].uri);
@@ -210,7 +211,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
-      quality: 0.8,
+      quality: 0.3,
     });
     if (result.canceled || !result.assets?.[0]?.uri) return;
     if (!user) return;
@@ -385,7 +386,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
                       <ActivityIndicator color="white" />
                     </View>
                   ) : (
-                    <Image cachePolicy="memory-disk" source={{ uri: currentAvatarUrl || 'https://picsum.photos/200' }}
+                    <Image cachePolicy="memory-disk" source={{ uri: toCDN(currentAvatarUrl) || 'https://picsum.photos/200' }}
                       style={{ width: '100%', height: '100%' }}
                     />
                   )}
@@ -632,7 +633,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
                       borderColor: '#f1f5f9',
                     }}
                   >
-                    <Image cachePolicy="memory-disk" source={{ uri: url! }} style={{ width: '100%', height: '100%' }} />
+                    <Image cachePolicy="memory-disk" source={{ uri: toCDN(url!) }} style={{ width: '100%', height: '100%' }} />
                     <TouchableOpacity
                       onPress={() => removeSpaceImage(i)}
                       style={{

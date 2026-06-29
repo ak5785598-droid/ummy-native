@@ -5,6 +5,7 @@ import { useFirestore, useUser } from '../../firebase/provider';
 import { collection, query, orderBy, limit, doc, addDoc, serverTimestamp, onSnapshot, where, setDoc, getDocs, getDoc } from '@/firebase/firestore-compat';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
 
 interface RoomMessagesDialogProps {
   visible: boolean;
@@ -167,7 +168,7 @@ export function RoomMessagesDialog({ visible, onClose, roomId, initialRecipient 
               <ScrollView className="px-4 pt-2" showsVerticalScrollIndicator={false}>
                 {chats.length === 0 ? <Text className="text-slate-400 text-sm text-center py-20">No messages yet</Text> : chats.map(chat => (
                   <TouchableOpacity key={chat.id} onPress={() => setSelectedChat(chat)} className="flex-row items-center py-3 border-b border-slate-100">
-                    <Image cachePolicy="memory-disk" source={{ uri: chat.otherUser.avatarUrl }} className="w-11 h-11 rounded-full bg-slate-200" />
+                    <Image cachePolicy="memory-disk" source={{ uri: toCDN(chat.otherUser.avatarUrl) }} className="w-11 h-11 rounded-full bg-slate-200" />
                     <View className="ml-3 flex-1"><Text className="text-slate-900 text-sm font-bold">{chat.otherUser.name}</Text><Text className="text-slate-500 text-[11px]" numberOfLines={1}>{chat.lastSenderId === user?.uid ? 'You: ' : ''}{chat.lastMessage}</Text></View>
                     {chat.unread > 0 && <View className="bg-red-500 rounded-full px-1.5 py-0.5"><Text className="text-white text-[9px] font-bold">{chat.unread}</Text></View>}
                   </TouchableOpacity>

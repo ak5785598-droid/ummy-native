@@ -6,6 +6,7 @@ import { getDatabase, Database } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import rnfbStorage from '@react-native-firebase/storage';
+import appCheck from '@react-native-firebase/app-check';
 
 let appInstance: FirebaseApp | null = null;
 let firestoreInstance: Firestore | null = null;
@@ -18,19 +19,30 @@ export function initializeFirebase() {
     appInstance = getApps().length ? getApp() : initializeApp(firebaseConfig);
   }
 
+  // Initialize App Check FIRST (before Auth)
+  // Debug token from AndroidManifest meta-data is used automatically
+  try {
+    const rnfbProvider = appCheck().newReactNativeFirebaseAppCheckProvider();
+    rnfbProvider.configure({
+      android: {
+        provider: __DEV__ ? 'debug' : 'playIntegrity',
+        debugToken: '69803CB5-0640-4DD0-A9DA-9BC789E78E1F',
+      },
+      apple: { provider: 'deviceCheck' },
+      isTokenAutoRefreshEnabled: true,
+    });
+    appCheck().initializeAppCheck({ provider: rnfbProvider, isTokenAutoRefreshEnabled: true });
+    console.log('[Firebase Core] App Check initialized');
+  } catch (e) {
+    console.warn('[Firebase Core] App Check init failed (non-critical):', e);
+  }
+
   if (!authInstance) {
     // Using @react-native-firebase/auth for true native authentication
+    // reCAPTCHA webview handles verification for non-Play-Store builds
     authInstance = auth();
-    // Disable Play Integrity for debug builds (Phone Auth)
-    if (__DEV__) {
-      try {
-        authInstance.settings.appVerificationDisabledForTesting = true;
-        console.log('[Firebase Core] Phone Auth verification disabled for debug');
-      } catch (e) {
-        console.warn('[Firebase Core] Could not disable verification:', e);
-      }
-    }
   }
+
 
   if (!firestoreInstance) {
     try {

@@ -1,68 +1,79 @@
-import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { X, Award, Gift, Activity } from 'lucide-react-native';
-
-const MOCK_MEDALS = [
-  { id: '1', name: 'Top Spender', category: 'Achievement', tier: 'legendary' },
-  { id: '2', name: 'Social Butterfly', category: 'Activity', tier: 'epic' },
-  { id: '3', name: 'Gift King', category: 'Gift', tier: 'rare' },
-];
+import React, { useState, useEffect } from 'react';
+import { Modal, View, Text, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
+import { X, ArrowLeft } from 'lucide-react-native';
+import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export const MedalModal = ({ open, onClose, profile }: any) => {
-  const [activeTab, setActiveTab] = useState('Achievement');
+  const [allMedals, setAllMedals] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const tabs = ['Achievement', 'Gift', 'Activity'];
-  const filteredMedals = MOCK_MEDALS.filter(m => m.category === activeTab);
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    try {
+      const db = require('@react-native-firebase/firestore').default;
+      const unsub = db().collection('medalsList').onSnapshot((snap: any) => {
+        if (snap) {
+          setAllMedals(snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
+        }
+        setLoading(false);
+      }, () => setLoading(false));
+      return () => unsub();
+    } catch (e) {
+      setLoading(false);
+    }
+  }, [open]);
+
+  const earnedMedalIds = profile?.medals || [];
 
   return (
     <Modal visible={open} transparent animationType="slide">
-      <View className="flex-1 bg-black/80 justify-center items-center px-4">
-        <View className="w-full bg-[#1a1025] rounded-3xl overflow-hidden border border-purple-500/30">
-          
-          <View className="p-4 flex-row justify-between items-center bg-[#231535] border-b border-purple-900/50">
-            <Text className="text-white font-bold text-xl ml-2">Medal Wall</Text>
-            <TouchableOpacity onPress={onClose} className="p-2 bg-white/10 rounded-full">
-              <X size={20} color="white" />
+      <StatusBar barStyle="light-content" backgroundColor="#1a1025" />
+      <View className="flex-1 bg-[#1a1025]">
+        <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+          {/* Header */}
+          <View className="flex-row items-center justify-between px-4 py-3 border-b border-purple-900/50">
+            <TouchableOpacity onPress={onClose} className="flex-row items-center gap-2">
+              <ArrowLeft size={22} color="#a78bfa" />
+              <Text className="text-purple-400 font-bold text-base">Back</Text>
             </TouchableOpacity>
+            <Text className="text-white font-bold text-lg">Medal Wall</Text>
+            <View style={{ width: 60 }} />
           </View>
 
-          {/* Tabs */}
-          <View className="flex-row justify-around p-2 bg-[#1f132e]">
-            {tabs.map(tab => (
-              <TouchableOpacity 
-                key={tab} 
-                onPress={() => setActiveTab(tab)}
-                className={`px-4 py-2 rounded-full ${activeTab === tab ? 'bg-purple-600' : 'bg-transparent'}`}
-              >
-                <Text className={`font-bold ${activeTab === tab ? 'text-white' : 'text-purple-300'}`}>{tab}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Medals Grid */}
-          <ScrollView className="p-4 h-[300px]" showsVerticalScrollIndicator={false}>
-            <View className="flex-row flex-wrap justify-between">
-              {filteredMedals.length > 0 ? filteredMedals.map(medal => (
-                <View key={medal.id} className="w-[48%] bg-[#2a1b3d] rounded-2xl p-4 items-center mb-4 border border-purple-800/50">
-                  <View className="w-16 h-16 rounded-full bg-purple-900/50 border-2 border-yellow-500/50 items-center justify-center mb-3">
-                    {activeTab === 'Achievement' ? <Award size={32} color="#facc15" /> :
-                     activeTab === 'Gift' ? <Gift size={32} color="#f472b6" /> :
-                     <Activity size={32} color="#4ade80" />}
-                  </View>
-                  <Text className="text-yellow-400 text-[10px] mb-1 tracking-widest">
-                    {medal.tier === 'legendary' ? '★★★★★' : medal.tier === 'epic' ? '★★★★' : '★★★'}
-                  </Text>
-                  <Text className="text-white font-bold text-xs text-center">{medal.name}</Text>
-                </View>
-              )) : (
-                <View className="w-full py-10 items-center">
-                  <Text className="text-purple-400/50 font-bold tracking-widest text-xs uppercase">No Medals Unlocked</Text>
-                </View>
-              )}
-            </View>
+          {/* Medals */}
+          <ScrollView className="flex-1 px-4 py-4" showsVerticalScrollIndicator={false}>
+            {loading ? (
+              <View className="py-20 items-center">
+                <Text className="text-purple-400/50 font-bold tracking-widest text-xs uppercase">Loading...</Text>
+              </View>
+            ) : allMedals.length > 0 ? (
+              <View className="flex-row flex-wrap justify-between">
+                {allMedals.map(medal => {
+                  const isEarned = earnedMedalIds.includes(medal.id);
+                  return (
+                    <View key={medal.id} className={`w-[31%] items-center mb-5 ${isEarned ? '' : 'opacity-35'}`}>
+                      <View className={`w-20 h-20 rounded-2xl items-center justify-center mb-2 overflow-hidden ${isEarned ? 'border-2 border-yellow-500/70' : 'bg-purple-900/30 border border-purple-700/30'}`}>
+                        {medal.imageUrl ? (
+                          <Image cachePolicy="memory-disk" source={{ uri: toCDN(medal.imageUrl) }} style={{ width: 80, height: 80 }} contentFit="cover" />
+                        ) : (
+                          <Text className="text-3xl">🏅</Text>
+                        )}
+                      </View>
+                      <Text className={`text-[9px] font-bold text-center ${isEarned ? 'text-yellow-400' : 'text-purple-400/50'}`}>{medal.name}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : (
+              <View className="py-20 items-center">
+                <Text className="text-purple-400/50 font-bold tracking-widest text-xs uppercase">No Medals Available</Text>
+              </View>
+            )}
           </ScrollView>
-
-        </View>
+        </SafeAreaView>
       </View>
     </Modal>
   );

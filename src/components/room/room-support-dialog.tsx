@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, StyleSheet, Alert, FlatList } from 'react-native';
 import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
 import { X, Trophy, Users, Plus, Info, Clock } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { doc, arrayUnion, arrayRemove } from '@/firebase/firestore-compat';
@@ -262,7 +263,7 @@ export function RoomSupportDialog({
                         {partner ? (
                           <View className="items-center justify-center">
                             <Image
-                              source={{ uri: partner.avatarUrl || 'https://via.placeholder.com/150' }}
+                              source={{ uri: toCDN(partner.avatarUrl) || 'https://via.placeholder.com/150' }}
                               className="w-12 h-12 rounded-full border border-cyan-500/30 mb-1"
                               cachePolicy="memory-disk"
                             />
@@ -392,7 +393,7 @@ export function RoomSupportDialog({
                         }`}
                       >
                         <Image
-                          source={{ uri: item.avatarUrl || 'https://via.placeholder.com/150' }}
+                          source={{ uri: toCDN(item.avatarUrl) || 'https://via.placeholder.com/150' }}
                           className="w-8 h-8 rounded-full border border-white/10"
                           cachePolicy="memory-disk"
                         />

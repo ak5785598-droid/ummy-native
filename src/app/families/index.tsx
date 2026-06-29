@@ -6,6 +6,7 @@ import { useCollection, useFirebase, useUser } from '../../firebase/provider';
 import { collection, query, orderBy, limit } from '../../firebase/firestore-compat';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
+import { toCDN } from '@/lib/cdn';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FamilyBackground } from '../../components/families/FamilyBackground';
 
@@ -164,7 +165,7 @@ export default function FamiliesIndex() {
                   <View style={[styles.bannerWrap, isTop3 && { borderColor: rank?.border || 'rgba(255,255,255,0.15)' }]}>
                     <Image
                       cachePolicy="memory-disk"
-                      source={{ uri: family.bannerUrl || `https://picsum.photos/seed/${family.id}/200` }}
+                      source={{ uri: toCDN(family.bannerUrl) || `https://picsum.photos/seed/${family.id}/200` }}
                       style={styles.bannerImg}
                       contentFit="cover"
                     />

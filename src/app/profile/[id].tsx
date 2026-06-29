@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { UserLevelBadge } from '@/components/user-level-badge';
 import { getLevelFromSpent } from '@/hooks/use-user-level';
 
@@ -11,6 +11,7 @@ import { useFirebase, useUser, useCollection, useMemoFirebase } from '../../fire
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { collection, query, where, orderBy, limit, doc, serverTimestamp, runTransaction, onSnapshot, getDoc, setDoc } from '../../firebase/firestore-compat';
 import { setDocumentNonBlocking, deleteDocumentNonBlocking } from '../../lib/non-blocking-writes';
+import { autoAssignMedals } from '../../lib/auto-assign-medals';
 import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
 import { SocialRelationsDialog } from '../../components/profile/SocialRelationsDialog';
@@ -209,12 +210,29 @@ export default function ProfileScreen() {
     });
   }, [firestore, currentUser?.uid, id]);
 
-  // Record visit (only for non-own profile)
+  // Record visit (only for non-own profile, skip if mysteriousVisitor is enabled)
   useEffect(() => {
     if (!firestore || !currentUser || !id || isOwnProfile) return;
-    const visitRef = doc(firestore, 'users', id, 'profileVisitors', currentUser.uid);
-    setDoc(visitRef, { visitorId: currentUser.uid, timestamp: serverTimestamp() }, { merge: true });
+    (async () => {
+      try {
+        const visitorSnap = await getDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid));
+        const visitorData = visitorSnap.exists() ? visitorSnap.data() : null;
+        if (visitorData?.mysteriousVisitor) return;
+        const visitRef = doc(firestore, 'users', id, 'profileVisitors', currentUser.uid);
+        setDoc(visitRef, { visitorId: currentUser.uid, timestamp: serverTimestamp() }, { merge: true });
+      } catch (e) {}
+    })();
   }, [firestore, currentUser, id, isOwnProfile]);
+
+  // Auto-assign medals based on tags
+  const medalAssignedRef = useRef(false);
+  useEffect(() => {
+    if (!firestore || !userId || medalAssignedRef.current) return;
+    if (profile?.tags && profile.tags.length > 0) {
+      medalAssignedRef.current = true;
+      autoAssignMedals(firestore, userId);
+    }
+  }, [userId, firestore, profile?.tags]);
 
   // Queries
   const fansQuery = useMemoFirebase(() => {
@@ -257,8 +275,14 @@ export default function ProfileScreen() {
     return (Math.abs(hash % 900000) + 100000).toString();
   });
 
+  const isValidAccNum = (id: any) => {
+    if (!id) return false;
+    const s = String(id).trim();
+    return /^\d{6}$/.test(s) || s === '0000';
+  };
+
   const currentDBId = profile?.accountNumber;
-  const isCorrectFormat = currentDBId && String(currentDBId).trim().length > 0;
+  const isCorrectFormat = isValidAccNum(currentDBId);
   const displayID = isCorrectFormat ? String(currentDBId) : fallbackID;
 
   // ID sync — only lock if valid ID exists, NEVER auto-generate new ID here

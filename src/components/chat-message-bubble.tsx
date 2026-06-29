@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
-import { View, Text, ViewStyle } from 'react-native';
+import { View, Text } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface ChatMessageBubbleProps {
   bubbleId?: string | null;
@@ -9,17 +10,17 @@ interface ChatMessageBubbleProps {
   showTail?: boolean;
 }
 
-const STYLE_CONFIGS: Record<string, { bg: string; border: string; tailColor: string; decorator: string }> = {
-  'heart-bubble': { bg: '#ec4899', border: '#ffffff', tailColor: '#ec4899', decorator: '💖' },
-  'love-bubble': { bg: '#dc2626', border: '#ffffff', tailColor: '#dc2626', decorator: '❤️' },
-  'evil-bubble': { bg: '#6441A5', border: '#9333ea', tailColor: '#6441A5', decorator: '😈' },
-  'candy-bubble': { bg: '#ff9a9e', border: '#ffffff', tailColor: '#ff9a9e', decorator: '🍬' },
-  'taurus-2025': { bg: '#EDDE5D', border: '#ffffff', tailColor: '#EDDE5D', decorator: '🐂' },
-  'cricket-2025': { bg: '#10b981', border: '#6ee7b7', tailColor: '#10b981', decorator: '🏏' },
-  'neon-cyber': { bg: '#000000', border: '#00ffff', tailColor: '#00ffff', decorator: '💠' },
-  'royal-gold': { bg: '#D4AF37', border: '#fef3c7', tailColor: '#D4AF37', decorator: '👑' },
-  'ice-crystal': { bg: '#67e8f9', border: '#ffffff', tailColor: '#67e8f9', decorator: '❄️' },
-  'default-premium': { bg: '#8b5cf6', border: '#ffffff', tailColor: '#8b5cf6', decorator: '⭐' },
+const STYLE_CONFIGS: Record<string, { colors: string[]; border: string; tailColor: string; decorator: string }> = {
+  'heart-bubble': { colors: ['#ec4899', '#f43f5e'], border: 'rgba(255,255,255,0.4)', tailColor: '#f43f5e', decorator: '💖' },
+  'love-bubble': { colors: ['#dc2626', '#ef4444'], border: 'rgba(255,255,255,0.3)', tailColor: '#ef4444', decorator: '💌' },
+  'evil-bubble': { colors: ['#2a0845', '#6441A5'], border: '#9333ea', tailColor: '#6441A5', decorator: '😈' },
+  'candy-bubble': { colors: ['#ff9a9e', '#fecfef'], border: '#ffffff', tailColor: '#ff9a9e', decorator: '🍭' },
+  'taurus-2025': { colors: ['#F09819', '#EDDE5D'], border: 'rgba(255,255,255,0.5)', tailColor: '#EDDE5D', decorator: '♉' },
+  'cricket-2025': { colors: ['#0f766e', '#10b981'], border: '#6ee7b7', tailColor: '#10b981', decorator: '🏏' },
+  'neon-cyber': { colors: ['#000000', '#0f172a'], border: '#00ffff', tailColor: '#00ffff', decorator: '✨' },
+  'royal-gold': { colors: ['#BF953F', '#FCF6BA', '#B38728'], border: '#fef3c7', tailColor: '#B38728', decorator: '👑' },
+  'ice-crystal': { colors: ['#67e8f9', '#3b82f6'], border: '#ffffff', tailColor: '#3b82f6', decorator: '❄️' },
+  'default-premium': { colors: ['#6366f1', '#a855f7'], border: 'rgba(255,255,255,0.3)', tailColor: '#a855f7', decorator: '⭐' },
 };
 
 export const ChatMessageBubble = memo(({ bubbleId, bubbleMediaUrl, isMe, children, showTail = true }: ChatMessageBubbleProps) => {
@@ -39,15 +40,33 @@ export const ChatMessageBubble = memo(({ bubbleId, bubbleMediaUrl, isMe, childre
         {!isMe && showTail && (
           <View style={{ width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 0, borderTopWidth: 8, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: config.tailColor, marginBottom: 8 }} />
         )}
-        <View
-          className="rounded-2xl border-2 px-4 py-2"
-          style={{ backgroundColor: config.bg, borderColor: config.border, shadowColor: config.border, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 4 }}
+        
+        <LinearGradient
+          colors={config.colors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{
+            borderRadius: 16,
+            borderWidth: 1.5,
+            borderColor: config.border,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            shadowColor: config.tailColor,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 6,
+            elevation: 4,
+            minWidth: 60,
+          }}
         >
-          <View className="flex-row items-start gap-1">
-            <Text className="text-[10px]">{config.decorator}</Text>
-            <View className="flex-1 flex-wrap">{children}</View>
+          <View className="flex-row items-center gap-1.5">
+            <View className="flex-1 flex-wrap pr-4">{children}</View>
+            <Text className="text-sm absolute right-0.5 -top-1" style={{ textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }}>
+              {config.decorator}
+            </Text>
           </View>
-        </View>
+        </LinearGradient>
+
         {isMe && showTail && (
           <View style={{ width: 0, height: 0, borderLeftWidth: 0, borderRightWidth: 8, borderTopWidth: 8, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: config.tailColor, marginBottom: 8 }} />
         )}

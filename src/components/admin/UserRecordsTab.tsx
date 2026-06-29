@@ -88,6 +88,8 @@ export function UserRecordsTab() {
                 'wallet.diamonds': 0,
                 'wallet.totalSpent': 0,
                 'wallet.dailySpent': 0,
+                'wallet.weeklySpent': 0,
+                'wallet.monthlySpent': 0,
                 updatedAt: firestore.FieldValue.serverTimestamp(),
               };
 
@@ -96,7 +98,7 @@ export function UserRecordsTab() {
 
               setTargetUser((prev: any) => ({
                 ...prev,
-                wallet: { coins: 0, diamonds: 0, totalSpent: 0, dailySpent: 0 }
+                wallet: { coins: 0, diamonds: 0, totalSpent: 0, dailySpent: 0, weeklySpent: 0, monthlySpent: 0 }
               }));
               Alert.alert('Success', 'Wallet successfully purged to 0.');
             } catch (err: any) {

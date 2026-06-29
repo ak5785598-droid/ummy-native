@@ -68,12 +68,29 @@ export default function HomeScreen() {
   const configRef = firestore ? doc(firestore, 'appConfig', 'global') : null;
   const { data: config } = useDoc(configRef);
 
+  const HELP_ROOM_ID = '901piBzTQ0VzCtAvlyyobwvAaTs1';
+
   const chatRoomsQuery = useMemo(() => {
     if (!firestore || !isHydrated) return null;
     return query(collection(firestore, 'chatRooms'), orderBy('participantCount', 'desc'), limit(50));
   }, [firestore, isHydrated]);
 
-  const { data: allRooms, isLoading } = useCollection(chatRoomsQuery);
+  const helpRoomRef = useMemo(() => {
+    if (!firestore || !isHydrated) return null;
+    return doc(firestore, 'chatRooms', HELP_ROOM_ID);
+  }, [firestore, isHydrated]);
+
+  const { data: allRoomsRaw, isLoading } = useCollection(chatRoomsQuery);
+  const { data: helpRoomData } = useDoc(helpRoomRef);
+
+  // Always merge help room into allRooms (even if not in main query)
+  const allRooms = useMemo(() => {
+    const rooms = allRoomsRaw || [];
+    if (!helpRoomData) return rooms;
+    const alreadyIn = rooms.some((r: any) => r.id === HELP_ROOM_ID);
+    if (alreadyIn) return rooms;
+    return [helpRoomData, ...rooms];
+  }, [allRoomsRaw, helpRoomData]);
 
   const followedRoomsQuery = useMemo(() => {
     if (!firestore || !user?.uid) return null;
@@ -128,35 +145,40 @@ export default function HomeScreen() {
 
   const displayRooms = useMemo(() => {
     if (!allRooms) return [];
-    
+
+    const ORIGINAL_HELP_ID = '901piBzTQ0VzCtAvlyyobwvAaTs1';
     let rooms = [...allRooms] as Room[];
-    
+
     rooms.sort((a, b) => {
+      const aName = (a.name || a.title || '').toLowerCase().trim();
+      const bName = (b.name || b.title || '').toLowerCase().trim();
+      const aIsHelp = a.id === ORIGINAL_HELP_ID || aName === 'ummy help';
+      const bIsHelp = b.id === ORIGINAL_HELP_ID || bName === 'ummy help';
+      if (aIsHelp && !bIsHelp) return -1;
+      if (!aIsHelp && bIsHelp) return 1;
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
       return (b.participantCount || 0) - (a.participantCount || 0);
     });
 
-    const ORIGINAL_HELP_ID = '901piBzTQ0VzCtAvlyyobwvAaTs1';
-    
     return rooms.filter(room => {
       const cat = room.category || 'Chat';
       const matchesCategory = activeCategory === 'All' || cat === activeCategory;
       const isDecommissioned = room.title?.includes('SYNCHRONIZING') || room.name?.includes('SYNCHRONIZING');
-      
-      const isOriginalHelp = room.id === ORIGINAL_HELP_ID;
-      const looksLikeHelp = (
-        room.id === ORIGINAL_HELP_ID ||
-        (room.title && room.title.toLowerCase().includes('help')) ||
-        (room.name && room.name.toLowerCase().includes('help'))
-      );
-      
+
+      const roomName = (room.name || room.title || '').toLowerCase().trim();
+
+      // Original help room — match by ID OR exact name
+      const isOriginalHelp = room.id === ORIGINAL_HELP_ID || roomName === 'ummy help';
+
+      // Any room with 'help' in name that is NOT the original → HIDE (duplicate)
+      const looksLikeHelp = roomName.includes('help');
       if (looksLikeHelp && !isOriginalHelp) return false;
-      if (isOriginalHelp) return matchesCategory && !isDecommissioned;
-      
+      if (isOriginalHelp) return !isDecommissioned; // always show, no category filter
+
       const hasOnlineUsers = roomsWithUsers.has(room.id);
       const isPinned = room.isPinned === true;
-      
+
       return matchesCategory && (hasOnlineUsers || isPinned) && !isDecommissioned;
     });
   }, [allRooms, activeCategory, roomsWithUsers]);

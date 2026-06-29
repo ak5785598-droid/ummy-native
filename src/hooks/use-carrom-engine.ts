@@ -1,15 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { useFirestore } from '../firebase/provider';
-import {
-  doc,
-  onSnapshot,
-  setDoc,
-  updateDoc,
-  serverTimestamp,
-  arrayUnion,
-  increment,
-  runTransaction,
-} from '@/firebase/firestore-compat';
+import { useFirestore, useDatabase } from '../firebase/provider';
+import { ref as databaseRef, set as databaseSet, update as databaseUpdate, remove as databaseRemove, onValue } from 'firebase/database';
+import { doc, runTransaction, increment } from '@/firebase/firestore-compat';
 import { updatePhysics } from '../lib/carrom-physics';
 
 export interface CarromPiece {
@@ -51,28 +43,32 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
   const firestore = useFirestore();
   const [gameState, setGameState] = useState<CarromGameState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const database = useDatabase();
 
-  const gameDocRef = useMemo(
-    () => (!firestore || !roomId) ? null : doc(firestore, 'games', `carrom_${roomId}`),
-    [firestore, roomId]
-  );
+  const gamePath = roomId ? `games/carrom_${roomId}` : null;
 
   useEffect(() => {
-    if (!gameDocRef) { setIsLoading(false); return; }
-    const unsub = onSnapshot(gameDocRef, (snap: any) => {
-      if (snap.exists()) {
-        setGameState(snap.data() as CarromGameState);
+    if (!database || !gamePath) { setIsLoading(false); return; }
+    const gameRef = databaseRef(database, gamePath);
+    const unsubscribe = onValue(gameRef, (snapshot) => {
+      const val = snapshot.val();
+      if (val) {
+        setGameState({
+          ...val,
+          matchStartTime: val.matchStartTime ? { toDate: () => new Date(val.matchStartTime) } : null,
+          updatedAt: val.updatedAt ? { toDate: () => new Date(val.updatedAt) } : null,
+        });
       }
       setIsLoading(false);
     }, () => setIsLoading(false));
-    return () => unsub();
-  }, [gameDocRef]);
+    return () => unsubscribe();
+  }, [database, gamePath]);
 
   const initializeGame = useCallback(async () => {
-    if (!gameDocRef || !userId) return;
+    if (!database || !gamePath || !userId || !roomId) return;
 
     if (!gameState || gameState.status === 'ended') {
-      await setDoc(gameDocRef, {
+      await databaseSet(databaseRef(database, gamePath), {
         id: `carrom_${roomId}`,
         roomId,
         players: [],
@@ -82,17 +78,17 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
         status: 'loading',
         mode: 'none',
         entryFee: 0,
-        updatedAt: new Date(),
+        updatedAt: Date.now(),
       });
 
       setTimeout(async () => {
-        try { await updateDoc(gameDocRef, { status: 'mode_select' }); } catch {}
+        try { await databaseUpdate(databaseRef(database, gamePath), { status: 'mode_select' }); } catch {}
       }, 5000);
     }
-  }, [gameDocRef, userId, gameState, roomId]);
+  }, [database, gamePath, userId, gameState, roomId]);
 
   const selectMode = useCallback(async (mode: 'freestyle' | 'professional', entryFee: number = 0, isBot: boolean = false, userProfile?: any) => {
-    if (!gameDocRef || gameState?.status !== 'mode_select') return;
+    if (!database || !gamePath || gameState?.status !== 'mode_select') return;
     try {
       if (isBot && userProfile && userId) {
         const initialPieces: CarromPiece[] = [
@@ -114,7 +110,7 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
           { id: 'striker', type: 'striker', position: { x: 50, y: 85 }, velocity: { x: 0, y: 0 }, isPocketed: false },
         ];
 
-        await updateDoc(gameDocRef, {
+        await databaseUpdate(databaseRef(database, gamePath), {
           status: 'playing',
           mode,
           entryFee,
@@ -137,24 +133,24 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
           ],
           pieces: initialPieces,
           turn: userId,
-          matchStartTime: new Date(),
-          turnStartTime: new Date(),
+          matchStartTime: Date.now(),
+          turnStartTime: Date.now(),
           missedTurns: { [userId]: 0, bot: 0 },
-          updatedAt: new Date(),
+          updatedAt: Date.now(),
         });
       } else {
-        await updateDoc(gameDocRef, {
+        await databaseUpdate(databaseRef(database, gamePath), {
           status: 'lobby',
           mode,
           entryFee,
-          updatedAt: new Date(),
+          updatedAt: Date.now(),
         });
       }
     } catch {}
-  }, [gameDocRef, gameState, userId]);
+  }, [database, gamePath, gameState, userId]);
 
   const joinArena = useCallback(async (userProfile: any, isBot: boolean = false) => {
-    if (!gameDocRef || !userId || !userProfile || gameState?.status !== 'lobby') return;
+    if (!database || !gamePath || !userId || !userProfile || gameState?.status !== 'lobby' || !roomId) return;
 
     const entryFee = gameState.entryFee || 0;
     if ((userProfile?.wallet?.coins || 0) < entryFee) return;
@@ -201,21 +197,21 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
         });
       }
 
-      await updateDoc(gameDocRef, {
+      await databaseUpdate(databaseRef(database, gamePath), {
         players: [...gameState.players, ...playersToAdd],
         isBotMode: isBot,
-        matchStartTime: isBot ? new Date() : null,
-        turnStartTime: isBot ? new Date() : null,
+        matchStartTime: isBot ? Date.now() : null,
+        turnStartTime: isBot ? Date.now() : null,
         missedTurns: isBot ? { [userId]: 0, bot: 0 } : null,
-        updatedAt: new Date(),
+        updatedAt: Date.now(),
       });
     } catch (err) {
       console.error('Failed to join arena:', err);
     }
-  }, [gameDocRef, userId, gameState, firestore, roomId]);
+  }, [database, gamePath, userId, gameState, firestore, roomId]);
 
   const startMatch = useCallback(async () => {
-    if (!gameDocRef || !gameState || gameState.status !== 'lobby') return;
+    if (!database || !gamePath || !gameState || gameState.status !== 'lobby') return;
     if (gameState.players.length < 2) return;
 
     const initialPieces: CarromPiece[] = [
@@ -238,30 +234,30 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
     ];
 
     try {
-      await updateDoc(gameDocRef, {
+      await databaseUpdate(databaseRef(database, gamePath), {
         status: 'playing',
         pieces: initialPieces,
         turn: gameState.players[0].uid,
-        matchStartTime: new Date(),
-        turnStartTime: new Date(),
+        matchStartTime: Date.now(),
+        turnStartTime: Date.now(),
         missedTurns: gameState.players.reduce((acc: any, p: any) => { acc[p.uid] = 0; return acc; }, {}),
-        updatedAt: new Date(),
+        updatedAt: Date.now(),
       });
     } catch {}
-  }, [gameDocRef, gameState]);
+  }, [database, gamePath, gameState]);
 
   const updateStriker = useCallback(async (pos: number) => {
-    if (!gameDocRef || !gameState || gameState.status !== 'playing') return;
+    if (!database || !gamePath || !gameState || gameState.status !== 'playing') return;
     const isBotTurn = gameState.turn === 'bot';
     const isMyTurn = gameState.turn === userId;
     const isHost = gameState.players[0]?.uid === userId;
 
     if (!isMyTurn && !(isBotTurn && isHost)) return;
-    try { await updateDoc(gameDocRef, { strikerPos: pos }); } catch {}
-  }, [gameDocRef, gameState, userId]);
+    try { await databaseUpdate(databaseRef(database, gamePath), { strikerPos: pos }); } catch {}
+  }, [database, gamePath, gameState, userId]);
 
   const strike = useCallback(async (angle: number, power: number) => {
-    if (!gameDocRef || !gameState || gameState.status !== 'playing') return;
+    if (!database || !gamePath || !gameState || gameState.status !== 'playing') return;
     const isBotTurn = gameState.turn === 'bot';
     const isMyTurn = gameState.turn === userId;
     const isHost = gameState.players[0]?.uid === userId;
@@ -272,7 +268,6 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
     const striker = pieces.find(p => p.id === 'striker');
     if (!striker) return;
 
-    // Sync current user-dragged striker position to physics
     striker.position.x = gameState.strikerPos ?? 50;
     striker.position.y = 85;
 
@@ -309,27 +304,23 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
     }
 
     try {
-      await updateDoc(gameDocRef, {
+      await databaseUpdate(databaseRef(database, gamePath), {
         pieces: finalPieces,
         turn: nextPlayer.uid,
-        turnStartTime: new Date(),
+        turnStartTime: Date.now(),
         missedTurns: newMissedTurns,
-        updatedAt: new Date(),
+        updatedAt: Date.now(),
       });
     } catch {}
-  }, [gameDocRef, gameState, userId]);
+  }, [database, gamePath, gameState, userId]);
 
   const endMatch = useCallback(async (winnerId: string) => {
-    if (!gameDocRef || !gameState || gameState.status !== 'playing') return;
+    if (!database || !gamePath || !gameState || gameState.status !== 'playing' || !roomId) return;
 
     try {
       await runTransaction(firestore!, async (transaction: any) => {
-        const gameSnap = await transaction.get(gameDocRef);
-        if (!gameSnap.exists()) return;
-
-        const data = gameSnap.data();
-        const entryFee = data.entryFee || 0;
-        const totalPlayers = data.players.length;
+        const entryFee = gameState.entryFee || 0;
+        const totalPlayers = gameState.players.length;
         const totalPool = entryFee * totalPlayers;
         const prize = Math.floor(totalPool * 0.9);
 
@@ -348,29 +339,34 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
             timestamp: new Date(),
           });
         }
+      });
 
-        transaction.update(gameDocRef, {
-          status: 'ended',
-          winner: winnerId,
-          prize,
-          updatedAt: new Date(),
-        });
+      const entryFee = gameState.entryFee || 0;
+      const totalPlayers = gameState.players.length;
+      const totalPool = entryFee * totalPlayers;
+      const prize = Math.floor(totalPool * 0.9);
+
+      await databaseUpdate(databaseRef(database, gamePath), {
+        status: 'ended',
+        winner: winnerId,
+        prize,
+        updatedAt: Date.now(),
       });
     } catch (err) {
       console.error('Failed to end match:', err);
     }
-  }, [gameDocRef, gameState, firestore, roomId]);
+  }, [database, gamePath, gameState, firestore, roomId]);
 
   // Host referee logic for Carrom
   useEffect(() => {
-    if (!gameDocRef || !gameState || gameState.status !== 'playing' || !userId) return;
+    if (!database || !gamePath || !gameState || gameState.status !== 'playing' || !userId) return;
 
     const isHost = gameState.players[0]?.uid === userId;
     if (!isHost) return;
 
     const interval = setInterval(async () => {
       const now = Date.now();
-      const turnStart = gameState.turnStartTime ? (gameState.turnStartTime.seconds ? gameState.turnStartTime.seconds * 1000 : new Date(gameState.turnStartTime).getTime()) : now;
+      const turnStart = gameState.turnStartTime || now;
       const turnElapsed = now - turnStart;
 
       if (turnElapsed >= 30000) {
@@ -382,27 +378,27 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
         if (newMissedCount >= 3) {
           clearInterval(interval);
           const otherPlayer = gameState.players.find((p: any) => p.uid !== activePlayerUid);
-          await updateDoc(gameDocRef, {
+          await databaseUpdate(databaseRef(database, gamePath), {
             status: 'ended',
             winner: otherPlayer?.uid || 'bot',
-            updatedAt: new Date(),
+            updatedAt: Date.now(),
           });
         } else {
-          const currentPlayerIndex = gameState.players.findIndex((p: any) => p.uid === activePlayerUid);
-          const nextPlayer = gameState.players[(currentPlayerIndex + 1) % gameState.players.length];
+          const nextPlayerIndex = (gameState.players.findIndex((p: any) => p.uid === activePlayerUid) + 1) % gameState.players.length;
+          const nextPlayer = gameState.players[nextPlayerIndex];
 
-          await updateDoc(gameDocRef, {
+          await databaseUpdate(databaseRef(database, gamePath), {
             turn: nextPlayer.uid,
-            turnStartTime: new Date(),
+            turnStartTime: Date.now(),
             missedTurns: updatedMissedTurns,
-            updatedAt: new Date(),
+            updatedAt: Date.now(),
           });
         }
       }
 
-      const matchStart = gameState.matchStartTime ? (gameState.matchStartTime.seconds ? gameState.matchStartTime.seconds * 1000 : new Date(gameState.matchStartTime).getTime()) : now;
+      const matchStart = gameState.matchStartTime || now;
       const matchElapsed = now - matchStart;
-      if (matchElapsed >= 900000) { // 15 mins
+      if (matchElapsed >= 1200000) { // 20 mins
         clearInterval(interval);
         let bestPlayerUid = gameState.players[0].uid;
         let maxScore = -1;
@@ -413,16 +409,16 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
           }
         });
 
-        await updateDoc(gameDocRef, {
+        await databaseUpdate(databaseRef(database, gamePath), {
           status: 'ended',
           winner: bestPlayerUid,
-          updatedAt: new Date(),
+          updatedAt: Date.now(),
         });
       }
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [gameDocRef, gameState, userId]);
+  }, [database, gamePath, gameState, userId]);
 
   return {
     gameState,
@@ -435,5 +431,4 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
     strike,
     endMatch,
   };
-
 }

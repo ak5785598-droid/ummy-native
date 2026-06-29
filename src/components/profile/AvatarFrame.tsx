@@ -5,6 +5,7 @@ import { Video, ResizeMode } from 'expo-av';
 import LottieView from 'lottie-react-native';
 import { getCachedFile } from '../../lib/cache-manager';
 import { Sparkles } from 'lucide-react-native';
+import { toCDN } from '../../lib/cdn';
 
 interface AvatarFrameProps {
   frameMediaUrl?: string | null;
@@ -219,12 +220,13 @@ export const AvatarFrame = memo(function AvatarFrame({
     }
 
     let active = true;
-    getCachedFile(frameMediaUrl)
+    const proxiedUrl = toCDN(frameMediaUrl);
+    getCachedFile(proxiedUrl)
       .then(localPath => {
         if (active) setCachedFrameUrl(localPath);
       })
       .catch(() => {
-        if (active) setCachedFrameUrl(frameMediaUrl);
+        if (active) setCachedFrameUrl(proxiedUrl);
       });
 
     return () => {

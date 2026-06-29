@@ -4,6 +4,7 @@ import { X, Users } from 'lucide-react-native';
 import { useFirestore } from '../../firebase/provider';
 import { collection, query, orderBy, onSnapshot } from '@/firebase/firestore-compat';
 import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
 
 interface RoomFollowersDialogProps {
   visible: boolean;
@@ -35,7 +36,7 @@ export function RoomFollowersDialog({ visible, onClose, roomId }: RoomFollowersD
           <ScrollView className="px-4 pt-2" showsVerticalScrollIndicator={false}>
             {followers.length === 0 ? <Text className="text-white/40 text-sm text-center py-10">No followers yet</Text> : followers.map(f => (
               <View key={f.uid} className="flex-row items-center py-3 border-b border-white/5">
-                <Image cachePolicy="memory-disk" source={{ uri: f.avatarUrl }} className="w-10 h-10 rounded-full bg-slate-700" />
+                <Image cachePolicy="memory-disk" source={{ uri: toCDN(f.avatarUrl) }} className="w-10 h-10 rounded-full bg-slate-700" />
                 <Text className="text-white text-sm font-bold ml-3 flex-1">{f.name}</Text>
               </View>
             ))}

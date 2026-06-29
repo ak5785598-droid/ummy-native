@@ -4,6 +4,7 @@ import { X, Crown, Gift } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { TopSupporter } from '../../lib/types';
 import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
 import { GoldenCoin } from '../GoldenCoin';
 
 interface RoomTopSupportersDialogProps {
@@ -41,7 +42,7 @@ function SupporterProfilePopup({
               <Crown size={20} color={cfg.crownColor} fill={cfg.crownColor} style={{ marginBottom: 8 }} />
             )}
             <View style={{ borderColor: cfg.border, borderWidth: 3, borderRadius: 50, marginBottom: 12 }}>
-              <Image cachePolicy="memory-disk" source={{ uri: supporter.avatarUrl || 'https://picsum.photos/100' }} style={{ width: 80, height: 80, borderRadius: 40 }} />
+              <Image cachePolicy="memory-disk" source={{ uri: toCDN(supporter.avatarUrl) || 'https://picsum.photos/100' }} style={{ width: 80, height: 80, borderRadius: 40 }} />
             </View>
             <Text style={{ color: 'white', fontSize: 18, fontWeight: '900', marginBottom: 2 }}>{supporter.username}</Text>
             <View style={{ backgroundColor: cfg.badge, paddingHorizontal: 10, paddingVertical: 2, borderRadius: 20 }}>
@@ -153,7 +154,7 @@ export function RoomTopSupportersDialog({ visible, onClose, supporters = [] }: R
                         <Crown size={18} color={crownColors[1]} fill={crownColors[1]} style={{ marginBottom: 4 }} />
                         <View style={{ position: 'relative' }}>
                           <View style={{ borderWidth: 2.5, borderColor: borderColors[1], borderRadius: 40, padding: 2 }}>
-                            <Image cachePolicy="memory-disk" source={{ uri: top3[1].avatarUrl || 'https://picsum.photos/100' }} style={{ width: avatarSizes[1], height: avatarSizes[1], borderRadius: 30 }} />
+                            <Image cachePolicy="memory-disk" source={{ uri: toCDN(top3[1].avatarUrl) || 'https://picsum.photos/100' }} style={{ width: avatarSizes[1], height: avatarSizes[1], borderRadius: 30 }} />
                           </View>
                           {/* Rank badge */}
                           <View style={{ position: 'absolute', bottom: -4, right: -4, backgroundColor: borderColors[1], width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#0f1929' }}>
@@ -184,7 +185,7 @@ export function RoomTopSupportersDialog({ visible, onClose, supporters = [] }: R
                           {/* Glow ring */}
                           <View style={{ position: 'absolute', top: -4, left: -4, right: -4, bottom: -4, borderRadius: 40, borderWidth: 2, borderColor: 'rgba(251,191,36,0.3)' }} />
                           <View style={{ borderWidth: 3, borderColor: borderColors[0], borderRadius: 40, padding: 2 }}>
-                            <Image cachePolicy="memory-disk" source={{ uri: top3[0].avatarUrl || 'https://picsum.photos/100' }} style={{ width: avatarSizes[0], height: avatarSizes[0], borderRadius: 34 }} />
+                            <Image cachePolicy="memory-disk" source={{ uri: toCDN(top3[0].avatarUrl) || 'https://picsum.photos/100' }} style={{ width: avatarSizes[0], height: avatarSizes[0], borderRadius: 34 }} />
                           </View>
                           <View style={{ position: 'absolute', bottom: -4, right: -4, backgroundColor: borderColors[0], width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#0f1929' }}>
                             <Text style={{ color: '#0f172a', fontSize: 9, fontWeight: '900' }}>1</Text>
@@ -212,7 +213,7 @@ export function RoomTopSupportersDialog({ visible, onClose, supporters = [] }: R
                         <Crown size={18} color={crownColors[2]} fill={crownColors[2]} style={{ marginBottom: 4 }} />
                         <View style={{ position: 'relative' }}>
                           <View style={{ borderWidth: 2.5, borderColor: borderColors[2], borderRadius: 35, padding: 2 }}>
-                            <Image cachePolicy="memory-disk" source={{ uri: top3[2].avatarUrl || 'https://picsum.photos/100' }} style={{ width: avatarSizes[2], height: avatarSizes[2], borderRadius: 28 }} />
+                            <Image cachePolicy="memory-disk" source={{ uri: toCDN(top3[2].avatarUrl) || 'https://picsum.photos/100' }} style={{ width: avatarSizes[2], height: avatarSizes[2], borderRadius: 28 }} />
                           </View>
                           <View style={{ position: 'absolute', bottom: -4, right: -4, backgroundColor: borderColors[2], width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#0f1929' }}>
                             <Text style={{ color: '#0f172a', fontSize: 9, fontWeight: '900' }}>3</Text>
@@ -246,7 +247,7 @@ export function RoomTopSupportersDialog({ visible, onClose, supporters = [] }: R
                       onPress={() => openProfile(s, idx + 4)}
                     >
                       <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, fontWeight: '900', width: 32 }}>{idx + 4}</Text>
-                      <Image cachePolicy="memory-disk" source={{ uri: s.avatarUrl || 'https://picsum.photos/100' }} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }} />
+                      <Image cachePolicy="memory-disk" source={{ uri: toCDN(s.avatarUrl) || 'https://picsum.photos/100' }} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }} />
                       <View style={{ flex: 1 }}>
                         <Text style={{ color: 'white', fontSize: 13, fontWeight: '900' }} numberOfLines={1}>{s.username}</Text>
                       </View>

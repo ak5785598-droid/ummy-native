@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
-import { View, Text, Modal, TouchableOpacity, ScrollView, Vibration, Dimensions, Alert } from 'react-native';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { View, Text, Modal, TouchableOpacity, ScrollView, Vibration, Dimensions, Alert, Animated, Easing } from 'react-native';
 import { X, ChevronDown, Zap, Send } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '../../firebase/provider';
@@ -14,6 +14,56 @@ import { GoldenCoin } from '../GoldenCoin';
 import { toCDN } from '../../lib/cdn';
 
 const { width } = Dimensions.get('window');
+
+function AnimatedGiftItem({ gift, isSelected, onPress }: { gift: Gift; isSelected: boolean; onPress: () => void }) {
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (isSelected) {
+      const loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.06, duration: 250, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 250, easing: Easing.in(Easing.ease), useNativeDriver: true }),
+        ])
+      );
+      loop.start();
+      return () => { loop.stop(); pulseAnim.setValue(1); };
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [isSelected]);
+
+  const giftBoxSize = (width - 64) / 4;
+
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+      <Animated.View style={{
+        width: giftBoxSize,
+        aspectRatio: 0.65,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 4,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: isSelected ? '#22d3ee' : 'rgba(255,255,255,0.1)',
+      }}>
+        {gift.imageUrl ? (
+          <Animated.View style={{ width: giftBoxSize, height: giftBoxSize, transform: [{ scale: pulseAnim }] }}>
+            <Image cachePolicy="memory-disk" source={{ uri: toCDN(gift.imageUrl) }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
+          </Animated.View>
+        ) : (
+          <Animated.Text style={{ fontSize: 32, transform: [{ scale: pulseAnim }] }}>🎁</Animated.Text>
+        )}
+        <Text style={{ color: 'white', fontSize: 10, fontWeight: '700', marginTop: 2 }} numberOfLines={1}>{gift.name}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 1 }}>
+          <GoldenCoin size={12} />
+          <Text style={{ color: '#fbbf24', fontSize: 10, fontWeight: '800' }}>{gift.price}</Text>
+        </View>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
 
 function getISOWeek(d: Date): number {
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -174,6 +224,17 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
     }
 
     try {
+      // Fetch recipient profiles to check hideGiftRecord before batch
+      const recipientProfiles: Record<string, any> = {};
+      for (const uid of validUids) {
+        try {
+          const snap = await getDoc(doc(firestore, 'users', uid, 'profile', uid));
+          recipientProfiles[uid] = snap.exists() ? snap.data() : {};
+        } catch (e) {
+          recipientProfiles[uid] = {};
+        }
+      }
+
       const batch = writeBatch(firestore);
 
       const senderProfileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
@@ -196,24 +257,29 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
       validUids.forEach(uid => {
         const recipientProfileRef = doc(firestore, 'users', uid, 'profile', uid);
         const diamondReward = Math.floor((gift.price * qty) * 0.4);
+        const isHidden = recipientProfiles[uid]?.hideGiftRecord;
         
         batch.update(recipientProfileRef, {
           'wallet.diamonds': increment(diamondReward),
-          'stats.dailyGiftsReceived': increment(diamondReward),
-          'stats.weeklyGiftsReceived': increment(diamondReward),
-          'stats.monthlyGiftsReceived': increment(diamondReward),
           [`stats.receivedGifts.${gift.id || gift.name}`]: increment(qty),
           [`stats.giftDetails.${gift.id || gift.name}_name`]: gift.name || "Gift",
           [`stats.giftDetails.${gift.id || gift.name}_imageUrl`]: gift.imageUrl || null,
           updatedAt: serverTimestamp(),
+          ...(isHidden ? {} : {
+            'stats.dailyGiftsReceived': increment(diamondReward),
+            'stats.weeklyGiftsReceived': increment(diamondReward),
+            'stats.monthlyGiftsReceived': increment(diamondReward),
+          }),
         });
 
-        const recipientUserRef = doc(firestore, 'users', uid);
-        batch.update(recipientUserRef, {
-          'stats.dailyGiftsReceived': increment(diamondReward),
-          'stats.weeklyGiftsReceived': increment(diamondReward),
-          'stats.monthlyGiftsReceived': increment(diamondReward),
-        });
+        if (!isHidden) {
+          const recipientUserRef = doc(firestore, 'users', uid);
+          batch.update(recipientUserRef, {
+            'stats.dailyGiftsReceived': increment(diamondReward),
+            'stats.weeklyGiftsReceived': increment(diamondReward),
+            'stats.monthlyGiftsReceived': increment(diamondReward),
+          });
+        }
       });
 
       const supporterRef = doc(firestore, 'chatRooms', roomId, 'topSupporters', user.uid);
@@ -496,33 +562,12 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
             <ScrollView style={{ height: 280 }} className="px-4 py-2" showsVerticalScrollIndicator={false}>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 {currentGifts.map((gift) => (
-                  <TouchableOpacity
+                  <AnimatedGiftItem
                     key={gift.id}
+                    gift={gift}
+                    isSelected={selectedGift?.id === gift.id}
                     onPress={() => setSelectedGift(gift)}
-                    style={{
-                      width: (width - 48) / 4 - 8,
-                      aspectRatio: 1,
-                      borderRadius: 12,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: 6,
-                      overflow: 'hidden',
-                      backgroundColor: selectedGift?.id === gift.id ? 'rgba(124,58,237,0.3)' : 'rgba(255,255,255,0.05)',
-                      borderWidth: selectedGift?.id === gift.id ? 2 : 1,
-                      borderColor: selectedGift?.id === gift.id ? '#a855f7' : 'rgba(255,255,255,0.1)',
-                    }}
-                  >
-                    {gift.imageUrl ? (
-                      <Image cachePolicy="memory-disk" source={{ uri: toCDN(gift.imageUrl) }} style={{ width: 50, height: 50, marginBottom: 2 }} contentFit="contain" />
-                    ) : (
-                      <Text style={{ fontSize: 28, marginBottom: 2 }}>🎁</Text>
-                    )}
-                    <Text style={{ color: 'white', fontSize: 9, fontWeight: '700' }} numberOfLines={1}>{gift.name}</Text>
-                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 1 }}>
-                       <GoldenCoin size={15} />
-                       <Text style={{ color: '#fbbf24', fontSize: 10, fontWeight: '700' }}>{gift.price}</Text>
-                     </View>
-                  </TouchableOpacity>
+                  />
                 ))}
               </View>
             </ScrollView>

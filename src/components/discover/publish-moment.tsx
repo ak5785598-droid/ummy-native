@@ -34,7 +34,7 @@ export function PublishMoment({ visible, onClose }: PublishMomentProps) {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.All,
       allowsEditing: true,
-      quality: 0.8,
+      quality: 0.3,
     });
 
     if (!result.canceled && result.assets[0]) {

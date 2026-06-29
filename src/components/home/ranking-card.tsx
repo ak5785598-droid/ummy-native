@@ -127,7 +127,7 @@ function RankingCardAnimOverlay() {
 export function RankingCard({ onPress }: RankingCardProps) {
   const { firestore, isHydrated } = useFirebase();
 
-  const topUsersQuery = useMemo(() => {
+  const topUsersDailyQuery = useMemo(() => {
     if (!firestore || !isHydrated) return null;
     return query(
       collection(firestore, 'users'),
@@ -137,7 +137,19 @@ export function RankingCard({ onPress }: RankingCardProps) {
     );
   }, [firestore, isHydrated]);
 
-  const { data: topUsers } = useCollection(topUsersQuery);
+  const topUsersTotalQuery = useMemo(() => {
+    if (!firestore || !isHydrated) return null;
+    return query(
+      collection(firestore, 'users'),
+      orderBy('wallet.totalSpent', 'desc'),
+      limit(3)
+    );
+  }, [firestore, isHydrated]);
+
+  const { data: topUsersDaily } = useCollection(topUsersDailyQuery);
+  const { data: topUsersTotal } = useCollection(topUsersTotalQuery);
+  // Use daily if has data, else fallback to all-time total spenders
+  const topUsers = (topUsersDaily && topUsersDaily.length > 0) ? topUsersDaily : (topUsersTotal || []);
   const [mode, setMode] = useState<'carousel' | 'podium'>('carousel');
   const [activeIndex, setActiveIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;

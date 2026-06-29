@@ -73,7 +73,7 @@ const getBannerName = (id: string) => {
   switch (id) {
     case 'weekly-star': return 'WEEKLY\nSTAR';
     case 'merge-aristocracy': return 'ARISTOCRACY';
-    case 'room-support': return ''; // Removed text overlay for Room Support
+    case 'room-support': return '';
     case 'golden-chest': return 'GOLDEN\nCHEST';
     case 'lucky-spin': return 'LUCKY\nSPIN';
     default: return '';

@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, Modal, TouchableOpacity, Animated, Dimensions, StyleSheet } from 'react-native';
-import { X } from 'lucide-react-native';
+import { X, ShieldAlert } from 'lucide-react-native';
 import { doc, increment } from '@/firebase/firestore-compat';
-import { useFirestore, useUser } from '../../firebase/provider';
+import { useFirestore, useUser, useDatabase } from '../../firebase/provider';
+import { ref as databaseRef, onValue } from 'firebase/database';
 import { updateDocumentNonBlocking } from '../../lib/non-blocking-writes';
 
 const { width, height } = Dimensions.get('window');
@@ -13,6 +14,7 @@ interface LootingRoomProps {
   visible: boolean;
   onClose: () => void;
   roomId: string;
+  levelIndex?: number;
 }
 
 const REWARD_TYPES = [
@@ -143,8 +145,9 @@ function FallingReward({
   );
 }
 
-export function LootingRoom({ visible, onClose, roomId }: LootingRoomProps) {
+export function LootingRoom({ visible, onClose, roomId, levelIndex }: LootingRoomProps) {
   const firestore = useFirestore();
+  const database = useDatabase();
   const { user } = useUser();
   const [items, setItems] = useState<FallingItem[]>([]);
   const [score, setScore] = useState(0);
@@ -160,11 +163,34 @@ export function LootingRoom({ visible, onClose, roomId }: LootingRoomProps) {
   const lastCollectTimeRef = useRef<number>(0);
   const accumulatedScoreRef = useRef(0);
 
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+
   const isFrenzy = timeLeft <= 10 && timeLeft > 0;
+
+  // Verify entry eligibility from RTD
+  useEffect(() => {
+    if (!visible || !database || !roomId || !user?.uid || levelIndex === undefined) {
+      setIsAuthorized(null);
+      return;
+    }
+    const rtdbPath = `rooms/${roomId}/lootGates/${levelIndex}/entries`;
+    const unsub = onValue(databaseRef(database, rtdbPath), (snap: any) => {
+      const arr = snap.val();
+      if (Array.isArray(arr) && arr.includes(user.uid)) {
+        setIsAuthorized(true);
+      } else {
+        setIsAuthorized(false);
+      }
+    }, (err) => {
+      console.warn("RTD auth check failed:", err);
+      setIsAuthorized(false);
+    });
+    return () => unsub();
+  }, [visible, database, roomId, levelIndex, user?.uid]);
 
   // Initialize and Countdown Timer
   useEffect(() => {
-    if (!visible) {
+    if (!visible || isAuthorized !== true) {
       setItems([]);
       setScore(0);
       setTimeLeft(SESSION_DURATION);
@@ -203,11 +229,11 @@ export function LootingRoom({ visible, onClose, roomId }: LootingRoomProps) {
     return () => {
       clearInterval(timerInterval);
     };
-  }, [visible]);
+  }, [visible, isAuthorized]);
 
   // Handle dynamic spawn rate for Frenzy Mode
   useEffect(() => {
-    if (!visible || timeLeft === 0) return;
+    if (!visible || isAuthorized !== true || timeLeft === 0) return;
     const spawnTime = isFrenzy ? 700 : 1600;
     const spawnInterval = setInterval(() => {
       setItems((prev) => {
@@ -225,7 +251,7 @@ export function LootingRoom({ visible, onClose, roomId }: LootingRoomProps) {
     }, spawnTime);
 
     return () => clearInterval(spawnInterval);
-  }, [visible, isFrenzy, timeLeft === 0]);
+  }, [visible, isFrenzy, timeLeft === 0, isAuthorized]);
 
   const spawnConfetti = useCallback((cx: number, cy: number) => {
     const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8'];
@@ -306,7 +332,7 @@ export function LootingRoom({ visible, onClose, roomId }: LootingRoomProps) {
 
   const handleAutoClose = useCallback(() => {
     const finalScore = accumulatedScoreRef.current;
-    if (finalScore > 0 && firestore && user?.uid) {
+    if (finalScore > 0 && firestore && user?.uid && isAuthorized === true) {
       updateDocumentNonBlocking(
         doc(firestore, 'users', user.uid),
         { 'wallet.coins': increment(finalScore) }
@@ -317,14 +343,14 @@ export function LootingRoom({ visible, onClose, roomId }: LootingRoomProps) {
       );
     }
     onClose();
-  }, [onClose, firestore, user]);
+  }, [onClose, firestore, user, isAuthorized]);
 
   useEffect(() => {
-    if (visible && timeLeft === 0) {
+    if (visible && isAuthorized === true && timeLeft === 0) {
       const t = setTimeout(handleAutoClose, 2000);
       return () => clearTimeout(t);
     }
-  }, [timeLeft, visible, handleAutoClose]);
+  }, [timeLeft, visible, isAuthorized, handleAutoClose]);
 
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
@@ -334,144 +360,177 @@ export function LootingRoom({ visible, onClose, roomId }: LootingRoomProps) {
     <Modal visible={visible} transparent animationType="fade">
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)' }}>
         
-        {/* Frenzy Border Overlay */}
-        {isFrenzy && (
-          <View style={{
-            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-            borderWidth: 4, borderColor: '#f59e0b', pointerEvents: 'none', zIndex: 10,
-            opacity: 0.8,
-          }} />
+        {isAuthorized === null && (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: '#fff', fontSize: 16 }}>Checking eligibility...</Text>
+          </View>
         )}
 
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 16,
-            paddingTop: 50,
-            paddingBottom: 8,
-            zIndex: 20,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={{ fontSize: 18 }}>🎯</Text>
-            <View>
-              <Text style={{ color: '#fbbf24', fontSize: 16, fontWeight: '900' }}>Looting Room</Text>
-              {isFrenzy && (
-                <Text style={{ color: '#f59e0b', fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 }}>Frenzy Mode (2x)!</Text>
-              )}
-            </View>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            {comboDisplay >= 3 && (
-              <View style={{ backgroundColor: 'rgba(168,85,247,0.2)', borderWidth: 1, borderColor: '#c084fc', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4 }}>
-                <Text style={{ color: '#c084fc', fontWeight: '900', fontSize: 11 }}>COMBO x{comboDisplay}</Text>
-              </View>
-            )}
-            <View
+        {isAuthorized === false && (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <ShieldAlert size={48} color="#ef4444" />
+            <Text style={{ color: '#ef4444', fontSize: 20, fontWeight: '900', marginTop: 16 }}>Access Denied</Text>
+            <Text style={{ color: '#94a3b8', fontSize: 14, textAlign: 'center', marginTop: 8, marginBottom: 24 }}>
+              You are not registered in the entry queue for this Loot Gate level. Only successfully joined participants can play.
+            </Text>
+            <TouchableOpacity
+              onPress={onClose}
               style={{
-                backgroundColor: 'rgba(251,191,36,0.15)',
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                paddingVertical: 12,
+                paddingHorizontal: 24,
                 borderRadius: 12,
-                paddingHorizontal: 10,
-                paddingVertical: 4,
                 borderWidth: 1,
-                borderColor: 'rgba(251,191,36,0.3)',
+                borderColor: 'rgba(255,255,255,0.2)'
               }}
             >
-              <Text style={{ color: '#fbbf24', fontWeight: '900', fontSize: 14 }}>🪙 {score.toLocaleString()}</Text>
-            </View>
-            <View
-              style={{
-                backgroundColor: timeLeft <= 10 ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.1)',
-                borderRadius: 10,
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-                borderWidth: 1,
-                borderColor: timeLeft <= 10 ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.15)',
-              }}
-            >
-              <Text style={{ color: timeLeft <= 10 ? '#ef4444' : '#fff', fontWeight: '900', fontSize: 13 }}>
-                {minutes}:{seconds.toString().padStart(2, '0')}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={handleAutoClose} style={{ padding: 4 }}>
-              <X size={18} color="rgba(255,255,255,0.5)" />
+              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Close</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        )}
 
-        <View style={{ flex: 1, zIndex: 15 }}>
-          {items.map((item) => (
-            <FallingReward
-              key={item.uid}
-              item={item}
-              onCollect={handleCollect}
-              collected={collectedItemsRef.current.has(item.uid)}
-              isFrenzy={isFrenzy}
-            />
-          ))}
-        </View>
+        {isAuthorized === true && (
+          <>
+            {/* Frenzy Border Overlay */}
+            {isFrenzy && (
+              <View style={{
+                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                borderWidth: 4, borderColor: '#f59e0b', pointerEvents: 'none', zIndex: 10,
+                opacity: 0.8,
+              }} />
+            )}
 
-        {floatingPops.map((pop) => (
-          <Animated.View
-            key={pop.id}
-            style={{
-              position: 'absolute',
-              left: pop.x,
-              top: pop.y,
-              opacity: pop.anim,
-              transform: [
-                {
-                  translateY: pop.anim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-80, 0],
-                  }),
-                },
-                {
-                  scale: pop.anim.interpolate({
-                    inputRange: [0, 0.5, 1],
-                    outputRange: [0.5, 1.3, 1],
-                  }),
-                },
-              ],
-              pointerEvents: 'none',
-              zIndex: 30,
-            }}
-          >
-            <Text style={{ color: pop.color, fontSize: 20, fontWeight: '900', textShadowColor: 'rgba(0,0,0,0.8)', textShadowRadius: 4 }}>
-              {pop.text}
-            </Text>
-          </Animated.View>
-        ))}
-
-        {confettiPieces.map((c) => (
-          <Animated.View
-            key={c.id}
-            style={{
-              position: 'absolute',
-              left: c.x,
-              top: c.y,
-              width: 8,
-              height: 8,
-              borderRadius: 4,
-              backgroundColor: c.color,
-              transform: [{ translateX: c.tx }, { translateY: c.ty }, { scale: c.scale }],
-              opacity: c.opacity,
-              pointerEvents: 'none',
-              zIndex: 25,
-            }}
-          />
-        ))}
-
-        {isEnding && (
-          <View style={{ position: 'absolute', bottom: 120, left: 0, right: 0, alignItems: 'center', zIndex: 30 }}>
-            <View style={{ backgroundColor: 'rgba(251,191,36,0.2)', borderRadius: 16, paddingHorizontal: 24, paddingVertical: 12, borderWidth: 1, borderColor: 'rgba(251,191,36,0.4)' }}>
-              <Text style={{ color: '#fbbf24', fontSize: 18, fontWeight: '900', textAlign: 'center' }}>
-                Session ended! +{score.toLocaleString()} coins collected
-              </Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingHorizontal: 16,
+                paddingTop: 50,
+                paddingBottom: 8,
+                zIndex: 20,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={{ fontSize: 18 }}>🎯</Text>
+                <View>
+                  <Text style={{ color: '#fbbf24', fontSize: 16, fontWeight: '900' }}>Looting Room</Text>
+                  {isFrenzy && (
+                    <Text style={{ color: '#f59e0b', fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 }}>Frenzy Mode (2x)!</Text>
+                  )}
+                </View>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                {comboDisplay >= 3 && (
+                  <View style={{ backgroundColor: 'rgba(168,85,247,0.2)', borderWidth: 1, borderColor: '#c084fc', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4 }}>
+                    <Text style={{ color: '#c084fc', fontWeight: '900', fontSize: 11 }}>COMBO x{comboDisplay}</Text>
+                  </View>
+                )}
+                <View
+                  style={{
+                    backgroundColor: 'rgba(251,191,36,0.15)',
+                    borderRadius: 12,
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderWidth: 1,
+                    borderColor: 'rgba(251,191,36,0.3)',
+                  }}
+                >
+                  <Text style={{ color: '#fbbf24', fontWeight: '900', fontSize: 14 }}>🪙 {score.toLocaleString()}</Text>
+                </View>
+                <View
+                  style={{
+                    backgroundColor: timeLeft <= 10 ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.1)',
+                    borderRadius: 10,
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderWidth: 1,
+                    borderColor: timeLeft <= 10 ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.15)',
+                  }}
+                >
+                  <Text style={{ color: timeLeft <= 10 ? '#ef4444' : '#fff', fontWeight: '900', fontSize: 13 }}>
+                    {minutes}:{seconds.toString().padStart(2, '0')}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={handleAutoClose} style={{ padding: 4 }}>
+                  <X size={18} color="rgba(255,255,255,0.5)" />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+
+            <View style={{ flex: 1, zIndex: 15 }}>
+              {items.map((item) => (
+                <FallingReward
+                  key={item.uid}
+                  item={item}
+                  onCollect={handleCollect}
+                  collected={collectedItemsRef.current.has(item.uid)}
+                  isFrenzy={isFrenzy}
+                />
+              ))}
+            </View>
+
+            {floatingPops.map((pop) => (
+              <Animated.View
+                key={pop.id}
+                style={{
+                  position: 'absolute',
+                  left: pop.x,
+                  top: pop.y,
+                  opacity: pop.anim,
+                  transform: [
+                    {
+                      translateY: pop.anim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-80, 0],
+                      }),
+                    },
+                    {
+                      scale: pop.anim.interpolate({
+                        inputRange: [0, 0.5, 1],
+                        outputRange: [0.5, 1.3, 1],
+                      }),
+                    },
+                  ],
+                  pointerEvents: 'none',
+                  zIndex: 30,
+                }}
+              >
+                <Text style={{ color: pop.color, fontSize: 20, fontWeight: '900', textShadowColor: 'rgba(0,0,0,0.8)', textShadowRadius: 4 }}>
+                  {pop.text}
+                </Text>
+              </Animated.View>
+            ))}
+
+            {confettiPieces.map((c) => (
+              <Animated.View
+                key={c.id}
+                style={{
+                  position: 'absolute',
+                  left: c.x,
+                  top: c.y,
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: c.color,
+                  transform: [{ translateX: c.tx }, { translateY: c.ty }, { scale: c.scale }],
+                  opacity: c.opacity,
+                  pointerEvents: 'none',
+                  zIndex: 25,
+                }}
+              />
+            ))}
+
+            {isEnding && (
+              <View style={{ position: 'absolute', bottom: 120, left: 0, right: 0, alignItems: 'center', zIndex: 30 }}>
+                <View style={{ backgroundColor: 'rgba(251,191,36,0.2)', borderRadius: 16, paddingHorizontal: 24, paddingVertical: 12, borderWidth: 1, borderColor: 'rgba(251,191,36,0.4)' }}>
+                  <Text style={{ color: '#fbbf24', fontSize: 18, fontWeight: '900', textAlign: 'center' }}>
+                    Session ended! +{score.toLocaleString()} coins collected
+                  </Text>
+                </View>
+              </View>
+            )}
+          </>
         )}
       </View>
     </Modal>

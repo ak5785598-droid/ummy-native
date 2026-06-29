@@ -6,6 +6,7 @@ import { useFirebase, useUser, useDoc, useCollection } from '../../firebase/prov
 import { doc, collection, query, where, deleteDoc, updateDoc, increment, arrayUnion, arrayRemove, serverTimestamp } from '../../firebase/firestore-compat';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
+import { toCDN } from '@/lib/cdn';
 
 const LEVEL_THRESHOLDS = [0, 10000, 50000, 200000, 1000000, 5000000, 20000000, 100000000, 500000000, 2000000000];
 
@@ -126,7 +127,7 @@ export default function FamilyDetail() {
         <View style={{ height: 240, width: '100%', position: 'relative' }}>
           <Image
             cachePolicy="memory-disk"
-            source={{ uri: family.bannerUrl || `https://picsum.photos/seed/${family.id}/800` }}
+            source={{ uri: toCDN(family.bannerUrl) || `https://picsum.photos/seed/${family.id}/800` }}
             style={{ width: '100%', height: '100%' }}
             contentFit="cover"
           />
@@ -142,7 +143,7 @@ export default function FamilyDetail() {
           {/* Family info over banner */}
           <View style={{ position: 'absolute', bottom: 16, left: 16, right: 16, flexDirection: 'row', alignItems: 'flex-end' }}>
             <View style={{ width: 80, height: 80, borderRadius: 22, borderWidth: 4, borderColor: 'white', overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 }}>
-              <Image cachePolicy="memory-disk" source={{ uri: family.bannerUrl || `https://picsum.photos/seed/${family.id}/200` }} style={{ width: '100%', height: '100%' }} />
+              <Image cachePolicy="memory-disk" source={{ uri: toCDN(family.bannerUrl) || `https://picsum.photos/seed/${family.id}/200` }} style={{ width: '100%', height: '100%' }} />
             </View>
             <View style={{ flex: 1, marginLeft: 14, marginBottom: 4 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -249,7 +250,7 @@ export default function FamilyDetail() {
             >
               <Image
                 cachePolicy="memory-disk"
-                source={{ uri: member.avatarUrl || 'https://picsum.photos/200' }}
+                source={{ uri: toCDN(member.avatarUrl) || 'https://picsum.photos/200' }}
                 style={{ width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: '#E5E7EB' }}
               />
               <View style={{ flex: 1, marginLeft: 12 }}>

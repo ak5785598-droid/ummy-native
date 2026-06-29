@@ -10,8 +10,10 @@ import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { useUser, useFirestore, useDoc } from '../../firebase/provider';
 import { collection, query, where, orderBy, limit, doc, serverTimestamp, setDoc } from '@/firebase/firestore-compat';
+import { autoAssignMedals } from '../../lib/auto-assign-medals';
 import firestore from '@react-native-firebase/firestore';
 import { PremiumDiamond } from '@/components/PremiumDiamond';
+import { toCDN } from '@/lib/cdn';
 
 // Subcomponents
 import { 
@@ -164,11 +166,40 @@ export default function ProfileScreen() {
     return () => unsub();
   }, [profileId]);
 
+  // Auto-assign medals based on tags
+  const medalAssignedRef = useRef(false);
+  useEffect(() => {
+    if (!profileId || !firestore || medalAssignedRef.current) return;
+    if (profile?.tags && profile.tags.length > 0) {
+      medalAssignedRef.current = true;
+      autoAssignMedals(firestore, profileId);
+    }
+  }, [profileId, firestore, profile?.tags]);
+
   const profile = useMemo(() => {
     if (!baseProfile) return null;
+    
+    // Pick the best valid 6-digit ID between baseProfile and sub-collection data
+    const isValidAccNum = (id: any) => {
+      if (!id) return false;
+      const s = String(id).trim();
+      return /^\d{6}$/.test(s) || s === '0000';
+    };
+
+    const baseAccNum = baseProfile?.accountNumber;
+    const subAccNum = profileSubData?.accountNumber;
+
+    let bestAccNum = subAccNum;
+    if (!isValidAccNum(subAccNum) && isValidAccNum(baseAccNum)) {
+      bestAccNum = baseAccNum;
+    } else if (!bestAccNum) {
+      bestAccNum = baseAccNum;
+    }
+
     return {
       ...baseProfile,
       ...profileSubData,
+      accountNumber: bestAccNum,
       id: profileId,
     };
   }, [baseProfile, profileSubData, profileId]);
@@ -237,7 +268,22 @@ export default function ProfileScreen() {
 
   const isAuthorizedAdmin = currentUser?.uid === '901piBzTQ0VzCtAvlyyobwvAaTs1' || profile?.isAdmin === true;
   const isCertifiedSeller = profile?.tags?.some((t: string) => ['Seller', 'Seller center', 'Coin Seller'].includes(t)) || isAuthorizedAdmin;
-  const displayID = profile?.accountNumber || '000000';
+  const isValidAccNum = (id: any) => {
+    if (!id) return false;
+    const s = String(id).trim();
+    return /^\d{6}$/.test(s) || s === '0000';
+  };
+
+  const baseAccNum = baseProfile?.accountNumber;
+  const subAccNum = profileSubData?.accountNumber;
+  let finalAccNum = subAccNum;
+  if (!isValidAccNum(subAccNum) && isValidAccNum(baseAccNum)) {
+    finalAccNum = baseAccNum;
+  } else if (!finalAccNum) {
+    finalAccNum = baseAccNum;
+  }
+
+  const displayID = finalAccNum || '000000';
 
   const handleCopyId = async () => {
     await Clipboard.setStringAsync(String(displayID));
@@ -288,7 +334,7 @@ export default function ProfileScreen() {
                 size={88}
               >
                 <View className="w-full h-full rounded-full border-2 border-white overflow-hidden shadow-xl">
-                  <Image cachePolicy="memory-disk" source={{ uri: profile.avatarUrl || 'https://picsum.photos/200' }} className="w-full h-full" />
+                  <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile.avatarUrl) || 'https://picsum.photos/200' }} className="w-full h-full" />
                 </View>
               </AvatarFrame>
             </TouchableOpacity>

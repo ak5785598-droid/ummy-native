@@ -14,6 +14,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
 import { FullProfileDialog } from '../../components/profile/FullProfileDialog';
+import { toCDN } from '@/lib/cdn';
 
 export default function MessagesScreen() {
   const { user } = useUser();
@@ -157,7 +158,7 @@ export default function MessagesScreen() {
           className="flex-row items-center bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-3"
         >
           <View style={{ width: 44, height: 44, borderRadius: 14, overflow: 'hidden', marginRight: 12 }}>
-            <Image cachePolicy="memory-disk" source={{ uri: brandLogoUrl }} 
+            <Image cachePolicy="memory-disk" source={{ uri: toCDN(brandLogoUrl) }} 
               style={{ width: '100%', height: '100%' }}
               contentFit="contain" 
             />
@@ -340,7 +341,7 @@ function ChatListItem({ chat, currentUid, onPress, onLongPress, onAvatarPress }:
     >
       <View className="relative mr-3">
         <TouchableOpacity onPress={() => { if (onAvatarPress && otherUid) onAvatarPress(otherUid); }} activeOpacity={0.7}>
-          <Image cachePolicy="memory-disk" source={{ uri: otherUser?.avatarUrl || 'https://picsum.photos/100' }} 
+          <Image cachePolicy="memory-disk" source={{ uri: toCDN(otherUser?.avatarUrl) || 'https://picsum.photos/100' }} 
             className="w-12 h-12 rounded-full border border-slate-100"
           />
         </TouchableOpacity>
@@ -388,6 +389,7 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
   const storage = useStorage();
   const navigation = useNavigation();
   const { profile: otherUser } = useUserProfile(recipientUid);
+  const { profile: myProfile } = useUserProfile(user?.uid);
   
   const [text, setText] = useState('');
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -486,7 +488,7 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
+      quality: 0.3,
     });
 
     if (!result.canceled && result.assets[0] && storage) {
@@ -699,7 +701,7 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
           <ChevronRight size={24} color="#64748b" />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => { if (onAvatarPress && recipientUid) onAvatarPress(recipientUid); }} activeOpacity={0.7}>
-          <Image cachePolicy="memory-disk" source={{ uri: otherUser?.avatarUrl || 'https://picsum.photos/100' }} 
+          <Image cachePolicy="memory-disk" source={{ uri: toCDN(otherUser?.avatarUrl) || 'https://picsum.photos/100' }} 
             className="w-10 h-10 rounded-full mr-3 border border-slate-100"
           />
         </TouchableOpacity>
@@ -732,12 +734,19 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
               onLongPress={() => isMe && setSelectedMsg(msg)}
               className={`flex-row mb-3 ${isMe ? 'justify-end' : 'justify-start'}`}
             >
+              {!isMe && (
+                <Image
+                  cachePolicy="memory-disk"
+                  source={{ uri: toCDN(otherUser?.avatarUrl) || 'https://picsum.photos/100' }}
+                  style={{ width: 28, height: 28, borderRadius: 14, marginRight: 6, marginTop: 2 }}
+                />
+              )}
               <View className={`max-w-[75%] rounded-2xl px-4 py-2 ${
                 isMe ? 'bg-cyan-500 rounded-br-none' : 'bg-slate-100 rounded-bl-none'
               }`}>
                 {msg.imageUrl && (
                   <TouchableOpacity onPress={() => setPreviewImage(msg.imageUrl || null)}>
-                    <Image cachePolicy="memory-disk" source={{ uri: msg.imageUrl }} className="w-48 h-48 rounded-lg mb-1" contentFit="cover" />
+                    <Image cachePolicy="memory-disk" source={{ uri: toCDN(msg.imageUrl) }} className="w-48 h-48 rounded-lg mb-1" contentFit="cover" />
                   </TouchableOpacity>
                 )}
                 {msg.text && (
@@ -747,6 +756,13 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
                   <Text className={`text-[9px] mt-0.5 ${isMe ? 'text-white/60' : 'text-slate-400'}`}>edited</Text>
                 )}
               </View>
+              {isMe && (
+                <Image
+                  cachePolicy="memory-disk"
+                  source={{ uri: toCDN(myProfile?.avatarUrl) || 'https://picsum.photos/100' }}
+                  style={{ width: 28, height: 28, borderRadius: 14, marginLeft: 6, marginTop: 2 }}
+                />
+              )}
             </TouchableOpacity>
           );
         })}
@@ -870,7 +886,7 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
             <TouchableOpacity onPress={() => setPreviewImage(null)} className="absolute top-12 right-4 z-50 p-2 bg-black/50 rounded-full">
               <X size={24} color="white" />
             </TouchableOpacity>
-            <Image cachePolicy="memory-disk" source={{ uri: previewImage }} className="w-full h-full" contentFit="contain" />
+            <Image cachePolicy="memory-disk" source={{ uri: toCDN(previewImage) }} className="w-full h-full" contentFit="contain" />
           </View>
         </Modal>
       )}
@@ -1053,44 +1069,43 @@ function RequestsPage({ visible, onClose, proposals }: { visible: boolean; onClo
       updatedAt: serverTimestamp(),
     });
 
-    // Write relationship to BOTH users' profiles (for FullProfileDialog CP card)
-    const relationshipData = {
-      type: cpType === 'CP' ? 'CP' : cpType === 'Love' ? 'Love' : 'BFF',
-      partnerUid: proposal.fromUid,
-      partnerName: senderName,
-      partnerAvatar: senderAvatar,
-      level: 1,
+    // Write relationship to BOTH users' profiles
+    const partnerData = {
+      uid: proposal.fromUid,
+      name: senderName,
+      avatarUrl: senderAvatar,
       startDate: new Date().toISOString(),
     };
 
-    const receiverRelationship = {
-      type: cpType === 'CP' ? 'CP' : cpType === 'Love' ? 'Love' : 'BFF',
-      partnerUid: proposal.fromUid,
-      partnerName: senderName,
-      partnerAvatar: senderAvatar,
-      level: 1,
+    const myPartnerData = {
+      uid: user.uid,
+      name: receiverName,
+      avatarUrl: receiverAvatar,
       startDate: new Date().toISOString(),
     };
 
     // Write to receiver (current user) profile
     try {
       const receiverProfileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
-      await setDocumentNonBlocking(receiverProfileRef, { relationship: receiverRelationship }, { merge: true });
+      if (cpType === 'CP') {
+        await setDocumentNonBlocking(receiverProfileRef, { relationship: { type: 'CP', ...partnerData } }, { merge: true });
+      } else if (cpType === 'Best Friend') {
+        await setDocumentNonBlocking(receiverProfileRef, { bestFriend: partnerData }, { merge: true });
+      } else if (cpType === 'Besties') {
+        await setDocumentNonBlocking(receiverProfileRef, { besties: partnerData }, { merge: true });
+      }
     } catch {}
 
     // Write to sender (proposer) profile
     try {
       const senderProfileRef = doc(firestore, 'users', proposal.fromUid, 'profile', proposal.fromUid);
-      await setDocumentNonBlocking(senderProfileRef, { 
-        relationship: {
-      type: cpType === 'CP' ? 'CP' : cpType === 'Love' ? 'Love' : 'BFF',
-          partnerUid: user.uid,
-          partnerName: receiverName,
-          partnerAvatar: receiverAvatar,
-          level: 1,
-          startDate: new Date().toISOString(),
-        }
-      }, { merge: true });
+      if (cpType === 'CP') {
+        await setDocumentNonBlocking(senderProfileRef, { relationship: { type: 'CP', ...myPartnerData } }, { merge: true });
+      } else if (cpType === 'Best Friend') {
+        await setDocumentNonBlocking(senderProfileRef, { bestFriend: myPartnerData }, { merge: true });
+      } else if (cpType === 'Besties') {
+        await setDocumentNonBlocking(senderProfileRef, { besties: myPartnerData }, { merge: true });
+      }
     } catch {}
 
     const proposalRef = doc(firestore, 'proposals', proposal.id);
@@ -1137,7 +1152,7 @@ function ProposalCard({ proposal, onAccept, onDecline }: { proposal: Proposal; o
 
   return (
     <View className="flex-row items-center bg-pink-50 rounded-2xl p-4 mb-3 border border-pink-100">
-      <Image cachePolicy="memory-disk" source={{ uri: fromUser?.avatarUrl || 'https://picsum.photos/100' }} 
+      <Image cachePolicy="memory-disk" source={{ uri: toCDN(fromUser?.avatarUrl) || 'https://picsum.photos/100' }} 
         className="w-12 h-12 rounded-full mr-3"
       />
       <View className="flex-1">

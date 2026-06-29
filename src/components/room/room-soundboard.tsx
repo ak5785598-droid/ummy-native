@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, Vibration } from 'react-native';
 import { X, Volume2 } from 'lucide-react-native';
-import { useFirestore, useUser } from '../../firebase/provider';
+import { useFirestore, useUser, useDatabase } from '../../firebase/provider';
 import { collection, addDoc, serverTimestamp } from '@/firebase/firestore-compat';
+import { ref as databaseRef, set as databaseSet, push as databasePush } from 'firebase/database';
 import { useUserProfile } from '../../hooks/use-user-profile';
 
 const SOUNDS = [
@@ -25,12 +26,15 @@ interface RoomSoundboardProps {
 export function RoomSoundboard({ visible, onClose, roomId }: RoomSoundboardProps) {
   const firestore = useFirestore();
   const { user } = useUser();
+  const database = useDatabase();
   const { profile: userProfile } = useUserProfile(user?.uid);
 
   const handlePlaySound = async (sfxId: string) => {
-    if (!firestore || !roomId || !user?.uid || !userProfile) return;
+    if (!database || !roomId || !user?.uid || !userProfile) return;
     try {
-      await addDoc(collection(firestore, 'chatRooms', roomId, 'messages'), {
+      const msgRef = databasePush(databaseRef(database, `roomMessages/${roomId}`));
+      await databaseSet(msgRef, {
+        id: msgRef.key,
         text: `triggered ${sfxId}`,
         senderId: user.uid,
         senderName: userProfile.username,
@@ -38,7 +42,7 @@ export function RoomSoundboard({ visible, onClose, roomId }: RoomSoundboardProps
         type: 'emoji',
         isSfx: true,
         sfxId: sfxId,
-        timestamp: serverTimestamp(),
+        timestamp: Date.now(),
       });
       Vibration.vibrate(50);
     } catch (e) { console.error('[Soundboard] Send error:', e); }

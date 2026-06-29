@@ -6,6 +6,7 @@ import { useUser } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { useCarromEngine } from '../../hooks/use-carrom-engine';
 import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Line, Path, G, Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
 
@@ -214,7 +215,7 @@ export function CarromGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, 
                         borderWidth: 2, borderColor: isActive ? '#fbbf24' : 'rgba(255,255,255,0.1)',
                       }]}>
                         {p.avatarUrl ? (
-                          <Image cachePolicy="memory-disk" source={{ uri: p.avatarUrl }} style={{ width: '100%', height: '100%', borderRadius: 18 }} />
+                          <Image cachePolicy="memory-disk" source={{ uri: toCDN(p.avatarUrl) }} style={{ width: '100%', height: '100%', borderRadius: 18 }} />
                         ) : (
                           <Text style={{ color: 'white', fontWeight: '700', fontSize: 12 }}>{p.username[0]}</Text>
                         )}
@@ -277,7 +278,7 @@ export function CarromGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, 
                       borderWidth: 2, borderColor: isActive ? '#ef4444' : 'rgba(255,255,255,0.1)',
                     }]}>
                       {p.avatarUrl ? (
-                        <Image cachePolicy="memory-disk" source={{ uri: p.avatarUrl }} style={{ width: '100%', height: '100%', borderRadius: 20 }} />
+                        <Image cachePolicy="memory-disk" source={{ uri: toCDN(p.avatarUrl) }} style={{ width: '100%', height: '100%', borderRadius: 20 }} />
                       ) : (
                         <Text style={{ color: 'white', fontWeight: '700', fontSize: 14 }}>{p.username[0]}</Text>
                       )}
@@ -393,7 +394,7 @@ function LobbyScreen({ gameState, currentUser, userProfile, onJoin, onStart, onC
                   <View style={{ alignItems: 'center' }}>
                     <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#4D2C19', alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: '#fbbf24', overflow: 'hidden', shadowColor: '#fbbf24', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.4, shadowRadius: 12 }}>
                       {p.avatarUrl ? (
-                        <Image cachePolicy="memory-disk" source={{ uri: p.avatarUrl }} style={{ width: '100%', height: '100%' }} />
+                        <Image cachePolicy="memory-disk" source={{ uri: toCDN(p.avatarUrl) }} style={{ width: '100%', height: '100%' }} />
                       ) : (
                         <Text style={{ color: 'white', fontWeight: '700', fontSize: 20 }}>{p.username[0]}</Text>
                       )}

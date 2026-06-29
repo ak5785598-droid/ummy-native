@@ -13,6 +13,7 @@ import { useUserProfile } from '../../hooks/use-user-profile';
 import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
 import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const CATEGORIES = ['Chat', 'Game', 'Music', 'Party'];
@@ -348,7 +349,7 @@ function MainMenu({
           <View style={{ position: 'relative' }}>
             <View style={{ width: 60, height: 60, borderRadius: 14, backgroundColor: '#e5e7eb', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
               {room?.coverUrl ? (
-                <Image cachePolicy="memory-disk" source={{ uri: room.coverUrl }} style={{ width: '100%', height: '100%' }} />
+                <Image cachePolicy="memory-disk" source={{ uri: toCDN(room.coverUrl) }} style={{ width: '100%', height: '100%' }} />
               ) : (
                 <Camera size={22} color="#9ca3af" />
               )}
@@ -524,7 +525,7 @@ function AdminPage({ room, participants, onClose }: any) {
       {(participants || []).map((p: RoomParticipant) => (
         <View key={p.uid} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Image cachePolicy="memory-disk" source={{ uri: p.avatarUrl || 'https://picsum.photos/100' }} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#e2e8f0' }} />
+            <Image cachePolicy="memory-disk" source={{ uri: toCDN(p.avatarUrl) || 'https://picsum.photos/100' }} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#e2e8f0' }} />
             <View>
               <Text style={{ color: '#111827', fontSize: 14, fontWeight: 'bold' }}>{p.name}</Text>
             </View>

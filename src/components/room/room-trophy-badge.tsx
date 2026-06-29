@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Trophy, ChevronDown, X, Crown, Medal } from 'lucide-react-native';
 import { TopSupporter } from '../../lib/types';
 import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
 
 interface RoomTrophyBadgeProps {
   dailyGifts?: number;
@@ -36,7 +37,7 @@ export function RoomTrophyBadge({ dailyGifts = 0, supporters = [], onOpenSupport
             {supporters.slice(0, 3).map((sup, idx) => (
               <View key={sup.uid || idx} className={`w-4 h-4 rounded-full border overflow-hidden ${idx === 0 ? 'border-yellow-400 z-30' : idx === 1 ? 'border-slate-300 z-20' : 'border-amber-600 z-10'}`}>
                 {sup.avatarUrl ? (
-                  <Image cachePolicy="memory-disk" source={{ uri: sup.avatarUrl }} className="w-full h-full" />
+                  <Image cachePolicy="memory-disk" source={{ uri: toCDN(sup.avatarUrl) }} className="w-full h-full" />
                 ) : (
                   <View className="w-full h-full bg-slate-800 items-center justify-center">
                     <Text className="text-[4px] text-white font-black">{(sup.username || 'U').charAt(0)}</Text>

@@ -4,10 +4,10 @@ import Svg, { G, Path, Circle, Stop } from 'react-native-svg';
 const SvgText = require('react-native-svg').Text as any;
 import { X, Volume2, VolumeX, RotateCcw, Plus } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { useUser } from '../../firebase/provider';
+import { useUser, useFirestore, useDatabase } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
-import { useFirestore } from '../../firebase/provider';
-import { doc, updateDoc, increment, addDoc, collection, onSnapshot, getDoc, runTransaction, setDoc, writeBatch } from '@/firebase/firestore-compat';
+import { ref as databaseRef, set as databaseSet, update as databaseUpdate, onValue, runTransaction as databaseTransaction } from 'firebase/database';
+import { doc, increment, runTransaction, writeBatch, getDoc, setDoc, updateDoc, onSnapshot, addDoc, collection } from '@/firebase/firestore-compat';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -64,6 +64,7 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
   const { user: currentUser } = useUser();
   const { profile: userProfile } = useUserProfile(currentUser?.uid);
   const firestore = useFirestore();
+  const database = useDatabase();
   const router = useRouter();
 
   const handleGoToWallet = () => {
@@ -144,11 +145,8 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
 
   // Handle local state driver transitions (multiplayer-friendly logic)
   useEffect(() => {
-    if (!firestore || gameState !== 'betting' || timeLeft > 0 || spinInitiatedRef.current) return;
+    if (!database || gameState !== 'betting' || timeLeft > 0 || spinInitiatedRef.current) return;
     spinInitiatedRef.current = true;
-
-    const targetDocName = `roulette_${roomId || 'global'}`;
-    const roundDocRef = doc(firestore, 'games', targetDocName);
 
     (async () => {
       let targetNum = ROULETTE_NUMBERS[Math.floor(Math.random() * ROULETTE_NUMBERS.length)].n;
@@ -168,83 +166,85 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
       const extraSpins = 5 + Math.floor(Math.random() * 5);
       const newRotation = syncedRotation + (extraSpins * 360) + (targetIdx * rotationStep);
 
-      // Perform spin status write
-      runTransaction(firestore, async (tx: any) => {
-        const snap = await tx.get(roundDocRef);
-        if (snap.exists() && snap.data()?.status !== 'betting') return;
-        tx.set(roundDocRef, {
-          status: 'spinning',
-          winningNumber: targetNum,
-          rotation: newRotation,
-          updatedAt: new Date()
-        }, { merge: true });
+      // Perform spin status write using RTD transaction
+      databaseTransaction(databaseRef(database, `games/roulette_${roomId || 'global'}`), (currentData) => {
+        if (currentData && currentData.status !== 'betting') return;
+        if (!currentData) {
+          return {
+            status: 'spinning',
+            winningNumber: targetNum,
+            rotation: newRotation,
+            updatedAt: Date.now(),
+            history: [14, 31, 22, 0, 17, 5, 29, 8],
+            roundStartTime: Date.now()
+          };
+        }
+        currentData.status = 'spinning';
+        currentData.winningNumber = targetNum;
+        currentData.rotation = newRotation;
+        currentData.updatedAt = Date.now();
+        return currentData;
       }).catch(() => { spinInitiatedRef.current = false; });
 
       // After 5s spin duration, trigger result state
       setTimeout(() => {
-        runTransaction(firestore, async (tx: any) => {
-          const snap = await tx.get(roundDocRef);
-          if (!snap.exists() || snap.data()?.status !== 'spinning') return;
-          tx.set(roundDocRef, {
-            status: 'result',
-            winningNumber: targetNum,
-            updatedAt: new Date()
-          }, { merge: true });
+        databaseTransaction(databaseRef(database, `games/roulette_${roomId || 'global'}`), (currentData) => {
+          if (!currentData || currentData.status !== 'spinning') return;
+          currentData.status = 'result';
+          currentData.winningNumber = targetNum;
+          currentData.updatedAt = Date.now();
+          return currentData;
         }).catch(() => {});
       }, 5000);
 
       // After 10s total, reset to betting
       setTimeout(() => {
-        runTransaction(firestore, async (tx: any) => {
-          const snap = await tx.get(roundDocRef);
-          if (!snap.exists() || snap.data()?.status !== 'result') return;
-          tx.set(roundDocRef, {
-            status: 'betting',
-            winningNumber: null,
-            history: [targetNum, ...(snap.data()?.history || [])].slice(0, 15),
-            roundStartTime: Date.now(),
-            updatedAt: new Date()
-          }, { merge: true });
+        databaseTransaction(databaseRef(database, `games/roulette_${roomId || 'global'}`), (currentData) => {
+          if (!currentData || currentData.status !== 'result') return;
+          currentData.status = 'betting';
+          currentData.winningNumber = null;
+          currentData.history = [targetNum, ...(currentData.history || [])].slice(0, 15);
+          currentData.roundStartTime = Date.now();
+          currentData.updatedAt = Date.now();
+          return currentData;
         }).catch(() => {});
         spinInitiatedRef.current = false;
       }, 10000);
 
     })();
-  }, [gameState, timeLeft, firestore, roomId, syncedRotation]);
+  }, [gameState, timeLeft, firestore, database, roomId, syncedRotation]);
 
-  // Real-time Firestore Sync (Locks state globally with room players)
+  // Real-time RTD Sync (Locks state globally with room players)
   useEffect(() => {
-    if (!firestore) return;
-    const targetDoc = `roulette_${roomId || 'global'}`;
-    const ref = doc(firestore, 'games', targetDoc);
+    if (!database) return;
+    const gamePath = `games/roulette_${roomId || 'global'}`;
 
-    const unsub = onSnapshot(ref, (snap: any) => {
+    const unsub = onValue(databaseRef(database, gamePath), (snap: any) => {
       const exists = snap.exists();
       if (!exists) {
-        // Correct initialization using setDoc for specific ID
-        setDoc(ref, {
+        databaseSet(databaseRef(database, gamePath), {
           status: 'betting',
           winningNumber: null,
           rotation: 0,
           history: [14, 31, 22, 0, 17, 5, 29, 8],
           roundStartTime: Date.now(),
-          updatedAt: new Date()
+          updatedAt: Date.now()
         }).catch(() => {});
         return;
       }
 
-      const data = snap.data() as any;
+      const data = snap.val() as any;
       const status = data.status || 'betting';
 
       // Self-heal: If fields are missing in an existing doc
       if (data.status === undefined || data.roundStartTime === undefined) {
-        updateDoc(ref, {
+        databaseUpdate(databaseRef(database, gamePath), {
           status: data.status || 'betting',
           winningNumber: data.winningNumber || null,
           rotation: data.rotation || 0,
           history: data.history || [14, 31, 22, 0, 17, 5, 29, 8],
           roundStartTime: data.roundStartTime || Date.now(),
-          updatedAt: new Date()
+          updatedAt: Date.now()
         }).catch(() => {});
         return;
       }
@@ -282,7 +282,7 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
     });
 
     return () => unsub();
-  }, [firestore, roomId]);
+  }, [database, roomId]);
 
   const handlePlaceBet = async (betId: string) => {
     if (gameState !== 'betting' || !currentUser || !firestore) return;

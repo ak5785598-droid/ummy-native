@@ -15,7 +15,8 @@ const ICON_NETMIRROR = require('../../../assets/images/play-icons/icon_netmirror
 const ICON_MOVIE = require('../../../assets/images/play-icons/icon_movie.png');
 const ICON_SCREEN = require('../../../assets/images/play-icons/icon_screen.png');
 
-import { useFirestore, useUser, useCollection, useMemoFirebase } from '../../firebase/provider';
+import { useFirestore, useUser, useCollection, useMemoFirebase, useDatabase } from '../../firebase/provider';
+import { ref as databaseRef, set as databaseSet, push as databasePush } from 'firebase/database';
 import { doc, serverTimestamp, collection, query, orderBy, addDoc, deleteDoc, updateDoc, writeBatch, getDocs } from '@/firebase/firestore-compat';
 import rnfbStorage from '@react-native-firebase/storage';
 import { useRoomContext } from '../../context/room-context';
@@ -41,6 +42,7 @@ interface RoomPlaySheetProps {
 export function RoomPlaySheet({ visible, onClose, roomId, room, participants, onOpenGames, onOpenYouTube, onOpenNetMirror, onOpenEntertainment, onOpenScreenMirror }: RoomPlaySheetProps) {
   const firestore = useFirestore();
   const { user } = useUser();
+  const database = useDatabase();
   const { profile: userProfile } = useUserProfile(user?.uid);
   const { isMusicEnabled, setIsMusicEnabled, isGiftEffects, setIsGiftEffects } = useRoomContext();
 
@@ -78,15 +80,18 @@ export function RoomPlaySheet({ visible, onClose, roomId, room, participants, on
           onPress: async () => {
             setIsClearingChat(true);
             try {
-              const msgsRef = collection(firestore, 'chatRooms', roomId, 'messages');
-              const snap = await getDocs(msgsRef);
-              const batch = writeBatch(firestore);
-              snap.docs.forEach((d: any) => batch.delete(d.ref));
-              const sysRef = doc(msgsRef);
-              const currentName = userProfile?.username || user.displayName || 'Admin';
-              batch.set(sysRef, { content: `${currentName} cleared the chat`, type: 'system', timestamp: serverTimestamp() });
-              batch.update(doc(firestore, 'chatRooms', roomId), { chatClearedAt: serverTimestamp(), updatedAt: serverTimestamp() });
-              await batch.commit();
+              if (database) {
+                await databaseSet(databaseRef(database, `roomMessages/${roomId}`), null);
+                const sysMsgRef = databasePush(databaseRef(database, `roomMessages/${roomId}`));
+                const currentName = userProfile?.username || user.displayName || 'Admin';
+                await databaseSet(sysMsgRef, {
+                  id: sysMsgRef.key,
+                  content: `${currentName} cleared the chat`,
+                  type: 'system',
+                  timestamp: Date.now()
+                });
+              }
+              await updateDoc(doc(firestore, 'chatRooms', roomId), { chatClearedAt: serverTimestamp(), updatedAt: serverTimestamp() });
               Alert.alert('Success', 'Chat history cleared.');
               onClose();
             } catch (e: any) {

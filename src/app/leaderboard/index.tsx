@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, Animated, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,6 +9,7 @@ import { collection, query, where, orderBy, limit, onSnapshot } from '@/firebase
 import { useCollection, useMemoFirebase } from '../../firebase/provider';
 import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, Stop, Rect, Circle } from 'react-native-svg';
 import { Image } from 'expo-image';
+import { Video, ResizeMode } from 'expo-av';
 import { GoldenCoin } from '../../components/GoldenCoin';
 
 const TABS = [
@@ -61,7 +62,7 @@ function formatValue(val: number): string {
 // --- Dynamic Premium Background Component (Natively adapted from Web CSS) ---
 const DynamicThemeBackground = () => {
   return (
-    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#1e0e14' }}>
+    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#1e0e14' }} pointerEvents="none">
       {/* Base Gradient from reddish-purple to brown to deep purple */}
       <LinearGradient
         colors={['#2e152b', '#2c1b18', '#3b1c32']}
@@ -162,7 +163,7 @@ function LeaderboardAnimOverlay() {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {/* Golden Neon Glowing Screen Border */}
-      <Animated.View style={{
+      <Animated.View pointerEvents="none" style={{
         position: 'absolute',
         top: 2, left: 2, right: 2, bottom: 2,
         borderWidth: 2.5,
@@ -176,7 +177,7 @@ function LeaderboardAnimOverlay() {
       }} />
 
       {/* Outer Border Halo Accent */}
-      <Animated.View style={{
+      <Animated.View pointerEvents="none" style={{
         position: 'absolute',
         top: 0, left: 0, right: 0, bottom: 0,
         borderWidth: 1,
@@ -187,7 +188,7 @@ function LeaderboardAnimOverlay() {
 
       {/* Twinkling Golden Rain Confetti */}
       {goldenRain.map((p, idx) => (
-        <Animated.View key={idx} style={{
+        <Animated.View key={idx} pointerEvents="none" style={{
           position: 'absolute',
           top: -20, // Start just off-screen at the top
           left: p.x,
@@ -309,7 +310,7 @@ export default function LeaderboardScreen() {
 
   const activeEntries = useMemo(() => {
     if (!entries) return [];
-    return entries.filter(item => getValue(item) > 0);
+    return entries.filter(item => getValue(item) > 0 && !item.rankHiding);
   }, [entries, activeTab, timeFilter]);
 
   const top3 = useMemo(() => {
@@ -340,14 +341,14 @@ export default function LeaderboardScreen() {
     <View style={{ flex: 1, backgroundColor: '#1a0e14' }}>
       {/* Web-aligned Dynamic Theme Background / Custom Theme Image background */}
       {localThemeImage || activeTheme?.backgroundUrl ? (
-        <View style={{ position: 'absolute', top: -45, left: 0, right: 0, bottom: 0, height: '110%' }}>
+        <View style={{ position: 'absolute', top: -45, left: 0, right: 0, bottom: 0, height: '110%' }} pointerEvents="none">
           <Image 
             source={localThemeImage ? localThemeImage : { uri: activeTheme.backgroundUrl }} 
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }}
+            style={{ position: 'absolute', top: -50, left: 0, right: 0, bottom: 0, width: '100%', height: '103%' }}
             contentFit="cover"
             cachePolicy="memory-disk"
           />
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)' }} pointerEvents="none" />
         </View>
       ) : (
         <DynamicThemeBackground />
@@ -357,7 +358,7 @@ export default function LeaderboardScreen() {
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
 
       {/* Header aligned with web layout */}
-      <View className="flex-row items-center justify-between px-4 py-3 z-10">
+      <View className="flex-row items-center justify-between px-4 py-3" style={{ zIndex: 20 }}>
         <TouchableOpacity onPress={() => router.back()} className="p-2">
           <ArrowLeft size={24} color="white" />
         </TouchableOpacity>
@@ -379,7 +380,7 @@ export default function LeaderboardScreen() {
       </View>
 
       {/* Time Filter Tabs under Header */}
-      <View className="flex-row justify-center gap-2 px-4 pb-4 z-10">
+      <View className="flex-row justify-center gap-2 px-4 pb-4" style={{ zIndex: 20 }}>
         {(['daily', 'weekly', 'monthly'] as const).map((filter) => (
           <TouchableOpacity
             key={filter}
@@ -395,23 +396,29 @@ export default function LeaderboardScreen() {
       {/* Fixed Top 3 Podium (Only when not loading and entries exist) */}
       {!isLoading && activeEntries && activeEntries.length > 0 && (
         <View className="flex-row items-end justify-center px-4 pt-5 pb-4 z-10">
-          {top3[1] ? (
-            <PodiumCard rank={2} value={getValue(top3[1])} label={getLabel(top3[1])} avatar={getAvatar(top3[1])} onPress={() => router.push(activeTab === 'rooms' ? `/rooms/${top3[1].id}` : `/profile/${top3[1].id}`)} />
-          ) : (
-            <View style={{ width: 96, height: 148, marginHorizontal: 4 }} />
-          )}
+          <View style={{ zIndex: 1 }}>
+            {top3[1] ? (
+              <PodiumCard rank={2} value={getValue(top3[1])} label={getLabel(top3[1])} avatar={getAvatar(top3[1])} onPress={() => router.push(activeTab === 'rooms' ? `/rooms/${top3[1].id}` : `/profile/${top3[1].id}`)} activeTheme={activeTheme} />
+            ) : (
+              <PodiumCard rank={2} value={0} label="---" avatar={null} onPress={() => {}} activeTheme={activeTheme} />
+            )}
+          </View>
           
-          {top3[0] ? (
-            <PodiumCard rank={1} value={getValue(top3[0])} label={getLabel(top3[0])} avatar={getAvatar(top3[0])} onPress={() => router.push(activeTab === 'rooms' ? `/rooms/${top3[0].id}` : `/profile/${top3[0].id}`)} />
-          ) : (
-            <View style={{ width: 116, height: 180, marginHorizontal: 4 }} />
-          )}
+          <View style={{ zIndex: 3 }}>
+            {top3[0] ? (
+              <PodiumCard rank={1} value={getValue(top3[0])} label={getLabel(top3[0])} avatar={getAvatar(top3[0])} onPress={() => router.push(activeTab === 'rooms' ? `/rooms/${top3[0].id}` : `/profile/${top3[0].id}`)} activeTheme={activeTheme} />
+            ) : (
+              <PodiumCard rank={1} value={0} label="---" avatar={null} onPress={() => {}} activeTheme={activeTheme} />
+            )}
+          </View>
           
-          {top3[2] ? (
-            <PodiumCard rank={3} value={getValue(top3[2])} label={getLabel(top3[2])} avatar={getAvatar(top3[2])} onPress={() => router.push(activeTab === 'rooms' ? `/rooms/${top3[2].id}` : `/profile/${top3[2].id}`)} />
-          ) : (
-            <View style={{ width: 96, height: 148, marginHorizontal: 4 }} />
-          )}
+          <View style={{ zIndex: 2 }}>
+            {top3[2] ? (
+              <PodiumCard rank={3} value={getValue(top3[2])} label={getLabel(top3[2])} avatar={getAvatar(top3[2])} onPress={() => router.push(activeTab === 'rooms' ? `/rooms/${top3[2].id}` : `/profile/${top3[2].id}`)} activeTheme={activeTheme} />
+            ) : (
+              <PodiumCard rank={3} value={0} label="---" avatar={null} onPress={() => {}} activeTheme={activeTheme} />
+            )}
+          </View>
         </View>
       )}
       {isLoading ? (
@@ -539,7 +546,7 @@ function InfoModal({ visible, onClose }: InfoModalProps) {
   );
 }
 
-function AnimatedAvatarFrame({ children, size, rank }: { children: React.ReactNode; size: number; rank: number }) {
+const AnimatedAvatarFrame = React.memo(function AnimatedAvatarFrame({ children, size, rank, frameConfig }: { children: React.ReactNode; size: number; rank: number; frameConfig?: { videoUrl?: string; imageUrl?: string; type?: string; isEnabled?: boolean } | null }) {
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(0.5)).current;
 
@@ -575,6 +582,41 @@ function AnimatedAvatarFrame({ children, size, rank }: { children: React.ReactNo
   // Border and glow colors based on rank
   const themeColor = rank === 1 ? '#fbbf24' : rank === 2 ? '#cbd5e1' : '#ea580c';
   const shadowColor = rank === 1 ? '#f59e0b' : rank === 2 ? '#94a3b8' : '#c2410c';
+
+  const hasFrame = !!(frameConfig?.isEnabled && ((frameConfig?.imageUrl?.startsWith('http')) || (frameConfig?.type === 'video' && frameConfig?.videoUrl?.startsWith('http'))));
+  const isVideo = hasFrame && frameConfig?.type === 'video' && frameConfig?.videoUrl?.startsWith('http');
+  const frameUrl = isVideo ? frameConfig!.videoUrl! : (frameConfig?.imageUrl || null);
+  const frameOverlaySize = size * 5.0;
+
+  if (hasFrame) {
+    return (
+      <View style={{ width: size + 16, height: size + 16, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden', zIndex: 1 }}>
+          {children}
+        </View>
+        <View style={{ position: 'absolute', width: frameOverlaySize, height: frameOverlaySize, backgroundColor: 'transparent', zIndex: 2 }}>
+          {isVideo ? (
+            <Video
+              source={{ uri: frameUrl! }}
+              style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}
+              resizeMode={ResizeMode.CONTAIN}
+              shouldPlay
+              isLooping
+              isMuted
+              useNativeControls={false}
+            />
+          ) : (
+            <Image
+              cachePolicy="memory-disk"
+              source={{ uri: frameUrl! }}
+              style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}
+              contentFit="contain"
+            />
+          )}
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={{ width: size + 16, height: size + 16, alignItems: 'center', justifyContent: 'center' }}>
@@ -622,8 +664,6 @@ function AnimatedAvatarFrame({ children, size, rank }: { children: React.ReactNo
           elevation: 3,
         }} />
       </Animated.View>
-
-      {/* Orbiting Star Container 2 (Rotates Counter-Clockwise - only for Rank 1) */}
       {rank === 1 && (
         <Animated.View style={{
           position: 'absolute',
@@ -632,7 +672,6 @@ function AnimatedAvatarFrame({ children, size, rank }: { children: React.ReactNo
           transform: [{ rotate: rotateReverse }],
           pointerEvents: 'none',
         }}>
-          {/* Second Sparkle Element */}
           <View style={{
             position: 'absolute',
             bottom: 0,
@@ -651,9 +690,9 @@ function AnimatedAvatarFrame({ children, size, rank }: { children: React.ReactNo
       )}
     </View>
   );
-}
+});
 
-function PodiumCard({ rank, value, label, avatar, onPress }: { rank: number; value: number; label: string; avatar: string | null; onPress: () => void }) {
+const PodiumCard = React.memo(function PodiumCard({ rank, value, label, avatar, onPress, activeTheme }: { rank: number; value: number; label: string; avatar: string | null; onPress: () => void; activeTheme?: any }) {
   const isFirst = rank === 1;
   const width = isFirst ? 116 : 96;
   const height = isFirst ? 180 : 148;
@@ -661,17 +700,22 @@ function PodiumCard({ rank, value, label, avatar, onPress }: { rank: number; val
 
   const containerSize = avatarSize + 16;
 
+  const getFrameConfig = () => {
+    if (!activeTheme?.frameConfigs) return null;
+    const key = rank === 1 ? 'rank1' : rank === 2 ? 'rank2' : 'rank3';
+    return activeTheme.frameConfigs[key] || null;
+  };
+
   return (
     <TouchableOpacity 
       onPress={onPress} 
       className="items-center mx-1 relative"
       style={{ width, height, marginTop: isFirst ? 0 : 32 }}
     >
-      {/* Avatar Container */}
       <View 
         className="absolute z-10"
         style={{ 
-          top: isFirst ? 36 : 50, // Slightly adjusted for frame spacing
+          top: isFirst ? 12 : 40,
           left: (width - containerSize) / 2,
           width: containerSize,
           height: containerSize,
@@ -679,7 +723,7 @@ function PodiumCard({ rank, value, label, avatar, onPress }: { rank: number; val
           justifyContent: 'center',
         }}
       >
-        <AnimatedAvatarFrame size={avatarSize} rank={rank}>
+        <AnimatedAvatarFrame size={avatarSize} rank={rank} frameConfig={getFrameConfig()}>
           {avatar ? (
             <Image cachePolicy="memory-disk" source={{ uri: avatar }} 
               style={{ width: '100%', height: '100%' }} 
@@ -700,7 +744,7 @@ function PodiumCard({ rank, value, label, avatar, onPress }: { rank: number; val
       <View 
         className="absolute z-20 items-center px-1"
         style={{ 
-          top: isFirst ? 120 : 118,
+          top: isFirst ? 130 : 128,
           left: 8,
           right: 8
         }}
@@ -718,7 +762,7 @@ function PodiumCard({ rank, value, label, avatar, onPress }: { rank: number; val
       <View 
         className="absolute z-20 flex-row items-center justify-center bg-black/40 px-2.5 py-0.5 rounded-full border border-white/10"
         style={{ 
-          top: isFirst ? 138 : 134,
+          top: isFirst ? 148 : 146,
           alignSelf: 'center'
         }}
       >
@@ -733,4 +777,4 @@ function PodiumCard({ rank, value, label, avatar, onPress }: { rank: number; val
       </View>
     </TouchableOpacity>
   );
-}
+});

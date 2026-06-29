@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Settings, Share2, Heart, Users, Power } from 'lucide-react-native';
 import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
 
 interface RoomHeaderProps {
   roomTitle: string;
@@ -29,7 +30,7 @@ export function RoomHeader({
       <View className="flex-row items-center gap-3 flex-1 min-w-0">
         <TouchableOpacity onPress={onOpenInfo} activeOpacity={0.7} className="-ml-1">
           {coverUrl ? (
-            <Image cachePolicy="memory-disk" key={coverUrl} source={{ uri: coverUrl }} className="w-12 h-12 rounded-xl border border-white/10" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 4 } as any} />
+            <Image cachePolicy="memory-disk" key={coverUrl} source={{ uri: toCDN(coverUrl) }} className="w-12 h-12 rounded-xl border border-white/10" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 4 } as any} />
           ) : (
             <View className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 items-center justify-center border border-white/10" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 4 }}>
               <Text className="text-white text-base font-black">R</Text>

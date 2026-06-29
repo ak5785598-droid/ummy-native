@@ -18,8 +18,9 @@ GoogleSignin.configure({
   webClientId: '373109833688-655nmcl2juhrn5kop38geb4khuu3dsl5.apps.googleusercontent.com',
 });
 
-// Disable Play Integrity check for debug builds (Phone Auth)
+// Firebase Auth instance
 const firebaseAuth = auth();
+// Required for test phone numbers to bypass Play Integrity check
 if (__DEV__) {
   firebaseAuth.settings.appVerificationDisabledForTesting = true;
 }
@@ -296,21 +297,18 @@ export default function LoginScreen() {
       const formattedNumber = `${selectedCountry.code}${cleanNumber}`;
       console.log('[Phone Auth] Sending OTP to:', formattedNumber);
 
-      // Disable Play Integrity for debug builds
-      if (__DEV__) {
-        firebaseAuth.settings.appVerificationDisabledForTesting = true;
-      }
       const confirmation = await firebaseAuth.signInWithPhoneNumber(formattedNumber);
       setConfirm(confirmation);
       setPhoneLoginStep('code');
       Alert.alert('Code Sent', `OTP sent to ${formattedNumber}`);
     } catch (error: any) {
       console.error('[Phone Auth] Error:', error?.code, error?.message);
-      Alert.alert('Phone Auth Failed', getPhoneAuthErrorMessage(error));
+      Alert.alert('Phone Auth Failed', error?.message || 'Could not send OTP. Please try again.');
     } finally {
       setIsSigningIn(false);
     }
   };
+
 
   // ============================================================
   // ⚡ PHONE AUTH - VERIFY OTP ⚡
@@ -330,7 +328,7 @@ export default function LoginScreen() {
       if (result?.user) await handlePostAuth(result.user);
     } catch (error: any) {
       console.error('[Phone Auth] Verify Error:', error?.code, error?.message);
-      Alert.alert('Verification Failed', getPhoneAuthErrorMessage(error));
+      Alert.alert('Verification Failed', error?.message || 'Wrong OTP. Please try again.');
     } finally {
       setIsSigningIn(false);
     }

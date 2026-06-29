@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, Animated, Vibration, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
 import { Video, ResizeMode } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getCachedFile } from '../../lib/cache-manager';
@@ -109,7 +110,7 @@ export function EntryEffectPlayer({ visible, username, avatarUrl, mediaUrl, vide
           gap: 8,
         }}>
           {avatarUrl ? (
-            <Image cachePolicy="memory-disk" source={{ uri: avatarUrl }}
+            <Image cachePolicy="memory-disk" source={{ uri: toCDN(avatarUrl) }}
               style={{ width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: '#FFD700' }} />
           ) : (
             <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#B8860B', alignItems: 'center', justifyContent: 'center' }}>
@@ -131,9 +132,9 @@ export function EntryEffectPlayer({ visible, username, avatarUrl, mediaUrl, vide
     >
       <View style={{ backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 999, paddingHorizontal: 20, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
         {mediaUrl ? (
-          <Image cachePolicy="memory-disk" source={{ uri: mediaUrl }} style={{ width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(34,211,238,0.5)' }} />
+          <Image cachePolicy="memory-disk" source={{ uri: toCDN(mediaUrl) }} style={{ width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(34,211,238,0.5)' }} />
         ) : avatarUrl ? (
-          <Image cachePolicy="memory-disk" source={{ uri: avatarUrl }} style={{ width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }} />
+          <Image cachePolicy="memory-disk" source={{ uri: toCDN(avatarUrl) }} style={{ width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }} />
         ) : (
           <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>U</Text></View>
         )}

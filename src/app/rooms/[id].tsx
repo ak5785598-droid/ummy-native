@@ -872,7 +872,17 @@ export default function RoomScreen() {
   const handleKickUser = async () => {
     if (!firestore || !id || selectedSeatIdx === null || !canManageRoom) return;
     const occupant = getOccupant(selectedSeatIdx);
-    if (occupant) await setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', occupant.uid), { seatIndex: 0, isMuted: true }, { merge: true });
+    if (occupant) {
+      try {
+        const snap = await getDoc(doc(firestore, 'users', occupant.uid));
+        if (snap.exists() && snap.data()?.avoidBeingKicked) {
+          Alert.alert('Immune', 'This user has kick immunity.');
+          setShowSeatMenu(false);
+          return;
+        }
+      } catch (e) {}
+      await setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', occupant.uid), { seatIndex: 0, isMuted: true }, { merge: true });
+    }
   };
 
   const handleSendInvite = async (targetUid: string, targetName: string, targetAvatar: string | null, seatIdx: number) => {
@@ -1258,7 +1268,17 @@ export default function RoomScreen() {
         }}
         onReport={(uid) => { Alert.alert('Report', `User ${uid} reported`); }}
         onMute={(uid, current) => { if (!firestore || !id) return; setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', uid), { isMuted: !current }, { merge: true }); }}
-        onKick={(uid) => { if (!firestore || !id) return; setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', uid), { seatIndex: 0, isMuted: true }, { merge: true }); }}
+        onKick={async (uid) => { 
+          if (!firestore || !id) return; 
+          try {
+            const snap = await getDoc(doc(firestore, 'users', uid));
+            if (snap.exists() && snap.data()?.avoidBeingKicked) {
+              Alert.alert('Immune', 'This user has kick immunity.');
+              return;
+            }
+          } catch (e) {}
+          setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', uid), { seatIndex: 0, isMuted: true }, { merge: true }); 
+        }}
         onLeaveSeat={(uid) => {
           if (!firestore || !id) return;
           setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', uid), { seatIndex: 0, isMuted: true }, { merge: true });
@@ -1303,7 +1323,16 @@ export default function RoomScreen() {
         profile={fullProfileData}
         stats={fullProfileStats}
         isOwnProfile={fullProfileUid === user?.uid}
-        displayId={fullProfileData?.accountNumber || fullProfileUid?.slice(0, 6)}
+        displayId={(() => {
+          const isValidAccNum = (id: any) => {
+            if (!id) return false;
+            const s = String(id).trim();
+            return /^\d{6}$/.test(s) || s === '0000';
+          };
+          const baseId = fullProfileData?.accountNumber;
+          if (isValidAccNum(baseId)) return String(baseId);
+          return fullProfileUid?.slice(0, 6);
+        })()}
         followData={fullProfileFollowData}
         isProcessingFollow={isFullProfileProcessingFollow}
         onFollow={async () => {

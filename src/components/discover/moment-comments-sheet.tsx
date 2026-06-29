@@ -7,6 +7,7 @@ import { collection, query, orderBy, doc, serverTimestamp, increment, runTransac
 import { addDocumentNonBlocking, updateDocumentNonBlocking } from '../../lib/non-blocking-writes';
 import { MomentComment, Moment } from '../../lib/types';
 import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
 
 interface MomentCommentsSheetProps {
   momentId: string | null;
@@ -204,7 +205,7 @@ function CommentRow({
   return (
     <View style={{ paddingLeft: depth * 16 }}>
       <View className="flex-row items-start mb-3">
-        <Image cachePolicy="memory-disk" source={{ uri: comment.avatarUrl || 'https://picsum.photos/100' }}
+        <Image cachePolicy="memory-disk" source={{ uri: toCDN(comment.avatarUrl) || 'https://picsum.photos/100' }}
           className="w-8 h-8 rounded-full mr-2"
         />
         <View className="flex-1">

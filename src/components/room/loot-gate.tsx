@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, Modal, TouchableOpacity, Animated, StyleSheet } from 'react-native';
 import { X, Users, Timer, Zap, Crown, Lock } from 'lucide-react-native';
 import { Image } from 'expo-image';
-import { doc, onSnapshot, setDoc, arrayUnion } from '@/firebase/firestore-compat';
-import { useFirestore } from '../../firebase/provider';
+import { doc } from '@/firebase/firestore-compat';
+import { useFirestore, useDatabase } from '../../firebase/provider';
+import { ref as databaseRef, set as databaseSet, onValue, runTransaction as databaseTransaction } from 'firebase/database';
 import { TopSupporter } from '../../lib/types';
 
 interface LootGateProps {
@@ -63,6 +64,7 @@ export function LootGate({
   lootConfig,
 }: LootGateProps) {
   const firestore = useFirestore();
+  const database = useDatabase();
 
   const gateAnim = useRef(new Animated.Value(0)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -107,15 +109,18 @@ export function LootGate({
   }, []);
 
   useEffect(() => {
-    if (!visible || !firestore) return;
-    const unsub = onSnapshot(doc(firestore, gateId), (snap: any) => {
-      const data = snap.data();
-      if (data?.entries) {
-        setEntries(data.entries);
+    if (!visible || !database || !roomId) return;
+    const rtdbPath = `rooms/${roomId}/lootGates/${levelIndex}/entries`;
+    const unsub = onValue(databaseRef(database, rtdbPath), (snap: any) => {
+      const arr = snap.val();
+      if (Array.isArray(arr)) {
+        setEntries(arr);
+      } else {
+        setEntries([]);
       }
     });
     return () => unsub();
-  }, [visible, firestore, gateId]);
+  }, [visible, database, roomId, levelIndex]);
 
   useEffect(() => {
     if (!visible) return;
@@ -129,7 +134,12 @@ export function LootGate({
     blastOpacity.setValue(1);
     explosionScale.setValue(0);
     explosionOpacity.setValue(0);
-  }, [visible, GATE_DURATION]);
+
+    if (isOwner && database && roomId) {
+      const rtdbPath = `rooms/${roomId}/lootGates/${levelIndex}/entries`;
+      databaseSet(databaseRef(database, rtdbPath), []).catch(() => {});
+    }
+  }, [visible, GATE_DURATION, isOwner, database, roomId, levelIndex]);
 
   useEffect(() => {
     if (visible) {
@@ -218,12 +228,18 @@ export function LootGate({
   }, [timeLeft, visible, cracked]);
 
   const handleEnter = useCallback(async () => {
-    if (!currentUserId || hasEntered || isFull || cracked || !firestore) return;
+    if (!currentUserId || hasEntered || isFull || cracked || !database || !roomId) return;
     try {
-      await setDoc(doc(firestore, gateId), { entries: arrayUnion(currentUserId) }, { merge: true });
+      const rtdbPath = `rooms/${roomId}/lootGates/${levelIndex}/entries`;
+      await databaseTransaction(databaseRef(database, rtdbPath), (currentEntries) => {
+        const arr = currentEntries || [];
+        if (arr.includes(currentUserId)) return;
+        if (arr.length >= MAX_ENTRIES) return;
+        return [...arr, currentUserId];
+      });
       setMyRank(entries.length + 1);
     } catch {}
-  }, [currentUserId, hasEntered, isFull, cracked, firestore, gateId, entries.length]);
+  }, [currentUserId, hasEntered, isFull, cracked, database, roomId, levelIndex, entries.length, MAX_ENTRIES]);
 
   const handleCrack = useCallback(() => {
     if (!canCrack || cracked || timeLeft === 0) return;

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Modal, TouchableOpacity, Dimensions } from 'react-native';
 import { X } from 'lucide-react-native';
 import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
 
 interface ImagePreviewDialogProps {
   visible: boolean;
@@ -20,7 +21,7 @@ export function ImagePreviewDialog({ visible, onClose, imageUrl }: ImagePreviewD
         <TouchableOpacity onPress={onClose} className="absolute top-12 right-6 z-10 p-2 bg-black/50 rounded-full">
           <X size={24} color="white" />
         </TouchableOpacity>
-        <Image cachePolicy="memory-disk" source={{ uri: imageUrl }}
+        <Image cachePolicy="memory-disk" source={{ uri: toCDN(imageUrl) }}
           style={{ width: SCREEN_WIDTH - 32, height: SCREEN_HEIGHT * 0.6 }}
           contentFit="contain"
         />

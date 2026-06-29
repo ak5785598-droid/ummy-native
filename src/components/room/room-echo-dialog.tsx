@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { X, Send, Bot, Sparkles } from 'lucide-react-native';
 import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
 
 interface EchoMessage {
   id: string;
@@ -141,7 +142,7 @@ export function RoomEchoDialog({ visible, onClose, targetUser }: RoomEchoDialogP
           {/* Header */}
           <View className="flex-row items-center justify-between px-6 pt-4 pb-3 border-b border-white/10">
             <View className="flex-row items-center gap-2">
-              {targetUser ? <Image cachePolicy="memory-disk" source={{ uri: targetUser.avatarUrl }} className="w-8 h-8 rounded-full bg-slate-700" /> : <Bot size={16} color="rgba(255,255,255,0.6)" />}
+              {targetUser ? <Image cachePolicy="memory-disk" source={{ uri: toCDN(targetUser.avatarUrl) }} className="w-8 h-8 rounded-full bg-slate-700" /> : <Bot size={16} color="rgba(255,255,255,0.6)" />}
               <Text className="text-white text-base font-bold">{targetUser?.name || 'AI Echo'}</Text>
               <View className="bg-cyan-600/20 px-1.5 py-0.5 rounded-full flex-row items-center gap-0.5">
                 <Sparkles size={8} color="#06b6d4" />

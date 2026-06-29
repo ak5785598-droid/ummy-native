@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Crown, Shield, Mic, MicOff } from 'lucide-react-native';
 import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
 interface UserRowProps {
   p: any;
   isOwner: boolean;
@@ -15,7 +16,7 @@ export function UserRow({ p, isOwner, isModerator, onPress }: UserRowProps) {
       onPress={() => onPress?.(p.uid)}
       className="flex-row items-center py-3 border-b border-white/5"
     >
-      <Image cachePolicy="memory-disk" source={{ uri: p.avatarUrl || 'https://picsum.photos/100' }}
+      <Image cachePolicy="memory-disk" source={{ uri: toCDN(p.avatarUrl) || 'https://picsum.photos/100' }}
         className="w-10 h-10 rounded-full mr-3"
       />
       <View className="flex-1">

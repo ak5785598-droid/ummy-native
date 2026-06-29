@@ -6,6 +6,7 @@ import { SVGA_OfficialTag, SVGA_SellerTag, SVGA_CSLeaderTag, SVGA_CustomerServic
 import { Image } from 'expo-image';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { AvatarFrame } from '../profile/AvatarFrame';
+import { toCDN } from '../../lib/cdn';
 
 const COUNTRY_FLAGS: Record<string, string> = {
   india: '🇮🇳', pakistan: '🇵🇰', bangladesh: '🇧🇩', nepal: '🇳🇵', sri_lanka: '🇱🇰',
@@ -60,6 +61,29 @@ interface RoomProfileCardProps {
   onBan?: (uid: string) => void;
 }
 
+const SVIPBadge = ({ level }: { level: number }) => {
+  const [badgeUrl, setBadgeUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!level || level < 1) return;
+    (async () => {
+      try {
+        const db = require('@react-native-firebase/firestore').default;
+        const snap = await db().collection('settings').doc('svipConfig').get();
+        if (snap.exists) {
+          const data = snap.data();
+          const url = data?.levels?.[String(level)]?.badgeUrl;
+          if (url) setBadgeUrl(url);
+        }
+      } catch (e) {}
+    })();
+  }, [level]);
+
+  if (!level || level < 1 || !badgeUrl) return null;
+
+  return <Image cachePolicy="memory-disk" source={{ uri: toCDN(badgeUrl) }} className="w-9 h-9" contentFit="contain" />;
+};
+
 export function RoomProfileCard({
   visible, onClose, user, isOwner, isModerator, isMe, canManage,
   onSendMessage, onFollow, onReport, onMute, onKick,
@@ -109,7 +133,7 @@ export function RoomProfileCard({
                 frameMediaUrl={profile?.activeFrameMediaUrl || profile?.inventory?.activeFrameMediaUrl || null}
                 size={96}
               >
-                <Image cachePolicy="memory-disk" source={{ uri: user.avatarUrl || 'https://picsum.photos/200' }}
+                <Image cachePolicy="memory-disk" source={{ uri: toCDN(user.avatarUrl) || 'https://picsum.photos/200' }}
                   style={{ width: 96, height: 96 }}
                   contentFit="cover"
                 />
@@ -163,29 +187,32 @@ export function RoomProfileCard({
           )}
 
           {/* Medals Row */}
-          {profile?.medals && profile.medals.length > 0 && (
-            <View className="flex-row flex-wrap justify-center gap-2 -mt-1 px-6">
-              {profile.medals.map((mId: string, idx: number) => {
-                const fsMedal = firestoreMedals?.find((m: any) => m.id === mId);
-                return (
-                  <View key={idx} className="items-center justify-center">
-                    {fsMedal?.imageUrl ? (
-                      <Image 
-                        cachePolicy="memory-disk" 
-                        source={{ uri: fsMedal.imageUrl }} 
-                        className="w-9 h-9" 
-                        contentFit="contain"
-                      />
-                    ) : (
-                      <View className="w-9 h-9 rounded-full bg-slate-100 items-center justify-center border border-slate-200">
-                        <Text style={{ fontSize: 16 }}>🏅</Text>
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-          )}
+          <View className="flex-row flex-wrap justify-center gap-2 -mt-1 px-6">
+            {(profile?.svip || 0) > 0 && (
+              <View className="items-center justify-center">
+                <SVIPBadge level={profile.svip} />
+              </View>
+            )}
+            {profile?.medals && profile.medals.length > 0 && profile.medals.map((mId: string, idx: number) => {
+              const fsMedal = firestoreMedals?.find((m: any) => m.id === mId);
+              return (
+                <View key={idx} className="items-center justify-center">
+                  {fsMedal?.imageUrl ? (
+                    <Image 
+                      cachePolicy="memory-disk" 
+                      source={{ uri: toCDN(fsMedal.imageUrl) }} 
+                      className="w-9 h-9" 
+                      contentFit="contain"
+                    />
+                  ) : (
+                    <View className="w-9 h-9 rounded-full bg-slate-100 items-center justify-center border border-slate-200">
+                      <Text style={{ fontSize: 16 }}>🏅</Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
 
           {/* User ID, Fans & Gift */}
           <View className={`flex-row items-center gap-3 mb-1 ${hasMedals ? '-mt-2.5' : (hasTags ? 'mt-1.5' : '-mt-2')}`}>

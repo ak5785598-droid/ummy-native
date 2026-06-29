@@ -12,6 +12,7 @@ import { doc, serverTimestamp, increment, runTransaction, collection, addDoc, de
 import { Moment } from '../../lib/types';
 import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
 
 const { width, height } = Dimensions.get('window');
 
@@ -276,7 +277,7 @@ export function FullscreenMomentOverlay({
                 isMuted={isMuted}
               />
             ) : (
-              <Image cachePolicy="memory-disk" source={{ uri: currentMoment.imageUrl || 'https://picsum.photos/600' }}
+              <Image cachePolicy="memory-disk" source={{ uri: toCDN(currentMoment.imageUrl) || 'https://picsum.photos/600' }}
                 style={{ width, height }}
                 contentFit="contain"
               />
@@ -359,7 +360,7 @@ export function FullscreenMomentOverlay({
 
             <View className="px-4 pb-8">
               <View className="flex-row items-center gap-2 mb-2">
-                <Image cachePolicy="memory-disk" source={{ uri: currentMoment.avatarUrl || 'https://picsum.photos/100' }}
+                <Image cachePolicy="memory-disk" source={{ uri: toCDN(currentMoment.avatarUrl) || 'https://picsum.photos/100' }}
                   className="w-9 h-9 rounded-full border border-white/50"
                 />
                 <Text className="text-white font-bold text-sm">{currentMoment.username}</Text>

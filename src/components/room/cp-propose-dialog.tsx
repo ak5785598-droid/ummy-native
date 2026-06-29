@@ -5,6 +5,7 @@ import { useFirestore, useUser } from '../../firebase/provider';
 import { doc, setDoc, serverTimestamp } from '@/firebase/firestore-compat';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
 
 interface CPProposeDialogProps {
   visible: boolean;
@@ -60,7 +61,7 @@ export function CPProposeDialog({ visible, onClose, targetUser }: CPProposeDialo
           </View>
           {targetUser && (
             <View className="flex-row items-center gap-3 bg-white/5 rounded-xl p-3 mb-4 border border-white/10">
-              <Image cachePolicy="memory-disk" source={{ uri: targetUser.avatarUrl }} className="w-12 h-12 rounded-full bg-slate-700" />
+              <Image cachePolicy="memory-disk" source={{ uri: toCDN(targetUser.avatarUrl) }} className="w-12 h-12 rounded-full bg-slate-700" />
               <View>
                 <Text className="text-white text-sm font-bold">{targetUser.name}</Text>
                 <Text className="text-pink-400 text-[10px] font-bold">Target</Text>

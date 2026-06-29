@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback, useRef, useMemo } from 'react';
-import { useFirestore, useUser } from '../../firebase/provider';
+import { useFirestore, useUser, useDatabase } from '../../firebase/provider';
 import { doc, collection, addDoc, serverTimestamp, getDoc } from '@/firebase/firestore-compat';
+import { ref as databaseRef, set as databaseSet, push as databasePush } from 'firebase/database';
 
 interface RoomAISystemsProps {
   roomId: string;
@@ -25,6 +26,7 @@ export function RoomAISystems({
 }: RoomAISystemsProps) {
   const firestore = useFirestore();
   const { user } = useUser();
+  const database = useDatabase();
 
   // Use refs — not state — to avoid re-triggering effects
   const lastProcessedMsgId = useRef<string | null>(null);
@@ -47,17 +49,18 @@ export function RoomAISystems({
   }, [user?.uid, participants, ownerId, moderatorIds]);
 
   const addBotMessage = useCallback(async (text: string) => {
-    if (!firestore || !roomId) return;
-    const msgRef = collection(firestore, 'chatRooms', roomId, 'messages');
-    await addDoc(msgRef, {
+    if (!database || !roomId) return;
+    const msgRef = databasePush(databaseRef(database, `roomMessages/${roomId}`));
+    await databaseSet(msgRef, {
+      id: msgRef.key,
       type: 'text',
       content: text,
       senderId: 'SYSTEM_BOT',
       senderName: 'Ummy AI',
       senderAvatar: 'https://img.icons8.com/isometric/512/bot.png',
-      timestamp: serverTimestamp(),
+      timestamp: Date.now(),
     });
-  }, [firestore, roomId]);
+  }, [database, roomId]);
 
   const muteUser = useCallback(async (targetName: string) => {
     if (!firestore || !roomId) return;
@@ -72,6 +75,11 @@ export function RoomAISystems({
     if (!firestore || !roomId) return;
     const p = participants.find(pp => pp.name === targetName);
     if (p) {
+      // Check kick immunity
+      try {
+        const snap = await (await import('@react-native-firebase/firestore')).default().collection('users').doc(p.uid).get();
+        if (snap.exists && snap.data()?.avoidBeingKicked) return;
+      } catch (e) {}
       const pref = doc(firestore, 'chatRooms', roomId, 'participants', p.uid);
       await (await import('../../lib/non-blocking-writes')).setDocumentNonBlocking(pref, { seatIndex: 0 }, { merge: true });
     }

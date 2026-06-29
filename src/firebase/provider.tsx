@@ -236,33 +236,51 @@ export function useDoc<T = any>(docRef: any, options?: { suppressGlobalError?: b
 function serializeQuery(query: any): string {
   if (!query) return '';
   try {
-    // If it's directly a collection, path is simple
-    if (query.path) return `coll:${query.path}`;
+    // @react-native-firebase query: extract constraints from native object
+    // These queries have .path but also expose ._modifiers or similar
+    // We MUST NOT return just 'coll:path' — different filters → different key
     
-    const internal = query._query || query;
-    const path = internal.path?.toString() || '';
-    
-    // Extract filters safely
-    const filters = internal.filters?.map((f: any) => {
-      const prop = f.field?.toString() || f.property?.toString() || '';
-      const op = f.op?.toString() || '';
-      const val = f.value?.toString?.() || String(f.value || '');
-      return `${prop}:${op}:${val}`;
-    }).join(',') || '';
-    
-    // Extract sorting orders safely
-    const orders = internal.explicitOrderBy?.map((o: any) => {
-      const field = o.field?.toString() || '';
-      const dir = o.dir?.toString() || '';
-      return `${field}:${dir}`;
-    }).join(',') || '';
-    
-    // Extract limit
-    const limit = internal.limit || '';
-    
-    return `path:${path}|filters:${filters}|orders:${orders}|limit:${limit}`;
+    let path = '';
+    let filters = '';
+    let orders = '';
+    let lim = '';
+
+    // Try RN Firebase native query structure
+    if (query._modifiers) {
+      path = query._collectionPath?.relativeName || query.path || '';
+      const mods = query._modifiers;
+      if (mods.filters)  filters = JSON.stringify(mods.filters);
+      if (mods.orders)   orders  = JSON.stringify(mods.orders);
+      if (mods.limit != null) lim = String(mods.limit);
+    } else if (query.path && typeof query.path === 'string') {
+      // Fallback: use path + stringify the whole query to get uniqueness
+      path = query.path;
+      // Include field constraints via toString for uniqueness
+      try { filters = JSON.stringify(query); } catch { filters = String(query); }
+    } else {
+      // Web SDK query structure
+      const internal = query._query || query;
+      path = internal.path?.toString() || '';
+      const rawFilters = internal.filters || internal._filters || [];
+      filters = rawFilters.map((f: any) => {
+        const prop = f.field?.toString() || f.property?.toString() || f._field?.toString() || '';
+        const op   = f.op?.toString()    || f.operator?.toString()  || f._op?.toString()    || '';
+        const val  = f.value?.toString?.() || String(f.value ?? f._val ?? '');
+        return `${prop}:${op}:${val}`;
+      }).join(',') || '';
+      const rawOrders = internal.explicitOrderBy || internal.orders || internal._orders || [];
+      orders = rawOrders.map((o: any) => {
+        const field = o.field?.toString() || o._field?.toString() || '';
+        const dir   = o.dir?.toString()   || o.direction?.toString() || o._direction?.toString() || '';
+        return `${field}:${dir}`;
+      }).join(',') || '';
+      lim = String(internal.limit ?? internal._limit ?? '');
+    }
+
+    return `path:${path}|f:${filters}|o:${orders}|l:${lim}`;
   } catch (e) {
-    return query.path || String(query);
+    // Last resort: use object identity via counter
+    return String(query);
   }
 }
 
@@ -272,6 +290,7 @@ export function useCollection<T = any>(query: any, options?: { silent?: boolean 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
+  // Use serialized string as stable key for effect dependency
   const queryKey = useMemo(() => {
     return serializeQuery(query);
   }, [query]);
@@ -283,7 +302,10 @@ export function useCollection<T = any>(query: any, options?: { silent?: boolean 
     }
 
     setIsLoading(true);
-    const unsubscribe = onSnapshot(query, 
+
+    // Simple 2-arg onSnapshot — works with both web SDK and @react-native-firebase
+    const unsubscribe = onSnapshot(
+      query,
       (snapshot: any) => {
         const docs = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })) as T[];
         setData(docs);
@@ -291,14 +313,18 @@ export function useCollection<T = any>(query: any, options?: { silent?: boolean 
         setError(null);
       },
       (err: any) => {
-        setError(err);
+        console.warn('[useCollection] Firestore error:', err?.message || err);
+        if (!options?.silent) setError(err);
         setIsLoading(false);
       }
     );
 
     return () => unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryKey, isHydrated]);
 
   return { data, isLoading: !isHydrated || isLoading, error };
 }
+
+
 

@@ -1,14 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { useFirestore } from '../firebase/provider';
-import {
-  doc,
-  onSnapshot,
-  setDoc,
-  updateDoc,
-  runTransaction,
-  increment,
-  deleteDoc,
-} from '@/firebase/firestore-compat';
+import { useFirestore, useDatabase } from '../firebase/provider';
+import { ref as databaseRef, set as databaseSet, update as databaseUpdate, remove as databaseRemove, onValue } from 'firebase/database';
+import { doc, runTransaction, increment } from '@/firebase/firestore-compat';
 
 export interface LudoPlayer {
   uid: string;
@@ -113,29 +106,34 @@ const COLOR_ORDER: ('red' | 'green' | 'yellow' | 'blue')[] = ['red', 'green', 'y
 
 export function useLudoEngine(roomId: string | null, userId: string | null) {
   const firestore = useFirestore();
+  const database = useDatabase();
   const [gameState, setGameState] = useState<LudoGameState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const gameDocRef = useMemo(
-    () => (!firestore || !roomId) ? null : doc(firestore, 'games', `ludo_${roomId}`),
-    [firestore, roomId]
-  );
+  const gamePath = roomId ? `games/ludo_${roomId}` : null;
 
   useEffect(() => {
-    if (!gameDocRef) { setIsLoading(false); return; }
-    const unsub = onSnapshot(gameDocRef, (snap: any) => {
-      if (snap.exists()) {
-        setGameState(snap.data() as LudoGameState);
+    if (!database || !gamePath) { setIsLoading(false); return; }
+    const gameRef = databaseRef(database, gamePath);
+    const unsubscribe = onValue(gameRef, (snapshot) => {
+      const val = snapshot.val();
+      if (val) {
+        setGameState({
+          ...val,
+          matchStartTime: val.matchStartTime ? { toDate: () => new Date(val.matchStartTime) } : null,
+          turnStartTime: val.turnStartTime ? { toDate: () => new Date(val.turnStartTime) } : null,
+          updatedAt: val.updatedAt ? { toDate: () => new Date(val.updatedAt) } : null,
+        });
       } else {
         setGameState(null);
       }
       setIsLoading(false);
     }, () => setIsLoading(false));
-    return () => unsub();
-  }, [gameDocRef]);
+    return () => unsubscribe();
+  }, [database, gamePath]);
 
   const joinLobby = useCallback(async (userProfile: any, mode: 'quick' | 'classic' = 'quick', isBot: boolean = false) => {
-    if (!gameDocRef || !userId || !userProfile) return;
+    if (!database || !gamePath || !userId || !userProfile || !roomId) return;
 
     if (!gameState || gameState.status === 'ended') {
       const initialPieces: LudoPiece[] = [];
@@ -150,7 +148,7 @@ export function useLudoEngine(roomId: string | null, userId: string | null) {
         }
       });
 
-      await setDoc(gameDocRef, {
+      await databaseSet(databaseRef(database, gamePath), {
         id: `ludo_${roomId}`,
         roomId,
         players: [
@@ -178,96 +176,85 @@ export function useLudoEngine(roomId: string | null, userId: string | null) {
         status: isBot ? 'playing' : 'lobby',
         mode,
         isBotMode: isBot,
-        matchStartTime: isBot ? new Date() : null,
-        turnStartTime: isBot ? new Date() : null,
+        matchStartTime: isBot ? Date.now() : null,
+        turnStartTime: isBot ? Date.now() : null,
         missedTurns: isBot ? { [userId]: 0, bot: 0 } : null,
-        updatedAt: new Date(),
+        updatedAt: Date.now(),
       });
     } else {
       if (gameState.players.length >= 4) return;
       if (gameState.players.find((p: any) => p.uid === userId)) return;
 
       const assignedColor = COLOR_ORDER[gameState.players.length];
+      const newPlayers = [...gameState.players, {
+        uid: userId,
+        username: userProfile.username || `Player ${gameState.players.length + 1}`,
+        avatarUrl: userProfile.avatarUrl || '',
+        color: assignedColor,
+        isReady: true,
+        isActive: true,
+      }];
 
-      try {
-        await runTransaction(firestore!, async (transaction: any) => {
-          const snap = await transaction.get(gameDocRef);
-          if (!snap.exists()) return;
+      const newPieces = gameState.pieces.map((p: any) =>
+        p.color === assignedColor ? { ...p, ownerUid: userId } : p
+      );
 
-          const data = snap.data();
-          const newPlayers = [...data.players, {
-            uid: userId,
-            username: userProfile.username || `Player ${data.players.length + 1}`,
-            avatarUrl: userProfile.avatarUrl || '',
-            color: assignedColor,
-            isReady: true,
-            isActive: true,
-          }];
-
-          const newPieces = data.pieces.map((p: any) =>
-            p.color === assignedColor ? { ...p, ownerUid: userId } : p
-          );
-
-          transaction.update(gameDocRef, {
-            players: newPlayers,
-            pieces: newPieces,
-            status: 'lobby',
-            dice: 1,
-            updatedAt: new Date(),
-          });
-        });
-      } catch (err) {
-        console.error('Failed to join ludo:', err);
-      }
+      await databaseUpdate(databaseRef(database, gamePath), {
+        players: newPlayers,
+        pieces: newPieces,
+        status: 'lobby',
+        dice: 1,
+        updatedAt: Date.now(),
+      });
     }
-  }, [gameDocRef, userId, gameState, roomId, firestore]);
+  }, [database, gamePath, userId, gameState, roomId]);
 
   const startGame = useCallback(async () => {
-    if (!gameDocRef || !gameState) return;
+    if (!database || !gamePath || !gameState) return;
     const isHost = gameState.players[0]?.uid === userId;
     if (!isHost) return;
     try {
-      await updateDoc(gameDocRef, {
+      await databaseUpdate(databaseRef(database, gamePath), {
         status: 'playing',
-        matchStartTime: new Date(),
-        turnStartTime: new Date(),
+        matchStartTime: Date.now(),
+        turnStartTime: Date.now(),
         missedTurns: gameState.players.reduce((acc: any, p: any) => { acc[p.uid] = 0; return acc; }, {}),
-        updatedAt: new Date(),
+        updatedAt: Date.now(),
       });
     } catch (err) {
       console.error('Failed to start game:', err);
     }
-  }, [gameDocRef, gameState, userId]);
+  }, [database, gamePath, gameState, userId]);
 
   const leaveLobby = useCallback(async () => {
-    if (!gameDocRef || !gameState || !userId) return;
+    if (!database || !gamePath || !gameState || !userId) return;
     const isHost = gameState.players[0]?.uid === userId;
     try {
       if (isHost) {
-        await setDoc(gameDocRef, {
+        await databaseSet(databaseRef(database, gamePath), {
           ...gameState,
           status: 'ended',
           winner: 'closed',
-          updatedAt: new Date(),
+          updatedAt: Date.now(),
         });
       } else {
         const newPlayers = gameState.players.filter((p: any) => p.uid !== userId);
         const newPieces = gameState.pieces.map((p: any) =>
           p.ownerUid === userId ? { ...p, ownerUid: '' } : p
         );
-        await updateDoc(gameDocRef, {
+        await databaseUpdate(databaseRef(database, gamePath), {
           players: newPlayers,
           pieces: newPieces,
-          updatedAt: new Date(),
+          updatedAt: Date.now(),
         });
       }
     } catch (err) {
       console.error('Failed to leave lobby:', err);
     }
-  }, [gameDocRef, gameState, userId]);
+  }, [database, gamePath, gameState, userId]);
 
   const rollDice = useCallback(async () => {
-    if (!gameDocRef || !gameState) return;
+    if (!database || !gamePath || !gameState) return;
     const isBotTurn = gameState.turn === 'bot';
     const isMyTurn = gameState.turn === userId;
     const isHost = gameState.players[0]?.uid === userId;
@@ -291,35 +278,35 @@ export function useLudoEngine(roomId: string | null, userId: string | null) {
         const nextPlayerIndex = (gameState.players.findIndex((p: any) => p.uid === gameState.turn) + 1) % gameState.players.length;
         const nextTurn = gameState.players[nextPlayerIndex].uid;
         
-        await updateDoc(gameDocRef, {
+        await databaseUpdate(databaseRef(database, gamePath), {
           dice: roll,
           diceRolled: true,
-          updatedAt: new Date(),
+          updatedAt: Date.now(),
         });
         
         setTimeout(async () => {
           try {
-            await updateDoc(gameDocRef, {
+            await databaseUpdate(databaseRef(database, gamePath), {
               turn: nextTurn,
               dice: 1,
               diceRolled: false,
-              turnStartTime: new Date(),
-              updatedAt: new Date(),
+              turnStartTime: Date.now(),
+              updatedAt: Date.now(),
             });
           } catch {}
         }, 1500);
       } else {
-        await updateDoc(gameDocRef, {
+        await databaseUpdate(databaseRef(database, gamePath), {
           dice: roll,
           diceRolled: true,
-          updatedAt: new Date(),
+          updatedAt: Date.now(),
         });
       }
     } catch {}
-  }, [gameDocRef, gameState, userId]);
+  }, [database, gamePath, gameState, userId]);
 
   const movePiece = useCallback(async (pieceId: string) => {
-    if (!gameDocRef || !gameState) return;
+    if (!database || !gamePath || !gameState) return;
     const isBotTurn = gameState.turn === 'bot';
     const isMyTurn = gameState.turn === userId;
     const isHost = gameState.players[0]?.uid === userId;
@@ -439,23 +426,23 @@ export function useLudoEngine(roomId: string | null, userId: string | null) {
     }
 
     try {
-      await updateDoc(gameDocRef, {
+      await databaseUpdate(databaseRef(database, gamePath), {
         pieces: updatedPieces,
         turn: nextTurn,
         dice: 1,
         diceRolled: false,
-        turnStartTime: new Date(),
+        turnStartTime: Date.now(),
         missedTurns: newMissedTurns,
         finishedRankings: newFinishedRankings,
         ...(isGameOver ? { status: 'ended', winner } : {}),
-        updatedAt: new Date(),
+        updatedAt: Date.now(),
       });
     } catch {}
-  }, [gameDocRef, gameState, userId]);
+  }, [database, gamePath, gameState, userId]);
 
   // Host referee logic for Ludo
   useEffect(() => {
-    if (!gameDocRef || !gameState || gameState.status !== 'playing' || !userId) return;
+    if (!database || !gamePath || !gameState || gameState.status !== 'playing' || !userId) return;
 
     const isHost = gameState.players[0]?.uid === userId;
     if (!isHost) return;
@@ -474,22 +461,22 @@ export function useLudoEngine(roomId: string | null, userId: string | null) {
         if (newMissedCount >= 3) {
           clearInterval(interval);
           const otherPlayer = gameState.players.find((p: any) => p.uid !== activePlayerUid);
-          await updateDoc(gameDocRef, {
+          await databaseUpdate(databaseRef(database, gamePath), {
             status: 'ended',
             winner: otherPlayer?.uid || 'bot',
-            updatedAt: new Date(),
+            updatedAt: Date.now(),
           });
         } else {
           const nextPlayerIndex = (gameState.players.findIndex((p: any) => p.uid === activePlayerUid) + 1) % gameState.players.length;
           const nextTurn = gameState.players[nextPlayerIndex].uid;
 
-          await updateDoc(gameDocRef, {
+          await databaseUpdate(databaseRef(database, gamePath), {
             turn: nextTurn,
             dice: 1,
             diceRolled: false,
-            turnStartTime: new Date(),
+            turnStartTime: Date.now(),
             missedTurns: updatedMissedTurns,
-            updatedAt: new Date(),
+            updatedAt: Date.now(),
           });
         }
       }
@@ -514,25 +501,25 @@ export function useLudoEngine(roomId: string | null, userId: string | null) {
           }
         });
 
-        await updateDoc(gameDocRef, {
+        await databaseUpdate(databaseRef(database, gamePath), {
           status: 'ended',
           winner: bestPlayerUid,
-          updatedAt: new Date(),
+          updatedAt: Date.now(),
         });
       }
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [gameDocRef, gameState, userId]);
+  }, [database, gamePath, gameState, userId]);
 
   const resetGame = useCallback(async () => {
-    if (!gameDocRef) return;
+    if (!database || !gamePath) return;
     try {
-      await deleteDoc(gameDocRef);
+      await databaseRemove(databaseRef(database, gamePath));
     } catch (e) {
       console.log('Error resetting game:', e);
     }
-  }, [gameDocRef]);
+  }, [database, gamePath]);
 
   return {
     gameState,

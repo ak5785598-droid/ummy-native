@@ -162,7 +162,7 @@ export function ChatInputBar({ visible, onClose, onSend, onImageUpload, targetLa
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 0.8,
+      quality: 0.3,
     });
 
     if (!result.canceled && result.assets[0]) {

@@ -10,6 +10,7 @@ import { useUser, useFirestore } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, getDoc, limit, deleteDoc, updateDoc, addDoc, orderBy, onSnapshot, increment } from '@/firebase/firestore-compat';
 import { AvatarFrame } from './AvatarFrame';
+import { toCDN } from '../../lib/cdn';
 import {
   SVGA_OfficialTag,
   SVGA_SellerTag,
@@ -99,7 +100,31 @@ const GenderAgeTag = ({ gender, birthday }: any) => {
 };
 
 const SVIPBadge = ({ level }: { level: number }) => {
+  const firestore = useFirestore();
+  const [badgeUrl, setBadgeUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!level || level < 1 || !firestore) return;
+    (async () => {
+      try {
+        const snap = await getDoc(doc(firestore, 'settings', 'svipConfig'));
+        if (snap.exists()) {
+          const data = snap.data();
+          const url = data?.levels?.[String(level)]?.badgeUrl;
+          if (url) setBadgeUrl(url);
+        }
+      } catch (e) {}
+    })();
+  }, [level, firestore]);
+
   if (!level || level < 1) return null;
+
+  if (badgeUrl) {
+    return (
+      <Image cachePolicy="memory-disk" source={{ uri: toCDN(badgeUrl) }} style={{ width: 24, height: 24 }} contentFit="contain" />
+    );
+  }
+
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, gap: 2, backgroundColor: '#F59E0B' }}>
       <Text style={{ fontSize: 8, color: '#FFF', fontWeight: '800' }}>SVIP {level}</Text>
@@ -137,16 +162,38 @@ export function FullProfileDialog({
   const [cpSelectedUser, setCpSelectedUser] = useState<any>(null);
   const [cpSent, setCpSent] = useState(false);
   const [showCpInfo, setShowCpInfo] = useState(false);
+  const [searchType, setSearchType] = useState<'CP' | 'Best Friend' | 'Besties'>('CP');
+
+  // Medals list from Firestore
+  const [allMedals, setAllMedals] = useState<any[]>([]);
+
+  // Supporter profile dialog state
+  const [supporterProfileUid, setSupporterProfileUid] = useState<string | null>(null);
+  const { profile: supporterProfile } = useUserProfile(supporterProfileUid || undefined);
 
   const heartScale = React.useRef(new Animated.Value(1)).current;
 
   const hasOfficialTag = profile?.tags?.some((t: string) => t.includes('Official') || t.includes('official'));
 
+  // Fetch medals from Firestore
+  useEffect(() => {
+    if (!open) return;
+    try {
+      const db = require('@react-native-firebase/firestore').default;
+      const unsub = db().collection('medalsList').onSnapshot((snap: any) => {
+        if (snap) {
+          setAllMedals(snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
+        }
+      });
+      return () => unsub();
+    } catch (e) {}
+  }, [open]);
+
   const handleCopyId = useCallback(() => {
     if (displayId) { Clipboard.setString(displayId); setCopiedId(true); setTimeout(() => setCopiedId(false), 2000); }
   }, [displayId]);
 
-  const hasRelationship = profile?.relationship && (profile.relationship.type === 'CP' || profile.relationship.type === 'Love' || profile.relationship.type === 'BFF');
+  const hasRelationship = profile?.relationship && (profile.relationship.type === 'CP') || profile?.bestFriend || profile?.besties;
 
   const handleHeartPressIn = useCallback(() => {
     Animated.spring(heartScale, { toValue: 1.25, useNativeDriver: true, tension: 150, friction: 4 }).start();
@@ -161,16 +208,40 @@ export function FullProfileDialog({
     if (text.length < 2) { setCpSearchResults([]); return; }
     setCpSearching(true);
     try {
-      const q = query(collection(firestore, 'users'), where('username', '>=', text), where('username', '<=', text + '\uf8ff'), limit(10));
-      const snap = await getDocs(q);
       const results: any[] = [];
-      snap.forEach((d: any) => { if (d.id !== user?.uid) results.push({ id: d.id, ...d.data() }); });
+      const seen = new Set<string>();
+
+      // 1. Search by username in root users collection
+      try {
+        const q = query(collection(firestore, 'users'), where('username', '>=', text), where('username', '<=', text + '\uf8ff'), limit(10));
+        const snap = await getDocs(q);
+        snap.forEach((d: any) => { if (d.id !== user?.uid && !seen.has(d.id)) { seen.add(d.id); results.push({ id: d.id, ...d.data() }); } });
+      } catch (e) {}
+
+      // 2. Search by accountNumber
+      if (results.length < 10) {
+        try {
+          const q2 = query(collection(firestore, 'users'), where('accountNumber', '>=', text), where('accountNumber', '<=', text + '\uf8ff'), limit(10));
+          const snap2 = await getDocs(q2);
+          snap2.forEach((d: any) => { if (d.id !== user?.uid && !seen.has(d.id)) { seen.add(d.id); results.push({ id: d.id, ...d.data() }); } });
+        } catch (e) {}
+      }
+
+      // 3. Search by name field in root users
+      if (results.length < 10) {
+        try {
+          const q3 = query(collection(firestore, 'users'), where('name', '>=', text), where('name', '<=', text + '\uf8ff'), limit(10));
+          const snap3 = await getDocs(q3);
+          snap3.forEach((d: any) => { if (d.id !== user?.uid && !seen.has(d.id)) { seen.add(d.id); results.push({ id: d.id, ...d.data() }); } });
+        } catch (e) {}
+      }
+
       setCpSearchResults(results);
     } catch (e) { console.log('CP search error', e); }
     setCpSearching(false);
   }, [firestore, user?.uid]);
 
-  const handleSendCpProposal = useCallback(async (type: 'CP' | 'Love' | 'BFF') => {
+  const handleSendCpProposal = useCallback(async (type: 'CP' | 'Best Friend' | 'Besties') => {
     if (!firestore || !user || !cpSelectedUser) return;
     try {
       const proposalId = `${user.uid}_${cpSelectedUser.id}_${Date.now()}`;
@@ -213,9 +284,11 @@ export function FullProfileDialog({
         setIsBreakingCp(true);
         try {
           const rel = profile.relationship;
-          const otherUid = rel.user1Uid === user.uid ? rel.user2Uid : rel.user1Uid;
+          const otherUid = rel.partnerUid;
+          if (otherUid) {
+            await updateDoc(doc(firestore, 'users', otherUid, 'profile', otherUid), { relationship: null, updatedAt: serverTimestamp() });
+          }
           await updateDoc(doc(firestore, 'users', user.uid, 'profile', user.uid), { relationship: null, updatedAt: serverTimestamp() });
-          await updateDoc(doc(firestore, 'users', otherUid, 'profile', otherUid), { relationship: null, updatedAt: serverTimestamp() });
           Alert.alert('Done', 'Relationship ended.');
           onOpenChange(false);
         } catch (e) { Alert.alert('Error', 'Failed to break relationship.'); }
@@ -236,7 +309,7 @@ export function FullProfileDialog({
             <View style={{ height: SCREEN_HEIGHT * 0.35, width: '100%', position: 'relative' }}>
               <Image
                 cachePolicy="memory-disk"
-                source={{ uri: profile.spaceImages?.[0] || profile.avatarUrl || 'https://picsum.photos/200' }}
+                source={{ uri: toCDN(profile.spaceImages?.[0] || profile.avatarUrl) || 'https://picsum.photos/200' }}
                 style={{ width: '100%', height: '100%' }}
                 contentFit="cover"
               />
@@ -257,7 +330,7 @@ export function FullProfileDialog({
             <View style={{ alignItems: 'center', marginTop: -40, marginBottom: 10, zIndex: 30 }}>
               <View>
                 <AvatarFrame frameMediaUrl={profile.inventory?.activeFrameMediaUrl} size={88}>
-                  <Image cachePolicy="memory-disk" source={{ uri: profile.avatarUrl || 'https://picsum.photos/200' }} style={{ width: '100%', height: '100%' }} />
+                  <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile.avatarUrl) || 'https://picsum.photos/200' }} style={{ width: '100%', height: '100%' }} />
                 </AvatarFrame>
               </View>
             </View>
@@ -294,7 +367,18 @@ export function FullProfileDialog({
                   </View>
                 ) : (
                   <View style={{ backgroundColor: '#f1f5f9', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4.5, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#475569' }}>ID: {displayId}</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#475569' }}>
+                      ID: {(() => {
+                        const isValid = (id: any) => {
+                          if (!id) return false;
+                          const s = String(id).trim();
+                          return /^\d{6}$/.test(s) || s === '0000';
+                        };
+                        if (isValid(displayId)) return displayId;
+                        if (isValid(profile?.accountNumber)) return profile.accountNumber;
+                        return displayId;
+                      })()}
+                    </Text>
                     {copiedId ? <CheckCircle size={10} color="#22C55E" /> : <Copy size={10} color="#94a3b8" />}
                   </View>
                 )}
@@ -359,7 +443,7 @@ export function FullProfileDialog({
 
                   {/* Left User */}
                   <View style={{ alignItems: 'center', marginTop: 4 }}>
-                    <Image cachePolicy="memory-disk" source={{ uri: profile.avatarUrl || 'https://picsum.photos/200' }}
+                    <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile.avatarUrl) || 'https://picsum.photos/200' }}
                       style={{ width: 60, height: 60, borderRadius: 30, borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.95)' }} />
                     <Text style={{ fontSize: 10, fontWeight: '800', color: '#FFFFFF', marginTop: 8, textAlign: 'center' }} numberOfLines={1}>{profile.username}</Text>
                   </View>
@@ -479,7 +563,7 @@ export function FullProfileDialog({
                   {/* Right User or Add Partner */}
                   {profile?.relationship && profile?.relationship?.type && profile?.relationship?.type !== 'None' ? (
                     <View style={{ alignItems: 'center' }}>
-                      <Image cachePolicy="memory-disk" source={{ uri: profile?.relationship?.partnerAvatar || 'https://picsum.photos/200' }}
+                      <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile?.relationship?.partnerAvatar) || 'https://picsum.photos/200' }}
                         style={{ width: 60, height: 60, borderRadius: 30, borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.95)' }} />
                       <Text style={{ fontSize: 10, fontWeight: '800', color: '#FFFFFF', marginTop: 8, textAlign: 'center' }} numberOfLines={1}>{profile?.relationship?.partnerName}</Text>
                     </View>
@@ -493,6 +577,43 @@ export function FullProfileDialog({
                   )}
                 </LinearGradient>
               </LinearGradient>
+            </View>
+
+            {/* Best Friend & Besties Slots */}
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+              {/* Best Friend Slot */}
+              <View style={{ flex: 1, backgroundColor: '#F0FDF4', borderRadius: 16, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#BBF7D0' }}>
+                <Text style={{ fontSize: 8, fontWeight: '800', color: '#16A34A', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>🫂 Best Friend</Text>
+                {profile?.bestFriend ? (
+                  <View style={{ alignItems: 'center' }}>
+                    <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile.bestFriend.avatarUrl) || 'https://picsum.photos/200' }}
+                      style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: '#22C55E' }} />
+                    <Text style={{ fontSize: 9, fontWeight: '800', color: '#166534', marginTop: 6 }} numberOfLines={1}>{profile.bestFriend.name}</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity onPress={() => { setSearchType('Best Friend'); setShowCpSearch(true); }}
+                    style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderStyle: 'dashed', borderColor: '#86EFAC', backgroundColor: 'rgba(34,197,94,0.05)', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 20, color: '#22C55E' }}>+</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Besties Slot */}
+              <View style={{ flex: 1, backgroundColor: '#FFF7ED', borderRadius: 16, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#FED7AA' }}>
+                <Text style={{ fontSize: 8, fontWeight: '800', color: '#EA580C', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>👯 Besties</Text>
+                {profile?.besties ? (
+                  <View style={{ alignItems: 'center' }}>
+                    <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile.besties.avatarUrl) || 'https://picsum.photos/200' }}
+                      style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: '#F97316' }} />
+                    <Text style={{ fontSize: 9, fontWeight: '800', color: '#9A3412', marginTop: 6 }} numberOfLines={1}>{profile.besties.name}</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity onPress={() => { setSearchType('Besties'); setShowCpSearch(true); }}
+                    style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderStyle: 'dashed', borderColor: '#FDBA74', backgroundColor: 'rgba(249,115,22,0.05)', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 20, color: '#F97316' }}>+</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
             {/* Signature Bio */}
@@ -530,12 +651,19 @@ export function FullProfileDialog({
               {activeTab === 'medal' && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
                   {profile.medals && profile.medals.length > 0 ? (
-                    profile.medals.map((mId: string, idx: number) => (
-                      <View key={idx} style={{ padding: 8, backgroundColor: '#F8FAFC', borderRadius: 12, alignItems: 'center', width: (SCREEN_WIDTH - 64) / 4 }}>
-                        <Text style={{ fontSize: 22 }}>🏅</Text>
-                        <Text style={{ fontSize: 8, fontWeight: '800', color: '#64748B', marginTop: 4, textAlign: 'center' }} numberOfLines={1}>{mId}</Text>
-                      </View>
-                    ))
+                    profile.medals.map((mId: string, idx: number) => {
+                      const medalData = allMedals.find((m: any) => m.id === mId);
+                      return (
+                        <View key={idx} style={{ padding: 8, borderRadius: 12, alignItems: 'center', width: (SCREEN_WIDTH - 64) / 3 }}>
+                          {medalData?.imageUrl ? (
+                            <Image cachePolicy="memory-disk" source={{ uri: toCDN(medalData.imageUrl) }} style={{ width: 80, height: 80 }} contentFit="contain" />
+                          ) : (
+                            <Text style={{ fontSize: 22 }}>🏅</Text>
+                          )}
+                          <Text style={{ fontSize: 8, fontWeight: '800', color: '#64748B', marginTop: 4, textAlign: 'center' }} numberOfLines={1}>{medalData?.name || mId}</Text>
+                        </View>
+                      );
+                    })
                   ) : (
                     <Text style={{ fontSize: 12, color: '#94A3B8', fontStyle: 'italic', textAlign: 'center', width: '100%', marginTop: 20 }}>No Medal Earned</Text>
                   )}
@@ -570,15 +698,15 @@ export function FullProfileDialog({
                 </View>
               )}
               {activeTab === 'gift' && (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 18 }}>
                   {profile.stats?.receivedGifts && Object.keys(profile.stats.receivedGifts).length > 0 ? (
                     Object.entries(profile.stats.receivedGifts).map(([giftId, count]: any, idx: number) => {
                       const giftName = profile.stats?.giftDetails?.[`${giftId}_name`] || giftId;
                       const giftImage = profile.stats?.giftDetails?.[`${giftId}_imageUrl`];
                       return (
-                        <View key={idx} style={{ padding: 8, backgroundColor: '#F8FAFC', borderRadius: 12, alignItems: 'center', width: (SCREEN_WIDTH - 64) / 4 }}>
+                        <View key={idx} style={{ padding: 2, borderRadius: 8, alignItems: 'center', width: (SCREEN_WIDTH - 32) / 5 }}>
                           {giftImage ? (
-                            <Image source={{ uri: giftImage }} style={{ width: 32, height: 32, borderRadius: 8 }} contentFit="contain" />
+                            <Image source={{ uri: toCDN(giftImage) }} style={{ width: 60, height: 60, borderRadius: 6 }} contentFit="contain" />
                           ) : (
                             <Text style={{ fontSize: 22 }}>&#127873;</Text>
                           )}
@@ -646,7 +774,7 @@ export function FullProfileDialog({
               {/* Selected User */}
               {cpSelectedUser && !cpSent && (
                 <View style={{ alignItems: 'center', marginBottom: 12 }}>
-                  <Image source={{ uri: cpSelectedUser.avatarUrl || 'https://picsum.photos/200' }} style={{ width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: '#EC4899' }} cachePolicy="memory-disk" />
+                  <Image source={{ uri: toCDN(cpSelectedUser.avatarUrl) || 'https://picsum.photos/200' }} style={{ width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: '#EC4899' }} cachePolicy="memory-disk" />
                   <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '800', marginTop: 8 }}>{cpSelectedUser.username}</Text>
                   <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, marginTop: 2 }}>ID: {cpSelectedUser.accountNumber || cpSelectedUser.id}</Text>
                 </View>
@@ -665,7 +793,7 @@ export function FullProfileDialog({
                   {cpSearchResults.map((u: any) => (
                     <TouchableOpacity key={u.id} onPress={() => { setCpSelectedUser(u); setCpSearchResults([]); setCpSearchQuery(''); }}
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)', marginBottom: 6 }}>
-                      <Image source={{ uri: u.avatarUrl || 'https://picsum.photos/200' }} style={{ width: 40, height: 40, borderRadius: 20 }} cachePolicy="memory-disk" />
+                      <Image source={{ uri: toCDN(u.avatarUrl) || 'https://picsum.photos/200' }} style={{ width: 40, height: 40, borderRadius: 20 }} cachePolicy="memory-disk" />
                       <View style={{ flex: 1 }}>
                         <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700' }}>{u.username || 'Unknown'}</Text>
                         <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, marginTop: 1 }}>ID: {u.accountNumber || u.id}</Text>
@@ -682,7 +810,11 @@ export function FullProfileDialog({
               {/* Proposal Type Buttons */}
               {cpSelectedUser && !cpSent && (
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-                  {[{ id: 'Love', label: 'Love', icon: '💕' }, { id: 'CP', label: 'CP Partner', icon: '💑' }, { id: 'BFF', label: 'Eternal BFF', icon: '🤝' }].map(t => (
+                  {[
+                    { id: 'Best Friend', label: 'Best Friend', icon: '🫂' },
+                    { id: 'CP', label: 'CP Partner', icon: '💑' },
+                    { id: 'Besties', label: 'Besties', icon: '👯' }
+                  ].filter(t => t.id === searchType || t.id === 'CP').map(t => (
                     <TouchableOpacity key={t.id} onPress={() => handleSendCpProposal(t.id as any)}
                       style={{ flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
                       <Text style={{ fontSize: 20, marginBottom: 3 }}>{t.icon}</Text>
@@ -771,6 +903,8 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user }: { pr
   const [period, setPeriod] = useState<'total' | 'weekly' | 'monthly'>('total');
   const [dailySupported, setDailySupported] = useState(false);
   const [supporting, setSupporting] = useState(false);
+  const [supporterProfileUid, setSupporterProfileUid] = useState<string | null>(null);
+  const { profile: supporterProfile } = useUserProfile(supporterProfileUid || undefined);
   const { profile: myProfile } = useUserProfile(user?.uid);
 
   useEffect(() => {
@@ -887,14 +1021,18 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user }: { pr
       <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-end', gap: 16, paddingBottom: 4 }}>
         {slots.map((slot, i) => (
           <View key={i} style={{ alignItems: 'center', transform: [{ translateY: slot.translateY }] }}>
-            <View style={{ width: slot.size, height: slot.size, borderRadius: slot.size / 2, borderWidth: 2, borderColor: slot.color, backgroundColor: slot.supporter ? 'transparent' : 'rgba(148,163,184,0.08)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            <TouchableOpacity
+              onPress={() => slot.supporter?.supporterId && setSupporterProfileUid(slot.supporter.supporterId)}
+              disabled={!slot.supporter}
+              style={{ width: slot.size, height: slot.size, borderRadius: slot.size / 2, borderWidth: 2, borderColor: slot.color, backgroundColor: slot.supporter ? 'transparent' : 'rgba(148,163,184,0.08)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
+            >
               {slot.supporter ? (
-                <Image cachePolicy="memory-disk" source={{ uri: slot.supporter.supporterAvatar || 'https://picsum.photos/100' }}
+                <Image cachePolicy="memory-disk" source={{ uri: toCDN(slot.supporter.supporterAvatar) || 'https://picsum.photos/100' }}
                   style={{ width: slot.size, height: slot.size, borderRadius: slot.size / 2 }} />
               ) : (
                 <Text style={{ fontSize: slot.size * 0.35, color: slot.color, opacity: 0.5 }}>{slot.medal}</Text>
               )}
-            </View>
+            </TouchableOpacity>
             <Text style={{ fontSize: 14, marginTop: 4 }}>{slot.medal}</Text>
             {slot.supporter ? (
               <>
@@ -942,14 +1080,18 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user }: { pr
                   { s: sorted[2], medal: '🥉', size: 50, color: '#d97706', ty: 16 },
                 ].map((slot, i) => (
                   <View key={i} style={{ alignItems: 'center', transform: [{ translateY: slot.ty }] }}>
-                    <View style={{ width: slot.size, height: slot.size, borderRadius: slot.size / 2, borderWidth: 2.5, borderColor: slot.color, backgroundColor: slot.s ? 'transparent' : 'rgba(148,163,184,0.08)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                    <TouchableOpacity
+                      onPress={() => slot.s?.supporterId && setSupporterProfileUid(slot.s.supporterId)}
+                      disabled={!slot.s}
+                      style={{ width: slot.size, height: slot.size, borderRadius: slot.size / 2, borderWidth: 2.5, borderColor: slot.color, backgroundColor: slot.s ? 'transparent' : 'rgba(148,163,184,0.08)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
+                    >
                       {slot.s ? (
-                        <Image cachePolicy="memory-disk" source={{ uri: slot.s.supporterAvatar || 'https://picsum.photos/100' }}
+                        <Image cachePolicy="memory-disk" source={{ uri: toCDN(slot.s.supporterAvatar) || 'https://picsum.photos/100' }}
                           style={{ width: slot.size, height: slot.size, borderRadius: slot.size / 2 }} />
                       ) : (
                         <Text style={{ fontSize: slot.size * 0.35, color: slot.color, opacity: 0.5 }}>{slot.medal}</Text>
                       )}
-                    </View>
+                    </TouchableOpacity>
                     <Text style={{ fontSize: 20, marginTop: 6 }}>{slot.medal}</Text>
                     {slot.s ? (
                       <>
@@ -968,15 +1110,16 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user }: { pr
             <ScrollView style={{ flex: 1, paddingHorizontal: 16 }}>
               <Text style={{ fontSize: 10, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 1, marginTop: 12, marginBottom: 8 }}>All Supporters</Text>
               {sorted.map((s: any, i: number) => (
-                <View key={s.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F8FAFC', gap: 12 }}>
+                <TouchableOpacity key={s.id} onPress={() => s.supporterId && setSupporterProfileUid(s.supporterId)}
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F8FAFC', gap: 12 }}>
                   <Text style={{ fontSize: 15, fontWeight: '900', color: i < 3 ? '#f43f5e' : '#94A3B8', width: 28, textAlign: 'center' }}>{i + 1}</Text>
-                  <Image cachePolicy="memory-disk" source={{ uri: s.supporterAvatar || 'https://picsum.photos/100' }}
+                  <Image cachePolicy="memory-disk" source={{ uri: toCDN(s.supporterAvatar) || 'https://picsum.photos/100' }}
                     style={{ width: 42, height: 42, borderRadius: 21, borderWidth: 2, borderColor: i === 0 ? '#fbbf24' : i === 1 ? '#94a3b8' : i === 2 ? '#d97706' : '#E2E8F0' }} />
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 14, fontWeight: '700', color: '#1E293B' }} numberOfLines={1}>{s.supporterName}</Text>
                   </View>
                   <Text style={{ fontSize: 13, fontWeight: '800', color: '#f43f5e' }}>{getPoints(s).toLocaleString()} pts</Text>
-                </View>
+                </TouchableOpacity>
               ))}
               {sorted.length === 0 && (
                 <Text style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', paddingVertical: 40, fontStyle: 'italic' }}>No supporters yet</Text>
@@ -984,6 +1127,17 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user }: { pr
             </ScrollView>
           </View>
         </Modal>
+      )}
+
+      {/* Nested supporter FullProfileDialog */}
+      {supporterProfileUid && supporterProfile && (
+        <FullProfileDialog
+          open={!!supporterProfileUid}
+          onOpenChange={(open: boolean) => { if (!open) setSupporterProfileUid(null); }}
+          profile={supporterProfile}
+          isOwnProfile={supporterProfileUid === user?.uid}
+          displayId={supporterProfile.accountNumber || '000000'}
+        />
       )}
     </View>
   );

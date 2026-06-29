@@ -23,6 +23,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useUser, useFirestore, useCollection } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
+import { toCDN } from '@/lib/cdn';
 import { doc, onSnapshot, updateDoc, setDoc, serverTimestamp, collection, query, where, limit, getDocs, deleteDoc } from '@/firebase/firestore-compat';
 import { FURNITURE_CATALOG, FurnitureItem } from '../../constants/cp-furniture-catalog';
 import { Image } from 'expo-image';
@@ -295,7 +296,7 @@ export default function CpHouseScreen() {
       {backgroundImageUrl ? (
         <Image
           cachePolicy="memory-disk"
-          source={{ uri: backgroundImageUrl }}
+          source={{ uri: toCDN(backgroundImageUrl) }}
           style={[StyleSheet.absoluteFillObject, { opacity: 0.35 }]}
           contentFit="cover"
         />
@@ -349,7 +350,7 @@ export default function CpHouseScreen() {
                   shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.65, shadowRadius: 14, elevation: 8,
                 }}>
                   <View style={{ width: '100%', height: '100%', borderRadius: 33, overflow: 'hidden', backgroundColor: '#0a0018' }}>
-                    <Image cachePolicy="memory-disk" source={{ uri: userProfile?.avatarUrl || 'https://via.placeholder.com/150' }} style={{ width: '100%', height: '100%' }} />
+                    <Image cachePolicy="memory-disk" source={{ uri: toCDN(userProfile?.avatarUrl) || 'https://via.placeholder.com/150' }} style={{ width: '100%', height: '100%' }} />
                   </View>
                 </View>
                 <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '800', letterSpacing: 0.3 }}>
@@ -377,7 +378,7 @@ export default function CpHouseScreen() {
                     shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.65, shadowRadius: 14, elevation: 8,
                   }}>
                     <View style={{ width: '100%', height: '100%', borderRadius: 33, overflow: 'hidden', backgroundColor: '#0a0018' }}>
-                      <Image cachePolicy="memory-disk" source={{ uri: partnerProfile.avatarUrl || 'https://via.placeholder.com/150' }} style={{ width: '100%', height: '100%' }} />
+                      <Image cachePolicy="memory-disk" source={{ uri: toCDN(partnerProfile.avatarUrl) || 'https://via.placeholder.com/150' }} style={{ width: '100%', height: '100%' }} />
                     </View>
                   </View>
                   <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '800', letterSpacing: 0.3 }}>
@@ -602,7 +603,7 @@ export default function CpHouseScreen() {
                   <View key={target.uid} className="flex-row items-center justify-between p-3 bg-white/5 border border-white/5 rounded-xl">
                     <View className="flex-row items-center gap-3">
                       <View className="h-10 w-10 rounded-full overflow-hidden border border-white/10 bg-slate-900">
-                        <Image cachePolicy="memory-disk" source={{ uri: target.avatarUrl || 'https://via.placeholder.com/150' }} className="h-full w-full" />
+                        <Image cachePolicy="memory-disk" source={{ uri: toCDN(target.avatarUrl) || 'https://via.placeholder.com/150' }} className="h-full w-full" />
                       </View>
                       <View>
                         <Text className="text-white text-xs font-bold">{target.username}</Text>
@@ -631,7 +632,7 @@ export default function CpHouseScreen() {
               <View className="items-center text-center space-y-4 pt-4 mb-6">
                 <View className="flex-row items-center gap-3">
                   <View className="h-12 w-12 rounded-full overflow-hidden border border-white/20">
-                    <Image cachePolicy="memory-disk" source={{ uri: selectedTarget?.avatarUrl || 'https://via.placeholder.com/150' }} className="h-full w-full" />
+                    <Image cachePolicy="memory-disk" source={{ uri: toCDN(selectedTarget?.avatarUrl) || 'https://via.placeholder.com/150' }} className="h-full w-full" />
                   </View>
                   <View className="bg-rose-500 p-1.5 rounded-full">
                     <Heart size={16} color="#fff" fill="#fff" />

@@ -4,6 +4,7 @@ import { Heart, MessageCircle, Eye, Play } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Moment } from '../../lib/types';
 import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
 
 const { width } = Dimensions.get('window');
 const CARD_SIZE = (width - 28) / 2;
@@ -25,14 +26,14 @@ export function MomentCard({ moment, onPress, onCommentPress }: MomentCardProps)
       className="rounded-xl overflow-hidden mb-2"
     >
       {moment.imageUrl && !imageError ? (
-        <Image cachePolicy="memory-disk" source={{ uri: moment.imageUrl }}
+        <Image cachePolicy="memory-disk" source={{ uri: toCDN(moment.imageUrl) }}
           className="w-full h-full absolute"
           contentFit="cover"
           onError={() => setImageError(true)}
         />
       ) : moment.videoUrl ? (
         <View className="w-full h-full absolute bg-slate-800 items-center justify-center">
-          <Image cachePolicy="memory-disk" source={{ uri: moment.imageUrl || 'https://picsum.photos/400' }}
+          <Image cachePolicy="memory-disk" source={{ uri: toCDN(moment.imageUrl) || 'https://picsum.photos/400' }}
             className="w-full h-full absolute"
             contentFit="cover"
           />
@@ -64,7 +65,7 @@ export function MomentCard({ moment, onPress, onCommentPress }: MomentCardProps)
 
       <View className="absolute bottom-2 left-2 right-2">
         <View className="flex-row items-center gap-1.5 mb-1">
-          <Image cachePolicy="memory-disk" source={{ uri: moment.avatarUrl || 'https://picsum.photos/100' }}
+          <Image cachePolicy="memory-disk" source={{ uri: toCDN(moment.avatarUrl) || 'https://picsum.photos/100' }}
             className="w-5 h-5 rounded-full border border-white/30"
           />
           <Text className="text-white text-[9px] font-bold flex-1" numberOfLines={1}>

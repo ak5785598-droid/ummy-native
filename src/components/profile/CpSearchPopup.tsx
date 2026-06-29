@@ -4,6 +4,7 @@ import { Search, X, UserPlus, CheckCircle } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { useUser, useFirestore } from '../../firebase/provider';
 import { collection, query, where, limit, doc, setDoc, serverTimestamp, getDocs } from '@/firebase/firestore-compat';
+import { toCDN } from '../../lib/cdn';
 
 interface CpSearchPopupProps {
   visible: boolean;
@@ -52,7 +53,7 @@ export function CpSearchPopup({ visible, onClose, profile }: CpSearchPopupProps)
     setSearching(false);
   }, [firestore]);
 
-  const handleSendProposal = useCallback(async (type: 'CP' | 'BFF' | 'Love') => {
+  const handleSendProposal = useCallback(async (type: 'CP' | 'Best Friend' | 'Besties') => {
     if (!firestore || !user?.uid || !selectedUser?.id || !profile?.id) {
       console.log('[CpSearchPopup] Guard failed:', { hasFirestore: !!firestore, uid: user?.uid, selectedUserId: selectedUser?.id, profileId: profile?.id });
       return;
@@ -111,7 +112,7 @@ export function CpSearchPopup({ visible, onClose, profile }: CpSearchPopupProps)
           {/* Selected User */}
           {selectedUser && !sent && (
             <View style={{ alignItems: 'center', marginBottom: 12 }}>
-              <Image source={{ uri: selectedUser.avatarUrl || 'https://picsum.photos/200' }} style={{ width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: '#EC4899' }} cachePolicy="memory-disk" />
+              <Image source={{ uri: toCDN(selectedUser.avatarUrl) || 'https://picsum.photos/200' }} style={{ width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: '#EC4899' }} cachePolicy="memory-disk" />
               <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '800', marginTop: 8 }}>{selectedUser.username}</Text>
               <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, marginTop: 2 }}>ID: {selectedUser.accountNumber || selectedUser.id}</Text>
             </View>
@@ -132,7 +133,7 @@ export function CpSearchPopup({ visible, onClose, profile }: CpSearchPopupProps)
               {searchResults.map((u: any) => (
                 <TouchableOpacity key={u.id} onPress={() => { setSelectedUser(u); setSearchResults([]); setSearchQuery(''); }}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)', marginBottom: 6 }}>
-                  <Image source={{ uri: u.avatarUrl || 'https://picsum.photos/200' }} style={{ width: 40, height: 40, borderRadius: 20 }} cachePolicy="memory-disk" />
+                  <Image source={{ uri: toCDN(u.avatarUrl) || 'https://picsum.photos/200' }} style={{ width: 40, height: 40, borderRadius: 20 }} cachePolicy="memory-disk" />
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700' }}>{u.username || 'Unknown'}</Text>
                     <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, marginTop: 1 }}>ID: {u.accountNumber || u.id}</Text>
@@ -152,9 +153,9 @@ export function CpSearchPopup({ visible, onClose, profile }: CpSearchPopupProps)
           {selectedUser && !sent && (
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
               {[
-                { id: 'Love', label: 'Love', icon: '💕' },
+                { id: 'Best Friend', label: 'Best Friend', icon: '🫂' },
                 { id: 'CP', label: 'CP Partner', icon: '💑' },
-                { id: 'BFF', label: 'Eternal BFF', icon: '🤝' },
+                { id: 'Besties', label: 'Besties', icon: '👯' },
               ].map(t => (
                 <TouchableOpacity key={t.id} onPress={() => handleSendProposal(t.id as any)}
                   style={{ flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>

@@ -112,7 +112,7 @@ export function GiftAnimationOverlay({ events }: GiftAnimationOverlayProps) {
   const resolvedVideoUrl = cachedVideoUrl || vUrl;
 
   return (
-    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width, height, backgroundColor: 'black', zIndex: 50, alignItems: 'center', justifyContent: 'center' }} pointerEvents="none">
+    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width, height, backgroundColor: 'transparent', zIndex: 50, alignItems: 'center', justifyContent: 'center' }} pointerEvents="none">
       <Animated.View
         style={{
           transform: [{ scale: scaleAnim }],
@@ -121,7 +121,7 @@ export function GiftAnimationOverlay({ events }: GiftAnimationOverlayProps) {
           height: '100%',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: 'black',
+          backgroundColor: 'transparent',
         }}
       >
         {isVideo && resolvedVideoUrl ? (

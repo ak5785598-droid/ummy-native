@@ -319,11 +319,11 @@ export const SVGA_GlossyID = React.memo(({ label }: { label: string }) => {
           end={{ x: 1, y: 0 }}
           style={{
             height: 20,
-            width: 74,
+            minWidth: 84,
             flexDirection: 'row',
             alignItems: 'center',
             paddingLeft: 26,
-            paddingRight: 14,
+            paddingRight: 10,
             borderRadius: 12,
             borderWidth: 1,
             borderColor: '#c157a8',
@@ -331,7 +331,7 @@ export const SVGA_GlossyID = React.memo(({ label }: { label: string }) => {
         >
           {/* Top glossy shine */}
           <View style={{ position: 'absolute', top: 1, left: '15%', right: '15%', height: '40%', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 12 }} />
-          <Text style={{ fontSize: 12, fontWeight: 'bold', color: 'white', letterSpacing: 0.8, textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1 }}>
+          <Text style={{ fontSize: 11, fontWeight: 'bold', color: 'white', letterSpacing: 0.5, textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1 }}>
             {idNum}
           </Text>
         </ExpoLinearGradient>

@@ -13,6 +13,7 @@ import { AnimatedRunEmoji } from './animated-run-emoji';
 import { AnimatedFrustrationEmoji } from './animated-frustration-emoji';
 import { AnimatedIrritationEmoji } from './animated-irritation-emoji';
 import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
 import { Video } from 'expo-av';
 import { AvatarFrame } from '../profile/AvatarFrame';
 interface SeatProps {
@@ -107,7 +108,7 @@ export const Seat = memo(function Seat({
             frameMediaUrl={avatarFrameUrl}
             size={60}
           >
-            <Image cachePolicy="memory-disk" source={{ uri: occupant.avatarUrl || 'https://picsum.photos/100' }}
+            <Image cachePolicy="memory-disk" source={{ uri: toCDN(occupant.avatarUrl) || 'https://picsum.photos/100' }}
               style={styles.avatar}
             />
           </AvatarFrame>

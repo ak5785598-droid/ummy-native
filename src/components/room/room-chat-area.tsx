@@ -4,6 +4,7 @@ import { Languages, Trash2 } from 'lucide-react-native';
 import { Message } from '../../lib/types';
 import { useTranslation } from '../../hooks/use-translation';
 import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
 
 interface RoomChatAreaProps {
   messages: Message[];
@@ -109,7 +110,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({ message, onPress, on
     return (
       <View style={styles.msgRow}>
         <TouchableOpacity onPress={onAvatarPress}>
-          <Image cachePolicy="memory-disk" source={{ uri: message.senderAvatar || 'https://picsum.photos/100' }} style={styles.avatar} />
+          <Image cachePolicy="memory-disk" source={{ uri: toCDN(message.senderAvatar) || 'https://picsum.photos/100' }} style={styles.avatar} />
         </TouchableOpacity>
         <TouchableOpacity onPress={onPress} style={styles.msgContentWrapper}>
           <Text style={styles.giftSenderName}>{message.senderName}</Text>
@@ -167,7 +168,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({ message, onPress, on
   return (
     <View style={styles.msgRow}>
       <TouchableOpacity onPress={onAvatarPress}>
-        <Image cachePolicy="memory-disk" source={{ uri: message.senderAvatar || 'https://picsum.photos/100' }} style={styles.avatar} />
+        <Image cachePolicy="memory-disk" source={{ uri: toCDN(message.senderAvatar) || 'https://picsum.photos/100' }} style={styles.avatar} />
       </TouchableOpacity>
       <TouchableOpacity onPress={onPress} style={styles.msgContentWrapper}>
         <View style={styles.nameHeaderRow}>
@@ -186,7 +187,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({ message, onPress, on
         <View style={styles.textMessageBubble}>
           {message.imageUrl ? (
             <TouchableOpacity onPress={() => onImagePress?.(message.imageUrl!)}>
-              <Image cachePolicy="memory-disk" source={{ uri: message.imageUrl }} style={styles.uploadedImage} />
+              <Image cachePolicy="memory-disk" source={{ uri: toCDN(message.imageUrl) }} style={styles.uploadedImage} />
             </TouchableOpacity>
           ) : (
             <Text style={styles.messageText}>{message.content || message.text}</Text>

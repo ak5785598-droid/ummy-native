@@ -86,7 +86,18 @@ export const query = (ref: any, ...constraints: any[]) => {
 export const where = (field: string, op: any, val: any) => ({ type: 'where', field, op, val });
 export const orderBy = (field: string, dir: string = 'asc') => ({ type: 'orderBy', field, dir });
 export const limit = (n: number) => ({ type: 'limit', limit: n });
-export const onSnapshot = (ref: any, onNext: any, onError?: any) => ref.onSnapshot(onNext, onError);
+export const onSnapshot = (ref: any, optionsOrOnNext: any, onNextOrError?: any, onError?: any) => {
+  // Handle both signatures:
+  // onSnapshot(ref, onNext, onError)
+  // onSnapshot(ref, options, onNext, onError)  ← web SDK style
+  if (typeof optionsOrOnNext === 'function') {
+    // Standard: onSnapshot(ref, onNext, onError)
+    return ref.onSnapshot(optionsOrOnNext, onNextOrError);
+  } else {
+    // Options object passed (e.g. { includeMetadataChanges: false }) — skip it for RN Firebase
+    return ref.onSnapshot(onNextOrError, onError);
+  }
+};
 
 export const Timestamp = {
   fromDate: (date: Date) => firestore.Timestamp.fromDate(date),

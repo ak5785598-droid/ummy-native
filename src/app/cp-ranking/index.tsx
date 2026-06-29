@@ -26,6 +26,7 @@ import { useRouter } from 'expo-router';
 import { useUser, useCollection, useFirebase } from '../../firebase/provider';
 import { collection, query, orderBy, limit, where } from '@/firebase/firestore-compat';
 import { useUserProfile } from '../../hooks/use-user-profile';
+import { toCDN } from '@/lib/cdn';
 
 const { width, height } = Dimensions.get('window');
 
@@ -80,7 +81,7 @@ function PodiumCard({ cp, rank }: { cp: any; rank: number }) {
       <View style={[styles.podiumAvatarRow, { marginBottom: 6 }]}>
         <LinearGradient colors={medal.ring} style={[styles.podiumRingWrap, { width: avatarSz + 4, height: avatarSz + 4, borderRadius: (avatarSz + 4) / 2 }]}>
           <Image
-            source={{ uri: cp.user1Avatar || 'https://picsum.photos/80' }}
+            source={{ uri: toCDN(cp.user1Avatar) || 'https://picsum.photos/80' }}
             style={{ width: avatarSz, height: avatarSz, borderRadius: avatarSz / 2, borderWidth: 2, borderColor: '#0d0019' }}
             contentFit="cover"
             cachePolicy="memory-disk"
@@ -88,7 +89,7 @@ function PodiumCard({ cp, rank }: { cp: any; rank: number }) {
         </LinearGradient>
         <LinearGradient colors={medal.ring} style={[styles.podiumRingWrap, { width: avatarSz + 4, height: avatarSz + 4, borderRadius: (avatarSz + 4) / 2, marginLeft: -(avatarSz * 0.22) }]}>
           <Image
-            source={{ uri: cp.user2Avatar || 'https://picsum.photos/81' }}
+            source={{ uri: toCDN(cp.user2Avatar) || 'https://picsum.photos/81' }}
             style={{ width: avatarSz, height: avatarSz, borderRadius: avatarSz / 2, borderWidth: 2, borderColor: '#0d0019' }}
             contentFit="cover"
             cachePolicy="memory-disk"
@@ -135,13 +136,13 @@ function RankRow({ cp, rank, isMe }: { cp: any; rank: number; isMe?: boolean }) 
       {/* Double avatars */}
       <View style={styles.rankAvatarPair}>
         <Image
-          source={{ uri: cp.user1Avatar || 'https://picsum.photos/60' }}
+          source={{ uri: toCDN(cp.user1Avatar) || 'https://picsum.photos/60' }}
           style={[styles.rankAvatar, { zIndex: 2, marginRight: -8 }]}
           contentFit="cover"
           cachePolicy="memory-disk"
         />
         <Image
-          source={{ uri: cp.user2Avatar || 'https://picsum.photos/61' }}
+          source={{ uri: toCDN(cp.user2Avatar) || 'https://picsum.photos/61' }}
           style={[styles.rankAvatar, { zIndex: 1 }]}
           contentFit="cover"
           cachePolicy="memory-disk"
@@ -185,11 +186,11 @@ function MyCpBanner({ cp, myUid }: { cp: any; myUid: string }) {
         style={StyleSheet.absoluteFill}
       />
       <View style={styles.myCpAvatarRow}>
-        <Image source={{ uri: myP?.avatarUrl || 'https://picsum.photos/80' }} style={styles.myCpAvatar} contentFit="cover" cachePolicy="memory-disk" />
+        <Image source={{ uri: toCDN(myP?.avatarUrl) || 'https://picsum.photos/80' }} style={styles.myCpAvatar} contentFit="cover" cachePolicy="memory-disk" />
         <Animated.View>
           <Heart size={18} color="#f43f5e" fill="#f43f5e" />
         </Animated.View>
-        <Image source={{ uri: partnerP?.avatarUrl || 'https://picsum.photos/81' }} style={styles.myCpAvatar} contentFit="cover" cachePolicy="memory-disk" />
+        <Image source={{ uri: toCDN(partnerP?.avatarUrl) || 'https://picsum.photos/81' }} style={styles.myCpAvatar} contentFit="cover" cachePolicy="memory-disk" />
       </View>
       <View style={{ flex: 1, marginLeft: 12 }}>
         <Text style={styles.myCpNames} numberOfLines={1}>

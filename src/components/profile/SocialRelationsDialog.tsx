@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { useUserLevel } from '../../hooks/use-user-level';
 import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
 
 // ─── UserListItem ────────────────────────────────────────────────────────────
 // Mirrors web app's UserListItem: Avatar · Username · Flag · Gender · Level badges
@@ -42,7 +43,7 @@ const UserListItem = ({ userId, onPress }: { userId: string; onPress: () => void
     >
       {/* Avatar */}
       <View style={{ width: 56, height: 56, borderRadius: 28, overflow: 'hidden', borderWidth: 2, borderColor: '#fff', elevation: 2 }}>
-        <Image cachePolicy="memory-disk" source={{ uri: profile.avatarUrl || `https://i.pravatar.cc/150?u=${userId}` }}
+        <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile.avatarUrl) || `https://i.pravatar.cc/150?u=${userId}` }}
           style={{ width: '100%', height: '100%' }}
         />
       </View>
