@@ -222,7 +222,6 @@ export function useLudoEngine(roomId: string | null, userId: string | null) {
         updatedAt: Date.now(),
       });
     } catch (err) {
-      console.error('Failed to start game:', err);
     }
   }, [database, gamePath, gameState, userId]);
 
@@ -249,7 +248,6 @@ export function useLudoEngine(roomId: string | null, userId: string | null) {
         });
       }
     } catch (err) {
-      console.error('Failed to leave lobby:', err);
     }
   }, [database, gamePath, gameState, userId]);
 
@@ -517,7 +515,6 @@ export function useLudoEngine(roomId: string | null, userId: string | null) {
     try {
       await databaseRemove(databaseRef(database, gamePath));
     } catch (e) {
-      console.log('Error resetting game:', e);
     }
   }, [database, gamePath]);
 

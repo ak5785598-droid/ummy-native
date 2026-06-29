@@ -21,7 +21,7 @@ export function RoomFollowersDialog({ visible, onClose, roomId }: RoomFollowersD
     const q = query(collection(firestore, 'chatRooms', roomId, 'followers'), orderBy('followedAt', 'desc'));
     const unsub = onSnapshot(q, (snap: any) => {
       setFollowers(snap.docs.map((d: any) => ({ uid: d.id, name: d.data().name || 'User', avatarUrl: d.data().avatarUrl || 'https://picsum.photos/100' })));
-    });
+    }, (error: any) => {});
     return () => unsub();
   }, [firestore, roomId, visible]);
 

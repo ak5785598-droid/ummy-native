@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { Camera, Loader, BadgeCheck } from 'lucide-react-native';
 import { useFirestore, useStorage } from '../../firebase/provider';
@@ -19,13 +19,12 @@ export function SplashScreenTab() {
     if (!firestore) return;
     const unsub = doc(firestore, 'appConfig', 'global').onSnapshot(
       (snap: any) => {
-        if (snap.exists) {
+        if (snap.exists()) {
           setConfig(snap.data());
         }
         setLoading(false);
       },
       (err: any) => {
-        console.warn('[SplashScreenTab] Firestore Error:', err);
         setLoading(false);
       }
     );

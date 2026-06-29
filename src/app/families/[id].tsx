@@ -61,9 +61,7 @@ export default function FamilyDetail() {
         memberCount: increment(1),
         updatedAt: serverTimestamp()
       });
-    } catch (e) {
-      console.warn('Join failed:', e);
-    }
+    } catch (e) {}
   };
 
   const handleLeave = async () => {
@@ -79,9 +77,7 @@ export default function FamilyDetail() {
               memberCount: increment(-1),
               updatedAt: serverTimestamp()
             });
-          } catch (e) {
-            console.warn('Leave failed:', e);
-          }
+          } catch (e) {}
         }
       }
     ]);
@@ -96,9 +92,7 @@ export default function FamilyDetail() {
           try {
             await deleteDoc(familyRef!);
             router.back();
-          } catch (e) {
-            console.warn('Delete failed:', e);
-          }
+          } catch (e) {}
         }
       }
     ]);

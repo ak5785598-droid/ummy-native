@@ -852,9 +852,7 @@ export default function VipsClubScreen() {
           levels: data.levels || {}
         });
       }
-    }, (err: any) => {
-      console.warn("VIP settings sync error:", err);
-    });
+    }, () => {});
 
     return () => unsubscribe();
   }, [firestore]);

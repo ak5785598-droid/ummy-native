@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { 
   View, Text, TouchableOpacity, ActivityIndicator, 
   StyleSheet, Alert, ScrollView 
@@ -115,13 +115,12 @@ export function VisualIdentityTab() {
     if (!firestore) return;
     const unsub = doc(firestore, 'system', 'config').onSnapshot(
       (snap: any) => {
-        if (snap.exists) {
+        if (snap.exists()) {
           setConfig(snap.data());
         }
         setIsLoading(false);
       },
       (err: any) => {
-        console.warn('[VisualIdentity] Firestore error:', err);
         setIsLoading(false);
       }
     );
@@ -141,7 +140,6 @@ export function VisualIdentityTab() {
       
       Alert.alert('Theme Synchronized', `Global design system set to ${themeKey}`);
     } catch (err: any) {
-      console.error(err);
       Alert.alert('Error', 'Failed to update global theme configuration.');
     } finally {
       setIsUpdating(false);
@@ -161,7 +159,7 @@ export function VisualIdentityTab() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.header}>
-        <Text style={styles.title}>Theme & Visual Synchronizer 🎨</Text>
+        <Text style={styles.title}>Theme & Visual Synchronizer ðŸŽ¨</Text>
         <Text style={styles.subtitle}>
           Globally switch the application's design system between Classic and Modern styles.
         </Text>

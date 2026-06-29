@@ -37,7 +37,6 @@ async function requestMicPermission(): Promise<boolean> {
     }
     return true;
   } catch (err) {
-    console.warn('[WebRTC] Permission error:', err);
     return false;
   }
 }
@@ -75,7 +74,6 @@ export function useWebRTCVoice(
 
         const hasMic = await requestMicPermission();
         if (!hasMic) {
-          console.warn('[WebRTC] Mic permission denied');
           setConnectionState('DISCONNECTED');
           return;
         }
@@ -97,7 +95,6 @@ export function useWebRTCVoice(
         localStreamRef.current = stream;
 
         if (!database) {
-          console.error('[WebRTC] No Firebase database');
           setConnectionState('DISCONNECTED');
           return;
         }
@@ -131,7 +128,6 @@ export function useWebRTCVoice(
             try {
               await pc.setRemoteDescription(new RTCSessionDescription(answer.sdp));
             } catch (e) {
-              console.warn('[WebRTC] Set remote desc error:', e);
             }
           }
         });
@@ -143,7 +139,6 @@ export function useWebRTCVoice(
             try {
               await pc.addIceCandidate(new RTCIceCandidate(cand.candidate));
             } catch (e) {
-              console.warn('[WebRTC] Add ICE candidate error:', e);
             }
           }
         });
@@ -156,7 +151,6 @@ export function useWebRTCVoice(
           allowsRecordingIOS: true,
         }).catch(() => {});
       } catch (e) {
-        console.error('[WebRTC] Init failed:', e);
         setConnectionState('DISCONNECTED');
       }
     };
@@ -214,7 +208,6 @@ export function useWebRTCVoice(
       await pc.setLocalDescription(offer);
       await signaling.sendOffer(remoteUid, pc.localDescription?.toJSON() || offer);
     } catch (e) {
-      console.warn('[WebRTC] Create offer error:', e);
     }
   };
 
@@ -256,7 +249,6 @@ export function useWebRTCVoice(
       await pc.setLocalDescription(answer);
       await signaling.sendAnswer(from, pc.localDescription?.toJSON() || answer);
     } catch (e) {
-      console.warn('[WebRTC] Handle offer error:', e);
     }
   };
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 
@@ -15,7 +15,6 @@ export function LootManagementTab() {
         }
         setLoading(false);
       }, err => {
-        console.warn('[LootConfig] Error:', err);
         setLoading(false);
       });
     return () => unsub();
@@ -70,7 +69,7 @@ export function LootManagementTab() {
             }}
           >
             <Text style={{ color: active ? '#fff' : '#475569', fontWeight: '800', fontSize: 12 }}>
-              {opt === 'top_sender' ? 'Top Sender → 2nd → 3rd → Owner' : opt === 'owner_first' ? 'Owner → Top Sender' : 'Random Eligible User'}
+              {opt === 'top_sender' ? 'Top Sender â†’ 2nd â†’ 3rd â†’ Owner' : opt === 'owner_first' ? 'Owner â†’ Top Sender' : 'Random Eligible User'}
             </Text>
           </TouchableOpacity>
         );

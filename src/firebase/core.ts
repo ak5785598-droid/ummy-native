@@ -32,9 +32,7 @@ export function initializeFirebase() {
       isTokenAutoRefreshEnabled: true,
     });
     appCheck().initializeAppCheck({ provider: rnfbProvider, isTokenAutoRefreshEnabled: true });
-    console.log('[Firebase Core] App Check initialized');
   } catch (e) {
-    console.warn('[Firebase Core] App Check init failed (non-critical):', e);
   }
 
   if (!authInstance) {
@@ -50,9 +48,7 @@ export function initializeFirebase() {
         experimentalAutoDetectLongPolling: true,
         experimentalForceLongPolling: false
       });
-      console.log('[Firebase Core] Firestore initialized with memory cache for React Native');
     } catch (e: any) {
-      console.warn('[Firebase Core] Initialization issue, using default:', e);
       firestoreInstance = getFirestore(appInstance);
     }
   }

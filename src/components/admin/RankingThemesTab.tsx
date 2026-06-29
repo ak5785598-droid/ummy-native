@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, ScrollView, StyleSheet } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import { useStorage } from '../../firebase/provider';
@@ -65,7 +65,6 @@ export function RankingThemesTab() {
         setThemes(list);
         setLoading(false);
       }, err => {
-        console.warn(err);
         setLoading(false);
       });
 
@@ -312,7 +311,7 @@ export function RankingThemesTab() {
               return (
                 <View key={rankKey} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                   <Text style={{ fontSize: 12, fontWeight: '700', color: '#475569', textTransform: 'uppercase' }}>
-                    {rankKey === 'rank1' ? '🥇 Rank 1' : rankKey === 'rank2' ? '🥈 Rank 2' : rankKey === 'rank3' ? '🥉 Rank 3' : '⭐ Rank 4+'}
+                    {rankKey === 'rank1' ? 'ðŸ¥‡ Rank 1' : rankKey === 'rank2' ? 'ðŸ¥ˆ Rank 2' : rankKey === 'rank3' ? 'ðŸ¥‰ Rank 3' : 'â­ Rank 4+'}
                   </Text>
                   <TouchableOpacity
                     onPress={() => handlePickMedia(rankKey)}

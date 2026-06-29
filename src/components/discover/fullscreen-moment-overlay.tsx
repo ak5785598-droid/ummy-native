@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, PanResponder, Dimensions, Modal, StatusBar, Animated, Vibration, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -70,13 +70,12 @@ export function FullscreenMomentOverlay({
       await runTransaction(firestore, async (tx: any) => {
         tx.update(momentRef, { views: increment(1) });
         const reachSnap = await tx.get(reachRef);
-        if (!reachSnap.exists) {
+        if (!reachSnap.exists()) {
           tx.set(reachRef, { userId: user.uid, createdAt: serverTimestamp() });
           tx.update(momentRef, { reach: increment(1) });
         }
       });
     } catch (e) {
-      console.error('[Fullscreen] View track error:', e);
     }
   };
 
@@ -95,7 +94,7 @@ export function FullscreenMomentOverlay({
     try {
       await runTransaction(firestore, async (tx: any) => {
         const snap = await tx.get(likeRef);
-        if (snap.exists) {
+        if (snap.exists()) {
           tx.delete(likeRef);
           tx.update(momentRef, { likes: increment(-1) });
         } else {
@@ -117,7 +116,6 @@ export function FullscreenMomentOverlay({
       await Clipboard.setStringAsync(shareText);
       Vibration.vibrate(50);
     } catch (e) {
-      console.error('[Fullscreen] Share error:', e);
     }
   };
 
@@ -139,7 +137,6 @@ export function FullscreenMomentOverlay({
       });
       Alert.alert("Report Submitted", "Thank you, we will review this post soon.");
     } catch (err) {
-      console.error("Error reporting post:", err);
       Alert.alert("Error", "Could not submit report.");
     }
   };
@@ -164,7 +161,6 @@ export function FullscreenMomentOverlay({
                 Alert.alert("Success", "Post deleted successfully.");
                 onClose();
               } catch (err) {
-                console.error("Error deleting post:", err);
                 Alert.alert("Error", "Could not delete post.");
               }
             }

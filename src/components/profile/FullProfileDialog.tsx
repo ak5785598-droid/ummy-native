@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+﻿import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { Modal, View, Text, TouchableOpacity, Dimensions, StyleSheet, ScrollView, StatusBar, ActivityIndicator, Clipboard, Platform, Animated, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Heart, MessageCircle, MoreHorizontal, Calendar, Star, Sparkles, MapPin, Copy, CheckCircle, Search, X, UserPlus, Unlink } from 'lucide-react-native';
@@ -36,23 +36,23 @@ const BUDGET_COLORS: Record<string, string[]> = {
 };
 
 const BUDGET_ICONS: Record<string, string> = {
-  gold: '👑', diamond: '💎', silver: '🛡️', purple: '✨', emerald: '💎', rose: '👑', rainbow: '✨', none: '🪪'
+  gold: 'ðŸ‘‘', diamond: 'ðŸ’Ž', silver: 'ðŸ›¡ï¸', purple: 'âœ¨', emerald: 'ðŸ’Ž', rose: 'ðŸ‘‘', rainbow: 'âœ¨', none: 'ðŸªª'
 };
 
 const COUNTRY_FLAGS: Record<string, string> = {
-  'india': '🇮🇳', 'pakistan': '🇵🇰', 'bangladesh': '🇧🇩', 'nepal': '🇳🇵', 'sri lanka': '🇱🇰',
-  'united states': '🇺🇸', 'united kingdom': '🇬🇧', 'canada': '🇨🇦', 'australia': '🇦🇺',
-  'germany': '🇩🇪', 'france': '🇫🇷', 'japan': '🇯🇵', 'korea': '🇰🇷', 'china': '🇨🇳',
-  'brazil': '🇧🇷', 'russia': '🇷🇺', 'turkey': '🇹🇷', 'dubai': '🇦🇪', 'uae': '🇦🇪',
-  'saudi arabia': '🇸🇦', 'egypt': '🇪🇬', 'nigeria': '🇳🇬', 'south africa': '🇿🇦',
-  'indonesia': '🇮🇩', 'philippines': '🇵🇭', 'thailand': '🇹🇭', 'vietnam': '🇻🇳',
-  'mexico': '🇲🇽', 'italy': '🇮🇹', 'spain': '🇪🇸', 'portugal': '🇵🇹',
-  'malaysia': '🇲🇾', 'singapore': '🇸🇬', 'kenya': '🇰🇪', 'ghana': '🇬🇭',
+  'india': 'ðŸ‡®ðŸ‡³', 'pakistan': 'ðŸ‡µðŸ‡°', 'bangladesh': 'ðŸ‡§ðŸ‡©', 'nepal': 'ðŸ‡³ðŸ‡µ', 'sri lanka': 'ðŸ‡±ðŸ‡°',
+  'united states': 'ðŸ‡ºðŸ‡¸', 'united kingdom': 'ðŸ‡¬ðŸ‡§', 'canada': 'ðŸ‡¨ðŸ‡¦', 'australia': 'ðŸ‡¦ðŸ‡º',
+  'germany': 'ðŸ‡©ðŸ‡ª', 'france': 'ðŸ‡«ðŸ‡·', 'japan': 'ðŸ‡¯ðŸ‡µ', 'korea': 'ðŸ‡°ðŸ‡·', 'china': 'ðŸ‡¨ðŸ‡³',
+  'brazil': 'ðŸ‡§ðŸ‡·', 'russia': 'ðŸ‡·ðŸ‡º', 'turkey': 'ðŸ‡¹ðŸ‡·', 'dubai': 'ðŸ‡¦ðŸ‡ª', 'uae': 'ðŸ‡¦ðŸ‡ª',
+  'saudi arabia': 'ðŸ‡¸ðŸ‡¦', 'egypt': 'ðŸ‡ªðŸ‡¬', 'nigeria': 'ðŸ‡³ðŸ‡¬', 'south africa': 'ðŸ‡¿ðŸ‡¦',
+  'indonesia': 'ðŸ‡®ðŸ‡©', 'philippines': 'ðŸ‡µðŸ‡­', 'thailand': 'ðŸ‡¹ðŸ‡­', 'vietnam': 'ðŸ‡»ðŸ‡³',
+  'mexico': 'ðŸ‡²ðŸ‡½', 'italy': 'ðŸ‡®ðŸ‡¹', 'spain': 'ðŸ‡ªðŸ‡¸', 'portugal': 'ðŸ‡µðŸ‡¹',
+  'malaysia': 'ðŸ‡²ðŸ‡¾', 'singapore': 'ðŸ‡¸ðŸ‡¬', 'kenya': 'ðŸ‡°ðŸ‡ª', 'ghana': 'ðŸ‡¬ðŸ‡­',
 };
 
 const getCountryFlag = (country?: string | null) => {
-  if (!country) return '🌐';
-  return COUNTRY_FLAGS[country.toLowerCase()] || '🌐';
+  if (!country) return 'ðŸŒ';
+  return COUNTRY_FLAGS[country.toLowerCase()] || 'ðŸŒ';
 };
 
 
@@ -184,7 +184,7 @@ export function FullProfileDialog({
         if (snap) {
           setAllMedals(snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
         }
-      });
+      }, (error: any) => {});
       return () => unsub();
     } catch (e) {}
   }, [open]);
@@ -237,7 +237,7 @@ export function FullProfileDialog({
       }
 
       setCpSearchResults(results);
-    } catch (e) { console.log('CP search error', e); }
+    } catch (e) {}
     setCpSearching(false);
   }, [firestore, user?.uid]);
 
@@ -259,7 +259,6 @@ export function FullProfileDialog({
       setCpSent(true);
       Alert.alert('Sent!', `Proposal sent to ${cpSelectedUser.username}`);
     } catch (e: any) {
-      console.log('CP proposal error', e);
       Alert.alert('Error', e?.message || 'Failed to send proposal');
     }
   }, [firestore, user, cpSelectedUser, ownProfile]);
@@ -305,7 +304,7 @@ export function FullProfileDialog({
         <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }} edges={[]}>
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 128 }} showsVerticalScrollIndicator={false} bounces={false}>
 
-            {/* Cover Image — scrolls with content, goes behind status bar */}
+            {/* Cover Image â€” scrolls with content, goes behind status bar */}
             <View style={{ height: SCREEN_HEIGHT * 0.35, width: '100%', position: 'relative' }}>
               <Image
                 cachePolicy="memory-disk"
@@ -323,10 +322,10 @@ export function FullProfileDialog({
               </TouchableOpacity>
             </View>
 
-            {/* White Card — shifted up to overlap cover */}
+            {/* White Card â€” shifted up to overlap cover */}
             <View style={{ marginTop: -32, paddingHorizontal: 20, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#FFFFFF', paddingTop: 10, paddingBottom: 20 }}>
 
-            {/* Avatar — straddles cover and card */}
+            {/* Avatar â€” straddles cover and card */}
             <View style={{ alignItems: 'center', marginTop: -40, marginBottom: 10, zIndex: 30 }}>
               <View>
                 <AvatarFrame frameMediaUrl={profile.inventory?.activeFrameMediaUrl} size={88}>
@@ -583,7 +582,7 @@ export function FullProfileDialog({
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
               {/* Best Friend Slot */}
               <View style={{ flex: 1, backgroundColor: '#F0FDF4', borderRadius: 16, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#BBF7D0' }}>
-                <Text style={{ fontSize: 8, fontWeight: '800', color: '#16A34A', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>🫂 Best Friend</Text>
+                <Text style={{ fontSize: 8, fontWeight: '800', color: '#16A34A', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>ðŸ«‚ Best Friend</Text>
                 {profile?.bestFriend ? (
                   <View style={{ alignItems: 'center' }}>
                     <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile.bestFriend.avatarUrl) || 'https://picsum.photos/200' }}
@@ -600,7 +599,7 @@ export function FullProfileDialog({
 
               {/* Besties Slot */}
               <View style={{ flex: 1, backgroundColor: '#FFF7ED', borderRadius: 16, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#FED7AA' }}>
-                <Text style={{ fontSize: 8, fontWeight: '800', color: '#EA580C', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>👯 Besties</Text>
+                <Text style={{ fontSize: 8, fontWeight: '800', color: '#EA580C', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>ðŸ‘¯ Besties</Text>
                 {profile?.besties ? (
                   <View style={{ alignItems: 'center' }}>
                     <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile.besties.avatarUrl) || 'https://picsum.photos/200' }}
@@ -658,7 +657,7 @@ export function FullProfileDialog({
                           {medalData?.imageUrl ? (
                             <Image cachePolicy="memory-disk" source={{ uri: toCDN(medalData.imageUrl) }} style={{ width: 80, height: 80 }} contentFit="contain" />
                           ) : (
-                            <Text style={{ fontSize: 22 }}>🏅</Text>
+                            <Text style={{ fontSize: 22 }}>ðŸ…</Text>
                           )}
                           <Text style={{ fontSize: 8, fontWeight: '800', color: '#64748B', marginTop: 4, textAlign: 'center' }} numberOfLines={1}>{medalData?.name || mId}</Text>
                         </View>
@@ -674,7 +673,7 @@ export function FullProfileDialog({
                   {profile.inventory?.ownedItems?.filter((id: string) => id.includes('vehicle') || id.includes('car')).length > 0 ? (
                     profile.inventory.ownedItems.filter((id: string) => id.includes('vehicle') || id.includes('car')).map((id: string, idx: number) => (
                       <View key={idx} style={{ padding: 8, backgroundColor: '#F8FAFC', borderRadius: 12, alignItems: 'center', width: (SCREEN_WIDTH - 64) / 4 }}>
-                        <Text style={{ fontSize: 22 }}>🚗</Text>
+                        <Text style={{ fontSize: 22 }}>ðŸš—</Text>
                         <Text style={{ fontSize: 8, fontWeight: '800', color: '#64748B', marginTop: 4, textAlign: 'center' }} numberOfLines={1}>{id}</Text>
                       </View>
                     ))
@@ -688,7 +687,7 @@ export function FullProfileDialog({
                   {profile.inventory?.ownedItems?.filter((id: string) => id.includes('frame') || id.includes('ring')).length > 0 ? (
                     profile.inventory.ownedItems.filter((id: string) => id.includes('frame') || id.includes('ring')).map((id: string, idx: number) => (
                       <View key={idx} style={{ padding: 8, backgroundColor: '#F8FAFC', borderRadius: 12, alignItems: 'center', width: (SCREEN_WIDTH - 64) / 4 }}>
-                        <Text style={{ fontSize: 22 }}>🖼️</Text>
+                        <Text style={{ fontSize: 22 }}>ðŸ–¼ï¸</Text>
                         <Text style={{ fontSize: 8, fontWeight: '800', color: '#64748B', marginTop: 4, textAlign: 'center' }} numberOfLines={1}>{id}</Text>
                       </View>
                     ))
@@ -725,7 +724,7 @@ export function FullProfileDialog({
           </View>
         </ScrollView>
 
-        {/* FIXED Bottom Action Bar — Other users only */}
+        {/* FIXED Bottom Action Bar â€” Other users only */}
         {profile && !isOwnProfile && (
           <View style={{
             position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 999,
@@ -748,7 +747,7 @@ export function FullProfileDialog({
           </View>
         )}
 
-        {/* CP Search Popup — inline overlay */}
+        {/* CP Search Popup â€” inline overlay */}
         {showCpSearch && (
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 99999 }}>
             <View style={{ flex: 1, width: '100%', justifyContent: 'center', alignItems: 'center' }}>
@@ -811,9 +810,9 @@ export function FullProfileDialog({
               {cpSelectedUser && !cpSent && (
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
                   {[
-                    { id: 'Best Friend', label: 'Best Friend', icon: '🫂' },
-                    { id: 'CP', label: 'CP Partner', icon: '💑' },
-                    { id: 'Besties', label: 'Besties', icon: '👯' }
+                    { id: 'Best Friend', label: 'Best Friend', icon: 'ðŸ«‚' },
+                    { id: 'CP', label: 'CP Partner', icon: 'ðŸ’‘' },
+                    { id: 'Besties', label: 'Besties', icon: 'ðŸ‘¯' }
                   ].filter(t => t.id === searchType || t.id === 'CP').map(t => (
                     <TouchableOpacity key={t.id} onPress={() => handleSendCpProposal(t.id as any)}
                       style={{ flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
@@ -832,7 +831,7 @@ export function FullProfileDialog({
           </View>
         )}
 
-        {/* CP Info Popup — tap heart to open */}
+        {/* CP Info Popup â€” tap heart to open */}
         {showCpInfo && hasRelationship && (
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', zIndex: 99998 }}>
             <TouchableOpacity activeOpacity={1} onPress={() => setShowCpInfo(false)} style={{ flex: 1, width: '100%', justifyContent: 'center', alignItems: 'center' }}>
@@ -874,7 +873,7 @@ export function FullProfileDialog({
                 {isBreakingCp ? (
                   <ActivityIndicator size={14} color="#EF4444" />
                 ) : (
-                  <Text style={{ fontSize: 16 }}>💔</Text>
+                  <Text style={{ fontSize: 16 }}>ðŸ’”</Text>
                 )}
                 <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '800' }}>{isBreakingCp ? 'Breaking...' : 'Want to Break CP?'}</Text>
               </TouchableOpacity>
@@ -929,9 +928,9 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user }: { pr
             }
           }
         }
-      }, (err: any) => console.log('[Supporters] query error:', err?.message));
+      }, () => {});
       return unsub;
-    } catch (e: any) { console.log('[Supporters] init error:', e?.message); }
+    } catch (e: any) {}
   }, [firestore, profileId, user?.uid]);
 
   const handleDailySupport = async () => {
@@ -975,7 +974,7 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user }: { pr
         updatedAt: serverTimestamp(),
       }, { merge: true });
       setDailySupported(true);
-    } catch (e: any) { console.log('[Supporter] error:', e?.message); }
+    } catch (e: any) {}
     setSupporting(false);
   };
 
@@ -986,14 +985,14 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user }: { pr
   };
 
   const sorted = [...supporters].sort((a: any, b: any) => getPoints(b) - getPoints(a));
-  const s1 = sorted[0]; // 🥇 1st - middle, raised
-  const s2 = sorted[1]; // 🥈 2nd - left
-  const s3 = sorted[2]; // 🥉 3rd - right
+  const s1 = sorted[0]; // ðŸ¥‡ 1st - middle, raised
+  const s2 = sorted[1]; // ðŸ¥ˆ 2nd - left
+  const s3 = sorted[2]; // ðŸ¥‰ 3rd - right
 
   const slots = [
-    { medal: '🥈', supporter: s2, size: 48, color: '#94a3b8', translateY: 10 },
-    { medal: '🥇', supporter: s1, size: 60, color: '#fbbf24', translateY: 0 },
-    { medal: '🥉', supporter: s3, size: 44, color: '#d97706', translateY: 12 },
+    { medal: 'ðŸ¥ˆ', supporter: s2, size: 48, color: '#94a3b8', translateY: 10 },
+    { medal: 'ðŸ¥‡', supporter: s1, size: 60, color: '#fbbf24', translateY: 0 },
+    { medal: 'ðŸ¥‰', supporter: s3, size: 44, color: '#d97706', translateY: 12 },
   ];
 
   return (
@@ -1003,21 +1002,21 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user }: { pr
           <Text style={{ fontSize: 10, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 1 }}>Top Supporters</Text>
           {sorted.length > 0 && <Text style={{ fontSize: 10, color: '#CBD5E1' }}>({sorted.length})</Text>}
         </View>
-        <Text style={{ fontSize: 10, fontWeight: '700', color: '#2563EB' }}>View All →</Text>
+        <Text style={{ fontSize: 10, fontWeight: '700', color: '#2563EB' }}>View All â†’</Text>
       </TouchableOpacity>
 
       {/* Daily Support Button (other users only) */}
       {!isOwnProfile && (
         <TouchableOpacity onPress={handleDailySupport} disabled={dailySupported || supporting}
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 12, marginBottom: 10, backgroundColor: dailySupported ? 'rgba(34,197,94,0.1)' : 'rgba(234,179,8,0.1)', borderWidth: 1, borderColor: dailySupported ? 'rgba(34,197,94,0.3)' : 'rgba(234,179,8,0.3)' }}>
-          {supporting ? <ActivityIndicator size={12} color="#EAB308" /> : <Text style={{ fontSize: 14 }}>⭐</Text>}
+          {supporting ? <ActivityIndicator size={12} color="#EAB308" /> : <Text style={{ fontSize: 14 }}>â­</Text>}
           <Text style={{ fontSize: 11, fontWeight: '800', color: dailySupported ? '#22C55E' : '#EAB308' }}>
-            {dailySupported ? 'Supported Today ✓' : 'Support (+60 Points)'}
+            {dailySupported ? 'Supported Today âœ“' : 'Support (+60 Points)'}
           </Text>
         </TouchableOpacity>
       )}
 
-      {/* Podium: 2nd(left) — 1st(middle, raised) — 3rd(right) */}
+      {/* Podium: 2nd(left) â€” 1st(middle, raised) â€” 3rd(right) */}
       <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-end', gap: 16, paddingBottom: 4 }}>
         {slots.map((slot, i) => (
           <View key={i} style={{ alignItems: 'center', transform: [{ translateY: slot.translateY }] }}>
@@ -1075,9 +1074,9 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user }: { pr
             {sorted.length > 0 && (
               <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-end', gap: 20, paddingVertical: 24, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
                 {[
-                  { s: sorted[1], medal: '🥈', size: 56, color: '#94a3b8', ty: 12 },
-                  { s: sorted[0], medal: '🥇', size: 72, color: '#fbbf24', ty: 0 },
-                  { s: sorted[2], medal: '🥉', size: 50, color: '#d97706', ty: 16 },
+                  { s: sorted[1], medal: 'ðŸ¥ˆ', size: 56, color: '#94a3b8', ty: 12 },
+                  { s: sorted[0], medal: 'ðŸ¥‡', size: 72, color: '#fbbf24', ty: 0 },
+                  { s: sorted[2], medal: 'ðŸ¥‰', size: 50, color: '#d97706', ty: 16 },
                 ].map((slot, i) => (
                   <View key={i} style={{ alignItems: 'center', transform: [{ translateY: slot.ty }] }}>
                     <TouchableOpacity

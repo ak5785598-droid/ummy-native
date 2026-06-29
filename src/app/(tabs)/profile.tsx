@@ -149,7 +149,6 @@ export default function ProfileScreen() {
   const [profileSubData, setProfileSubData] = useState<any>(null);
 
   useEffect(() => {
-    console.log('[MeProfileScreen] profileId:', profileId);
     if (!profileId) return;
     const unsub = firestore()
       .doc(`users/${profileId}/profile/${profileId}`)
@@ -162,7 +161,7 @@ export default function ProfileScreen() {
           setIdColor(d?.idColor || 'none');
           setIsBudgetId(d?.isBudgetId || false);
         }
-      }, err => console.warn('[Profile] profile doc error:', err));
+      }, () => {});
     return () => unsub();
   }, [profileId]);
 
@@ -215,17 +214,17 @@ export default function ProfileScreen() {
     const unsubFans = firestore().collection('followers').where('followingId', '==', profileId)
       .onSnapshot((snap) => {
         setFansData(snap ? snap.docs.map(d => ({ id: d.id, ...d.data() })) : []);
-      }, (err) => console.warn('[Profile] fans query error:', err));
+      }, () => {});
 
     const unsubFollowing = firestore().collection('followers').where('followerId', '==', profileId)
       .onSnapshot((snap) => {
         setFollowingData(snap ? snap.docs.map(d => ({ id: d.id, ...d.data() })) : []);
-      }, (err) => console.warn('[Profile] following query error:', err));
+      }, () => {});
 
     const unsubVisitors = firestore().collection('users').doc(profileId).collection('profileVisitors').orderBy('timestamp', 'desc').limit(50)
       .onSnapshot((snap) => {
         setVisitorsData(snap ? snap.docs.map(d => ({ id: d.id, ...d.data() })) : []);
-      }, (err) => console.warn('[Profile] visitors query error:', err));
+      }, () => {});
 
     return () => {
       unsubFans();
@@ -242,7 +241,6 @@ export default function ProfileScreen() {
     const fanIds = new Set(fansData.map((f: any) => f.followerId));
     const followingIds = followingData.map((f: any) => f.followingId);
     const friends = followingIds.filter(id => fanIds.has(id)).length;
-    console.log('[Me-ProfileScreen] fansData:', fansData, 'followingData:', followingData, 'computedStats:', { fans, following, friends, visitors });
     return { fans, following, friends, visitors };
   }, [fansData, followingData, visitorsData]);
 
@@ -294,9 +292,7 @@ export default function ProfileScreen() {
       await Share.share({
         message: `Hey! Download Ummy Chat and join me! My ID is: ${displayID}`,
       });
-    } catch (error) {
-      console.log('Error sharing', error);
-    }
+    } catch (error) {}
   };
 
   if (!profile) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, Alert, ActivityIndicator, Keyboard, ScrollView, Dimensions, PanResponder, Animated } from 'react-native';
 import { X, Play, Pause, SkipBack, SkipForward, Search as SearchIcon, GripHorizontal, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -204,7 +204,6 @@ export function YouTubeDialog({ visible, onClose, roomId, isHost, canClose }: Yo
         { merge: true }
       );
     } catch (e) {
-      console.error('[YouTube] Failed to update state:', e);
     }
   }, [firestore, roomId, isHost, user?.uid]);
 
@@ -234,7 +233,6 @@ export function YouTubeDialog({ visible, onClose, roomId, isHost, canClose }: Yo
         }
       }
     } catch (e) {
-      console.warn('[YouTube WebView msg error]', e);
     }
   }, [state, isHost, updateState, injectCommand]);
 
@@ -267,7 +265,7 @@ export function YouTubeDialog({ visible, onClose, roomId, isHost, canClose }: Yo
     const ref = doc(firestore, 'chatRooms', roomId, 'youtube', 'state');
     const unsub = onSnapshot(ref as any, (snap: any) => {
       setState(snap.exists() ? (snap.data() as YouTubeState) : EMPTY_STATE);
-    });
+    }, (error: any) => {});
     return () => unsub();
   }, [firestore, roomId, visible]);
 
@@ -303,7 +301,6 @@ export function YouTubeDialog({ visible, onClose, roomId, isHost, canClose }: Yo
         setSearchResults([]);
       }
     } catch (e) {
-      console.error('[YouTube API Search] failed:', e);
       setSearchResults([]);
     } finally {
       setIsSearching(false);
@@ -344,7 +341,6 @@ export function YouTubeDialog({ visible, onClose, roomId, isHost, canClose }: Yo
           try {
             await deleteDoc(doc(firestore, 'chatRooms', roomId, 'youtube', 'state') as any);
           } catch (e) {
-            console.error('[YouTube] Failed to close for all:', e);
           }
           onClose();
         },
@@ -506,7 +502,7 @@ export function YouTubeDialog({ visible, onClose, roomId, isHost, canClose }: Yo
                 domStorageEnabled
                 onMessage={handleMessage}
                 onShouldStartLoadWithRequest={handleShouldStartLoad}
-                onError={(e) => console.warn('[YouTube WebView] error:', e.nativeEvent.description)}
+                onError={() => {}}
               />
             ) : mode === 'search' ? (
               isSearching ? (

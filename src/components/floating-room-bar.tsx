@@ -78,7 +78,7 @@ export function FloatingRoomBar() {
       try {
         const participantRef = doc(firestore, 'chatRooms', room.id, 'participants', user.uid);
         const participantSnap = await getDoc(participantRef);
-        if (participantSnap.exists) {
+        if (participantSnap.exists()) {
           await deleteDoc(participantRef);
           const roomRef = doc(firestore, 'chatRooms', room.id);
           await import('@/firebase/firestore-compat').then(m =>

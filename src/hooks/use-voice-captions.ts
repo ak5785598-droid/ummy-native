@@ -27,6 +27,7 @@ export function useVoiceCaptions(roomId: string, isInSeat: boolean, isMuted: boo
   const recognitionRef = useRef<any>(null);
   const lastTranscriptRef = useRef('');
   const lastBroadcastRef = useRef(0);
+  const speechErrorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!firestore || !roomId || !isCaptionsEnabled) return;
@@ -35,7 +36,7 @@ export function useVoiceCaptions(roomId: string, isInSeat: boolean, isMuted: boo
       const list: CaptionData[] = [];
       snap.forEach((d: any) => { list.push(d.data() as CaptionData); });
       setCaptions(list.reverse());
-    });
+    }, (error: any) => {});
     return () => unsub();
   }, [firestore, roomId, isCaptionsEnabled]);
 
@@ -73,7 +74,8 @@ export function useVoiceCaptions(roomId: string, isInSeat: boolean, isMuted: boo
       };
       Voice.onSpeechError = () => {
         // On error, retry after 1s
-        setTimeout(() => { try { Voice.start('hi-IN'); } catch {} }, 1000);
+        if (speechErrorTimeoutRef.current) clearTimeout(speechErrorTimeoutRef.current);
+        speechErrorTimeoutRef.current = setTimeout(() => { try { Voice.start('hi-IN'); } catch {} }, 1000);
       };
       Voice.start('hi-IN');
       return true;
@@ -81,6 +83,10 @@ export function useVoiceCaptions(roomId: string, isInSeat: boolean, isMuted: boo
   }, [broadcastCaption]);
 
   const stopNativeSTT = useCallback(() => {
+    if (speechErrorTimeoutRef.current) {
+      clearTimeout(speechErrorTimeoutRef.current);
+      speechErrorTimeoutRef.current = null;
+    }
     if (!Voice) return;
     try {
       Voice.destroy().catch(() => {});

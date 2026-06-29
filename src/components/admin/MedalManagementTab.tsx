@@ -28,7 +28,6 @@ export function MedalManagementTab() {
         }
         setLoading(false);
       }, err => {
-        console.warn('[Medals] Load error:', err);
         setLoading(false);
       });
     return () => unsub();
@@ -98,16 +97,16 @@ export function MedalManagementTab() {
       if (q.empty) {
         // Try by UID
         const doc = await firestore().collection('users').doc(searchQuery.trim()).get();
-        if (doc.exists) {
+        if (doc.exists()) {
           const profileSnap = await firestore().collection('users').doc(doc.id).collection('profile').doc(doc.id).get();
-          setSearchResult({ id: doc.id, ...doc.data(), ...(profileSnap.exists ? profileSnap.data() : {}) });
+          setSearchResult({ id: doc.id, ...doc.data(), ...(profileSnap.exists() ? profileSnap.data() : {}) });
         } else {
           Alert.alert('Not Found', 'No user found.');
         }
       } else {
         const userDoc = q.docs[0];
         const profileSnap = await firestore().collection('users').doc(userDoc.id).collection('profile').doc(userDoc.id).get();
-        setSearchResult({ id: userDoc.id, ...userDoc.data(), ...(profileSnap.exists ? profileSnap.data() : {}) });
+        setSearchResult({ id: userDoc.id, ...userDoc.data(), ...(profileSnap.exists() ? profileSnap.data() : {}) });
       }
     } catch (err: any) {
       Alert.alert('Error', err.message);

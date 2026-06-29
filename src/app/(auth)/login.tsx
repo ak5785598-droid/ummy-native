@@ -78,13 +78,7 @@ const PHONE_AUTH_ERRORS: Record<string, string> = {
 };
 
 const getPhoneAuthErrorMessage = (error: any): string => {
-  console.log('[Phone Auth Error Raw]', JSON.stringify({
-    code: error?.code,
-    message: error?.message,
-    nativeErrorCode: error?.nativeErrorCode,
-    nativeErrorMessage: error?.nativeErrorMessage,
-    userInfo: error?.userInfo,
-  }));
+
   const code = error?.code || error?.nativeErrorCode || '';
   return PHONE_AUTH_ERRORS[code] || error?.message || error?.nativeErrorMessage || PHONE_AUTH_ERRORS['default'];
 };
@@ -100,7 +94,7 @@ const generateNumericID = async (fs: any, uid: string): Promise<string> => {
         const num = String(Math.floor(100000 + Math.random() * 900000));
         const idRef = doc(fs, 'assigned_ids', num);
         const snap = await tx.get(idRef);
-        if (!snap.exists) {
+        if (!snap.exists()) {
           tx.set(idRef, { uid, assignedAt: serverTimestamp() });
           return num;
         }
@@ -111,7 +105,7 @@ const generateNumericID = async (fs: any, uid: string): Promise<string> => {
       return fallback;
     });
   } catch (e) {
-    console.warn('[generateNumericID] Transaction failed, using random:', e);
+
     return String(Math.floor(100000 + Math.random() * 900000));
   }
 };
@@ -170,7 +164,7 @@ export default function LoginScreen() {
     const profileRef = doc(firestore, 'users', uid, 'profile', uid);
     try {
       const userSnap = await getDoc(userRef);
-      if (userSnap.exists) {
+      if (userSnap.exists()) {
         const data = userSnap.data() as any;
         if (data.banStatus?.isBanned) {
           const until = data.banStatus.bannedUntil?.toDate?.();
@@ -206,7 +200,6 @@ export default function LoginScreen() {
         stats: { followers: 0, fans: 0, totalGifts: 0, dailyFans: 0, friends: 0, following: 0 },
       }, { merge: true });
     } catch (err) {
-      console.error('[Identity Sync] Error:', err);
     }
   };
 
@@ -218,7 +211,7 @@ export default function LoginScreen() {
     try {
       const userRef = doc(firestore, 'users', user.uid);
       const userSnap = await getDoc(userRef);
-      if (userSnap.exists) {
+      if (userSnap.exists()) {
         const data = userSnap.data() as any;
         if (data.banStatus?.isBanned) {
           const until = data.banStatus.bannedUntil?.toDate?.();
@@ -255,7 +248,6 @@ export default function LoginScreen() {
         if (result.user) await handlePostAuth(result.user);
       }
     } catch (error: any) {
-      console.error('Google Sign In Error:', error?.message);
       Alert.alert('Google Sign In Failed', error?.message || 'Please try again.');
     } finally {
       setIsSigningIn(false);
@@ -276,7 +268,6 @@ export default function LoginScreen() {
       const fbResult = await auth().signInWithCredential(facebookCredential);
       if (fbResult.user) await handlePostAuth(fbResult.user);
     } catch (error: any) {
-      console.error('Facebook Sign In Error:', error?.message);
       Alert.alert('Facebook Sign In Failed', error?.message || 'Please try again.');
     } finally {
       setIsSigningIn(false);
@@ -295,14 +286,12 @@ export default function LoginScreen() {
     try {
       setIsSigningIn(true);
       const formattedNumber = `${selectedCountry.code}${cleanNumber}`;
-      console.log('[Phone Auth] Sending OTP to:', formattedNumber);
 
       const confirmation = await firebaseAuth.signInWithPhoneNumber(formattedNumber);
       setConfirm(confirmation);
       setPhoneLoginStep('code');
       Alert.alert('Code Sent', `OTP sent to ${formattedNumber}`);
     } catch (error: any) {
-      console.error('[Phone Auth] Error:', error?.code, error?.message);
       Alert.alert('Phone Auth Failed', error?.message || 'Could not send OTP. Please try again.');
     } finally {
       setIsSigningIn(false);
@@ -320,14 +309,12 @@ export default function LoginScreen() {
     }
     try {
       setIsSigningIn(true);
-      console.log('[Phone Auth] Verifying OTP:', verificationCode);
       const result = await confirm.confirm(verificationCode);
       setShowPhonePopup(false);
       setPhoneNumber('');
       setVerificationCode('');
       if (result?.user) await handlePostAuth(result.user);
     } catch (error: any) {
-      console.error('[Phone Auth] Verify Error:', error?.code, error?.message);
       Alert.alert('Verification Failed', error?.message || 'Wrong OTP. Please try again.');
     } finally {
       setIsSigningIn(false);

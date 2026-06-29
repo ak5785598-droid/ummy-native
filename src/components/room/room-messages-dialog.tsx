@@ -57,7 +57,7 @@ export function RoomMessagesDialog({ visible, onClose, roomId, initialRecipient 
         await Promise.all(uncachedUids.map(async (uid) => {
           try {
             const otherDoc = await getDoc(doc(firestore, 'users', uid));
-            if (otherDoc.exists) {
+            if (otherDoc.exists()) {
               const od = otherDoc.data();
               userCache[uid] = { name: od.username || od.name || 'User', avatar: od.avatarUrl || 'https://picsum.photos/100' };
             } else {
@@ -85,7 +85,7 @@ export function RoomMessagesDialog({ visible, onClose, roomId, initialRecipient 
         });
       }
       setChats(list);
-    });
+    }, (error: any) => {});
     return () => unsub();
   }, [firestore, user?.uid, visible]);
 
@@ -95,7 +95,7 @@ export function RoomMessagesDialog({ visible, onClose, roomId, initialRecipient 
     const q = query(msgRef, orderBy('timestamp', 'asc'), limit(100));
     const unsub = onSnapshot(q, (snap: any) => {
       setMessages(snap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
-    });
+    }, (error: any) => {});
     return () => unsub();
   }, [selectedChat, firestore, user?.uid]);
 
@@ -149,7 +149,7 @@ export function RoomMessagesDialog({ visible, onClose, roomId, initialRecipient 
       
       await setDoc(doc(firestore, 'privateChats', chatId), chatUpdateData, { merge: true });
       setInputText('');
-    } catch (e) { console.error('[Messages] Send error:', e); }
+    } catch (e) {}
   };
 
   return (

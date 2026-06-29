@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Alert, ScrollView } from 'react-native';
 import { Crown, Upload, Trash2, Palette, Sparkles, Save } from 'lucide-react-native';
 import { useFirestore, useStorage } from '../../firebase/provider';
@@ -29,7 +29,7 @@ export function VipManagementTab() {
       try {
         const docRef = doc(firestore, 'settings', 'svipConfig');
         const snap = await getDoc(docRef);
-        if (snap.exists) {
+        if (snap.exists()) {
           const data = snap.data();
           setConfig({
             bgType: data.bgType || 'dynamic',
@@ -38,7 +38,6 @@ export function VipManagementTab() {
           });
         }
       } catch (err) {
-        console.error("Error loading SVIP Config:", err);
       } finally {
         setIsLoading(false);
       }
@@ -147,7 +146,6 @@ export function VipManagementTab() {
       await setDoc(docRef, config, { merge: true });
       Alert.alert('Success', 'VIP Settings Saved Live!');
     } catch (err: any) {
-      console.error(err);
       Alert.alert('Save Failed', err.message || 'Failed to update VIP configuration.');
     } finally {
       setIsSaving(false);
@@ -165,7 +163,7 @@ export function VipManagementTab() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.header}>
-        <Text style={styles.title}>VIP Management 👑</Text>
+        <Text style={styles.title}>VIP Management ðŸ‘‘</Text>
         <Text style={styles.subtitle}>
           Configure the 18-level SVIP Club experience. Upload custom badge graphics, 3D animated video loops, level images, and override page background themes.
         </Text>

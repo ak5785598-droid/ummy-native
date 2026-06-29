@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { X, Camera, Trash2 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -93,7 +93,6 @@ export function PublishMoment({ visible, onClose }: PublishMomentProps) {
       setSelectedFile(null);
       onClose();
     } catch (e) {
-      console.error('[PublishMoment] Error:', e);
     }
     setUploading(false);
   };

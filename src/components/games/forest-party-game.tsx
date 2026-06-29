@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Dimensions, ScrollView, Animated, Easing, Image } from 'react-native';
 import { HelpCircle, Volume2, VolumeX, BarChart3, ChevronDown, X, RotateCcw, Plus } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
@@ -20,14 +20,14 @@ interface ForestPartyGameProps {
 }
 
 const ANIMALS = [
-  { id: 'rabbit', emoji: '🐰', image: require('../../../assets/images/games/rabbit.png'), multiplier: 5,  label: 'win 5 times',  color: '#06b6d4', bg: '#083344' },
-  { id: 'cat',    emoji: '🐱', image: require('../../../assets/images/games/cat.png'),    multiplier: 5,  label: 'win 5 times',  color: '#06b6d4', bg: '#083344' },
-  { id: 'dog',    emoji: '🐶', image: require('../../../assets/images/games/dog.png'),    multiplier: 5,  label: 'win 5 times',  color: '#06b6d4', bg: '#083344' },
-  { id: 'sheep',  emoji: '🐑', image: require('../../../assets/images/games/sheep.png'),  multiplier: 5,  label: 'win 5 times',  color: '#06b6d4', bg: '#083344' },
-  { id: 'panda',  emoji: '🐼', image: require('../../../assets/images/games/panda.png'),  multiplier: 10, label: 'win 10 times', color: '#06b6d4', bg: '#083344' },
-  { id: 'bear',   emoji: '🐻', image: require('../../../assets/images/games/bear.png'),   multiplier: 15, label: 'win 15 times', color: '#06b6d4', bg: '#083344' },
-  { id: 'tiger',  emoji: '🐯', image: require('../../../assets/images/games/tiger.png'),  multiplier: 25, label: 'win 25 times', color: '#06b6d4', bg: '#083344' },
-  { id: 'lion',   emoji: '🦁', image: require('../../../assets/images/games/lion.png'),   multiplier: 45, label: 'win 45 times', color: '#06b6d4', bg: '#083344' },
+  { id: 'rabbit', emoji: 'ðŸ°', image: require('../../../assets/images/games/rabbit.png'), multiplier: 5,  label: 'win 5 times',  color: '#06b6d4', bg: '#083344' },
+  { id: 'cat',    emoji: 'ðŸ±', image: require('../../../assets/images/games/cat.png'),    multiplier: 5,  label: 'win 5 times',  color: '#06b6d4', bg: '#083344' },
+  { id: 'dog',    emoji: 'ðŸ¶', image: require('../../../assets/images/games/dog.png'),    multiplier: 5,  label: 'win 5 times',  color: '#06b6d4', bg: '#083344' },
+  { id: 'sheep',  emoji: 'ðŸ‘', image: require('../../../assets/images/games/sheep.png'),  multiplier: 5,  label: 'win 5 times',  color: '#06b6d4', bg: '#083344' },
+  { id: 'panda',  emoji: 'ðŸ¼', image: require('../../../assets/images/games/panda.png'),  multiplier: 10, label: 'win 10 times', color: '#06b6d4', bg: '#083344' },
+  { id: 'bear',   emoji: 'ðŸ»', image: require('../../../assets/images/games/bear.png'),   multiplier: 15, label: 'win 15 times', color: '#06b6d4', bg: '#083344' },
+  { id: 'tiger',  emoji: 'ðŸ¯', image: require('../../../assets/images/games/tiger.png'),  multiplier: 25, label: 'win 25 times', color: '#06b6d4', bg: '#083344' },
+  { id: 'lion',   emoji: 'ðŸ¦', image: require('../../../assets/images/games/lion.png'),   multiplier: 45, label: 'win 45 times', color: '#06b6d4', bg: '#083344' },
 ];
 
 const CHIPS = [100, 500, 1000, 5000, 10000, 50000, 100000];
@@ -103,7 +103,6 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
       );
       soundRef.current = sound;
     } catch (e) {
-      console.warn('Sound play failed', e);
     }
   };
 
@@ -298,7 +297,7 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
       if (groupType === 'left') {
         onRoundEnd({
           resultText: 'Wild Mix!',
-          resultEmoji: '🐼🐻🐯🦁',
+          resultEmoji: 'ðŸ¼ðŸ»ðŸ¯ðŸ¦',
           resultImage: require('../../../assets/images/games/wild_mix.png'),
           myPrize: winAmount,
           myWager: totalWagerForGroup
@@ -306,15 +305,15 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
       } else if (groupType === 'right') {
         onRoundEnd({
           resultText: 'Cute Mix!',
-          resultEmoji: '🐰🐱🐶🐑',
+          resultEmoji: 'ðŸ°ðŸ±ðŸ¶ðŸ‘',
           resultImage: require('../../../assets/images/games/cute_mix.png'),
           myPrize: winAmount,
           myWager: totalWagerForGroup
         });
       } else {
         onRoundEnd({
-          resultText: `${winItem?.emoji || '🏆'} ${winItem?.id?.toUpperCase() || 'WIN'} x${winItem?.multiplier || 0}!`,
-          resultEmoji: winItem?.emoji || '🏆',
+          resultText: `${winItem?.emoji || 'ðŸ†'} ${winItem?.id?.toUpperCase() || 'WIN'} x${winItem?.multiplier || 0}!`,
+          resultEmoji: winItem?.emoji || 'ðŸ†',
           resultImage: winItem?.image,
           myPrize: winAmount,
           myWager: totalWagerForGroup
@@ -670,7 +669,7 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
                     {winnerData ? (
                       <>
                         <Text style={{ fontSize: 24 }}>
-                          {ANIMALS.find(f => f.id === winnerData.id)?.emoji || '🏆'}
+                          {ANIMALS.find(f => f.id === winnerData.id)?.emoji || 'ðŸ†'}
                         </Text>
                         <Text style={{ color: '#3f2305', fontSize: 8, fontWeight: '900', textTransform: 'uppercase', marginTop: 2 }}>
                           Win!
@@ -734,7 +733,7 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
               elevation: 4,
             }}
           >
-            <Text style={{ fontSize: 13, textShadowColor: 'rgba(0,0,0,0.1)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1 }}>🪙</Text>
+            <Text style={{ fontSize: 13, textShadowColor: 'rgba(0,0,0,0.1)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1 }}>ðŸª™</Text>
             <Text style={{
               color: '#3f2305', // Dark charcoal/brown text for readability
               fontSize: 14,
@@ -876,7 +875,7 @@ function LaunchingScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: '#022c22', alignItems: 'center', justifyContent: 'center' }}>
       <Animated.Text style={{ fontSize: 72, marginBottom: 20, opacity: pulseAnim, transform: [{ rotate: rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] }}>
-        🌲
+        ðŸŒ²
       </Animated.Text>
       <Text style={{ color: '#eab308', fontSize: 28, fontWeight: '900', textTransform: 'uppercase', letterSpacing: -1, marginBottom: 12, textShadowColor: 'rgba(234,179,8,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 }}>
         Forest Party

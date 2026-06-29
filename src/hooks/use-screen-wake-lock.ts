@@ -8,18 +8,14 @@ export function useScreenWakeLock(active: boolean) {
     if (active && !isActiveRef.current) {
       isActiveRef.current = true;
       try {
-        activateKeepAwakeAsync().catch((err) => {
-          console.warn('KeepAwake activate failed:', err.message || String(err));
-        });
+        activateKeepAwakeAsync().catch(() => {});
       } catch (e: any) {
-        console.warn('KeepAwake activate failed:', e.message || String(e));
       }
     } else if (!active && isActiveRef.current) {
       isActiveRef.current = false;
       try {
         deactivateKeepAwake();
       } catch (e: any) {
-        console.warn('KeepAwake deactivate failed:', e.message || String(e));
       }
     }
     return () => {
@@ -28,7 +24,6 @@ export function useScreenWakeLock(active: boolean) {
         try {
           deactivateKeepAwake();
         } catch (e: any) {
-          console.warn('KeepAwake cleanup failed:', e.message || String(e));
         }
       }
     };

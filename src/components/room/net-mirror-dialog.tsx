@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+﻿import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, ActivityIndicator, Dimensions, PanResponder, Animated, BackHandler } from 'react-native';
 import { X, GripHorizontal, ChevronLeft } from 'lucide-react-native';
 import { WebView } from 'react-native-webview';
@@ -231,7 +231,6 @@ export function NetMirrorDialog({ visible, onClose }: NetMirrorDialogProps) {
               onNavigationStateChange={handleNavigationStateChange}
               onLoadEnd={handleLoadEnd}
               onError={(e) => {
-                console.warn('[NetMirror] WebView error:', e.nativeEvent.description);
                 setShowOverlay(false);
               }}
               renderLoading={() => (

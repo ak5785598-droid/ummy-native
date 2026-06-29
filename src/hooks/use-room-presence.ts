@@ -87,7 +87,6 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
 
         await batch.commit();
       } catch (error) {
-        console.error('[Presence] Join error:', error);
       }
     };
 
@@ -196,7 +195,6 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
           await purgeBatch.commit();
           
         } catch (error) {
-          console.error('[Presence] Cleanup error:', error);
         }
       }, 300000);
     }
@@ -271,7 +269,6 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
               currentRoomId: null,
             });
           } catch (error) {
-            console.error('[Presence] Cleanup on unmount error:', error);
           }
           hasJoinedRef.current = false;
           lastRoomId.current = null;

@@ -145,7 +145,6 @@ export default function RoomScreen() {
   const [fullProfileData, setFullProfileData] = useState<any>(null);
 
   useEffect(() => {
-    console.log('[FullProfile] useEffect fired, fullProfileUid:', fullProfileUid, 'currentUser.uid:', user?.uid);
     if (!fullProfileUid) { setFullProfileData(null); return; }
     const db = require('@react-native-firebase/firestore').default;
     
@@ -162,17 +161,15 @@ export default function RoomScreen() {
 
     const unsubBase = db().collection('users').doc(fullProfileUid)
       .onSnapshot((snap: any) => {
-        console.log('[FullProfile] base user snap.exists:', typeof snap?.exists === 'function' ? snap.exists() : snap?.exists);
         baseData = snap && (typeof snap.exists === 'function' ? snap.exists() : snap.exists) ? snap.data() : {};
         updateMergedData();
-      }, (e: any) => console.log('[FullProfile] base snapshot error:', e?.message));
+      }, (e: any) => {});
 
     const unsubSub = db().collection('users').doc(fullProfileUid).collection('profile').doc(fullProfileUid)
       .onSnapshot((snap: any) => {
-        console.log('[FullProfile] profile sub doc snap.exists:', typeof snap?.exists === 'function' ? snap.exists() : snap?.exists);
         subData = snap && (typeof snap.exists === 'function' ? snap.exists() : snap.exists) ? snap.data() : {};
         updateMergedData();
-      }, (e: any) => console.log('[FullProfile] sub snapshot error:', e?.message));
+      }, (e: any) => {});
 
     return () => {
       if (typeof unsubBase === 'function') unsubBase();
@@ -213,7 +210,6 @@ export default function RoomScreen() {
       const fanIds = new Set(fansList.map(f => f.followerId));
       const followingIds = followingList.map(f => f.followingId);
       const friends = followingIds.filter(id => fanIds.has(id)).length;
-      console.log('[Room-FullProfile] fansList:', fansList, 'followingList:', followingList, 'computedStats:', { fans, following, friends, visitors });
       setFullProfileStats({ fans, following, friends, visitors });
     };
 
@@ -221,19 +217,19 @@ export default function RoomScreen() {
       .onSnapshot((snap: any) => {
         fansList = snap ? snap.docs.map((d: any) => d.data()) : [];
         computeStats();
-      }, (e: any) => console.log('[FullProfile] fans fetch error:', e?.message));
+      }, (e: any) => {});
 
     const unsubFollowing = db().collection('followers').where('followerId', '==', fullProfileUid)
       .onSnapshot((snap: any) => {
         followingList = snap ? snap.docs.map((d: any) => d.data()) : [];
         computeStats();
-      }, (e: any) => console.log('[FullProfile] following fetch error:', e?.message));
+      }, (e: any) => {});
 
     const unsubVisitors = db().collection('users').doc(fullProfileUid).collection('profileVisitors')
       .onSnapshot((snap: any) => {
         visitorsList = snap ? snap.docs.map((d: any) => d.data()) : [];
         computeStats();
-      }, (e: any) => console.log('[FullProfile] visitors fetch error:', e?.message));
+      }, (e: any) => {});
 
     return () => {
       if (typeof unsubFans === 'function') unsubFans();
@@ -285,7 +281,6 @@ export default function RoomScreen() {
         Alert.alert('Followed', 'You are now following this room.');
       }
     } catch (e: any) {
-      console.error('[Room] Follow/Unfollow failed:', e?.message);
       Alert.alert('Error', 'Failed to follow/unfollow. Please try again.');
     }
   };
@@ -504,8 +499,13 @@ export default function RoomScreen() {
   const shownEntranceEffects = useRef<Set<string>>(new Set());
   const lastAnnouncedMsgId = useRef<string | null>(null);
   const lastProcessedMsgCount = useRef(0);
+  const emojiClearTimeouts = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const sttTimeoutIds = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const seatTimeoutIds = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
+    emojiClearTimeouts.current.forEach(id => clearTimeout(id));
+    emojiClearTimeouts.current = [];
     if (!messages?.length) return;
     const newMessages = messages.slice(lastProcessedMsgCount.current);
     lastProcessedMsgCount.current = messages.length;
@@ -537,7 +537,8 @@ export default function RoomScreen() {
         if (p && p.seatIndex) {
           const key = Date.now();
           setEmojiEffects(prev => ({ ...prev, [p.seatIndex!]: { emoji: (msg as any).text || '😊', key } }));
-          setTimeout(() => setEmojiEffects(prev => { const n = { ...prev }; delete n[p.seatIndex!]; return n; }), 2500);
+          const emojiTid = setTimeout(() => setEmojiEffects(prev => { const n = { ...prev }; delete n[p.seatIndex!]; return n; }), 2500);
+          emojiClearTimeouts.current.push(emojiTid);
         }
       }
 
@@ -551,6 +552,10 @@ export default function RoomScreen() {
         ]);
       }
     });
+    return () => {
+      emojiClearTimeouts.current.forEach(id => clearTimeout(id));
+      emojiClearTimeouts.current = [];
+    };
   }, [messages]);
 
   useRoomPresence({ activeRoom: room, minimizedRoom: minimizedRoom, userProfile: userProfile || null });
@@ -641,6 +646,8 @@ export default function RoomScreen() {
     }
 
     let active = true; // Track if still enabled
+    sttTimeoutIds.current.forEach(id => clearTimeout(id));
+    sttTimeoutIds.current = [];
 
     const startSTT = async () => {
       if (!active || !isAIListening) return;
@@ -653,14 +660,17 @@ export default function RoomScreen() {
               handleSendMessage(transcript);
             }
             // Restart for next command (continuous mode)
-            setTimeout(() => { if (active) startSTT(); }, 800);
+            const sttTid1 = setTimeout(() => { if (active) startSTT(); }, 800);
+            sttTimeoutIds.current.push(sttTid1);
           };
           VoiceModule.onSpeechError = () => {
-            setTimeout(() => { if (active) startSTT(); }, 1000);
+            const sttTid2 = setTimeout(() => { if (active) startSTT(); }, 1000);
+            sttTimeoutIds.current.push(sttTid2);
           };
           VoiceModule.onSpeechEnd = () => {
             // Don't setIsAIListening(false) — restart instead
-            setTimeout(() => { if (active) startSTT(); }, 500);
+            const sttTid3 = setTimeout(() => { if (active) startSTT(); }, 500);
+            sttTimeoutIds.current.push(sttTid3);
           };
           await VoiceModule.start('hi-IN');
           aiListenRecognitionRef.current = VoiceModule;
@@ -686,10 +696,12 @@ export default function RoomScreen() {
           }
         };
         recognition.onerror = () => {
-          setTimeout(() => { if (active) startSTT(); }, 1000);
+          const sttTid4 = setTimeout(() => { if (active) startSTT(); }, 1000);
+          sttTimeoutIds.current.push(sttTid4);
         };
         recognition.onend = () => {
-          setTimeout(() => { if (active) startSTT(); }, 300);
+          const sttTid5 = setTimeout(() => { if (active) startSTT(); }, 300);
+          sttTimeoutIds.current.push(sttTid5);
         };
         recognition.start();
         aiListenRecognitionRef.current = recognition;
@@ -700,9 +712,18 @@ export default function RoomScreen() {
 
     return () => {
       active = false;
+      sttTimeoutIds.current.forEach(id => clearTimeout(id));
+      sttTimeoutIds.current = [];
       try { aiListenRecognitionRef.current?.stop?.(); } catch {}
     };
   }, [isAIListening]);
+
+  useEffect(() => {
+    return () => {
+      seatTimeoutIds.current.forEach(id => clearTimeout(id));
+      seatTimeoutIds.current = [];
+    };
+  }, []);
 
   const [showMiniPlayer, setShowMiniPlayer] = useState(true);
   useEffect(() => {
@@ -773,7 +794,8 @@ export default function RoomScreen() {
     muteOverrideRef.current = isSeatMuted;
     forceUpdate(n => n + 1);
     await setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', user.uid), { seatIndex: seatIdx, isMuted: isSeatMuted, name: userProfile.username, avatarUrl: userProfile.avatarUrl, activeFrameMediaUrl: userProfile.inventory?.activeFrameMediaUrl || null, lastSeen: serverTimestamp() }, { merge: true });
-    setTimeout(() => { muteOverrideRef.current = null; forceUpdate(n => n + 1); }, 2000);
+    const takeSeatTid = setTimeout(() => { muteOverrideRef.current = null; forceUpdate(n => n + 1); }, 2000);
+    seatTimeoutIds.current.push(takeSeatTid);
   };
 
   const handleLeaveSeat = async (targetUid?: string) => {
@@ -786,7 +808,8 @@ export default function RoomScreen() {
     }
     await setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', uidToLeave), { seatIndex: 0, isMuted: true, lastSeen: serverTimestamp() }, { merge: true });
     if (isSelf) {
-      setTimeout(() => { muteOverrideRef.current = null; forceUpdate(n => n + 1); }, 2000);
+      const leaveSeatTid = setTimeout(() => { muteOverrideRef.current = null; forceUpdate(n => n + 1); }, 2000);
+      seatTimeoutIds.current.push(leaveSeatTid);
     }
   };
 
@@ -816,7 +839,7 @@ export default function RoomScreen() {
       const fileRef = storageRef(storage, `rooms/${id}/chat/${filename}`);
       const response = await fetch(uri); const blob = await response.blob();
       await uploadBytes(fileRef, blob, { cacheControl: 'public, max-age=2592000, immutable' }); return await getDownloadURL(fileRef);
-    } catch (e) { console.error('[Room] Upload error:', e); return null; }
+    } catch (e) { return null; }
   };
 
   const handleExit = async () => {
@@ -837,7 +860,7 @@ export default function RoomScreen() {
           updateDocumentNonBlocking(userRef, { currentRoomId: null, isOnline: false, updatedAt: serverTimestamp() }),
           updateDocumentNonBlocking(profileRef, { currentRoomId: null, isOnline: false, updatedAt: serverTimestamp() }),
         ]);
-      } catch (e) { console.error('[Room] Exit cleanup error:', e); }
+      } catch (e) {}
     }
   };
   const handleMinimize = () => {
@@ -1263,7 +1286,6 @@ export default function RoomScreen() {
               Alert.alert('Followed', 'You are now following this user.');
             }
           } catch (e: any) {
-            console.error('[Room] User follow failed:', e?.message);
           }
         }}
         onReport={(uid) => { Alert.alert('Report', `User ${uid} reported`); }}

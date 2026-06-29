@@ -59,8 +59,8 @@ const LEVEL_IMAGES: Record<string, any> = {
   train: require('../../../assets/images/loot/level_train.png'),
   ship: require('../../../assets/images/loot/level_ship.png'),
   aeroplane: require('../../../assets/images/loot/level_aeroplane.png'),
-  submarine: require('../../../assets/images/loot/level_bank.png'), // Fallback asset
-  rocket: require('../../../assets/images/loot/level_home.png'), // Fallback asset
+  submarine: require('../../../assets/images/loot/level_submarine.png'),
+  rocket: require('../../../assets/images/loot/level_rocket.png'),
 };
 
 const DEFAULT_LEVELS: LootLevel[] = [
@@ -157,7 +157,7 @@ export function LootBoxDisplay({ onOpenGate, onGateReady, roomId, topSupporters 
       if (snap) {
         setStoreItems(snap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
       }
-    }, (err: any) => console.log('Error loading store items:', err));
+    }, () => {});
     return () => unsub();
   }, [dbInstance]);
 
@@ -2370,14 +2370,14 @@ export function LootBoxDisplay({ onOpenGate, onGateReady, roomId, topSupporters 
           ]}
         >
           {(() => {
-             const localImage = LEVEL_IMAGES[activeLevel?.id];
-             if (localImage) {
-               return (
-                 <View style={StyleSheet.absoluteFillObject}>
-                   <Image source={localImage} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
-                 </View>
-               );
-             } else {
+              const localImage = LEVEL_IMAGES[activeLevel?.id];
+              if (localImage) {
+                return (
+                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+                    <Image source={localImage} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" />
+                  </View>
+                );
+              } else {
               return (
                 <Animated.View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', opacity: fadeAnim }}>
                   <Text style={styles.emojiText}>{LEVEL_ICONS[activeLevel?.id] || '🏠'}</Text>

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+﻿import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, Modal, TouchableOpacity, Animated, Dimensions, StyleSheet } from 'react-native';
 import { X, ShieldAlert } from 'lucide-react-native';
 import { doc, increment } from '@/firebase/firestore-compat';
@@ -18,13 +18,13 @@ interface LootingRoomProps {
 }
 
 const REWARD_TYPES = [
-  { emoji: '🪙', value: 10, weight: 45 },
-  { emoji: '🪙', value: 25, weight: 28 },
-  { emoji: '🪙', value: 50, weight: 15 },
-  { emoji: '💎', value: 100, weight: 4 },
-  { emoji: '💎', value: 200, weight: 0.8 },
-  { emoji: '⭐', value: 500, weight: 0.2 },
-  { emoji: '💀', value: -50, weight: 7 }, // Penalty skull obstacle
+  { emoji: 'ðŸª™', value: 10, weight: 45 },
+  { emoji: 'ðŸª™', value: 25, weight: 28 },
+  { emoji: 'ðŸª™', value: 50, weight: 15 },
+  { emoji: 'ðŸ’Ž', value: 100, weight: 4 },
+  { emoji: 'ðŸ’Ž', value: 200, weight: 0.8 },
+  { emoji: 'â­', value: 500, weight: 0.2 },
+  { emoji: 'ðŸ’€', value: -50, weight: 7 }, // Penalty skull obstacle
 ];
 
 function pickReward() {
@@ -182,7 +182,6 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex }: LootingRoo
         setIsAuthorized(false);
       }
     }, (err) => {
-      console.warn("RTD auth check failed:", err);
       setIsAuthorized(false);
     });
     return () => unsub();
@@ -412,7 +411,7 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex }: LootingRoo
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={{ fontSize: 18 }}>🎯</Text>
+                <Text style={{ fontSize: 18 }}>ðŸŽ¯</Text>
                 <View>
                   <Text style={{ color: '#fbbf24', fontSize: 16, fontWeight: '900' }}>Looting Room</Text>
                   {isFrenzy && (
@@ -436,7 +435,7 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex }: LootingRoo
                     borderColor: 'rgba(251,191,36,0.3)',
                   }}
                 >
-                  <Text style={{ color: '#fbbf24', fontWeight: '900', fontSize: 14 }}>🪙 {score.toLocaleString()}</Text>
+                  <Text style={{ color: '#fbbf24', fontWeight: '900', fontSize: 14 }}>ðŸª™ {score.toLocaleString()}</Text>
                 </View>
                 <View
                   style={{

@@ -145,7 +145,7 @@ export default function SplashScreen() {
         try {
           const userRef = doc(firestore, 'users', user.uid);
           const snap = await getDoc(userRef);
-          if (snap.exists && (snap.data()?.onboardingComplete || snap.data()?.username)) {
+          if (snap.exists() && (snap.data()?.onboardingComplete || snap.data()?.username)) {
             router.replace('/(tabs)');
           } else {
             router.replace('/(auth)/onboarding');

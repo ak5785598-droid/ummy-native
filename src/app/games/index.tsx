@@ -295,7 +295,7 @@ function GoldenChest({ visible, onClose }: { visible: boolean; onClose: () => vo
     if (!firestore || !user?.uid) return;
     const userRef = doc(firestore, 'users', user.uid);
     const snap = await getDoc(userRef);
-    if (snap.exists) {
+    if (snap.exists()) {
       const data = snap.data();
       const lastOpen = data.lastChestOpen?.toDate?.() || data.lastChestOpen;
       if (lastOpen) {

@@ -90,7 +90,6 @@ export function FirebaseProvider({ children, firebaseApp, firestore, auth, stora
       );
       return () => unsubscribe();
     } catch (e) {
-      console.warn("[Firebase Provider] Auth Listener Deferred:", e);
     }
   }, [mounted, auth]);
 
@@ -313,7 +312,6 @@ export function useCollection<T = any>(query: any, options?: { silent?: boolean 
         setError(null);
       },
       (err: any) => {
-        console.warn('[useCollection] Firestore error:', err?.message || err);
         if (!options?.silent) setError(err);
         setIsLoading(false);
       }

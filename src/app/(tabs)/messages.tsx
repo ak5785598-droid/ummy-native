@@ -438,13 +438,13 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
     if (!firestore || !user?.uid || !recipientUid) return;
     const myProfileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
     const unsub = onSnapshot(myProfileRef, (snap: any) => {
-      if (snap.exists) {
+      if (snap.exists()) {
         const data = snap.data();
         const blocked: string[] = data?.blockedUsers || [];
         setIsBlocked(blocked.includes(recipientUid));
         setShowLastSeen(data?.showLastSeen !== false);
       }
-    });
+    }, (error: any) => {});
     return () => unsub();
   }, [firestore, user?.uid, recipientUid]);
 
@@ -501,9 +501,7 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
         await uploadBytes(fileRef, blob, { cacheControl: 'public, max-age=2592000, immutable' });
         const downloadUrl = await getDownloadURL(fileRef);
         await handleSend(undefined, downloadUrl);
-      } catch (error) {
-        console.error('[Chat] Image upload error:', error);
-      }
+      } catch (error) {}
       setIsUploading(false);
     }
   };

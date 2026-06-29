@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { X, Send, Bot, Sparkles } from 'lucide-react-native';
 import { Image } from 'expo-image';
@@ -18,7 +18,7 @@ interface RoomEchoDialogProps {
   targetUser?: { uid: string; name: string; avatarUrl: string } | null;
 }
 
-// ⚠️ Live Vercel backend URL for AI Echo
+// âš ï¸ Live Vercel backend URL for AI Echo
 const BACKEND_API_URL = 'https://ummy-chat.vercel.app/api/ai/echo';
 
 export function RoomEchoDialog({ visible, onClose, targetUser }: RoomEchoDialogProps) {
@@ -36,7 +36,7 @@ export function RoomEchoDialog({ visible, onClose, targetUser }: RoomEchoDialogP
     setMessages([{
       id: 'welcome',
       sender: targetUser.name,
-      text: `Hello! I am the AI Echo proxy for ${targetUser.name}. Since I am currently offline, feel free to talk to my AI Echo or leave a gift! How can I help you today? 💖`,
+      text: `Hello! I am the AI Echo proxy for ${targetUser.name}. Since I am currently offline, feel free to talk to my AI Echo or leave a gift! How can I help you today? ðŸ’–`,
       timestamp: new Date(),
       isBot: true,
     }]);
@@ -52,15 +52,13 @@ export function RoomEchoDialog({ visible, onClose, targetUser }: RoomEchoDialogP
         .doc(targetUser.uid)
         .get()
         .then((docSnap: any) => {
-          if (docSnap.exists) {
+          if (docSnap.exists()) {
             setTargetFullProfile(docSnap.data());
           }
         })
         .catch((err: any) => {
-          console.warn('[AI Echo] Failed to load full profile from subcollection:', err);
         });
     } catch (e) {
-      console.warn('[AI Echo] Firebase firestore is not available:', e);
     }
   }, [visible, targetUser]);
 
@@ -121,13 +119,12 @@ export function RoomEchoDialog({ visible, onClose, targetUser }: RoomEchoDialogP
       }
     } catch (error) {
       setIsTyping(false);
-      console.error('[AI Echo] API Call failed:', error);
       
       // Offline fallback
       const botMsg: EchoMessage = {
         id: `bot-fallback-${Date.now()}`,
         sender: targetUser.name,
-        text: `Sorry, I'm having trouble connecting to my AI core right now. Feel free to leave a gift for me instead! 🎁`,
+        text: `Sorry, I'm having trouble connecting to my AI core right now. Feel free to leave a gift for me instead! ðŸŽ`,
         timestamp: new Date(),
         isBot: true,
       };

@@ -45,7 +45,7 @@ export function RoomSoundboard({ visible, onClose, roomId }: RoomSoundboardProps
         timestamp: Date.now(),
       });
       Vibration.vibrate(50);
-    } catch (e) { console.error('[Soundboard] Send error:', e); }
+    } catch (e) {}
     onClose();
   };
 

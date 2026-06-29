@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Alert, ScrollView } from 'react-native';
 import { Camera, ImageIcon, Loader } from 'lucide-react-native';
 import { useFirestore, useStorage } from '../../firebase/provider';
@@ -42,7 +42,6 @@ export function GameLoadingSyncTab() {
         setIsLoading(false);
       },
       (err: any) => {
-        console.warn('[GameLoadingSync] Error loading games:', err);
         setIsLoading(false);
       }
     );
@@ -89,7 +88,6 @@ export function GameLoadingSyncTab() {
 
       Alert.alert('Success', `${game.title} Loading Background synchronized!`);
     } catch (err: any) {
-      console.error(err);
       Alert.alert('Error', err.message || 'Failed to upload background.');
     } finally {
       setUploadingGameSlug(null);
@@ -116,7 +114,6 @@ export function GameLoadingSyncTab() {
               }, { merge: true });
               Alert.alert('Success', `Reset ${game.title} background.`);
             } catch (err: any) {
-              console.error(err);
               Alert.alert('Error', 'Failed to reset background.');
             } finally {
               setUploadingGameSlug(null);
@@ -138,7 +135,7 @@ export function GameLoadingSyncTab() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.header}>
-        <Text style={styles.title}>Game Loading Sync 🎮</Text>
+        <Text style={styles.title}>Game Loading Sync ðŸŽ®</Text>
         <Text style={styles.subtitle}>
           Upload custom backgrounds for specific game loading screens.
         </Text>

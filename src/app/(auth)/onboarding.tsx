@@ -75,7 +75,6 @@ export default function OnboardingScreen() {
 
       router.replace('/(tabs)');
     } catch (error: any) {
-      console.error("Save profile error: ", error);
       Alert.alert('Error', error?.message || 'Failed to save profile');
     } finally {
       setIsSubmitting(false);

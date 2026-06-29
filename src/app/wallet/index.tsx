@@ -57,7 +57,7 @@ export default function WalletScreen() {
         if (snap.exists()) {
           setConfig(snap.data());
         }
-      });
+      }, (error: any) => {});
     return () => unsub();
   }, []);
 

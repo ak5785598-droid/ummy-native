@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 
@@ -25,7 +25,6 @@ export function AppLedgerTab() {
         totalUsers: usersSnap.size
       });
     } catch (err: any) {
-      console.warn('[LedgerStats] Error:', err);
     } finally {
       setLoading(false);
       setSyncing(false);

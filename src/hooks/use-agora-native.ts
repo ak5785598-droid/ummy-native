@@ -30,7 +30,6 @@ async function requestMicPermission() {
       return perm.granted;
     }
   } catch (err) {
-    console.warn('[Agora Native] Permission request error:', err);
     return false;
   }
 }
@@ -164,7 +163,6 @@ export function useAgoraNative(
 
         setConnectionState('CONNECTING');
       } catch (e) {
-        console.error('[Agora Native] Init failed:', e);
       }
     };
 
@@ -240,7 +238,7 @@ export function useAgoraNative(
           active: true,
         });
       }
-    } catch (e) { console.error('[ScreenShare] Start error:', e); }
+    } catch (e) { }
   }, [roomId, uid, firestore]);
 
   const stopScreenShare = useCallback(async () => {
@@ -251,7 +249,7 @@ export function useAgoraNative(
       if (firestore && roomId) {
         await deleteDoc(doc(firestore, 'chatRooms', roomId, 'features', 'screenShare')).catch(() => {});
       }
-    } catch (e) { console.error('[ScreenShare] Stop error:', e); }
+    } catch (e) { }
   }, [roomId, firestore]);
 
   const getSpeakingIntensity = useCallback((targetUid: number): number => {

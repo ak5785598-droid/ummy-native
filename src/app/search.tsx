@@ -112,9 +112,7 @@ export default function SearchScreen() {
           });
         }
       }
-    } catch (e) {
-      console.error('[Search] Error:', e);
-    }
+    } catch (e) {}
 
     setResults(found);
     setIsSearching(false);

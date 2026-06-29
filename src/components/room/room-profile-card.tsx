@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity } from 'react-native';
 import { X, Heart, MessageCircle, Shield, Crown, Mic, MicOff, Gift, AtSign, UserX, Star, Zap, Sparkles, UserPlus } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,12 +9,12 @@ import { AvatarFrame } from '../profile/AvatarFrame';
 import { toCDN } from '../../lib/cdn';
 
 const COUNTRY_FLAGS: Record<string, string> = {
-  india: '🇮🇳', pakistan: '🇵🇰', bangladesh: '🇧🇩', nepal: '🇳🇵', sri_lanka: '🇱🇰',
-  usa: '🇺🇸', uk: '🇬🇧', canada: '🇨🇦', australia: '🇦🇺', germany: '🇩🇪',
-  france: '🇫🇷', japan: '🇯🇵', china: '🇨🇳', south_korea: '🇰🇷', brazil: '🇧🇷',
-  russia: '🇷🇺', turkey: '🇹🇷', egypt: '🇪🇬', nigeria: '🇳🇬', south_africa: '🇿🇦',
-  indonesia: '🇮🇩', philippines: '🇵🇭', thailand: '🇹🇭', vietnam: '🇻🇳', malaysia: '🇲🇾',
-  uae: '🇦🇪', saudi_arabia: '🇸🇦', iran: '🇮🇶', afghanistan: '🇦🇫', myanmar: '🇲🇲',
+  india: 'ðŸ‡®ðŸ‡³', pakistan: 'ðŸ‡µðŸ‡°', bangladesh: 'ðŸ‡§ðŸ‡©', nepal: 'ðŸ‡³ðŸ‡µ', sri_lanka: 'ðŸ‡±ðŸ‡°',
+  usa: 'ðŸ‡ºðŸ‡¸', uk: 'ðŸ‡¬ðŸ‡§', canada: 'ðŸ‡¨ðŸ‡¦', australia: 'ðŸ‡¦ðŸ‡º', germany: 'ðŸ‡©ðŸ‡ª',
+  france: 'ðŸ‡«ðŸ‡·', japan: 'ðŸ‡¯ðŸ‡µ', china: 'ðŸ‡¨ðŸ‡³', south_korea: 'ðŸ‡°ðŸ‡·', brazil: 'ðŸ‡§ðŸ‡·',
+  russia: 'ðŸ‡·ðŸ‡º', turkey: 'ðŸ‡¹ðŸ‡·', egypt: 'ðŸ‡ªðŸ‡¬', nigeria: 'ðŸ‡³ðŸ‡¬', south_africa: 'ðŸ‡¿ðŸ‡¦',
+  indonesia: 'ðŸ‡®ðŸ‡©', philippines: 'ðŸ‡µðŸ‡­', thailand: 'ðŸ‡¹ðŸ‡­', vietnam: 'ðŸ‡»ðŸ‡³', malaysia: 'ðŸ‡²ðŸ‡¾',
+  uae: 'ðŸ‡¦ðŸ‡ª', saudi_arabia: 'ðŸ‡¸ðŸ‡¦', iran: 'ðŸ‡®ðŸ‡¶', afghanistan: 'ðŸ‡¦ðŸ‡«', myanmar: 'ðŸ‡²ðŸ‡²',
 };
 
 const COUNTRY_NAMES: Record<string, string> = {
@@ -70,7 +70,7 @@ const SVIPBadge = ({ level }: { level: number }) => {
       try {
         const db = require('@react-native-firebase/firestore').default;
         const snap = await db().collection('settings').doc('svipConfig').get();
-        if (snap.exists) {
+        if (snap.exists()) {
           const data = snap.data();
           const url = data?.levels?.[String(level)]?.badgeUrl;
           if (url) setBadgeUrl(url);
@@ -100,10 +100,9 @@ export function RoomProfileCard({
         if (snap) {
           setFirestoreMedals(snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
         }
-      });
+      }, (error: any) => {});
       return () => unsub();
     } catch (e) {
-      console.warn('[Medals] Failed to subscribe to medalsList:', e);
     }
   }, []);
 
@@ -151,16 +150,16 @@ export function RoomProfileCard({
             <Text className="text-[#1E293B] text-2xl font-black">{user.name}</Text>
             {user.gender !== 'female' ? (
               <View className="bg-blue-100 w-5 h-5 rounded-full items-center justify-center">
-                <Text className="text-blue-600 text-xs font-bold">♂</Text>
+                <Text className="text-blue-600 text-xs font-bold">â™‚</Text>
               </View>
             ) : (
               <View className="bg-pink-100 w-5 h-5 rounded-full items-center justify-center">
-                <Text className="text-pink-600 text-xs font-bold">♀</Text>
+                <Text className="text-pink-600 text-xs font-bold">â™€</Text>
               </View>
             )}
             {profile?.country ? (
               <View className="bg-slate-100 px-2 py-0.5 rounded-full flex-row items-center gap-1">
-                <Text style={{ fontSize: 12 }}>{COUNTRY_FLAGS[profile.country] || '🌍'}</Text>
+                <Text style={{ fontSize: 12 }}>{COUNTRY_FLAGS[profile.country] || 'ðŸŒ'}</Text>
                 <Text className="text-slate-500 text-[10px] font-bold uppercase">{COUNTRY_NAMES[profile.country] || profile.country}</Text>
               </View>
             ) : null}
@@ -206,7 +205,7 @@ export function RoomProfileCard({
                     />
                   ) : (
                     <View className="w-9 h-9 rounded-full bg-slate-100 items-center justify-center border border-slate-200">
-                      <Text style={{ fontSize: 16 }}>🏅</Text>
+                      <Text style={{ fontSize: 16 }}>ðŸ…</Text>
                     </View>
                   )}
                 </View>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, Alert, TextInput, ScrollView } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import { Image } from 'expo-image';
@@ -17,7 +17,6 @@ export function BannersTab() {
         }
         setLoading(false);
       }, err => {
-        console.warn('[Banners] Load error:', err);
         setLoading(false);
       });
     return () => unsub();

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Alert, ScrollView, TextInput } from 'react-native';
 import { Users, Search, Upload, Trash2, ImageIcon } from 'lucide-react-native';
 import { useFirestore, useStorage } from '../../firebase/provider';
@@ -29,7 +29,6 @@ export function FamilyManagementTab() {
         setIsLoading(false);
       },
       (err: any) => {
-        console.warn('[FamilyManagement] Firestore snapshot error:', err);
         setIsLoading(false);
       }
     );
@@ -129,7 +128,7 @@ export function FamilyManagementTab() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Family Management 🏡</Text>
+        <Text style={styles.title}>Family Management ðŸ¡</Text>
         <Text style={styles.subtitle}>
           Search and manage all user families. Upload or replace custom image or video cover banners for families.
         </Text>
@@ -174,7 +173,7 @@ export function FamilyManagementTab() {
                   <View style={styles.cardMeta}>
                     <Text style={styles.familyName}>{family.name}</Text>
                     <Text style={styles.familyStats}>
-                      Founder: {family.ownerName || 'Unknown'} • Members: {family.memberCount || 0}
+                      Founder: {family.ownerName || 'Unknown'} â€¢ Members: {family.memberCount || 0}
                     </Text>
                   </View>
                 </View>

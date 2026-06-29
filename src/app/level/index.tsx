@@ -55,8 +55,7 @@ export default function LevelScreen() {
     const unsub = onSnapshot(q, (snap: any) => {
       setLevels(snap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
       setIsLoading(false);
-    }, (err: any) => {
-      console.warn('[Level] fetch error:', err);
+    }, () => {
       setIsLoading(false);
     });
     return () => unsub();

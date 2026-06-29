@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, ScrollView, StyleSheet } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import { useStorage } from '../../firebase/provider';
@@ -39,7 +39,6 @@ export function BoutiqueHubTab() {
         }
         setLoading(false);
       }, err => {
-        console.warn(err);
         setLoading(false);
       });
 
@@ -52,7 +51,7 @@ export function BoutiqueHubTab() {
           const d = snap.data();
           setNotForSaleMap(d?.storeNotForSale || {});
         }
-      });
+      }, (error: any) => {});
 
     return () => {
       unsubItems();
@@ -355,7 +354,7 @@ export function BoutiqueHubTab() {
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 13, fontWeight: '800', color: '#1e293b' }}>{item.name}</Text>
                     <Text style={{ fontSize: 10, color: '#94a3b8', fontWeight: '700', marginTop: 2 }}>
-                      {item.category} • 🪙 {item.price} • {item.duration} Days
+                      {item.category} â€¢ ðŸª™ {item.price} â€¢ {item.duration} Days
                     </Text>
                   </View>
                 </View>

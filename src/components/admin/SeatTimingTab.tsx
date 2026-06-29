@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
 import { Search, Clock, CalendarDays, History } from 'lucide-react-native';
 import firestore from '@react-native-firebase/firestore';
@@ -56,7 +56,6 @@ export function SeatTimingTab() {
         setError('User not found. Please check the ID or Username.');
       }
     } catch (err: any) {
-      console.error('Error searching user:', err);
       setError('An error occurred while searching.');
     } finally {
       setIsLoading(false);
@@ -81,7 +80,7 @@ export function SeatTimingTab() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
-        <Text style={styles.title}>Seat Timing Tracker ⏱️</Text>
+        <Text style={styles.title}>Seat Timing Tracker â±ï¸</Text>
         <Text style={styles.subtitle}>Search for a user to see how much time they have spent on room seats.</Text>
       </View>
 

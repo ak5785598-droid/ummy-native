@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Alert, ScrollView, TextInput } from 'react-native';
 import { Pin, Loader } from 'lucide-react-native';
 import { useFirestore } from '../../firebase/provider';
@@ -30,7 +30,6 @@ export function PinControlTab() {
         Alert.alert('Not Found', 'Room frequency not found.');
       }
     } catch (err: any) {
-      console.error(err);
       Alert.alert('Error', 'An error occurred while searching.');
     } finally {
       setIsSearching(false);
@@ -52,7 +51,6 @@ export function PinControlTab() {
       setTargetRoom((prev: any) => ({ ...prev, isPinned: nextPinState }));
       Alert.alert('Success', `Room has been ${nextPinState ? 'pinned to top' : 'unpinned'}.`);
     } catch (err: any) {
-      console.error(err);
       Alert.alert('Error', 'Failed to change pin state.');
     } finally {
       setIsPinning(false);
@@ -62,7 +60,7 @@ export function PinControlTab() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
-        <Text style={styles.title}>Pin Control 📌</Text>
+        <Text style={styles.title}>Pin Control ðŸ“Œ</Text>
         <Text style={styles.subtitle}>
           Search for a chat room by its Room ID and pin/unpin it globally at the top of discover boards.
         </Text>

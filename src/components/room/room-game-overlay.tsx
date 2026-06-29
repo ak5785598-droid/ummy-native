@@ -242,7 +242,7 @@ export function RoomGameOverlay({ visible, gameId, onClose, roomId, isAdmin }: R
           .map((w, i) => ({ ...w, rank: i + 1 }));
 
         setRoundPopup(prev => prev ? { ...prev, winners: sorted } : null);
-      } catch (e) { console.warn('Round popup winners fetch failed', e); }
+      } catch (e) {}
     }, 5000);
   }, [firestore, gameId]);
 
@@ -260,7 +260,7 @@ export function RoomGameOverlay({ visible, gameId, onClose, roomId, isAdmin }: R
       const filtered = all.filter(w => w.gameId === gameId);
       setWinnerListData(filtered);
       setShowWinnerList(true);
-    } catch (e) { console.warn('Winner list fetch failed', e); }
+    } catch (e) {}
   }, [firestore, gameId]);
 
   const isTall = gameId !== null && TALL_GAMES.includes(gameId);

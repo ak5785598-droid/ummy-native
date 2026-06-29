@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, TextInput, ActivityIndicator, Alert, StyleSheet, ScrollView } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import { useUser } from '../../firebase/provider';
@@ -53,7 +53,6 @@ export const SellerTransferDialog = ({ trigger }: any) => {
           setFoundRecipient(null);
         }
       } catch (err) {
-        console.warn('[Seller Transfer] Lookup failed:', err);
       } finally {
         setIsSearching(false);
       }
@@ -187,7 +186,7 @@ export const SellerTransferDialog = ({ trigger }: any) => {
                   style={styles.input}
                 />
                 <Text style={styles.balanceText}>
-                  Your balance: 🪙 {userProfile?.wallet?.coins?.toLocaleString() || 0}
+                  Your balance: ðŸª™ {userProfile?.wallet?.coins?.toLocaleString() || 0}
                 </Text>
               </View>
 

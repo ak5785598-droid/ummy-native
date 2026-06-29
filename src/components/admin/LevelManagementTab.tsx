@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import { Image } from 'expo-image';
@@ -22,7 +22,6 @@ export function LevelManagementTab() {
         }
         setLoading(false);
       }, err => {
-        console.warn('[Levels] Load error:', err);
         setLoading(false);
       });
     return () => unsub();

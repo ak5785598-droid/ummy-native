@@ -59,6 +59,9 @@ export function CarromGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, 
     const isHost = gameState.players[0]?.uid === currentUser?.uid;
     if (!isHost) return;
 
+    let innerTimer1: ReturnType<typeof setTimeout>;
+    let innerTimer2: ReturnType<typeof setTimeout>;
+
     const timer = setTimeout(async () => {
       const randomPos = Math.floor(Math.random() * 40) + 30; // 30-70
       const randomAngle = Math.floor(Math.random() * 40) - 20; // -20 to 20
@@ -66,17 +69,21 @@ export function CarromGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, 
 
       await updateStriker(randomPos);
       
-      setTimeout(async () => {
+      innerTimer1 = setTimeout(async () => {
         setIsStriking(true);
         await strike(randomAngle, randomPower / 10);
-        setTimeout(() => {
+        innerTimer2 = setTimeout(() => {
           setIsStriking(false);
           setPower(0);
         }, 2000);
       }, 1000);
     }, 1500);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (innerTimer1) clearTimeout(innerTimer1);
+      if (innerTimer2) clearTimeout(innerTimer2);
+    };
   }, [gameState?.turn, gameState?.status, strike, updateStriker, currentUser?.uid]);
 
   // Lobby countdown timer when players >= 2

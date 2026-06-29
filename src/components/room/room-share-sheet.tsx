@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, Linking } from 'react-native';
 import { X, Copy, Share2, Check } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -28,7 +28,6 @@ export function RoomShareSheet({ visible, onClose, room }: RoomShareSheetProps) 
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (e) {
-      console.error('[Share] Copy error:', e);
     }
   };
 
@@ -46,7 +45,6 @@ export function RoomShareSheet({ visible, onClose, room }: RoomShareSheetProps) 
         }
       })
       .catch((err) => {
-        console.error('[Share] WhatsApp open error:', err);
         Linking.openURL(webUrl);
       });
   };
@@ -104,7 +102,7 @@ export function RoomShareSheet({ visible, onClose, room }: RoomShareSheetProps) 
               onPress={handleShareToWhatsApp}
               className="h-11 rounded-2xl bg-[#25D366] items-center justify-center flex-row shadow-sm shadow-green-500/20 active:scale-95 transition-all"
             >
-              <Text className="text-white font-extrabold text-xs uppercase tracking-wider">📲 Share to WhatsApp</Text>
+              <Text className="text-white font-extrabold text-xs uppercase tracking-wider">ðŸ“² Share to WhatsApp</Text>
             </TouchableOpacity>
 
             <View className="flex-row gap-2">

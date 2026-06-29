@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Alert, ScrollView, TextInput } from 'react-native';
 import { Heart, Trash2, Palette, Save, Users } from 'lucide-react-native';
 import { useFirestore, useStorage } from '../../firebase/provider';
@@ -32,7 +32,7 @@ export function CpManagementTab() {
       try {
         const docRef = doc(firestore, 'appConfig', 'global');
         const snap = await getDoc(docRef);
-        if (snap.exists) {
+        if (snap.exists()) {
           const data = snap.data();
           setConfig({
             cpBgType: data.cpBgType || 'dynamic',
@@ -44,7 +44,6 @@ export function CpManagementTab() {
           });
         }
       } catch (err) {
-        console.error("Error loading CP/Friend Config:", err);
       } finally {
         setIsLoading(false);
       }
@@ -116,7 +115,6 @@ export function CpManagementTab() {
       });
       Alert.alert('Success', 'CP & Friend House Background settings saved!');
     } catch (err: any) {
-      console.error(err);
       Alert.alert('Save Failed', err.message || 'Failed to update configurations.');
     } finally {
       setIsSaving(false);
@@ -134,7 +132,7 @@ export function CpManagementTab() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.header}>
-        <Text style={styles.title}>CP / Friend Room Settings 💖</Text>
+        <Text style={styles.title}>CP / Friend Room Settings ðŸ’–</Text>
         <Text style={styles.subtitle}>
           Configure backgrounds, upload custom background images or video loops, and set fallback gradient colors for both the CP and Friend sub-tabs inside CP House.
         </Text>

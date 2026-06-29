@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef, useMemo } from 'react';
+﻿import React, { useEffect, useCallback, useRef, useMemo } from 'react';
 import { useFirestore, useUser, useDatabase } from '../../firebase/provider';
 import { doc, collection, addDoc, serverTimestamp, getDoc } from '@/firebase/firestore-compat';
 import { ref as databaseRef, set as databaseSet, push as databasePush } from 'firebase/database';
@@ -28,7 +28,7 @@ export function RoomAISystems({
   const { user } = useUser();
   const database = useDatabase();
 
-  // Use refs — not state — to avoid re-triggering effects
+  // Use refs â€” not state â€” to avoid re-triggering effects
   const lastProcessedMsgId = useRef<string | null>(null);
   const lastWelcomedMsgId = useRef<string | null>(null);
   const lastBotReplyTime = useRef<number>(0);
@@ -78,7 +78,7 @@ export function RoomAISystems({
       // Check kick immunity
       try {
         const snap = await (await import('@react-native-firebase/firestore')).default().collection('users').doc(p.uid).get();
-        if (snap.exists && snap.data()?.avoidBeingKicked) return;
+        if (snap.exists() && snap.data()?.avoidBeingKicked) return;
       } catch (e) {}
       const pref = doc(firestore, 'chatRooms', roomId, 'participants', p.uid);
       await (await import('../../lib/non-blocking-writes')).setDocumentNonBlocking(pref, { seatIndex: 0 }, { merge: true });
@@ -94,8 +94,8 @@ export function RoomAISystems({
     }
   }, [firestore, roomId, participants]);
 
-  // ── AI WELCOME ──────────────────────────────────────────────────
-  // Joiner's own device sends welcome — same as web logic
+  // â”€â”€ AI WELCOME â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Joiner's own device sends welcome â€” same as web logic
   useEffect(() => {
     if (!messages?.length || !user?.uid) return;
     const lastMsg = messages[messages.length - 1];
@@ -108,14 +108,14 @@ export function RoomAISystems({
 
     const t = setTimeout(() => {
       addBotMessage(
-        `नमस्ते ${lastMsg.senderName} जी! 🙏 उम्मी चैट पर आपका तहे-दिल से स्वागत है। आपके आने से रूम की रौनक बढ़ गई है। मैं उम्मी एआई हूँ, मैं आपकी क्या सहायता कर सकती हूँ? ✨😊`
+        `à¤¨à¤®à¤¸à¥à¤¤à¥‡ ${lastMsg.senderName} à¤œà¥€! ðŸ™ à¤‰à¤®à¥à¤®à¥€ à¤šà¥ˆà¤Ÿ à¤ªà¤° à¤†à¤ªà¤•à¤¾ à¤¤à¤¹à¥‡-à¤¦à¤¿à¤² à¤¸à¥‡ à¤¸à¥à¤µà¤¾à¤—à¤¤ à¤¹à¥ˆà¥¤ à¤†à¤ªà¤•à¥‡ à¤†à¤¨à¥‡ à¤¸à¥‡ à¤°à¥‚à¤® à¤•à¥€ à¤°à¥Œà¤¨à¤• à¤¬à¤¢à¤¼ à¤—à¤ˆ à¤¹à¥ˆà¥¤ à¤®à¥ˆà¤‚ à¤‰à¤®à¥à¤®à¥€ à¤à¤†à¤ˆ à¤¹à¥‚à¤, à¤®à¥ˆà¤‚ à¤†à¤ªà¤•à¥€ à¤•à¥à¤¯à¤¾ à¤¸à¤¹à¤¾à¤¯à¤¤à¤¾ à¤•à¤° à¤¸à¤•à¤¤à¥€ à¤¹à¥‚à¤? âœ¨ðŸ˜Š`
       );
     }, 2000);
 
     return () => clearTimeout(t);
-  }, [messages, user?.uid]); // NO lastWelcomedMsg in deps — ref handles dedup
+  }, [messages, user?.uid]); // NO lastWelcomedMsg in deps â€” ref handles dedup
 
-  // ── AI CHAT REPLY + MODERATION ──────────────────────────────────
+  // â”€â”€ AI CHAT REPLY + MODERATION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Only elected leader (isAIProcessor) responds to ALL chat messages
   useEffect(() => {
     if (!messages?.length || !user?.uid || !isAIProcessor) return;
@@ -134,16 +134,16 @@ export function RoomAISystems({
       const profanityList = ['fuck', 'shit', 'ass', 'bitch', 'damn', 'bastard', 'whore', 'slut', 'dick', 'pussy'];
       if (profanityList.some(w => content.includes(w))) {
         (async () => {
-          await addBotMessage(`⚠️ @${lastMsg.senderName}, please keep the chat respectful!`);
+          await addBotMessage(`âš ï¸ @${lastMsg.senderName}, please keep the chat respectful!`);
           const pRef = doc(firestore, 'chatRooms', roomId, 'participants', lastMsg.senderId);
           const snap = await getDoc(pRef);
-          if (snap.exists) {
+          if (snap.exists()) {
             const data = snap.data();
             const strikes = (data.strikes || 0) + 1;
             await (await import('../../lib/non-blocking-writes')).setDocumentNonBlocking(pRef, { strikes }, { merge: true });
             if (strikes >= 3) {
               await kickUser(lastMsg.senderName);
-              await addBotMessage(`🚫 @${lastMsg.senderName} has been kicked for repeated violations.`);
+              await addBotMessage(`ðŸš« @${lastMsg.senderName} has been kicked for repeated violations.`);
             }
           }
         })();
@@ -163,7 +163,7 @@ export function RoomAISystems({
     const now = Date.now();
     if (now - lastBotReplyTime.current < BOT_COOLDOWN) return;
 
-    const triggerWords = ['ai', 'ummy', 'ummi', 'hello', 'hi', 'hlo', 'umm', 'आई', 'एआई', 'उम्मी'];
+    const triggerWords = ['ai', 'ummy', 'ummi', 'hello', 'hi', 'hlo', 'umm', 'à¤†à¤ˆ', 'à¤à¤†à¤ˆ', 'à¤‰à¤®à¥à¤®à¥€'];
     const isTriggered =
       triggerWords.some(t => {
         const pattern = new RegExp(`(^|\\s)${t}($|\\s|[.,!?])`, 'i');
@@ -187,11 +187,10 @@ export function RoomAISystems({
             if (data.response) await addBotMessage(data.response);
           }
         } catch (err) {
-          console.error('AI fetch error:', err);
         }
       })();
     }
-  }, [messages, isAIProcessor, canManageRoom, user?.uid]); // NO lastProcessedMsgId — ref handles dedup
+  }, [messages, isAIProcessor, canManageRoom, user?.uid]); // NO lastProcessedMsgId â€” ref handles dedup
 
   return null;
 }

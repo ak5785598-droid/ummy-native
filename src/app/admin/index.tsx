@@ -112,8 +112,7 @@ export default function AdminScreen() {
         } else {
           setIsAdmin(false);
         }
-      }, err => {
-        console.warn('[Admin] Check error:', err);
+      }, () => {
         setIsAdmin(false);
       });
 

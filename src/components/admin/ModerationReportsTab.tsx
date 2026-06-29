@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 
@@ -17,7 +17,6 @@ export function ModerationReportsTab() {
         }
         setLoading(false);
       }, err => {
-        console.warn('[Reports] Error:', err);
         setLoading(false);
       });
     return () => unsub();

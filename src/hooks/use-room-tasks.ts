@@ -93,7 +93,7 @@ export function useRoomTasks(roomId: string, participants: RoomParticipant[], ro
       setTaskProgress(fullProgress);
       setAchievedTasks(achieved);
       setClaimedTasks(claimed);
-    });
+    }, (error: any) => {});
     return () => unsub();
   }, [firestore, user?.uid, resetTrigger]);
 

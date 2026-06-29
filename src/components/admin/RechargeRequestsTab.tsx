@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 
@@ -16,7 +16,6 @@ export function RechargeRequestsTab() {
         }
         setLoading(false);
       }, err => {
-        console.warn('[RechargeRequests] Error:', err);
         setLoading(false);
       });
     return () => unsub();
@@ -77,7 +76,7 @@ export function RechargeRequestsTab() {
             <View style={{ padding: 16, backgroundColor: '#f8fafc', borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: '#e2e8f0' }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text style={{ fontSize: 10, fontWeight: '800', color: '#64748b' }}>{dateStr}</Text>
-                <Text style={{ fontSize: 16, fontWeight: '900', color: '#1e293b' }}>₹{item.amount || 0}</Text>
+                <Text style={{ fontSize: 16, fontWeight: '900', color: '#1e293b' }}>â‚¹{item.amount || 0}</Text>
               </View>
               <Text style={{ fontSize: 13, fontWeight: '800', color: '#334155', marginTop: 4 }}>
                 User: {item.username || 'Unknown'} (ID: {item.accountNumber || 'N/A'})

@@ -109,7 +109,6 @@ export default function CreateFamilyPage() {
         { text: 'OK', onPress: () => router.push(`/families/${familyId}`) }
       ]);
     } catch (err) {
-      console.error('Family creation failed:', err);
       Alert.alert('Creation Failed', 'Something went wrong. Please try again.');
     } finally {
       setIsSubmitting(false);

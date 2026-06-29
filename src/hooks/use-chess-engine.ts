@@ -98,7 +98,6 @@ export function useChessEngine(roomId: string | null, userId: string | null) {
         updatedAt: Date.now(),
       });
     } catch (err) {
-      console.error('Failed to start chess match:', err);
     }
   }, [database, gamePath, gameState, userId]);
 

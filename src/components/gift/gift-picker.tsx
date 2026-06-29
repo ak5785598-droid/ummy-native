@@ -180,25 +180,19 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
   };
 
   const executeSend = async (gift: Gift, qty: number, uids: string[], comboMultiplier: number) => {
-    console.log('[GiftPicker] executeSend called:', { giftName: gift.name, qty, uids, comboMultiplier });
     if (!firestore || !user?.uid || !userProfile) {
-      console.log('[GiftPicker] executeSend aborted: missing firestore/user/userProfile');
       return null;
     }
 
     const validUids = (uids || []).filter(uid => typeof uid === 'string' && uid.trim() !== '');
-    console.log('[GiftPicker] validUids:', validUids, 'total input:', uids?.length);
     if (validUids.length === 0) {
-      console.log('[GiftPicker] executeSend aborted: no valid UIDs');
       return null;
     }
 
     const totalCost = gift.price * qty * validUids.length;
     const userCoins = userProfile.wallet?.coins || 0;
     
-    console.log('[GiftPicker] cost check:', { totalCost, userCoins, price: gift.price, qty, recipients: validUids.length });
     if (userCoins < totalCost) {
-      console.log('[GiftPicker] executeSend aborted: insufficient coins');
       return null;
     }
 
@@ -319,7 +313,7 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
             }
           }
         }
-      } catch (err) { console.warn("Failed to update Gift Battle scores in native:", err); }
+      } catch (err) { }
 
       // CP Level: increment cpValue when gifting CP partner
       try {
@@ -339,7 +333,7 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
             updatedAt: serverTimestamp(),
           }, { merge: true });
         }
-      } catch (err) { console.warn("Failed to update CP level:", err); }
+      } catch (err) { }
 
       const firstRecipient = participants.find(p => p.uid === validUids[0]);
       const messagesRef = collection(firestore, 'chatRooms', roomId, 'messages');
@@ -366,7 +360,6 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
       });
 
       await batch.commit();
-      console.log('[GiftPicker] batch.commit() SUCCESS — gift sent to:', validUids);
 
       // Track supporter points: 5 coins = 1 point for each recipient
       try {
@@ -413,7 +406,7 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
             }, { merge: true });
           }
         }
-      } catch (err) { console.warn('[GiftPicker] Supporter points error:', err); }
+      } catch (err) { }
 
       Vibration.vibrate(100);
 
@@ -438,7 +431,6 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
       
       return { totalCost, winAmount, selectedMult, isLuckyGift };
     } catch (error: any) {
-      console.error('[GiftPicker] Send error:', error?.message || error);
       throw error;
     }
   };
@@ -481,7 +473,6 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
         }
       }
     } catch (err: any) {
-      console.error('[GiftPicker] handleSend error:', err?.message || err);
       Alert.alert('Gift Failed', err?.message || 'An unexpected error occurred.');
     }
     

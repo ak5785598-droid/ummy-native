@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+﻿import { useEffect, useRef } from 'react';
 import { useUser, useFirestore } from '../firebase/provider';
 import { doc, getDoc, setDoc, serverTimestamp, writeBatch, runTransaction } from '@/firebase/firestore-compat';
 
@@ -19,7 +19,7 @@ export function ProfileInitializer() {
         const profileRef = doc(firestore, 'users', uid, 'profile', uid);
         const [userSnap, profileSnap] = await Promise.all([getDoc(userRef), getDoc(profileRef)]);
 
-        if (!userSnap.exists) {
+        if (!userSnap.exists()) {
           hasInitialized.current = uid;
           return;
         }
@@ -41,7 +41,7 @@ export function ProfileInitializer() {
         const today = now.toDateString();
 
         const rootWallet = userData.wallet || {};
-        const profileData = profileSnap.exists ? profileSnap.data() : null;
+        const profileData = profileSnap.exists() ? profileSnap.data() : null;
         const profileWallet = profileData?.wallet || {};
 
         if (today !== lastDate) {
@@ -104,20 +104,20 @@ export function ProfileInitializer() {
         const isLocked = userData.accountNumberLocked === true;
 
         if (isLocked && hasValidID) {
-          // ID is locked and valid — never regenerate
+          // ID is locked and valid â€” never regenerate
         } else if (!isLocked && uid !== CREATOR_ID && hasValidID) {
-          // Has valid ID but not locked — lock it now
+          // Has valid ID but not locked â€” lock it now
           await setDoc(userRef, { accountNumberLocked: true }, { merge: true });
           await setDoc(profileRef, { accountNumberLocked: true }, { merge: true });
         } else if (!isLocked || !hasValidID) {
-          // No valid ID — generate one
+          // No valid ID â€” generate one
           await runTransaction(firestore, async (tx: any) => {
             let newId = '';
             if (uid === CREATOR_ID) {
               newId = '0000';
               const creatorRef = doc(firestore, 'assigned_ids', newId);
               const docSnap = await tx.get(creatorRef);
-              if (!docSnap.exists) {
+              if (!docSnap.exists()) {
                 tx.set(creatorRef, { uid, assignedAt: serverTimestamp() });
               }
             } else {
@@ -125,7 +125,7 @@ export function ProfileInitializer() {
                 const tempId = String(Math.floor(100000 + Math.random() * 900000));
                 const idRef = doc(firestore, 'assigned_ids', tempId);
                 const idDoc = await tx.get(idRef);
-                if (!idDoc.exists) {
+                if (!idDoc.exists()) {
                   tx.set(idRef, { uid, assignedAt: serverTimestamp() });
                   newId = tempId;
                   break;
@@ -141,12 +141,10 @@ export function ProfileInitializer() {
             tx.set(userRef, { accountNumber: newId, accountNumberLocked: true, updatedAt: serverTimestamp() }, { merge: true });
             tx.set(profileRef, { accountNumber: newId, accountNumberLocked: true, updatedAt: serverTimestamp() }, { merge: true });
           });
-          console.log(`[ProfileInitializer] Account number synced: ${uid}`);
         }
 
         hasInitialized.current = uid;
       } catch (e) {
-        console.warn('[ProfileInitializer] Error:', e);
         hasInitialized.current = uid;
       }
     };

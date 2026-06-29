@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Dimensions, ScrollView, Animated, Easing, Image } from 'react-native';
 import { HelpCircle, Volume2, VolumeX, BarChart3, ChevronDown, X, RotateCcw, Plus } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
@@ -20,14 +20,14 @@ interface FruitPartyGameProps {
 }
 
 const FRUITS = [
-  { id: 'pineapple', emoji: '🍍', image: require('../../../assets/images/games/pineapple.png'), multiplier: 5,  label: 'win 5 times',  color: '#06b6d4', bg: '#083344' },
-  { id: 'cherry',    emoji: '🍒', image: require('../../../assets/images/games/cherry.png'),    multiplier: 5,  label: 'win 5 times',  color: '#06b6d4', bg: '#083344' },
-  { id: 'banana',    emoji: '🍌', image: require('../../../assets/images/games/banana.png'),    multiplier: 5,  label: 'win 5 times',  color: '#06b6d4', bg: '#083344' },
-  { id: 'watermelon',emoji: '🍉', image: require('../../../assets/images/games/watermelon.png'),multiplier: 5,  label: 'win 5 times',  color: '#06b6d4', bg: '#083344' },
-  { id: 'skewers',   emoji: '🍢', image: require('../../../assets/images/games/skewers.png'),   multiplier: 10, label: 'win 10 times', color: '#06b6d4', bg: '#083344' },
-  { id: 'burrito',   emoji: '🌯', image: require('../../../assets/images/games/burrito.png'),   multiplier: 15, label: 'win 15 times', color: '#06b6d4', bg: '#083344' },
-  { id: 'pizza',     emoji: '🍕', image: require('../../../assets/images/games/pizza.png'),     multiplier: 25, label: 'win 25 times', color: '#06b6d4', bg: '#083344' },
-  { id: 'chicken',   emoji: '🍗', image: require('../../../assets/images/games/chicken.png'),   multiplier: 45, label: 'win 45 times', color: '#06b6d4', bg: '#083344' },
+  { id: 'pineapple', emoji: 'ðŸ', image: require('../../../assets/images/games/pineapple.png'), multiplier: 5,  label: 'win 5 times',  color: '#06b6d4', bg: '#083344' },
+  { id: 'cherry',    emoji: 'ðŸ’', image: require('../../../assets/images/games/cherry.png'),    multiplier: 5,  label: 'win 5 times',  color: '#06b6d4', bg: '#083344' },
+  { id: 'banana',    emoji: 'ðŸŒ', image: require('../../../assets/images/games/banana.png'),    multiplier: 5,  label: 'win 5 times',  color: '#06b6d4', bg: '#083344' },
+  { id: 'watermelon',emoji: 'ðŸ‰', image: require('../../../assets/images/games/watermelon.png'),multiplier: 5,  label: 'win 5 times',  color: '#06b6d4', bg: '#083344' },
+  { id: 'skewers',   emoji: 'ðŸ¢', image: require('../../../assets/images/games/skewers.png'),   multiplier: 10, label: 'win 10 times', color: '#06b6d4', bg: '#083344' },
+  { id: 'burrito',   emoji: 'ðŸŒ¯', image: require('../../../assets/images/games/burrito.png'),   multiplier: 15, label: 'win 15 times', color: '#06b6d4', bg: '#083344' },
+  { id: 'pizza',     emoji: 'ðŸ•', image: require('../../../assets/images/games/pizza.png'),     multiplier: 25, label: 'win 25 times', color: '#06b6d4', bg: '#083344' },
+  { id: 'chicken',   emoji: 'ðŸ—', image: require('../../../assets/images/games/chicken.png'),   multiplier: 45, label: 'win 45 times', color: '#06b6d4', bg: '#083344' },
 ];
 
 const CHIPS = [100, 500, 1000, 5000, 10000, 50000, 100000];
@@ -96,7 +96,6 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
       );
       soundRef.current = sound;
     } catch (e) {
-      console.warn('Sound play failed', e);
     }
   };
 
@@ -290,7 +289,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
       if (groupType === 'left') {
         onRoundEnd({
           resultText: 'Non-veg Mix!',
-          resultEmoji: '🍢🌯🍕🍗',
+          resultEmoji: 'ðŸ¢ðŸŒ¯ðŸ•ðŸ—',
           resultImage: require('../../../assets/images/games/nonveg_mix.png'),
           myPrize: winAmount,
           myWager: totalWagerForGroup
@@ -298,15 +297,15 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
       } else if (groupType === 'right') {
         onRoundEnd({
           resultText: 'Fruit Mix!',
-          resultEmoji: '🍍🍒🍌🍉',
+          resultEmoji: 'ðŸðŸ’ðŸŒðŸ‰',
           resultImage: require('../../../assets/images/games/fruit_mix.png'),
           myPrize: winAmount,
           myWager: totalWagerForGroup
         });
       } else {
         onRoundEnd({
-          resultText: `${winItem?.emoji || '🏆'} ${winItem?.id?.toUpperCase() || 'WIN'} x${winItem?.multiplier || 0}!`,
-          resultEmoji: winItem?.emoji || '🏆',
+          resultText: `${winItem?.emoji || 'ðŸ†'} ${winItem?.id?.toUpperCase() || 'WIN'} x${winItem?.multiplier || 0}!`,
+          resultEmoji: winItem?.emoji || 'ðŸ†',
           resultImage: winItem?.image,
           myPrize: winAmount,
           myWager: totalWagerForGroup
@@ -611,7 +610,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
                 fontSize: 26, fontWeight: '900', color: '#f1c40f',
                 transform: [{ rotate: spinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }],
               }}>
-                🎡
+                ðŸŽ¡
               </Animated.Text>
               <Text style={{ color: '#00e5ff', fontSize: 6, fontWeight: '900', textTransform: 'uppercase', marginTop: 4, letterSpacing: 1 }}>
                 Spinning...
@@ -622,7 +621,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
               {winnerData ? (
                 <>
                   <Text style={{ fontSize: 24 }}>
-                    {FRUITS.find(f => f.id === winnerData.id)?.emoji || '🏆'}
+                    {FRUITS.find(f => f.id === winnerData.id)?.emoji || 'ðŸ†'}
                   </Text>
                   <Text style={{ color: '#00ffcc', fontSize: 8, fontWeight: '900', textTransform: 'uppercase', marginTop: 2 }}>
                     Win!
@@ -673,7 +672,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
               elevation: 4,
             }}
           >
-            <Text style={{ fontSize: 13, textShadowColor: 'rgba(0,0,0,0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1 }}>🪙</Text>
+            <Text style={{ fontSize: 13, textShadowColor: 'rgba(0,0,0,0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1 }}>ðŸª™</Text>
             <Text style={{
               color: 'white',
               fontSize: 14,
@@ -766,7 +765,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
                   justifyContent: 'center',
                 }}
               >
-                <Text style={{ fontSize: 10, marginBottom: -1 }}>🪙</Text>
+                <Text style={{ fontSize: 10, marginBottom: -1 }}>ðŸª™</Text>
                 <Text style={{
                   color: selectedChip === value ? '#4C1D95' : 'white',
                   fontSize: 9,
@@ -792,7 +791,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
         borderTopColor: '#f1c40f',
       }}>
         <View style={{ marginRight: 10, alignItems: 'center' }}>
-          <Text style={{ fontSize: 13, marginBottom: 1 }}>🏆</Text>
+          <Text style={{ fontSize: 13, marginBottom: 1 }}>ðŸ†</Text>
           <Text style={{
             color: '#FFD700',
             fontSize: 9,
@@ -859,7 +858,7 @@ function LaunchingScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: '#311082', alignItems: 'center', justifyContent: 'center' }}>
       <Animated.Text style={{ fontSize: 72, marginBottom: 20, opacity: pulseAnim, transform: [{ rotate: rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] }}>
-        🎡
+        ðŸŽ¡
       </Animated.Text>
       <Text style={{ color: '#FFD700', fontSize: 28, fontWeight: '900', textTransform: 'uppercase', letterSpacing: -1, marginBottom: 12, textShadowColor: 'rgba(255,215,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 }}>
         Fruit Party

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, Switch, TextInput, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronLeft, Music, Play, Upload, Search, Trash2, Power } from 'lucide-react-native';
@@ -172,7 +172,6 @@ export function RoomPlaySheet({ visible, onClose, roomId, room, participants, on
       Alert.alert('Broadcasting Track', `${track.name || 'Song'} is now playing for everyone.`);
       onClose();
     } catch (e) {
-      console.error(e);
     }
   };
 

@@ -62,7 +62,7 @@ export function useMusicSync({ room, canManageRoom, userId, isSpeakerMuted, keep
         ...doc.data()
       })) as MusicTrack[];
       setRoomMusicLibrary(tracks);
-    });
+    }, (error: any) => {});
     return () => unsubscribe();
   }, [firestore, room?.id]);
 
@@ -215,7 +215,6 @@ export function useMusicSync({ room, canManageRoom, userId, isSpeakerMuted, keep
           }
         }
       } catch (error) {
-        console.error('[MusicSync] Setup error:', error);
       }
     };
 

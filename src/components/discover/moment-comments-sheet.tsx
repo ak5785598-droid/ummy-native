@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+﻿import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, Heart, Send, ArrowLeft } from 'lucide-react-native';
@@ -75,7 +75,6 @@ export function MomentCommentsSheet({ momentId, visible, onClose }: MomentCommen
       setText('');
       setReplyTo(null);
     } catch (e) {
-      console.error('[Comments] Send error:', e);
     }
     setSending(false);
   };
@@ -91,7 +90,7 @@ export function MomentCommentsSheet({ momentId, visible, onClose }: MomentCommen
         const commentSnap = await tx.get(commentRef);
         const currentLikes = commentSnap.data()?.likesCount || 0;
 
-        if (likeSnap.exists) {
+        if (likeSnap.exists()) {
           tx.delete(likeRef);
           tx.update(commentRef, { likesCount: currentLikes - 1 });
         } else {
@@ -100,7 +99,6 @@ export function MomentCommentsSheet({ momentId, visible, onClose }: MomentCommen
         }
       });
     } catch (e) {
-      console.error('[Comments] Like error:', e);
     }
   };
 

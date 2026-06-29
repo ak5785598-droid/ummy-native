@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, ScrollView, Dimensions, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Sparkles, Star, Crown, Compass, Trophy, Gamepad2, Gift } from 'lucide-react-native';
@@ -149,7 +149,6 @@ export function BannerCarousel({ onOpenSupport }: { onOpenSupport?: () => void }
                     try {
                       router.push(targetLink as any);
                     } catch (e) {
-                      console.warn('[BannerCarousel] Navigation failed for:', targetLink, e);
                     }
                   }
                 }}

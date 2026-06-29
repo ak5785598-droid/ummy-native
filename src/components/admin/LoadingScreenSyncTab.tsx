@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { Camera, Loader } from 'lucide-react-native';
 import { useFirestore, useStorage } from '../../firebase/provider';
@@ -18,13 +18,12 @@ export function LoadingScreenSyncTab() {
     if (!firestore) return;
     const unsub = doc(firestore, 'system', 'config').onSnapshot(
       (snap: any) => {
-        if (snap.exists) {
+        if (snap.exists()) {
           setConfig(snap.data());
         }
         setIsLoading(false);
       },
       (err: any) => {
-        console.warn('[LoadingScreenSync] Firestore Error:', err);
         setIsLoading(false);
       }
     );
@@ -70,7 +69,6 @@ export function LoadingScreenSyncTab() {
 
       Alert.alert('Success', 'App loading background synced successfully!');
     } catch (err: any) {
-      console.error(err);
       Alert.alert('Error', err.message || 'Failed to upload loading background.');
     } finally {
       setIsUploading(false);
@@ -96,7 +94,6 @@ export function LoadingScreenSyncTab() {
               }, { merge: true });
               Alert.alert('Success', 'Reset to default loading background.');
             } catch (err: any) {
-              console.error(err);
               Alert.alert('Error', 'Failed to reset loading background.');
             } finally {
               setIsUploading(false);
@@ -118,7 +115,7 @@ export function LoadingScreenSyncTab() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Loading Screen Sync 🖼️</Text>
+        <Text style={styles.title}>Loading Screen Sync ðŸ–¼ï¸</Text>
         <Text style={styles.subtitle}>
           Manage the background image shown during app initialization and dimension transitions.
         </Text>

@@ -40,7 +40,6 @@ export async function getCachedFile(url: string | null | undefined): Promise<str
     const downloadResult = await FileSystem.downloadAsync(url, localUri);
     return downloadResult.uri;
   } catch (error) {
-    console.warn('[CacheManager] Error caching asset:', url, error);
     return url; // fallback to the remote url
   }
 }

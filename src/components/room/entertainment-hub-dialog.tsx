@@ -70,7 +70,7 @@ export function EntertainmentHubDialog({ visible, onClose, roomId, isHost, canMa
           setRoomMovie(null);
         }
       }
-    });
+    }, (error: any) => {});
     return () => unsub();
   }, [firestore, roomId, visible]);
 

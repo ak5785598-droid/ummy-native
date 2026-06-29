@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import { Image } from 'expo-image';
@@ -25,7 +25,6 @@ export function FinancialSettingsTab() {
         }
         setLoading(false);
       }, err => {
-        console.warn('[FinancialSettings] Load error:', err);
         setLoading(false);
       });
     return () => unsub();

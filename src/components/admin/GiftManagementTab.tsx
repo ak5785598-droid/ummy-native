@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, ScrollView, StyleSheet } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import { useStorage } from '../../firebase/provider';
@@ -34,7 +34,6 @@ export function GiftManagementTab() {
         }
         setLoading(false);
       }, err => {
-        console.warn(err);
         setLoading(false);
       });
 
@@ -328,7 +327,7 @@ export function GiftManagementTab() {
                 {gift.name}
               </Text>
               <Text style={{ fontSize: 10, color: '#f97316', fontWeight: '800', marginTop: 4 }}>
-                🪙 {gift.price}
+                ðŸª™ {gift.price}
               </Text>
               <View style={{ flexDirection: 'row', gap: 4, marginTop: 6 }}>
                 <View style={{ backgroundColor: '#e2e8f0', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>

@@ -8,7 +8,6 @@ export async function setDocumentNonBlocking(
   try {
     await setDoc(docRef, data, options);
   } catch (error: any) {
-    console.error('[NonBlocking] setDoc FAILED:', docRef.path, '| error:', error?.code, error?.message);
   }
 }
 
@@ -20,7 +19,6 @@ export async function updateDocumentNonBlocking(
     await updateDoc(docRef, data);
   } catch (error: any) {
     if (error?.code === 'permission-denied' || error?.code === 'firestore/not-found') {
-      console.warn('[NonBlocking] Update skipped (not-found/permission-denied):', docRef.path);
     } else {
       throw error;
     }
@@ -36,7 +34,6 @@ export async function addDocumentNonBlocking(
     return docRef.id;
   } catch (error: any) {
     if (error?.code === 'permission-denied') {
-      console.warn('[NonBlocking] Permission denied for addDoc:', collectionRef.path);
     } else {
       throw error;
     }
@@ -51,7 +48,6 @@ export async function deleteDocumentNonBlocking(
     await deleteDoc(docRef);
   } catch (error: any) {
     if (error?.code === 'permission-denied') {
-      console.warn('[NonBlocking] Permission denied for deleteDoc:', docRef.path);
     } else {
       throw error;
     }

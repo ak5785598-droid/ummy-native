@@ -235,9 +235,7 @@ export default function LeaderboardScreen() {
       } else {
         setActiveTheme(null);
       }
-    }, (error: any) => {
-      console.warn('Error fetching active theme:', error);
-    });
+    }, () => {});
     return () => unsubscribe();
   }, [firestore]);
 
@@ -295,11 +293,7 @@ export default function LeaderboardScreen() {
 
   const { data: entries, isLoading, error } = useCollection(leaderboardQuery);
 
-  useEffect(() => {
-    if (error) {
-      console.error('Firestore Leaderboard load error:', error);
-    }
-  }, [error]);
+  useEffect(() => {}, [error]);
 
   const getValue = (item: any): number => {
     const fieldName = getFieldName();

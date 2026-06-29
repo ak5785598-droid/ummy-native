@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { X, Star, Users, MessageSquare, Gamepad2, Music, PartyPopper, MoreVertical } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -36,13 +36,12 @@ export function RoomInfoSheet({ visible, onClose, room: propRoom, isOwner = fals
     try {
       const db = require('@react-native-firebase/firestore').default;
       const unsub = db().collection('chatRooms').doc(propRoom.id).onSnapshot((snap: any) => {
-        if (snap && snap.exists) {
+        if (snap && snap.exists()) {
           setLiveRoom({ id: snap.id, ...snap.data() });
         }
       });
       return () => unsub();
     } catch (e) {
-      console.warn('[RoomInfo] Live room subscription failed:', e);
     }
   }, [firestore, propRoom?.id, visible]);
 
@@ -74,7 +73,7 @@ export function RoomInfoSheet({ visible, onClose, room: propRoom, isOwner = fals
         const q = query(collection(firestore, 'chatRooms', room.id, 'followers'), orderBy('followedAt', 'desc'), limit(100));
         const snap = await getDocs(q);
         if (mounted) setFollowers(snap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
-      } catch (e) { console.error('[RoomInfo] Followers fetch failed:', e); }
+      } catch (e) {}
       if (mounted) setIsFollowersLoading(false);
     };
     fetchFollowers();
@@ -89,7 +88,6 @@ export function RoomInfoSheet({ visible, onClose, room: propRoom, isOwner = fals
         moderatorIds: isCurrentlyAdmin ? arrayRemove(uid) : arrayUnion(uid),
       });
     } catch (e) {
-      console.error('[RoomInfo] Failed to toggle admin:', e);
     }
   };
 
@@ -277,7 +275,7 @@ function UserRow({ uid, role, isOwnerUser, onToggleAdmin, onPress }: { uid: stri
             <View className="flex-row items-center gap-1 mt-1">
               {profile.gender && (
                 <View className={`h-3.5 w-3.5 rounded-full items-center justify-center ${profile.gender === 'Female' ? 'bg-pink-400' : 'bg-blue-400'}`}>
-                  <Text className="text-white text-[9px] font-bold leading-none">{profile.gender === 'Female' ? '♀' : '♂'}</Text>
+                  <Text className="text-white text-[9px] font-bold leading-none">{profile.gender === 'Female' ? 'â™€' : 'â™‚'}</Text>
                 </View>
               )}
               <LinearGradient colors={['#fbbf24', '#f59e0b']} className="flex-row items-center gap-0.5 px-2 py-0.5 rounded-full">

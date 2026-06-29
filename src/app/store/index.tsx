@@ -88,8 +88,7 @@ export default function StoreScreen() {
     const unsub = onSnapshot(q, (snap: any) => {
       setStoreItems(snap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
       setIsLoadingStore(false);
-    }, (err: any) => {
-      console.warn('[Store] storeItems error:', err);
+    }, () => {
       setIsLoadingStore(false);
     });
     return () => unsub();
@@ -101,7 +100,7 @@ export default function StoreScreen() {
     const q = query(collection(firestore, 'roomThemes'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snap: any) => {
       setRoomThemes(snap.docs.map((d: any) => ({ id: d.id, ...d.data(), type: 'Theme' })));
-    }, (err: any) => console.warn('[Store] themes error:', err));
+    }, () => {});
     return () => unsub();
   }, [firestore]);
 

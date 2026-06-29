@@ -68,7 +68,6 @@ export function useUserProfile(uid: string | undefined | null) {
         mergeAndSet();
       },
       (error: any) => {
-        console.warn('[useUserProfile] sub error:', error);
         dataRef.current.sub = null;
         mergeAndSet();
       }
@@ -83,7 +82,6 @@ export function useUserProfile(uid: string | undefined | null) {
         mergeAndSet();
       },
       (error: any) => {
-        console.warn('[useUserProfile] base error:', error);
         dataRef.current.base = null;
         mergeAndSet();
       }

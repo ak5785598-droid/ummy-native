@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+﻿import React, { useState, useCallback } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { Search, X, UserPlus, CheckCircle } from 'lucide-react-native';
 import { Image } from 'expo-image';
@@ -55,7 +55,6 @@ export function CpSearchPopup({ visible, onClose, profile }: CpSearchPopupProps)
 
   const handleSendProposal = useCallback(async (type: 'CP' | 'Best Friend' | 'Besties') => {
     if (!firestore || !user?.uid || !selectedUser?.id || !profile?.id) {
-      console.log('[CpSearchPopup] Guard failed:', { hasFirestore: !!firestore, uid: user?.uid, selectedUserId: selectedUser?.id, profileId: profile?.id });
       return;
     }
     try {
@@ -70,11 +69,9 @@ export function CpSearchPopup({ visible, onClose, profile }: CpSearchPopupProps)
         status: 'pending',
         timestamp: serverTimestamp(),
       });
-      console.log('[CpSearchPopup] Proposal sent successfully');
       setSent(true);
       setTimeout(() => { resetState(); onClose(); }, 2000);
     } catch (e) {
-      console.log('[CpSearchPopup] Proposal send FAILED:', e?.message);
     }
   }, [firestore, user?.uid, selectedUser, profile, onClose, resetState]);
 
@@ -153,9 +150,9 @@ export function CpSearchPopup({ visible, onClose, profile }: CpSearchPopupProps)
           {selectedUser && !sent && (
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
               {[
-                { id: 'Best Friend', label: 'Best Friend', icon: '🫂' },
-                { id: 'CP', label: 'CP Partner', icon: '💑' },
-                { id: 'Besties', label: 'Besties', icon: '👯' },
+                { id: 'Best Friend', label: 'Best Friend', icon: 'ðŸ«‚' },
+                { id: 'CP', label: 'CP Partner', icon: 'ðŸ’‘' },
+                { id: 'Besties', label: 'Besties', icon: 'ðŸ‘¯' },
               ].map(t => (
                 <TouchableOpacity key={t.id} onPress={() => handleSendProposal(t.id as any)}
                   style={{ flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>

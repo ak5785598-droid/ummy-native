@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { X, MessageCircle, Music, Gamepad2, PartyPopper } from 'lucide-react-native';
@@ -12,10 +12,10 @@ interface CreateRoomSheetProps {
 }
 
 const CATEGORIES = [
-  { id: 'Chat', label: 'Chat', icon: MessageCircle, emoji: '💬' },
-  { id: 'Music', label: 'Music', icon: Music, emoji: '🎵' },
-  { id: 'Game', label: 'Game', icon: Gamepad2, emoji: '🎮' },
-  { id: 'Party', label: 'Party', icon: PartyPopper, emoji: '🎉' },
+  { id: 'Chat', label: 'Chat', icon: MessageCircle, emoji: 'ðŸ’¬' },
+  { id: 'Music', label: 'Music', icon: Music, emoji: 'ðŸŽµ' },
+  { id: 'Game', label: 'Game', icon: Gamepad2, emoji: 'ðŸŽ®' },
+  { id: 'Party', label: 'Party', icon: PartyPopper, emoji: 'ðŸŽ‰' },
 ];
 
 export function CreateRoomSheet({ visible, onClose }: CreateRoomSheetProps) {
@@ -41,7 +41,7 @@ export function CreateRoomSheet({ visible, onClose }: CreateRoomSheetProps) {
           const counterSnap = await transaction.get(counterRef);
           
           let nextNumber = 101;
-          if (counterSnap.exists) {
+          if (counterSnap.exists()) {
             const current = counterSnap.data()?.roomCounter || 100;
             nextNumber = current + 1;
           }
@@ -50,7 +50,6 @@ export function CreateRoomSheet({ visible, onClose }: CreateRoomSheetProps) {
           roomNumber = String(nextNumber).padStart(4, '0');
         });
       } catch (e) {
-        console.warn('[CreateRoom] Counter fallback:', e);
       }
 
       const roomRef = doc(firestore, 'chatRooms', user.uid);
@@ -79,7 +78,6 @@ export function CreateRoomSheet({ visible, onClose }: CreateRoomSheetProps) {
       setRoomName('');
       router.push(`/rooms/${user.uid}`);
     } catch (error) {
-      console.error('[CreateRoom] Error:', error);
     } finally {
       setIsCreating(false);
     }

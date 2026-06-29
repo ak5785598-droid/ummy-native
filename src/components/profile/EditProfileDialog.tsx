@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, Switch, FlatList } from 'react-native';
 import {
   ChevronLeft,
@@ -21,21 +21,21 @@ import { AvatarFrame } from './AvatarFrame';
 import { toCDN } from '../../lib/cdn';
 
 const COUNTRIES = [
-  { name: 'India', code: 'IN', flag: '🇮🇳' },
-  { name: 'Pakistan', code: 'PK', flag: '🇵🇰' },
-  { name: 'Bangladesh', code: 'BD', flag: '🇧🇩' },
-  { name: 'United Arab Emirates', code: 'AE', flag: '🇦🇪' },
-  { name: 'Saudi Arabia', code: 'SA', flag: '🇸🇦' },
-  { name: 'United States', code: 'US', flag: '🇺🇸' },
-  { name: 'United Kingdom', code: 'GB', flag: '🇬🇧' },
-  { name: 'Canada', code: 'CA', flag: '🇨🇦' },
-  { name: 'Australia', code: 'AU', flag: '🇦🇺' },
-  { name: 'Other', code: 'OT', flag: '🌍' },
+  { name: 'India', code: 'IN', flag: 'ðŸ‡®ðŸ‡³' },
+  { name: 'Pakistan', code: 'PK', flag: 'ðŸ‡µðŸ‡°' },
+  { name: 'Bangladesh', code: 'BD', flag: 'ðŸ‡§ðŸ‡©' },
+  { name: 'United Arab Emirates', code: 'AE', flag: 'ðŸ‡¦ðŸ‡ª' },
+  { name: 'Saudi Arabia', code: 'SA', flag: 'ðŸ‡¸ðŸ‡¦' },
+  { name: 'United States', code: 'US', flag: 'ðŸ‡ºðŸ‡¸' },
+  { name: 'United Kingdom', code: 'GB', flag: 'ðŸ‡¬ðŸ‡§' },
+  { name: 'Canada', code: 'CA', flag: 'ðŸ‡¨ðŸ‡¦' },
+  { name: 'Australia', code: 'AU', flag: 'ðŸ‡¦ðŸ‡º' },
+  { name: 'Other', code: 'OT', flag: 'ðŸŒ' },
 ];
 
 
 
-// ─── Country Picker Modal ───────────────────────────────────────────────────
+// â”€â”€â”€ Country Picker Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const CountryPickerModal = ({
   visible,
   selectedCountry,
@@ -85,7 +85,7 @@ const CountryPickerModal = ({
   </Modal>
 );
 
-// ─── Section Field Wrapper ──────────────────────────────────────────────────
+// â”€â”€â”€ Section Field Wrapper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const FieldRow = ({ label, right, children }: { label: string; right?: React.ReactNode; children: React.ReactNode }) => (
   <View style={{ borderBottomWidth: 1, borderBottomColor: '#f1f5f9', paddingBottom: 4, marginBottom: 4 }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginLeft: 4, marginBottom: 2 }}>
@@ -96,7 +96,7 @@ const FieldRow = ({ label, right, children }: { label: string; right?: React.Rea
   </View>
 );
 
-// ─── Main Component ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?: React.ReactNode }) => {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -138,7 +138,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
     }
   }, [profile, open]);
 
-  // ── Upload avatar image ─────────────────────────────────────────────────
+  // â”€â”€ Upload avatar image â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const uploadAvatarFromUri = async (uri: string) => {
     if (!user || !firestore) return;
     setIsUploadingAvatar(true);
@@ -201,7 +201,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
     ]);
   };
 
-  // ── Upload space image ──────────────────────────────────────────────────
+  // â”€â”€ Upload space image â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleSpaceUpload = async (slotIndex: number) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -240,7 +240,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
     setSpaceImages([...filled, ...Array(8 - filled.length).fill(null)]);
   };
 
-  // ── Save ─────────────────────────────────────────────────────────────────
+  // â”€â”€ Save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleSave = async () => {
     if (!name.trim()) return Alert.alert('Error', 'Name is required.');
     if (!user || !firestore) return Alert.alert('Error', 'Please wait for the app to load and try again.');
@@ -275,7 +275,6 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
 
       setOpen(false);
     } catch (e: any) {
-      console.error('[EditProfile] Save failed:', e);
       Alert.alert('Save Failed', e?.message || 'Could not save profile. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -290,7 +289,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
       {React.cloneElement(trigger as React.ReactElement<any>, { onPress: () => setOpen(true) })}
 
       <Modal visible={open} animationType="slide" statusBarTranslucent>
-        {/* ── Full-screen sheet ── */}
+        {/* â”€â”€ Full-screen sheet â”€â”€ */}
         <View style={{ flex: 1, backgroundColor: 'white' }}>
           {/* Purple gradient top */}
           <View
@@ -367,7 +366,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {/* ── Avatar Section ── */}
+            {/* â”€â”€ Avatar Section â”€â”€ */}
             <View style={{ alignItems: 'center', marginTop: 8, marginBottom: 24 }}>
               <View style={{ position: 'relative' }}>
                 <AvatarFrame
@@ -434,7 +433,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
               </View>
             </View>
 
-            {/* ── Form Fields ── */}
+            {/* â”€â”€ Form Fields â”€â”€ */}
             {/* Name */}
             <FieldRow
               label="Tribe Display Name"
@@ -470,7 +469,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
               {isGenderFixed ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 4, gap: 8 }}>
                   <Text style={{ fontSize: 16, fontWeight: '700', color: '#0f172a' }}>
-                    {gender === 'Female' ? '♀ Female' : '♂ Male'}
+                    {gender === 'Female' ? 'â™€ Female' : 'â™‚ Male'}
                   </Text>
                   <View style={{ backgroundColor: '#f1f5f9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
                     <Text style={{ fontSize: 9, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase' }}>Locked</Text>
@@ -488,7 +487,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
                       backgroundColor: gender === 'Male' ? '#3b82f6' : 'transparent',
                     }}
                   >
-                    <Text style={{ fontWeight: '700', color: gender === 'Male' ? 'white' : '#94a3b8' }}>♂ Male</Text>
+                    <Text style={{ fontWeight: '700', color: gender === 'Male' ? 'white' : '#94a3b8' }}>â™‚ Male</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => setGender('Female')}
@@ -500,7 +499,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
                       backgroundColor: gender === 'Female' ? '#ec4899' : 'transparent',
                     }}
                   >
-                    <Text style={{ fontWeight: '700', color: gender === 'Female' ? 'white' : '#94a3b8' }}>♀ Female</Text>
+                    <Text style={{ fontWeight: '700', color: gender === 'Female' ? 'white' : '#94a3b8' }}>â™€ Female</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -608,7 +607,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
               />
             </FieldRow>
 
-            {/* ── Space Background Slots ── */}
+            {/* â”€â”€ Space Background Slots â”€â”€ */}
             <View style={{ paddingTop: 20, paddingBottom: 8 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingHorizontal: 2 }}>
                 <Text style={{ fontSize: 11, fontWeight: '900', color: '#3b82f6', textTransform: 'uppercase', letterSpacing: 1 }}>

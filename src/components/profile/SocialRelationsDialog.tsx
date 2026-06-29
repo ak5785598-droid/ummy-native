@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, View, Text, TouchableOpacity, FlatList, ActivityIndicator,  } from 'react-native';
 import { ChevronLeft, Star, Sparkles, Eye } from 'lucide-react-native';
 import firestore from '@react-native-firebase/firestore';
@@ -8,8 +8,8 @@ import { useUserLevel } from '../../hooks/use-user-level';
 import { Image } from 'expo-image';
 import { toCDN } from '../../lib/cdn';
 
-// ─── UserListItem ────────────────────────────────────────────────────────────
-// Mirrors web app's UserListItem: Avatar · Username · Flag · Gender · Level badges
+// â”€â”€â”€ UserListItem â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Mirrors web app's UserListItem: Avatar Â· Username Â· Flag Â· Gender Â· Level badges
 const UserListItem = ({ userId, onPress }: { userId: string; onPress: () => void }) => {
   const { profile, isLoading } = useUserProfile(userId);
 
@@ -56,7 +56,7 @@ const UserListItem = ({ userId, onPress }: { userId: string; onPress: () => void
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           {/* Flag */}
-          <Text style={{ fontSize: 14 }}>🇮🇳</Text>
+          <Text style={{ fontSize: 14 }}>ðŸ‡®ðŸ‡³</Text>
 
           {/* Gender badge */}
           <View style={{
@@ -64,7 +64,7 @@ const UserListItem = ({ userId, onPress }: { userId: string; onPress: () => void
             backgroundColor: isFemale ? '#ec4899' : '#3b82f6',
             alignItems: 'center', justifyContent: 'center',
           }}>
-            <Text style={{ fontSize: 8, fontWeight: '900', color: '#fff' }}>{isFemale ? '♀' : '♂'}</Text>
+            <Text style={{ fontSize: 8, fontWeight: '900', color: '#fff' }}>{isFemale ? 'â™€' : 'â™‚'}</Text>
           </View>
 
           {/* Rich level badge (cyan) */}
@@ -97,7 +97,7 @@ const UserListItem = ({ userId, onPress }: { userId: string; onPress: () => void
   );
 };
 
-// ─── Tab Button ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Tab Button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const TabBtn = ({ label, count, active, onPress }: { label: string; count: number; active: boolean; onPress: () => void }) => (
   <TouchableOpacity
     onPress={onPress}
@@ -113,7 +113,7 @@ const TabBtn = ({ label, count, active, onPress }: { label: string; count: numbe
   </TouchableOpacity>
 );
 
-// ─── Empty State ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Empty State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const EmptyState = ({ label }: { label: string }) => (
   <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60 }}>
     <Eye size={40} color="#e2e8f0" />
@@ -123,7 +123,7 @@ const EmptyState = ({ label }: { label: string }) => (
   </View>
 );
 
-// ─── Main Component ──────────────────────────────────────────────────────────
+// â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const SocialRelationsDialog = ({
   open, onOpenChange, userId, initialTab = 'followers', username,
 }: {
@@ -141,7 +141,7 @@ export const SocialRelationsDialog = ({
     if (open) setActiveTab(initialTab);
   }, [open, initialTab]);
 
-  // ── Real-time listeners ─────────────────────────────────────────────────
+  // â”€â”€ Real-time listeners â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [followers, setFollowers] = useState<any[]>([]);
   const [following, setFollowing] = useState<any[]>([]);
   const [visitors, setVisitors] = useState<any[]>([]);
@@ -162,18 +162,17 @@ export const SocialRelationsDialog = ({
         setFollowing(followingSnap.docs.map(d => ({ id: d.id, ...d.data() })));
         setVisitors(visitorsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       } catch (err) {
-        console.warn('[SocialDialog] load error:', err);
       } finally {
         setLoading(false);
       }
     })();
   }, [userId, open]);
 
-  // ── Computed friends (mutual follow) ───────────────────────────────────
+  // â”€â”€ Computed friends (mutual follow) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const followerIds = new Set(followers.map((f: any) => f.followerId));
   const friends = following.filter((f: any) => followerIds.has(f.followingId));
 
-  // ── Tab data ────────────────────────────────────────────────────────────
+  // â”€â”€ Tab data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const tabData = {
     followers: { data: followers, idKey: 'followerId', label: 'fans' },
     following: { data: following, idKey: 'followingId', label: 'following' },
@@ -186,7 +185,7 @@ export const SocialRelationsDialog = ({
     <Modal visible={open} animationType="slide" statusBarTranslucent>
       <View style={{ flex: 1, backgroundColor: '#fff' }}>
 
-        {/* ── Header ─────────────────────────────────────────────────────── */}
+        {/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <View style={{
           flexDirection: 'row', alignItems: 'center', gap: 12,
           paddingTop: 52, paddingBottom: 12, paddingHorizontal: 16,
@@ -205,7 +204,7 @@ export const SocialRelationsDialog = ({
           </View>
         </View>
 
-        {/* ── Tabs ───────────────────────────────────────────────────────── */}
+        {/* â”€â”€ Tabs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#f1f5f9' }}>
           <TabBtn label="Fans"      count={followers.length} active={activeTab === 'followers'} onPress={() => setActiveTab('followers')} />
           <TabBtn label="Following" count={following.length} active={activeTab === 'following'} onPress={() => setActiveTab('following')} />
@@ -213,7 +212,7 @@ export const SocialRelationsDialog = ({
           <TabBtn label="Visitors"  count={visitors.length}  active={activeTab === 'visitors'}  onPress={() => setActiveTab('visitors')} />
         </View>
 
-        {/* ── List ───────────────────────────────────────────────────────── */}
+        {/* â”€â”€ List â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         {loading ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 }}>
             <ActivityIndicator size="large" color="#7c3aed" />

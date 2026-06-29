@@ -132,9 +132,7 @@ export default function CpHouseScreen() {
         if (d.id !== user?.uid) results.push({ uid: d.id, ...d.data() });
       });
       setSearchResults(results);
-    } catch (error) {
-      console.warn("Search error:", error);
-    } finally {
+    } catch (error) {} finally {
       setIsSearching(false);
     }
   };

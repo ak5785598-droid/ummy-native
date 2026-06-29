@@ -206,7 +206,6 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
         updatedAt: Date.now(),
       });
     } catch (err) {
-      console.error('Failed to join arena:', err);
     }
   }, [database, gamePath, userId, gameState, firestore, roomId]);
 
@@ -353,7 +352,6 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
         updatedAt: Date.now(),
       });
     } catch (err) {
-      console.error('Failed to end match:', err);
     }
   }, [database, gamePath, gameState, firestore, roomId]);
 

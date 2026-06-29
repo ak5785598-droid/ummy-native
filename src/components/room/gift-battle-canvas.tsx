@@ -18,9 +18,9 @@ export function GiftBattleCanvas({ visible, roomId }: GiftBattleCanvasProps) {
     if (!firestore || !roomId) return;
     const ref = doc(firestore, 'chatRooms', roomId, 'features', 'giftBattle');
     const unsub = onSnapshot(ref, (snap: any) => {
-      if (snap.exists) setBattleState(snap.data());
+      if (snap.exists()) setBattleState(snap.data());
       else setBattleState(null);
-    });
+    }, (error: any) => {});
     return () => unsub();
   }, [firestore, roomId]);
 

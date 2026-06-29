@@ -319,7 +319,7 @@ export default function ProfileScreen() {
         await setDocumentNonBlocking(fRef, { followerId: currentUser.uid, followingId: id, timestamp: serverTimestamp() }, { merge: true });
         setIsFollowing(true);
       }
-    } catch (e) { console.error(e); } finally { setIsProcessingFollow(false); }
+    } catch (e) {} finally { setIsProcessingFollow(false); }
   };
 
   const handleCopyId = async () => {

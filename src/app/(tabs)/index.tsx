@@ -60,9 +60,7 @@ export default function HomeScreen() {
       });
       
       return () => unsubscribe();
-    } catch (e) {
-      console.warn('[Home] Realtime DB presence listener failed:', e);
-    }
+    } catch (e) {}
   }, [isHydrated, database]);
 
   const configRef = firestore ? doc(firestore, 'appConfig', 'global') : null;

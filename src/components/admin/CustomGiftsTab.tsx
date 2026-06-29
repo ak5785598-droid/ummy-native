@@ -25,7 +25,6 @@ export function CustomGiftsTab() {
         }
         setLoading(false);
       }, err => {
-        console.warn(err);
         setLoading(false);
       });
 

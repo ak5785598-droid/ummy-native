@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, ActivityIndicator } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 
@@ -17,7 +17,6 @@ export function FinancialAuditTab() {
         }
         setLoading(false);
       }, err => {
-        console.warn('[FinancialAudit] Error:', err);
         setLoading(false);
       });
     return () => unsub();
