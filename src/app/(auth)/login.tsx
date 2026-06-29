@@ -348,7 +348,7 @@ export default function LoginScreen() {
 
       {/* Main Card */}
       <View className="flex-1 justify-center items-center px-5">
-        <View className="w-full max-w-md rounded-3xl bg-white/10 border border-white/20 backdrop-blur-xl shadow-2xl p-6 items-center">
+        <View className="w-full max-w-md rounded-3xl bg-white/10 border border-white/20 shadow-2xl p-6 items-center" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
           {/* Logo */}
           <View className="h-20 w-20 rounded-2xl overflow-hidden bg-white/20 items-center justify-center mb-6">
             <Image 
@@ -401,7 +401,7 @@ export default function LoginScreen() {
       {/* ⚡ PHONE LOGIN MODAL ⚡ */}
       {/* ============================================================ */}
       <Modal visible={showPhonePopup} transparent animationType="slide">
-        <View className="flex-1 bg-black/60 backdrop-blur-md justify-center items-center p-4">
+        <View className="flex-1 bg-black/60 justify-center items-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
           <View className="w-full max-w-sm rounded-[32px] bg-gradient-to-b from-[#FF91B5] to-[#f472b6] border border-white/20 shadow-2xl p-6 md:p-8 items-center">
             {/* Close */}
             <TouchableOpacity onPress={() => { setShowPhonePopup(false); setPhoneLoginStep('number'); }} className="absolute top-4 right-4 p-2 bg-white/10 rounded-full">
@@ -489,7 +489,7 @@ export default function LoginScreen() {
       {/* ⚡ COUNTRY PICKER MODAL ⚡ */}
       {/* ============================================================ */}
       <Modal visible={isCountryDropdownOpen} transparent animationType="fade">
-        <View className="flex-1 bg-black/80 backdrop-blur-xl justify-center items-center p-4">
+        <View className="flex-1 bg-black/80 justify-center items-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.8)' }}>
           <View className="w-full max-w-sm h-[80vh] bg-[#1a1a1a] border border-white/10 rounded-[40px] overflow-hidden">
             {/* Header */}
             <View className="p-6 border-b border-white/5">
