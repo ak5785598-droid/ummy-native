@@ -9,12 +9,12 @@ import { AvatarFrame } from '../profile/AvatarFrame';
 import { toCDN } from '../../lib/cdn';
 
 const COUNTRY_FLAGS: Record<string, string> = {
-  india: 'ðŸ‡®ðŸ‡³', pakistan: 'ðŸ‡µðŸ‡°', bangladesh: 'ðŸ‡§ðŸ‡©', nepal: 'ðŸ‡³ðŸ‡µ', sri_lanka: 'ðŸ‡±ðŸ‡°',
-  usa: 'ðŸ‡ºðŸ‡¸', uk: 'ðŸ‡¬ðŸ‡§', canada: 'ðŸ‡¨ðŸ‡¦', australia: 'ðŸ‡¦ðŸ‡º', germany: 'ðŸ‡©ðŸ‡ª',
-  france: 'ðŸ‡«ðŸ‡·', japan: 'ðŸ‡¯ðŸ‡µ', china: 'ðŸ‡¨ðŸ‡³', south_korea: 'ðŸ‡°ðŸ‡·', brazil: 'ðŸ‡§ðŸ‡·',
-  russia: 'ðŸ‡·ðŸ‡º', turkey: 'ðŸ‡¹ðŸ‡·', egypt: 'ðŸ‡ªðŸ‡¬', nigeria: 'ðŸ‡³ðŸ‡¬', south_africa: 'ðŸ‡¿ðŸ‡¦',
-  indonesia: 'ðŸ‡®ðŸ‡©', philippines: 'ðŸ‡µðŸ‡­', thailand: 'ðŸ‡¹ðŸ‡­', vietnam: 'ðŸ‡»ðŸ‡³', malaysia: 'ðŸ‡²ðŸ‡¾',
-  uae: 'ðŸ‡¦ðŸ‡ª', saudi_arabia: 'ðŸ‡¸ðŸ‡¦', iran: 'ðŸ‡®ðŸ‡¶', afghanistan: 'ðŸ‡¦ðŸ‡«', myanmar: 'ðŸ‡²ðŸ‡²',
+  india: String.fromCodePoint(0x1F1EE, 0x1F1F3), pakistan: String.fromCodePoint(0x1F1F5, 0x1F1F0), bangladesh: String.fromCodePoint(0x1F1E7, 0x1F1E9), nepal: String.fromCodePoint(0x1F1F3, 0x1F1F5), sri_lanka: String.fromCodePoint(0x1F1F1, 0x1F1F0),
+  usa: String.fromCodePoint(0x1F1FA, 0x1F1F8), uk: String.fromCodePoint(0x1F1EC, 0x1F1E7), canada: String.fromCodePoint(0x1F1E8, 0x1F1E6), australia: String.fromCodePoint(0x1F1E6, 0x1F1FA), germany: String.fromCodePoint(0x1F1E9, 0x1F1EA),
+  france: String.fromCodePoint(0x1F1EB, 0x1F1F7), japan: String.fromCodePoint(0x1F1EF, 0x1F1F5), china: String.fromCodePoint(0x1F1E8, 0x1F1F3), south_korea: String.fromCodePoint(0x1F1F0, 0x1F1F7), brazil: String.fromCodePoint(0x1F1E7, 0x1F1F7),
+  russia: String.fromCodePoint(0x1F1F7, 0x1F1FA), turkey: String.fromCodePoint(0x1F1F9, 0x1F1F7), egypt: String.fromCodePoint(0x1F1EA, 0x1F1EC), nigeria: String.fromCodePoint(0x1F1F3, 0x1F1EC), south_africa: String.fromCodePoint(0x1F1FF, 0x1F1E6),
+  indonesia: String.fromCodePoint(0x1F1EE, 0x1F1E9), philippines: String.fromCodePoint(0x1F1F5, 0x1F1ED), thailand: String.fromCodePoint(0x1F1F9, 0x1F1ED), vietnam: String.fromCodePoint(0x1F1FB, 0x1F1F3), malaysia: String.fromCodePoint(0x1F1F2, 0x1F1FE),
+  uae: String.fromCodePoint(0x1F1E6, 0x1F1EA), saudi_arabia: String.fromCodePoint(0x1F1F8, 0x1F1E6), iran: String.fromCodePoint(0x1F1EE, 0x1F1F7), afghanistan: String.fromCodePoint(0x1F1E6, 0x1F1EB), myanmar: String.fromCodePoint(0x1F1F2, 0x1F1F2),
 };
 
 const COUNTRY_NAMES: Record<string, string> = {
@@ -159,7 +159,7 @@ export function RoomProfileCard({
             )}
             {profile?.country ? (
               <View className="bg-slate-100 px-2 py-0.5 rounded-full flex-row items-center gap-1">
-                <Text style={{ fontSize: 12 }}>{COUNTRY_FLAGS[profile.country] || 'ðŸŒ'}</Text>
+                <Text style={{ fontSize: 12 }}>{COUNTRY_FLAGS[profile.country] || String.fromCodePoint(0x1F30D)}</Text>
                 <Text className="text-slate-500 text-[10px] font-bold uppercase">{COUNTRY_NAMES[profile.country] || profile.country}</Text>
               </View>
             ) : null}
@@ -205,7 +205,7 @@ export function RoomProfileCard({
                     />
                   ) : (
                     <View className="w-9 h-9 rounded-full bg-slate-100 items-center justify-center border border-slate-200">
-                      <Text style={{ fontSize: 16 }}>ðŸ…</Text>
+                      <Text style={{ fontSize: 16 }}>🏅</Text>
                     </View>
                   )}
                 </View>

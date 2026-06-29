@@ -36,23 +36,23 @@ const BUDGET_COLORS: Record<string, string[]> = {
 };
 
 const BUDGET_ICONS: Record<string, string> = {
-  gold: 'ðŸ‘‘', diamond: 'ðŸ’Ž', silver: 'ðŸ›¡ï¸', purple: 'âœ¨', emerald: 'ðŸ’Ž', rose: 'ðŸ‘‘', rainbow: 'âœ¨', none: 'ðŸªª'
+  gold: String.fromCodePoint(0x1F451), diamond: String.fromCodePoint(0x1F48E), silver: String.fromCodePoint(0x1F6E1, 0xFE0F), purple: String.fromCodePoint(0x2728), emerald: String.fromCodePoint(0x1F48E), rose: String.fromCodePoint(0x1F451), rainbow: String.fromCodePoint(0x2728), none: String.fromCodePoint(0x1FA9E)
 };
 
 const COUNTRY_FLAGS: Record<string, string> = {
-  'india': 'ðŸ‡®ðŸ‡³', 'pakistan': 'ðŸ‡µðŸ‡°', 'bangladesh': 'ðŸ‡§ðŸ‡©', 'nepal': 'ðŸ‡³ðŸ‡µ', 'sri lanka': 'ðŸ‡±ðŸ‡°',
-  'united states': 'ðŸ‡ºðŸ‡¸', 'united kingdom': 'ðŸ‡¬ðŸ‡§', 'canada': 'ðŸ‡¨ðŸ‡¦', 'australia': 'ðŸ‡¦ðŸ‡º',
-  'germany': 'ðŸ‡©ðŸ‡ª', 'france': 'ðŸ‡«ðŸ‡·', 'japan': 'ðŸ‡¯ðŸ‡µ', 'korea': 'ðŸ‡°ðŸ‡·', 'china': 'ðŸ‡¨ðŸ‡³',
-  'brazil': 'ðŸ‡§ðŸ‡·', 'russia': 'ðŸ‡·ðŸ‡º', 'turkey': 'ðŸ‡¹ðŸ‡·', 'dubai': 'ðŸ‡¦ðŸ‡ª', 'uae': 'ðŸ‡¦ðŸ‡ª',
-  'saudi arabia': 'ðŸ‡¸ðŸ‡¦', 'egypt': 'ðŸ‡ªðŸ‡¬', 'nigeria': 'ðŸ‡³ðŸ‡¬', 'south africa': 'ðŸ‡¿ðŸ‡¦',
-  'indonesia': 'ðŸ‡®ðŸ‡©', 'philippines': 'ðŸ‡µðŸ‡­', 'thailand': 'ðŸ‡¹ðŸ‡­', 'vietnam': 'ðŸ‡»ðŸ‡³',
-  'mexico': 'ðŸ‡²ðŸ‡½', 'italy': 'ðŸ‡®ðŸ‡¹', 'spain': 'ðŸ‡ªðŸ‡¸', 'portugal': 'ðŸ‡µðŸ‡¹',
-  'malaysia': 'ðŸ‡²ðŸ‡¾', 'singapore': 'ðŸ‡¸ðŸ‡¬', 'kenya': 'ðŸ‡°ðŸ‡ª', 'ghana': 'ðŸ‡¬ðŸ‡­',
+  'india': String.fromCodePoint(0x1F1EE, 0x1F1F3), 'pakistan': String.fromCodePoint(0x1F1F5, 0x1F1F0), 'bangladesh': String.fromCodePoint(0x1F1E7, 0x1F1E9), 'nepal': String.fromCodePoint(0x1F1F3, 0x1F1F5), 'sri lanka': String.fromCodePoint(0x1F1F1, 0x1F1F0),
+  'united states': String.fromCodePoint(0x1F1FA, 0x1F1F8), 'united kingdom': String.fromCodePoint(0x1F1EC, 0x1F1E7), 'canada': String.fromCodePoint(0x1F1E8, 0x1F1E6), 'australia': String.fromCodePoint(0x1F1E6, 0x1F1FA),
+  'germany': String.fromCodePoint(0x1F1E9, 0x1F1EA), 'france': String.fromCodePoint(0x1F1EB, 0x1F1F7), 'japan': String.fromCodePoint(0x1F1EF, 0x1F1F5), 'korea': String.fromCodePoint(0x1F1F0, 0x1F1F7), 'china': String.fromCodePoint(0x1F1E8, 0x1F1F3),
+  'brazil': String.fromCodePoint(0x1F1E7, 0x1F1F7), 'russia': String.fromCodePoint(0x1F1F7, 0x1F1FA), 'turkey': String.fromCodePoint(0x1F1F9, 0x1F1F7), 'dubai': String.fromCodePoint(0x1F1E6, 0x1F1EA), 'uae': String.fromCodePoint(0x1F1E6, 0x1F1EA),
+  'saudi arabia': String.fromCodePoint(0x1F1F8, 0x1F1E6), 'egypt': String.fromCodePoint(0x1F1EA, 0x1F1EC), 'nigeria': String.fromCodePoint(0x1F1F3, 0x1F1EC), 'south africa': String.fromCodePoint(0x1F1FF, 0x1F1E6),
+  'indonesia': String.fromCodePoint(0x1F1EE, 0x1F1E9), 'philippines': String.fromCodePoint(0x1F1F5, 0x1F1ED), 'thailand': String.fromCodePoint(0x1F1F9, 0x1F1ED), 'vietnam': String.fromCodePoint(0x1F1FB, 0x1F1F3),
+  'mexico': String.fromCodePoint(0x1F1F2, 0x1F1FD), 'italy': String.fromCodePoint(0x1F1EE, 0x1F1F9), 'spain': String.fromCodePoint(0x1F1EA, 0x1F1F8), 'portugal': String.fromCodePoint(0x1F1F5, 0x1F1F9),
+  'malaysia': String.fromCodePoint(0x1F1F2, 0x1F1FE), 'singapore': String.fromCodePoint(0x1F1F8, 0x1F1EC), 'kenya': String.fromCodePoint(0x1F1F0, 0x1F1EA), 'ghana': String.fromCodePoint(0x1F1EC, 0x1F1ED),
 };
 
 const getCountryFlag = (country?: string | null) => {
-  if (!country) return 'ðŸŒ';
-  return COUNTRY_FLAGS[country.toLowerCase()] || 'ðŸŒ';
+  if (!country) return String.fromCodePoint(0x1F30D);
+  return COUNTRY_FLAGS[country.toLowerCase()] || String.fromCodePoint(0x1F30D);
 };
 
 

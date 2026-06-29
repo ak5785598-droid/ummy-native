@@ -56,7 +56,7 @@ const UserListItem = ({ userId, onPress }: { userId: string; onPress: () => void
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           {/* Flag */}
-          <Text style={{ fontSize: 14 }}>ðŸ‡®ðŸ‡³</Text>
+          <Text style={{ fontSize: 14 }}>{String.fromCodePoint(0x1F1EE, 0x1F1F3)}</Text>
 
           {/* Gender badge */}
           <View style={{

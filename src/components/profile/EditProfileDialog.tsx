@@ -21,16 +21,16 @@ import { AvatarFrame } from './AvatarFrame';
 import { toCDN } from '../../lib/cdn';
 
 const COUNTRIES = [
-  { name: 'India', code: 'IN', flag: 'ðŸ‡®ðŸ‡³' },
-  { name: 'Pakistan', code: 'PK', flag: 'ðŸ‡µðŸ‡°' },
-  { name: 'Bangladesh', code: 'BD', flag: 'ðŸ‡§ðŸ‡©' },
-  { name: 'United Arab Emirates', code: 'AE', flag: 'ðŸ‡¦ðŸ‡ª' },
-  { name: 'Saudi Arabia', code: 'SA', flag: 'ðŸ‡¸ðŸ‡¦' },
-  { name: 'United States', code: 'US', flag: 'ðŸ‡ºðŸ‡¸' },
-  { name: 'United Kingdom', code: 'GB', flag: 'ðŸ‡¬ðŸ‡§' },
-  { name: 'Canada', code: 'CA', flag: 'ðŸ‡¨ðŸ‡¦' },
-  { name: 'Australia', code: 'AU', flag: 'ðŸ‡¦ðŸ‡º' },
-  { name: 'Other', code: 'OT', flag: 'ðŸŒ' },
+  { name: 'India', code: 'IN', flag: String.fromCodePoint(0x1F1EE, 0x1F1F3) },
+  { name: 'Pakistan', code: 'PK', flag: String.fromCodePoint(0x1F1F5, 0x1F1F0) },
+  { name: 'Bangladesh', code: 'BD', flag: String.fromCodePoint(0x1F1E7, 0x1F1E9) },
+  { name: 'United Arab Emirates', code: 'AE', flag: String.fromCodePoint(0x1F1E6, 0x1F1EA) },
+  { name: 'Saudi Arabia', code: 'SA', flag: String.fromCodePoint(0x1F1F8, 0x1F1E6) },
+  { name: 'United States', code: 'US', flag: String.fromCodePoint(0x1F1FA, 0x1F1F8) },
+  { name: 'United Kingdom', code: 'GB', flag: String.fromCodePoint(0x1F1EC, 0x1F1E7) },
+  { name: 'Canada', code: 'CA', flag: String.fromCodePoint(0x1F1E8, 0x1F1E6) },
+  { name: 'Australia', code: 'AU', flag: String.fromCodePoint(0x1F1E6, 0x1F1FA) },
+  { name: 'Other', code: 'OT', flag: String.fromCodePoint(0x1F30D) },
 ];
 
 
