@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal, TextInput, FlatList, RefreshControl, Keyboard, Platform, LayoutAnimation, UIManager, Alert, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Search, Shield, Heart, ChevronRight, Send, X, Image as ImageIcon, MoreHorizontal, Loader, Check, CheckCheck, Gift, Mic, Smile, Plus } from 'lucide-react-native';
+import { Search, Shield, Heart, ChevronRight, Send, X, Image as ImageIcon, MoreHorizontal, Loader, Check, CheckCheck, Gift, Mic, Smile, Plus, Play, Pause } from 'lucide-react-native';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc, useStorage } from '../../firebase/provider';
 import { collection, query, where, orderBy, limit, doc, serverTimestamp, deleteDoc, updateDoc, arrayUnion, arrayRemove, runTransaction, onSnapshot, getDoc } from '@/firebase/firestore-compat';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -11,6 +11,7 @@ import { useUserProfile } from '../../hooks/use-user-profile';
 import { PrivateChat, PrivateMessage, Proposal, CpPair } from '../../lib/types';
 import { setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '../../lib/non-blocking-writes';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
 import { FullProfileDialog } from '../../components/profile/FullProfileDialog';
@@ -383,6 +384,146 @@ function ChatListItem({ chat, currentUid, onPress, onLongPress, onAvatarPress }:
   );
 }
 
+// Global tracker — only one audio plays at a time across all AudioPlayer instances
+let currentGlobalSound: any = null;
+
+
+function AudioPlayer({ audioUrl, isMe }: { audioUrl: string; isMe: boolean }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [position, setPosition] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const soundRef = useRef<any>(null);
+  const isMounted = useRef(true);
+  const intervalRef = useRef<any>(null);
+
+  const stopPolling = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
+  const startPolling = (sound: any) => {
+    stopPolling();
+    intervalRef.current = setInterval(async () => {
+      if (!isMounted.current || !sound) { stopPolling(); return; }
+      try {
+        const status = await sound.getStatusAsync();
+        if (!status.isLoaded) return;
+        if (isMounted.current) {
+          setPosition(status.positionMillis ?? 0);
+          setDuration(status.durationMillis ?? 0);
+        }
+        if (status.didJustFinish) {
+          if (isMounted.current) { setIsPlaying(false); setPosition(0); }
+          currentGlobalSound = null;
+          stopPolling();
+          sound.setPositionAsync(0).catch(() => {});
+        }
+      } catch { stopPolling(); }
+    }, 250);
+  };
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+      stopPolling();
+      if (soundRef.current) {
+        if (currentGlobalSound === soundRef.current) currentGlobalSound = null;
+        soundRef.current.stopAsync().catch(() => {});
+        soundRef.current.unloadAsync().catch(() => {});
+        soundRef.current = null;
+      }
+    };
+  }, []);
+
+  const handlePlayPause = async () => {
+    const { Audio } = require('expo-av');
+    try {
+      if (soundRef.current) {
+        if (isPlaying) {
+          await soundRef.current.pauseAsync();
+          stopPolling();
+          if (isMounted.current) setIsPlaying(false);
+        } else {
+          // Stop any other globally playing sound
+          if (currentGlobalSound && currentGlobalSound !== soundRef.current) {
+            await currentGlobalSound.stopAsync().catch(() => {});
+          }
+          const status: any = await soundRef.current.getStatusAsync();
+          if (status.isLoaded && status.positionMillis >= (status.durationMillis || 1) - 150) {
+            await soundRef.current.replayAsync();
+          } else {
+            await soundRef.current.playAsync();
+          }
+          currentGlobalSound = soundRef.current;
+          startPolling(soundRef.current);
+          if (isMounted.current) setIsPlaying(true);
+        }
+      } else {
+        // Stop any globally playing sound first
+        if (currentGlobalSound) {
+          await currentGlobalSound.stopAsync().catch(() => {});
+          currentGlobalSound = null;
+        }
+        // No native status callback — avoids java.lang.reflect.InvocationTargetException
+        const { sound: newSound } = await Audio.Sound.createAsync(
+          { uri: audioUrl },
+          { shouldPlay: true }
+        );
+        soundRef.current = newSound;
+        currentGlobalSound = newSound;
+        startPolling(newSound);
+        if (isMounted.current) setIsPlaying(true);
+      }
+    } catch (err) {
+      console.warn('[AudioPlayer]', err);
+    }
+  };
+
+  const getFormatTime = (millis: number) => {
+    const minutes = Math.floor(millis / 60000);
+    const seconds = ((millis % 60000) / 1000).toFixed(0);
+    return `${minutes}:${Number(seconds) < 10 ? '0' : ''}${seconds}`;
+  };
+
+  const progress = duration > 0 ? position / duration : 0;
+
+  return (
+    <View className="flex-row items-center py-2 gap-3 min-w-[200px]">
+      <TouchableOpacity
+        onPress={handlePlayPause}
+        className={`w-9 h-9 rounded-full items-center justify-center ${
+          isMe ? 'bg-white/20' : 'bg-cyan-500/10'
+        }`}
+      >
+        {isPlaying ? (
+          <Pause size={16} color={isMe ? 'white' : '#0891b2'} fill={isMe ? 'white' : '#0891b2'} />
+        ) : (
+          <Play size={16} color={isMe ? 'white' : '#0891b2'} fill={isMe ? 'white' : '#0891b2'} className="ml-0.5" />
+        )}
+      </TouchableOpacity>
+      <View className="flex-1 justify-center">
+        <View className={`h-1.5 rounded-full w-full ${isMe ? 'bg-white/30' : 'bg-slate-200'}`}>
+          <View
+            style={{ width: `${progress * 100}%` }}
+            className={`h-full rounded-full ${isMe ? 'bg-white' : 'bg-cyan-500'}`}
+          />
+        </View>
+        <View className="flex-row justify-between mt-1">
+          <Text className={`text-[10px] ${isMe ? 'text-white/80' : 'text-slate-500'}`}>
+            {getFormatTime(position)}
+          </Text>
+          <Text className={`text-[10px] ${isMe ? 'text-white/80' : 'text-slate-500'}`}>
+            {getFormatTime(duration || 0)}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatId: string; recipientUid: string; onBack: () => void; onAvatarPress?: (uid: string) => void }) {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -404,6 +545,7 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
   const [editText, setEditText] = useState('');
   
   const scrollViewRef = useRef<ScrollView>(null);
+  const recordingInstanceRef = useRef<any>(null);
   const [kbHeight, setKbHeight] = useState(0);
 
   useEffect(() => {
@@ -462,8 +604,8 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
     }
   }, [messages?.length, firestore, user?.uid]);
 
-  const handleSend = async (msgText?: string, imageUrl?: string) => {
-    if (!firestore || !user?.uid || (!msgText?.trim() && !imageUrl)) return;
+  const handleSend = async (msgText?: string, imageUrl?: string, audioUrl?: string) => {
+    if (!firestore || !user?.uid || (!msgText?.trim() && !imageUrl && !audioUrl)) return;
 
     const messagesRef = collection(firestore, 'privateChats', chatId, 'messages');
     const chatDocRef = doc(firestore, 'privateChats', chatId);
@@ -471,12 +613,13 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
     await addDocumentNonBlocking(messagesRef, {
       text: msgText?.trim() || '',
       imageUrl: imageUrl || null,
+      audioUrl: audioUrl || null,
       senderId: user.uid,
       timestamp: serverTimestamp(),
     });
 
     await setDocumentNonBlocking(chatDocRef, {
-      lastMessage: msgText?.trim() || (imageUrl ? '📷 Photo' : ''),
+      lastMessage: msgText?.trim() || (imageUrl ? '📷 Photo' : (audioUrl ? '🎤 Voice message' : '')),
       lastSenderId: user.uid,
       lastMessageReadBy: [user.uid],
       updatedAt: serverTimestamp(),
@@ -491,17 +634,27 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
       quality: 0.3,
     });
 
-    if (!result.canceled && result.assets[0] && storage) {
+    if (!result.canceled && result.assets[0]) {
       setIsUploading(true);
       try {
-        const filename = `${Date.now()}_${result.assets[0].uri.split('/').pop()}`;
-        const fileRef = storageRef(storage, `chats/${chatId}/${filename}`);
-        const response = await fetch(result.assets[0].uri);
-        const blob = await response.blob();
-        await uploadBytes(fileRef, blob, { cacheControl: 'public, max-age=2592000, immutable' });
-        const downloadUrl = await getDownloadURL(fileRef);
+        const uri = result.assets[0].uri;
+        const filename = `${Date.now()}_${uri.split('/').pop()}`;
+        const storagePath = `chats/${chatId}/${filename}`;
+
+        // Strip file:// prefix so Android native FS can resolve the path
+        const nativePath = uri.replace(/^file:\/\//, '');
+        console.log('[Image Upload] uploading from path:', nativePath);
+
+        // Upload via React Native Firebase Storage (native wrapper with auto-auth and appcheck)
+        const rnfbStorage = require('@react-native-firebase/storage').default;
+        const fileRef = rnfbStorage().ref(storagePath);
+        await fileRef.putFile(nativePath);
+        const downloadUrl = await fileRef.getDownloadURL();
         await handleSend(undefined, downloadUrl);
-      } catch (error) {}
+      } catch (error: any) {
+        console.error('[Image Upload Error]', error);
+        Alert.alert('Upload Failed', error.message || 'Could not send image.');
+      }
       setIsUploading(false);
     }
   };
@@ -517,24 +670,111 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
     if (isRecording) {
       setIsRecording(false);
       try {
-        const Voice = require('@react-native-voice/voice').default;
-        Voice.stop?.();
-      } catch {}
+        if (recordingInstanceRef.current) {
+          const rec = recordingInstanceRef.current;
+          recordingInstanceRef.current = null;
+          await rec.stopAndUnloadAsync();
+          const { Audio: AvAudio } = require('expo-av');
+          AvAudio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true, playThroughEarpieceAndroid: false }).catch(() => {});
+          const uri = rec.getURI();
+          if (uri && storage) {
+            setIsUploading(true);
+            try {
+              const filename = `voice_${Date.now()}.m4a`;
+              const storagePath = `privateChats/${chatId}/voice/${filename}`;
+
+              // Step 1: Copy to clean cache path (ensures file fully flushed)
+              const cleanPath = `${FileSystem.cacheDirectory}${filename}`;
+              await FileSystem.copyAsync({ from: uri, to: cleanPath });
+
+              // Step 2: Strip file:// prefix so Android native FS can resolve the path
+              const nativePath = cleanPath.replace(/^file:\/\//, '');
+              console.log('[Voice] uploading from path:', nativePath);
+
+              // Step 3: Upload via RNFB (uses native auth + App Check automatically)
+              const rnfbStorage = require('@react-native-firebase/storage').default;
+              const fileRef = rnfbStorage().ref(storagePath);
+              await fileRef.putFile(nativePath);
+              const downloadUrl = await fileRef.getDownloadURL();
+              await handleSend(undefined, undefined, downloadUrl);
+
+              FileSystem.deleteAsync(cleanPath, { idempotent: true }).catch(() => {});
+            } catch (error: any) {
+              console.error('[Voice Upload]', error);
+              Alert.alert('Upload Failed', error.message || 'Could not upload voice message.');
+            }
+            setIsUploading(false);
+          }
+        }
+      } catch (err) {
+        console.warn('[Audio] Failed to stop recording:', err);
+      }
       return;
     }
+    
+    const { Audio } = require('expo-av');
     try {
-      const Voice = require('@react-native-voice/voice').default;
-      Voice.onSpeechResults = (e: any) => {
-        const transcript = e.value?.[0];
-        if (transcript) handleSend(transcript);
-        setIsRecording(false);
-      };
-      Voice.onSpeechError = () => setIsRecording(false);
-      Voice.onSpeechEnd = () => setIsRecording(false);
+      const response = await Audio.requestPermissionsAsync();
+      if (!response.granted) {
+        Alert.alert('Permission Denied', 'Microphone access is required to record voice messages.');
+        return;
+      }
+
+      if (recordingInstanceRef.current) {
+        try {
+          await recordingInstanceRef.current.stopAndUnloadAsync();
+        } catch {}
+        recordingInstanceRef.current = null;
+      }
+
+      // Set audio mode for recording
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        playThroughEarpieceAndroid: false,
+        staysActiveInBackground: true,
+      });
+      await new Promise(r => setTimeout(r, 300));
+
+      let rec;
+      try {
+        const VOICE_RECORDING_OPTIONS = {
+          android: {
+            extension: '.m4a',
+            outputFormat: 2,
+            audioEncoder: 3,
+            sampleRate: 44100,
+            numberOfChannels: 1,
+            bitRate: 128000,
+            audioSource: 7,
+          },
+          ios: {
+            extension: '.m4a',
+            outputFormat: 'aac ',
+            audioQuality: 96,
+            sampleRate: 44100,
+            numberOfChannels: 1,
+            bitRate: 128000,
+            linearPCMBitDepth: 16,
+            linearPCMIsBigEndian: false,
+            linearPCMIsFloat: false,
+          },
+          web: {}
+        };
+        const { recording } = await Audio.Recording.createAsync(VOICE_RECORDING_OPTIONS);
+        rec = recording;
+      } catch (innerErr) {
+        const { recording } = await Audio.Recording.createAsync(
+          Audio.RecordingOptionsPresets.HIGH_QUALITY
+        );
+        rec = recording;
+      }
+
+      recordingInstanceRef.current = rec;
       setIsRecording(true);
-      await Voice.start('hi-IN');
-    } catch {
-      Alert.alert('Voice', 'Mic permission required');
+    } catch (err: any) {
+      console.error('[Audio] start recording error:', err);
+      Alert.alert('Recording Error', err?.message || 'Could not start voice recording.');
       setIsRecording(false);
     }
   };
@@ -746,6 +986,9 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
                   <TouchableOpacity onPress={() => setPreviewImage(msg.imageUrl || null)}>
                     <Image cachePolicy="memory-disk" source={{ uri: toCDN(msg.imageUrl) }} className="w-48 h-48 rounded-lg mb-1" contentFit="cover" />
                   </TouchableOpacity>
+                )}
+                {(msg as any).audioUrl && (
+                  <AudioPlayer audioUrl={(msg as any).audioUrl} isMe={isMe} />
                 )}
                 {msg.text && (
                   <Text className={`text-sm ${isMe ? 'text-white' : 'text-slate-800'}`}>{msg.text}</Text>

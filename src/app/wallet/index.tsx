@@ -153,21 +153,26 @@ export default function WalletScreen() {
 
     setExchanging(true);
     try {
-      const batch = firestore().batch();
+      const newDiamonds = diamonds - reqDiamonds;
+      const newCoins = coins + resCoins;
+
       const uRef = firestore().collection('users').doc(user.uid);
       const pRef = firestore().collection('users').doc(user.uid).collection('profile').doc(user.uid);
 
-      const exchangeUpdate = {
-        'wallet.diamonds': firestore.FieldValue.increment(-reqDiamonds),
-        'wallet.coins': firestore.FieldValue.increment(resCoins),
+      await uRef.update({
+        'wallet.diamonds': newDiamonds,
+        'wallet.coins': newCoins,
         updatedAt: firestore.FieldValue.serverTimestamp()
-      };
+      });
 
-      batch.set(pRef, exchangeUpdate, { merge: true });
-      batch.set(uRef, exchangeUpdate, { merge: true });
+      await pRef.update({
+        'wallet.diamonds': newDiamonds,
+        'wallet.coins': newCoins,
+        updatedAt: firestore.FieldValue.serverTimestamp()
+      });
 
       const auditRef = firestore().collection('users').doc(user.uid).collection('diamondExchanges').doc();
-      batch.set(auditRef, {
+      await auditRef.set({
         id: auditRef.id,
         type: 'exchange',
         diamondAmount: reqDiamonds,
@@ -175,10 +180,9 @@ export default function WalletScreen() {
         timestamp: firestore.FieldValue.serverTimestamp()
       });
 
-      await batch.commit();
       Alert.alert('Success', `Exchanged ${reqDiamonds.toLocaleString()} Diamonds for ${resCoins.toLocaleString()} Coins!`);
     } catch (err: any) {
-      Alert.alert('Exchange Failed', err.message);
+      Alert.alert('Exchange Failed', `${err.message || 'Unknown error'}\n\nCode: ${err.code || 'N/A'}`);
     } finally {
       setExchanging(false);
     }
@@ -201,21 +205,26 @@ export default function WalletScreen() {
 
     setExchanging(true);
     try {
-      const batch = firestore().batch();
+      const newDiamonds = diamonds - reqDiamonds;
+      const newCoins = coins + resCoins;
+
       const uRef = firestore().collection('users').doc(user.uid);
       const pRef = firestore().collection('users').doc(user.uid).collection('profile').doc(user.uid);
 
-      const exchangeUpdate = {
-        'wallet.diamonds': firestore.FieldValue.increment(-reqDiamonds),
-        'wallet.coins': firestore.FieldValue.increment(resCoins),
+      await uRef.update({
+        'wallet.diamonds': newDiamonds,
+        'wallet.coins': newCoins,
         updatedAt: firestore.FieldValue.serverTimestamp()
-      };
+      });
 
-      batch.set(pRef, exchangeUpdate, { merge: true });
-      batch.set(uRef, exchangeUpdate, { merge: true });
+      await pRef.update({
+        'wallet.diamonds': newDiamonds,
+        'wallet.coins': newCoins,
+        updatedAt: firestore.FieldValue.serverTimestamp()
+      });
 
       const auditRef = firestore().collection('users').doc(user.uid).collection('diamondExchanges').doc();
-      batch.set(auditRef, {
+      await auditRef.set({
         id: auditRef.id,
         type: 'exchange',
         diamondAmount: reqDiamonds,
@@ -223,11 +232,10 @@ export default function WalletScreen() {
         timestamp: firestore.FieldValue.serverTimestamp()
       });
 
-      await batch.commit();
       Alert.alert('Success', `Exchanged ${reqDiamonds.toLocaleString()} Diamonds for ${resCoins.toLocaleString()} Coins!`);
       setCustomDiamonds('');
     } catch (err: any) {
-      Alert.alert('Exchange Failed', err.message);
+      Alert.alert('Exchange Failed', `${err.message || 'Unknown error'}\n\nCode: ${err.code || 'N/A'}`);
     } finally {
       setExchanging(false);
     }
@@ -266,8 +274,8 @@ export default function WalletScreen() {
             <LinearGradient colors={['#FFD700', '#FDB931', '#9E7302']} start={{x:0, y:0}} end={{x:1, y:1}} style={{ padding: 16, borderRadius: 20, minHeight: 90, justifyContent: 'center' }}>
               <Text style={styles.cardLabel}>Coins Balance</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
-                <Text style={[styles.cardValue, { fontSize: 26 }]} numberOfLines={1}>{coins.toLocaleString()}</Text>
-                <GoldenCoin size={36} />
+                <Text style={[styles.cardValue, { fontSize: 32 }]} numberOfLines={1}>{coins.toLocaleString()}</Text>
+                <GoldenCoin size={48} />
               </View>
             </LinearGradient>
           ) : (

@@ -80,7 +80,7 @@ const GenderAgeTag = React.memo(({ gender, birthday }: { gender?: string | null,
   const bgColor = gender === 'Female' ? '#ec4899' : '#3b82f6';
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, backgroundColor: bgColor, marginLeft: 6 }}>
-      <Text style={{ fontSize: 10, fontWeight: '800', color: 'white', lineHeight: 14 }}>{gender === 'Female' ? '♀' : '♂'}</Text>
+      <Text style={{ fontSize: 10, fontWeight: '800', color: 'white', lineHeight: 14 }}>{gender === 'Female' ? String.fromCodePoint(0x2640) : String.fromCodePoint(0x2642)}</Text>
       {age !== null && <Text style={{ fontSize: 10, fontWeight: '800', color: 'white', lineHeight: 14, marginLeft: 4 }}>{age}</Text>}
     </View>
   );

@@ -1,5 +1,5 @@
-﻿import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { Modal, View, Text, TouchableOpacity, Dimensions, StyleSheet, ScrollView, StatusBar, ActivityIndicator, Clipboard, Platform, Animated, TextInput, Alert } from 'react-native';
+﻿import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { Modal, View, Text, TouchableOpacity, Dimensions, StyleSheet, ScrollView, StatusBar, ActivityIndicator, Clipboard, Platform, Animated, TextInput, Alert, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Heart, MessageCircle, MoreHorizontal, Calendar, Star, Sparkles, MapPin, Copy, CheckCircle, Search, X, UserPlus, Unlink } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -99,9 +99,17 @@ const GenderAgeTag = ({ gender, birthday }: any) => {
   );
 };
 
+const getSVIPColor = (level: number): string => {
+  if (level >= 1 && level <= 6) return '#0ea5e9';
+  if (level >= 7 && level <= 10) return '#9333ea';
+  if (level >= 11 && level <= 15) return '#dc2626';
+  return '#7c3aed';
+};
+
 const SVIPBadge = ({ level }: { level: number }) => {
   const firestore = useFirestore();
   const [badgeUrl, setBadgeUrl] = useState<string | null>(null);
+  const [pillColor, setPillColor] = useState<string>(getSVIPColor(level));
 
   useEffect(() => {
     if (!level || level < 1 || !firestore) return;
@@ -111,7 +119,9 @@ const SVIPBadge = ({ level }: { level: number }) => {
         if (snap.exists()) {
           const data = snap.data();
           const url = data?.levels?.[String(level)]?.badgeUrl;
+          const color = data?.levels?.[String(level)]?.color;
           if (url) setBadgeUrl(url);
+          if (color) setPillColor(color);
         }
       } catch (e) {}
     })();
@@ -121,16 +131,64 @@ const SVIPBadge = ({ level }: { level: number }) => {
 
   if (badgeUrl) {
     return (
-      <Image cachePolicy="memory-disk" source={{ uri: toCDN(badgeUrl) }} style={{ width: 24, height: 24 }} contentFit="contain" />
+      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: pillColor + 'D9', borderRadius: 10, paddingHorizontal: 3, paddingVertical: 1.5, gap: 2 }}>
+        <Image cachePolicy="memory-disk" source={{ uri: toCDN(badgeUrl) }} style={{ width: 16, height: 16 }} contentFit="contain" />
+        <Text style={{ fontSize: 7, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.2, paddingRight: 3 }}>SVIP{level}</Text>
+      </View>
     );
   }
 
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, gap: 2, backgroundColor: '#F59E0B' }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, gap: 2, backgroundColor: pillColor }}>
       <Text style={{ fontSize: 8, color: '#FFF', fontWeight: '800' }}>SVIP {level}</Text>
     </View>
   );
 };
+
+function CoverCarousel({ images }: { images: string[] }) {
+  const flatListRef = useRef<FlatList>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const autoScrollRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (images.length <= 1) return;
+    autoScrollRef.current = setInterval(() => {
+      setActiveIndex(prev => {
+        const next = (prev + 1) % images.length;
+        flatListRef.current?.scrollToOffset({ offset: next * SCREEN_WIDTH, animated: true });
+        return next;
+      });
+    }, 3000);
+    return () => { if (autoScrollRef.current) clearInterval(autoScrollRef.current); };
+  }, [images.length]);
+
+  return (
+    <>
+      <FlatList
+        ref={flatListRef}
+        data={images}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(_, i) => String(i)}
+        onMomentumScrollEnd={(e) => {
+          const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+          setActiveIndex(idx);
+        }}
+        renderItem={({ item }) => (
+          <Image cachePolicy="memory-disk" source={{ uri: toCDN(item) || 'https://picsum.photos/200' }} style={{ width: SCREEN_WIDTH, height: '100%' }} contentFit="cover" />
+        )}
+      />
+      {images.length > 1 && (
+        <View style={{ position: 'absolute', bottom: 12, flexDirection: 'row', gap: 5, alignSelf: 'center' }}>
+          {images.map((_: any, i: number) => (
+            <View key={i} style={{ width: i === activeIndex ? 16 : 6, height: 6, borderRadius: 3, backgroundColor: i === activeIndex ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)' }} />
+          ))}
+        </View>
+      )}
+    </>
+  );
+}
 
 export function FullProfileDialog({
   open,
@@ -304,14 +362,9 @@ export function FullProfileDialog({
         <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }} edges={[]}>
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 128 }} showsVerticalScrollIndicator={false} bounces={false}>
 
-            {/* Cover Image â€” scrolls with content, goes behind status bar */}
+            {/* Cover Image — auto-scrolling carousel */}
             <View style={{ height: SCREEN_HEIGHT * 0.35, width: '100%', position: 'relative' }}>
-              <Image
-                cachePolicy="memory-disk"
-                source={{ uri: toCDN(profile.spaceImages?.[0] || profile.avatarUrl) || 'https://picsum.photos/200' }}
-                style={{ width: '100%', height: '100%' }}
-                contentFit="cover"
-              />
+              <CoverCarousel images={profile.spaceImages?.length > 0 ? profile.spaceImages : [profile.avatarUrl || 'https://picsum.photos/200']} />
               <LinearGradient
                 colors={['transparent', 'rgba(0,0,0,0.4)']}
                 style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 80 }}
@@ -342,7 +395,7 @@ export function FullProfileDialog({
             </View>
 
             {/* Level Badges + ID Row */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 6, marginTop: 8, overflow: 'visible' }}>
               <TouchableOpacity onPress={handleCopyId} activeOpacity={0.7}>
                 {hasOfficialTag ? (
                   <SVGA_GlossyID label={`ID: ${displayId}`} />
@@ -582,7 +635,7 @@ export function FullProfileDialog({
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
               {/* Best Friend Slot */}
               <View style={{ flex: 1, backgroundColor: '#F0FDF4', borderRadius: 16, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#BBF7D0' }}>
-                <Text style={{ fontSize: 8, fontWeight: '800', color: '#16A34A', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>ðŸ«‚ Best Friend</Text>
+                <Text style={{ fontSize: 8, fontWeight: '800', color: '#16A34A', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>{String.fromCodePoint(0x1F91D)} Best Friend</Text>
                 {profile?.bestFriend ? (
                   <View style={{ alignItems: 'center' }}>
                     <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile.bestFriend.avatarUrl) || 'https://picsum.photos/200' }}
@@ -599,7 +652,7 @@ export function FullProfileDialog({
 
               {/* Besties Slot */}
               <View style={{ flex: 1, backgroundColor: '#FFF7ED', borderRadius: 16, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#FED7AA' }}>
-                <Text style={{ fontSize: 8, fontWeight: '800', color: '#EA580C', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>ðŸ‘¯ Besties</Text>
+                <Text style={{ fontSize: 8, fontWeight: '800', color: '#EA580C', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>👥 Besties</Text>
                 {profile?.besties ? (
                   <View style={{ alignItems: 'center' }}>
                     <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile.besties.avatarUrl) || 'https://picsum.photos/200' }}
@@ -657,7 +710,7 @@ export function FullProfileDialog({
                           {medalData?.imageUrl ? (
                             <Image cachePolicy="memory-disk" source={{ uri: toCDN(medalData.imageUrl) }} style={{ width: 80, height: 80 }} contentFit="contain" />
                           ) : (
-                            <Text style={{ fontSize: 22 }}>ðŸ…</Text>
+                            <Text style={{ fontSize: 22 }}>🏅</Text>
                           )}
                           <Text style={{ fontSize: 8, fontWeight: '800', color: '#64748B', marginTop: 4, textAlign: 'center' }} numberOfLines={1}>{medalData?.name || mId}</Text>
                         </View>
@@ -673,7 +726,7 @@ export function FullProfileDialog({
                   {profile.inventory?.ownedItems?.filter((id: string) => id.includes('vehicle') || id.includes('car')).length > 0 ? (
                     profile.inventory.ownedItems.filter((id: string) => id.includes('vehicle') || id.includes('car')).map((id: string, idx: number) => (
                       <View key={idx} style={{ padding: 8, backgroundColor: '#F8FAFC', borderRadius: 12, alignItems: 'center', width: (SCREEN_WIDTH - 64) / 4 }}>
-                        <Text style={{ fontSize: 22 }}>ðŸš—</Text>
+                        <Text style={{ fontSize: 22 }}>🚗</Text>
                         <Text style={{ fontSize: 8, fontWeight: '800', color: '#64748B', marginTop: 4, textAlign: 'center' }} numberOfLines={1}>{id}</Text>
                       </View>
                     ))
@@ -687,7 +740,7 @@ export function FullProfileDialog({
                   {profile.inventory?.ownedItems?.filter((id: string) => id.includes('frame') || id.includes('ring')).length > 0 ? (
                     profile.inventory.ownedItems.filter((id: string) => id.includes('frame') || id.includes('ring')).map((id: string, idx: number) => (
                       <View key={idx} style={{ padding: 8, backgroundColor: '#F8FAFC', borderRadius: 12, alignItems: 'center', width: (SCREEN_WIDTH - 64) / 4 }}>
-                        <Text style={{ fontSize: 22 }}>ðŸ–¼ï¸</Text>
+                        <Text style={{ fontSize: 22 }}>🖼️</Text>
                         <Text style={{ fontSize: 8, fontWeight: '800', color: '#64748B', marginTop: 4, textAlign: 'center' }} numberOfLines={1}>{id}</Text>
                       </View>
                     ))
@@ -810,9 +863,9 @@ export function FullProfileDialog({
               {cpSelectedUser && !cpSent && (
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
                   {[
-                    { id: 'Best Friend', label: 'Best Friend', icon: 'ðŸ«‚' },
-                    { id: 'CP', label: 'CP Partner', icon: 'ðŸ’‘' },
-                    { id: 'Besties', label: 'Besties', icon: 'ðŸ‘¯' }
+                    { id: 'Best Friend', label: 'Best Friend', icon: '🤝' },
+                    { id: 'CP', label: 'CP Partner', icon: '💑' },
+                    { id: 'Besties', label: 'Besties', icon: '👥' }
                   ].filter(t => t.id === searchType || t.id === 'CP').map(t => (
                     <TouchableOpacity key={t.id} onPress={() => handleSendCpProposal(t.id as any)}
                       style={{ flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
@@ -873,7 +926,7 @@ export function FullProfileDialog({
                 {isBreakingCp ? (
                   <ActivityIndicator size={14} color="#EF4444" />
                 ) : (
-                  <Text style={{ fontSize: 16 }}>ðŸ’”</Text>
+                  <Text style={{ fontSize: 16 }}>💔</Text>
                 )}
                 <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '800' }}>{isBreakingCp ? 'Breaking...' : 'Want to Break CP?'}</Text>
               </TouchableOpacity>
@@ -985,14 +1038,14 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user }: { pr
   };
 
   const sorted = [...supporters].sort((a: any, b: any) => getPoints(b) - getPoints(a));
-  const s1 = sorted[0]; // ðŸ¥‡ 1st - middle, raised
-  const s2 = sorted[1]; // ðŸ¥ˆ 2nd - left
-  const s3 = sorted[2]; // ðŸ¥‰ 3rd - right
+  const s1 = sorted[0];
+  const s2 = sorted[1];
+  const s3 = sorted[2];
 
   const slots = [
-    { medal: 'ðŸ¥ˆ', supporter: s2, size: 48, color: '#94a3b8', translateY: 10 },
-    { medal: 'ðŸ¥‡', supporter: s1, size: 60, color: '#fbbf24', translateY: 0 },
-    { medal: 'ðŸ¥‰', supporter: s3, size: 44, color: '#d97706', translateY: 12 },
+    { medal: String.fromCodePoint(0x1F948), supporter: s2, size: 48, color: '#94a3b8', translateY: 10 },
+    { medal: String.fromCodePoint(0x1F947), supporter: s1, size: 60, color: '#fbbf24', translateY: 0 },
+    { medal: String.fromCodePoint(0x1F949), supporter: s3, size: 44, color: '#d97706', translateY: 12 },
   ];
 
   return (
@@ -1002,16 +1055,16 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user }: { pr
           <Text style={{ fontSize: 10, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 1 }}>Top Supporters</Text>
           {sorted.length > 0 && <Text style={{ fontSize: 10, color: '#CBD5E1' }}>({sorted.length})</Text>}
         </View>
-        <Text style={{ fontSize: 10, fontWeight: '700', color: '#2563EB' }}>View All â†’</Text>
+        <Text style={{ fontSize: 10, fontWeight: '700', color: '#2563EB' }}>{'View All ' + String.fromCodePoint(0x2192)}</Text>
       </TouchableOpacity>
 
       {/* Daily Support Button (other users only) */}
       {!isOwnProfile && (
         <TouchableOpacity onPress={handleDailySupport} disabled={dailySupported || supporting}
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 12, marginBottom: 10, backgroundColor: dailySupported ? 'rgba(34,197,94,0.1)' : 'rgba(234,179,8,0.1)', borderWidth: 1, borderColor: dailySupported ? 'rgba(34,197,94,0.3)' : 'rgba(234,179,8,0.3)' }}>
-          {supporting ? <ActivityIndicator size={12} color="#EAB308" /> : <Text style={{ fontSize: 14 }}>â­</Text>}
+          {supporting ? <ActivityIndicator size={12} color="#EAB308" /> : <Text style={{ fontSize: 14 }}>⭐</Text>}
           <Text style={{ fontSize: 11, fontWeight: '800', color: dailySupported ? '#22C55E' : '#EAB308' }}>
-            {dailySupported ? 'Supported Today âœ“' : 'Support (+60 Points)'}
+            {dailySupported ? 'Supported Today ✔' : 'Support (+60 Points)'}
           </Text>
         </TouchableOpacity>
       )}
@@ -1074,9 +1127,9 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user }: { pr
             {sorted.length > 0 && (
               <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-end', gap: 20, paddingVertical: 24, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
                 {[
-                  { s: sorted[1], medal: 'ðŸ¥ˆ', size: 56, color: '#94a3b8', ty: 12 },
-                  { s: sorted[0], medal: 'ðŸ¥‡', size: 72, color: '#fbbf24', ty: 0 },
-                  { s: sorted[2], medal: 'ðŸ¥‰', size: 50, color: '#d97706', ty: 16 },
+                  { s: sorted[1], medal: String.fromCodePoint(0x1F948), size: 56, color: '#94a3b8', ty: 12 },
+                  { s: sorted[0], medal: String.fromCodePoint(0x1F947), size: 72, color: '#fbbf24', ty: 0 },
+                  { s: sorted[2], medal: String.fromCodePoint(0x1F949), size: 50, color: '#d97706', ty: 16 },
                 ].map((slot, i) => (
                   <View key={i} style={{ alignItems: 'center', transform: [{ translateY: slot.ty }] }}>
                     <TouchableOpacity

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Dimensions, ScrollView, Animated, Easing, Image } from 'react-native';
 import { HelpCircle, Volume2, VolumeX, BarChart3, ChevronDown, X, RotateCcw, Plus } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
@@ -9,6 +9,7 @@ import { doc, updateDoc, increment, addDoc, collection, getDoc, writeBatch } fro
 import Svg, { Path, Circle, Line, G } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Audio } from 'expo-av';
+import { GoldenCoin } from '../GoldenCoin';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -30,15 +31,15 @@ const ANIMALS = [
   { id: 'lion',   emoji: '🦁', image: require('../../../assets/images/games/lion.png'),   multiplier: 45, label: 'win 45 times', color: '#06b6d4', bg: '#083344' },
 ];
 
-const CHIPS = [100, 500, 1000, 5000, 10000, 50000, 100000];
+const CHIPS = [500, 1000, 5000, 10000, 50000, 100000, 500000];
 const CHIP_STYLES: Record<number, { colors: string[]; text: string; border: string }> = {
-  100:    { colors: ['#1e40af', '#3b82f6'], text: 'white', border: '#93c5fd' }, // Blue
   500:    { colors: ['#9d174d', '#ec4899'], text: 'white', border: '#fbcfe8' }, // Pink
   1000:   { colors: ['#701a75', '#d946ef'], text: 'white', border: '#f5d0fe' }, // Purple
   5000:   { colors: ['#065f46', '#10b981'], text: 'white', border: '#a7f3d0' }, // Green
   10000:  { colors: ['#b45309', '#f59e0b'], text: 'white', border: '#fef08a' }, // Orange/Gold
   50000:  { colors: ['#991b1b', '#ef4444'], text: 'white', border: '#fca5a5' }, // Crimson
   100000: { colors: ['#111827', '#374151'], text: 'white', border: '#9ca3af' }, // Silver/Gray
+  500000: { colors: ['#1e40af', '#3b82f6'], text: 'white', border: '#93c5fd' }, // Blue (moved from 100)
 };
 const SEQUENCE = [0, 1, 2, 3, 4, 5, 6, 7];
 
@@ -255,7 +256,7 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
     runChase();
   };
 
-  const finalizeResult = (id: string, groupType: 'none' | 'left' | 'right' = 'none') => {
+  const finalizeResult = async (id: string, groupType: 'none' | 'left' | 'right' = 'none') => {
     playSoundEffect('win');
     setShiningGroup(groupType);
     
@@ -284,7 +285,7 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
         const winData = { 'wallet.coins': increment(winAmount) };
         batch.set(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), winData, { merge: true });
         batch.set(doc(firestore, 'users', currentUser.uid), winData, { merge: true });
-        batch.commit().catch(() => {});
+        await batch.commit();
         addDoc(collection(firestore, 'globalGameWins'), {
           gameId: 'forest-party', roomId: roomId || null, userId: currentUser.uid, username: userProfile.username || 'Guest',
           avatarUrl: userProfile.avatarUrl || null, amount: winAmount, betAmount: totalWagerForGroup, timestamp: new Date(),
@@ -733,10 +734,10 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
               elevation: 4,
             }}
           >
-            <Text style={{ fontSize: 13, textShadowColor: 'rgba(0,0,0,0.1)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1 }}>🪙</Text>
+            <GoldenCoin size={25} />
             <Text style={{
               color: '#3f2305', // Dark charcoal/brown text for readability
-              fontSize: 14,
+              fontSize: 16,
               fontWeight: '900',
               textShadowColor: 'rgba(255,255,255,0.4)',
               textShadowOffset: { width: 0, height: 1 },

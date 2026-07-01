@@ -469,7 +469,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
               {isGenderFixed ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 4, gap: 8 }}>
                   <Text style={{ fontSize: 16, fontWeight: '700', color: '#0f172a' }}>
-                    {gender === 'Female' ? 'â™€ Female' : 'â™‚ Male'}
+                    {gender === 'Female' ? `${String.fromCodePoint(0x2640)} Female` : `${String.fromCodePoint(0x2642)} Male`}
                   </Text>
                   <View style={{ backgroundColor: '#f1f5f9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
                     <Text style={{ fontSize: 9, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase' }}>Locked</Text>
@@ -487,7 +487,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
                       backgroundColor: gender === 'Male' ? '#3b82f6' : 'transparent',
                     }}
                   >
-                    <Text style={{ fontWeight: '700', color: gender === 'Male' ? 'white' : '#94a3b8' }}>â™‚ Male</Text>
+                    <Text style={{ fontWeight: '700', color: gender === 'Male' ? 'white' : '#94a3b8' }}>{String.fromCodePoint(0x2642)} Male</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => setGender('Female')}
@@ -499,7 +499,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
                       backgroundColor: gender === 'Female' ? '#ec4899' : 'transparent',
                     }}
                   >
-                    <Text style={{ fontWeight: '700', color: gender === 'Female' ? 'white' : '#94a3b8' }}>â™€ Female</Text>
+                    <Text style={{ fontWeight: '700', color: gender === 'Female' ? 'white' : '#94a3b8' }}>{String.fromCodePoint(0x2640)} Female</Text>
                   </TouchableOpacity>
                 </View>
               )}

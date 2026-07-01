@@ -211,8 +211,8 @@ export default function StoreScreen() {
         updateData['inventory.activeEntryVideoUrl'] = entryVideo;
       }
       const batch = writeBatch(firestore);
-      batch.set(profileRef, updateData, { merge: true });
-      batch.set(userRef, { 'wallet.coins': increment(-finalPrice), updatedAt: serverTimestamp() }, { merge: true });
+      batch.update(profileRef, updateData);
+      batch.update(userRef, { 'wallet.coins': increment(-finalPrice), updatedAt: serverTimestamp() });
       await batch.commit();
       Alert.alert('✅ Purchase Successful!', `${previewItem.name} added to your inventory.`);
       setPreviewItem(null);
@@ -261,8 +261,8 @@ export default function StoreScreen() {
         updatedAt: serverTimestamp(),
       };
       const batch = writeBatch(firestore);
-      batch.set(senderProfileRef, deductData, { merge: true });
-      batch.set(senderUserRef, deductData, { merge: true });
+      batch.update(senderProfileRef, deductData);
+      batch.update(senderUserRef, deductData);
       batch.set(recipientProfileRef, {
         'inventory.ownedItems': arrayUnion(previewItem.id),
         [`inventory.expiries.${previewItem.id}`]: expiryDate.toISOString(),
@@ -624,9 +624,28 @@ export default function StoreScreen() {
                 </View>
 
                 {isItemOwned(previewItem.id) ? (
-                  <View style={styles.ownedBox}>
-                    <Check size={16} color="#10b981" />
-                    <Text style={styles.ownedText}>Already Owned & Active</Text>
+                  <View style={{ gap: 10 }}>
+                    {(previewItem.type === 'Frame' && activeFrameId === previewItem.id) ||
+                     (previewItem.type === 'Wave' && activeWaveId === previewItem.id) ||
+                     (previewItem.type === 'Bubble' && activeBubbleId === previewItem.id) ||
+                     (previewItem.type === 'Entry' && activeEntryEffect === (previewItem.entryType || 'line')) ? (
+                      <View style={styles.ownedBox}>
+                        <Check size={16} color="#10b981" />
+                        <Text style={styles.ownedText}>Active</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={[styles.buyBtn, { backgroundColor: '#f59e0b' }, isProcessing && { opacity: 0.6 }]}
+                        onPress={() => {
+                          setPreviewItem(null);
+                          if (previewItem.type === 'Entry') handleUseEntryEffect(previewItem);
+                          else handleUseItem(previewItem);
+                        }}
+                        disabled={isProcessing}
+                      >
+                        <Text style={styles.buyBtnText}>USE</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 ) : (
                   <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -770,7 +789,7 @@ const styles = StyleSheet.create({
   emptyDesc: { fontSize: 13, color: '#94a3b8', textAlign: 'center', marginTop: 8, lineHeight: 18 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalBox: { backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 36 },
-  modalCloseBtn: { position: 'absolute', top: 16, right: 16, padding: 8, backgroundColor: '#f1f5f9', borderRadius: 20 },
+  modalCloseBtn: { position: 'absolute', top: 16, right: 16, padding: 8, backgroundColor: '#f1f5f9', borderRadius: 20, zIndex: 100 },
   modalMedia: { width: '100%', height: 220, backgroundColor: 'transparent', borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
   modalMediaFill: { width: '100%', height: '100%' },
   modalMediaPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },

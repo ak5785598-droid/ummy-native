@@ -63,6 +63,10 @@ export type User = {
   idColor?: 'red' | 'blue' | 'purple' | 'none';
   isBudgetId?: boolean;
   activityPoints?: number;
+  dailyActivityPoints?: number;
+  dailyActivityPointsDate?: string;
+  totalBonusClaimed?: number;
+  lastBonusClaimDate?: string;
   charmPoints?: number;
   svip?: number;
   mysteriousVisitor?: boolean;
@@ -133,6 +137,7 @@ export type PrivateMessage = {
   senderId: string;
   timestamp: any;
   imageUrl?: string | null;
+  audioUrl?: string | null;
 };
 
 export type RoomParticipant = {

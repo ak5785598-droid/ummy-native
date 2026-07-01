@@ -103,6 +103,7 @@ export default function RoomScreen() {
   const [isGiftPickerOpen, setIsGiftPickerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isChatInputOpen, setIsChatInputOpen] = useState(false);
+  const [mentionText, setMentionText] = useState('');
   const [isPlayOpen, setIsPlayOpen] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [isMessagesOpen, setIsMessagesOpen] = useState(false);
@@ -833,13 +834,18 @@ export default function RoomScreen() {
   };
 
   const handleImageUpload = async (uri: string): Promise<string | null> => {
-    if (!storage || !id) return null;
     try {
       const filename = `${Date.now()}_${uri.split('/').pop()}`;
-      const fileRef = storageRef(storage, `rooms/${id}/chat/${filename}`);
-      const response = await fetch(uri); const blob = await response.blob();
-      await uploadBytes(fileRef, blob, { cacheControl: 'public, max-age=2592000, immutable' }); return await getDownloadURL(fileRef);
-    } catch (e) { return null; }
+      const path = `rooms/${id}/chat/${filename}`;
+      
+      const rnfbStorage = require('@react-native-firebase/storage').default;
+      const reference = rnfbStorage().ref(path);
+      
+      await reference.putFile(uri, {
+        cacheControl: 'public, max-age=2592000, immutable'
+      });
+      return await reference.getDownloadURL();
+    } catch (e: any) { Alert.alert('Upload Failed', e.message || 'Could not upload image.'); return null; }
   };
 
   const handleExit = async () => {
@@ -1135,7 +1141,7 @@ export default function RoomScreen() {
           <RoomFooter isMicMuted={isMuted} isSpeakerMuted={isSpeakerMuted} isInSeat={isInSeat} onToggleMic={handleMicToggle} onToggleSpeaker={() => setIsSpeakerMuted(!isSpeakerMuted)} onOpenChatInput={() => setIsChatInputOpen(true)} onOpenEmoji={() => setIsEmojiPickerOpen(true)} onOpenMessages={() => setIsMessagesOpen(true)} onOpenGift={() => { setGiftRecipient(null); setIsGiftPickerOpen(true); }} onOpenPlay={() => setIsPlayOpen(true)} onOpenSoundboard={() => setShowSoundboard(true)} onOpenGames={() => setShowGames(true)} onOpenYouTube={() => setShowYouTube(true)} onOpenEntertainment={() => setShowEntertainmentHub(true)} onOpenScreenMirror={() => setShowScreenMirror(true)} onOpenSports={() => setShowSports(true)} onOpenCaptions={() => setIsCaptionsEnabled(!isCaptionsEnabled)} onOpenLanguagePicker={() => setShowLanguagePicker(true)} onOpenEcho={() => setShowEcho(true)} onOpenThemeArchitect={() => setShowThemeArchitect(true)} onOpenSupport={() => setShowSupportDialog(true)} />
         </View>
 
-        <ChatInputBar visible={isChatInputOpen} onClose={() => setIsChatInputOpen(false)} onSend={handleSendMessage} onImageUpload={handleImageUpload} targetLanguage={targetLanguage} sourceLanguage={sourceLanguage} onSelectLanguage={setTargetLanguage} onSelectSourceLanguage={setSourceLanguage} />
+        <ChatInputBar visible={isChatInputOpen} onClose={() => { setIsChatInputOpen(false); setMentionText(''); }} onSend={handleSendMessage} onImageUpload={handleImageUpload} targetLanguage={targetLanguage} sourceLanguage={sourceLanguage} onSelectLanguage={setTargetLanguage} onSelectSourceLanguage={setSourceLanguage} initialText={mentionText} />
       </SafeAreaView>
 
       <ExitRoomSheet visible={showExitDialog} onClose={() => setShowExitDialog(false)} onExit={handleExit} onMinimize={handleMinimize} />
@@ -1311,7 +1317,7 @@ export default function RoomScreen() {
           setGiftRecipient(target || null);
           setIsGiftPickerOpen(true);
         }}
-        onMention={(username) => {}}
+        onMention={(username) => { setMentionText(`@${username} `); setIsChatInputOpen(true); }}
         onPropose={(target) => { setCpProposeTarget(target); setShowCPPropose(true); }}
         onEcho={(target) => {
           setEchoTarget(target);
@@ -1376,6 +1382,7 @@ export default function RoomScreen() {
           setIsMessagesOpen(true);
         }}
         onMention={(username: string) => {
+          setMentionText(`@${username} `);
           setIsChatInputOpen(true);
         }}
         onGift={(recipient: any) => {

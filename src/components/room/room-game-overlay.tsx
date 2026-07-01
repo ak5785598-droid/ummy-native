@@ -11,6 +11,7 @@ import { CarromGame } from '../games/carrom-game';
 import { ChessGame } from '../games/chess-game';
 import { RouletteGame } from '../games/roulette-game';
 import { TeenPattiGame } from '../games/teen-patti-game';
+import { GoldenCoin } from '../GoldenCoin';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -424,8 +425,16 @@ export function RoomGameOverlay({ visible, gameId, onClose, roomId, isAdmin }: R
                         )}
                       </View>
                     </View>
-                    <Text style={s.popupStatLabel}>Prize:  <Text style={s.popupStatValueGold}>🪙 {roundPopup.myPrize.toLocaleString()}</Text></Text>
-                    <Text style={s.popupStatLabel}>Your Wager:  <Text style={s.popupStatValueGold}>🪙 {roundPopup.myWager.toLocaleString()}</Text></Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Text style={s.popupStatLabel}>Prize:  </Text>
+                      <GoldenCoin size={13} />
+                      <Text style={s.popupStatValueGold}>{roundPopup.myPrize.toLocaleString()}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                      <Text style={s.popupStatLabel}>Your Wager:  </Text>
+                      <GoldenCoin size={13} />
+                      <Text style={s.popupStatValueGold}>{roundPopup.myWager.toLocaleString()}</Text>
+                    </View>
                   </View>
                 </View>
 

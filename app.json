@@ -55,6 +55,7 @@
       ],
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
+      "@react-native-firebase/app-check",
       "@react-native-google-signin/google-signin",
       [
         "react-native-fbsdk-next",
@@ -62,6 +63,13 @@
           "appID": "123456789012345",
           "clientToken": "dummy_token",
           "displayName": "Ummy"
+        }
+      ],
+      [
+        "@react-native-voice/voice",
+        {
+          "microphonePermission": "Allow Ummy to access your microphone for speech-to-text recognition.",
+          "speechRecognitionPermission": "Allow Ummy to recognize speech to dictate chat messages."
         }
       ],
       "expo-font"

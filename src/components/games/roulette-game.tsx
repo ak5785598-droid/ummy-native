@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, ScrollView, Dimensions, Animated, Easing,
 import Svg, { G, Path, Circle, Stop } from 'react-native-svg';
 const SvgText = require('react-native-svg').Text as any;
 import { X, Volume2, VolumeX, RotateCcw, Plus } from 'lucide-react-native';
+import { Audio } from 'expo-av';
+import { GoldenCoin } from '../GoldenCoin';
 import { useRouter } from 'expo-router';
 import { useUser, useFirestore, useDatabase } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
@@ -46,7 +48,7 @@ const BET_TYPES = [
   { id: '25-36',     label: '25–36',       payout: 3,  check: (n: number) => n >= 25 && n <= 36, icon: '📉' },
 ];
 
-const CHIP_OPTIONS = [100, 500, 1000, 5000, 10000, 50000];
+const CHIP_OPTIONS = [500, 1000, 5000, 10000, 50000, 500000];
 
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
@@ -323,7 +325,7 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
     });
   };
 
-  const finalizeResult = (num: number) => {
+  const finalizeResult = async (num: number) => {
     let totalWin = 0;
     BET_TYPES.forEach(bt => {
       const betAmt = myBetsRef.current[bt.id] || 0;
@@ -341,7 +343,7 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
         const winData = { 'wallet.coins': increment(totalWin) };
         batch.set(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), winData, { merge: true });
         batch.set(doc(firestore, 'users', currentUser.uid), winData, { merge: true });
-        batch.commit().catch(() => {});
+        await batch.commit();
       } catch {}
       addDoc(collection(firestore, 'globalGameWins'), {
         gameId: 'roulette',
@@ -713,8 +715,9 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
             shadowRadius: 4,
             elevation: 2,
           }} />
-          <Text style={{ color: '#ffffff', fontSize: 13, fontWeight: '900', letterSpacing: 0.3 }}>
-            🪙 <Text style={{ color: '#fbbf24' }}>{localCoins.toLocaleString()}</Text>
+          <GoldenCoin size={25} />
+          <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '900', letterSpacing: 0.3 }}>
+            <Text style={{ color: '#fbbf24' }}>{localCoins.toLocaleString()}</Text>
           </Text>
           <TouchableOpacity 
             onPress={handleGoToWallet}

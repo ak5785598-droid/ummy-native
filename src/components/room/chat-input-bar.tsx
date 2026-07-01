@@ -14,6 +14,7 @@ interface ChatInputBarProps {
   sourceLanguage?: string;
   onSelectLanguage: (code: string) => void;
   onSelectSourceLanguage?: (code: string) => void;
+  initialText?: string;
 }
 
 const LANGUAGES = [
@@ -141,7 +142,7 @@ const SOURCE_LANGUAGES = [
   { code: 'zh', name: 'Chinese', flag: '🇨🇳' },
 ];
 
-export function ChatInputBar({ visible, onClose, onSend, onImageUpload, targetLanguage, sourceLanguage, onSelectLanguage, onSelectSourceLanguage }: ChatInputBarProps) {
+export function ChatInputBar({ visible, onClose, onSend, onImageUpload, targetLanguage, sourceLanguage, onSelectLanguage, onSelectSourceLanguage, initialText }: ChatInputBarProps) {
   const [text, setText] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -150,15 +151,22 @@ export function ChatInputBar({ visible, onClose, onSend, onImageUpload, targetLa
 
   useEffect(() => {
     if (!visible) return;
+    if (initialText) {
+      setText(initialText);
+    }
     const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
       onClose();
     });
     return () => {
       hideSubscription.remove();
     };
-  }, [visible, onClose]);
+  }, [visible, onClose, initialText]);
 
   const handlePickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,

@@ -8,6 +8,8 @@ import { useUserProfile } from '../../hooks/use-user-profile';
 import { useFirestore } from '../../firebase/provider';
 import { doc, updateDoc, increment, addDoc, collection, getDoc, writeBatch } from '@/firebase/firestore-compat';
 
+import { GoldenCoin } from '../GoldenCoin';
+
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface TeenPattiGameProps {
@@ -165,7 +167,7 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
     setTimeout(() => finalizeRound(winId), 2500);
   }, [firestore, myBets, localCoins]);
 
-  const finalizeRound = (winId: string) => {
+  const finalizeRound = async (winId: string) => {
     setWinnerId(winId);
     setHistory(prev => [winId, ...prev].slice(0, 8));
     setGameState('result');
@@ -182,7 +184,7 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
           'stats.dailyGameWins': increment(winAmount),
         }, { merge: true });
         batch.set(doc(firestore, 'users', currentUser.uid), { 'wallet.coins': increment(winAmount) }, { merge: true });
-        batch.commit().catch(() => {});
+        await batch.commit();
         addDoc(collection(firestore, 'globalGameWins'), {
           gameId: 'teen-patti',
           roomId: roomId || null,
@@ -563,8 +565,9 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
             </View>
           </View>
 
-          <Text style={{ color: '#111827', fontSize: 13, fontWeight: '900', letterSpacing: 0.3 }}>
-            🪙 <Text style={{ color: '#b45309' }}>{localCoins.toLocaleString()}</Text>
+          <GoldenCoin size={25} />
+          <Text style={{ color: '#111827', fontSize: 16, fontWeight: '900', letterSpacing: 0.3 }}>
+            <Text style={{ color: '#b45309' }}>{localCoins.toLocaleString()}</Text>
           </Text>
 
           <TouchableOpacity 

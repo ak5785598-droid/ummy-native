@@ -64,7 +64,7 @@ const UserListItem = ({ userId, onPress }: { userId: string; onPress: () => void
             backgroundColor: isFemale ? '#ec4899' : '#3b82f6',
             alignItems: 'center', justifyContent: 'center',
           }}>
-            <Text style={{ fontSize: 8, fontWeight: '900', color: '#fff' }}>{isFemale ? 'â™€' : 'â™‚'}</Text>
+            <Text style={{ fontSize: 8, fontWeight: '900', color: '#fff' }}>{isFemale ? String.fromCodePoint(0x2640) : String.fromCodePoint(0x2642)}</Text>
           </View>
 
           {/* Rich level badge (cyan) */}

@@ -9,7 +9,7 @@ import { ChevronLeft, MoreHorizontal, Pencil, ChevronRight } from 'lucide-react-
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { useUser, useFirestore, useDoc } from '../../firebase/provider';
-import { collection, query, where, orderBy, limit, doc, serverTimestamp, setDoc } from '@/firebase/firestore-compat';
+import { collection, query, where, orderBy, limit, doc, serverTimestamp, setDoc, onSnapshot } from '@/firebase/firestore-compat';
 import { autoAssignMedals } from '../../lib/auto-assign-medals';
 import firestore from '@react-native-firebase/firestore';
 import { PremiumDiamond } from '@/components/PremiumDiamond';
@@ -53,12 +53,27 @@ const calculateAge = (birthday: any) => {
   return age;
 };
 
+const COUNTRY_FLAGS: Record<string, string> = {
+  india: String.fromCodePoint(0x1F1EE, 0x1F1F3), pakistan: String.fromCodePoint(0x1F1F5, 0x1F1F0), bangladesh: String.fromCodePoint(0x1F1E7, 0x1F1E9), nepal: String.fromCodePoint(0x1F1F3, 0x1F1F5), sri_lanka: String.fromCodePoint(0x1F1F1, 0x1F1F0),
+  usa: String.fromCodePoint(0x1F1FA, 0x1F1F8), uk: String.fromCodePoint(0x1F1EC, 0x1F1E7), canada: String.fromCodePoint(0x1F1E8, 0x1F1E6), australia: String.fromCodePoint(0x1F1E6, 0x1F1FA), germany: String.fromCodePoint(0x1F1E9, 0x1F1EA),
+  france: String.fromCodePoint(0x1F1EB, 0x1F1F7), japan: String.fromCodePoint(0x1F1EF, 0x1F1F5), china: String.fromCodePoint(0x1F1E8, 0x1F1F3), south_korea: String.fromCodePoint(0x1F1F0, 0x1F1F7), brazil: String.fromCodePoint(0x1F1E7, 0x1F1F7),
+  russia: String.fromCodePoint(0x1F1F7, 0x1F1FA), turkey: String.fromCodePoint(0x1F1F9, 0x1F1F7), egypt: String.fromCodePoint(0x1F1EA, 0x1F1EC), nigeria: String.fromCodePoint(0x1F1F3, 0x1F1EC), south_africa: String.fromCodePoint(0x1F1FF, 0x1F1E6),
+  indonesia: String.fromCodePoint(0x1F1EE, 0x1F1E9), philippines: String.fromCodePoint(0x1F1F5, 0x1F1ED), thailand: String.fromCodePoint(0x1F1F9, 0x1F1ED), vietnam: String.fromCodePoint(0x1F1FB, 0x1F1F3), malaysia: String.fromCodePoint(0x1F1F2, 0x1F1FE),
+  uae: String.fromCodePoint(0x1F1E6, 0x1F1EA), saudi_arabia: String.fromCodePoint(0x1F1F8, 0x1F1E6), iran: String.fromCodePoint(0x1F1EE, 0x1F1F7), afghanistan: String.fromCodePoint(0x1F1E6, 0x1F1EB), myanmar: String.fromCodePoint(0x1F1F2, 0x1F1F2),
+};
+
+const getCountryFlag = (country?: string | null) => {
+  if (!country) return String.fromCodePoint(0x1F30D);
+  return COUNTRY_FLAGS[country.toLowerCase()] || String.fromCodePoint(0x1F30D);
+};
+
 const GenderAgeTag = ({ gender, birthday }: { gender: string | null | undefined, birthday?: string }) => {
   const age = calculateAge(birthday || '');
+  const isFemale = gender === 'Female';
   return (
-    <View className={`flex-row items-center gap-1 px-2 py-0.5 rounded-full ${gender === 'Female' ? 'bg-pink-500' : 'bg-blue-500'}`} style={{ marginLeft: 8 }}>
-      <Text className="text-[10px] font-bold text-white">{gender === 'Female' ? '♀' : '♂'}</Text>
-      {age !== null && <Text className="text-[10px] font-bold text-white"> {age}</Text>}
+    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isFemale ? '#EC4899' : '#3B82F6', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, gap: 2 }}>
+      <Text style={{ fontSize: 11, fontWeight: '800', color: '#FFFFFF' }}>{isFemale ? String.fromCodePoint(0x2640) : String.fromCodePoint(0x2642)}</Text>
+      {age !== null && <Text style={{ fontSize: 11, fontWeight: '800', color: '#FFFFFF' }}>{age}</Text>}
     </View>
   );
 };
@@ -149,21 +164,46 @@ export default function ProfileScreen() {
   const [profileSubData, setProfileSubData] = useState<any>(null);
 
   useEffect(() => {
-    if (!profileId) return;
-    const unsub = firestore()
-      .doc(`users/${profileId}/profile/${profileId}`)
-      .onSnapshot(snap => {
-        const docExists = typeof snap.exists === 'function' ? snap.exists() : snap.exists;
-        if (docExists) {
-          const d = snap.data() as any;
-          setProfileSubData(d);
-          setWallet({ coins: d?.wallet?.coins ?? 0, diamonds: d?.wallet?.diamonds ?? 0 });
-          setIdColor(d?.idColor || 'none');
-          setIsBudgetId(d?.isBudgetId || false);
+    if (!profileId || !firestoreDb) return;
+    
+    // Use the standard web/compat onSnapshot to prevent React Native Firebase native instance conflicts
+    const subRef = doc(firestoreDb, `users/${profileId}/profile/${profileId}`);
+    const baseRef = doc(firestoreDb, `users/${profileId}`);
+
+    const unsubSub = onSnapshot(subRef, (snap: any) => {
+      const docExists = typeof snap.exists === 'function' ? snap.exists() : snap.exists;
+      if (docExists) {
+        const d = snap.data() as any;
+        setProfileSubData(d);
+        setIdColor(d?.idColor || 'none');
+        setIsBudgetId(d?.isBudgetId || false);
+        if (d?.wallet) {
+          setWallet(w => ({
+            coins: d.wallet.coins ?? w.coins,
+            diamonds: d.wallet.diamonds ?? w.diamonds,
+          }));
         }
-      }, () => {});
-    return () => unsub();
-  }, [profileId]);
+      }
+    }, () => {});
+
+    const unsubBase = onSnapshot(baseRef, (snap: any) => {
+      const docExists = typeof snap.exists === 'function' ? snap.exists() : snap.exists;
+      if (docExists) {
+        const d = snap.data() as any;
+        if (d?.wallet) {
+          setWallet(w => ({
+            coins: d.wallet.coins ?? w.coins,
+            diamonds: d.wallet.diamonds ?? w.diamonds,
+          }));
+        }
+      }
+    }, () => {});
+
+    return () => {
+      unsubSub();
+      unsubBase();
+    };
+  }, [profileId, firestoreDb]);
 
   // Auto-assign medals based on tags
   const medalAssignedRef = useRef(false);
@@ -336,9 +376,9 @@ export default function ProfileScreen() {
             </TouchableOpacity>
 
             <View style={{ flex: 1, paddingLeft: 14, paddingTop: 12 }}>
-              <View className="flex-row items-center flex-wrap gap-1.5">
+              <View className="flex-row items-center flex-wrap" style={{ gap: 8 }}>
                 <Text className="text-[22px] font-bold text-slate-800 tracking-tighter" numberOfLines={1}>{profile.username}</Text>
-                <Text className="text-lg">🇮🇳</Text>
+                <Text className="text-lg">{getCountryFlag(profile.country)}</Text>
                 <GenderAgeTag gender={profile.gender} birthday={profile.birthday} />
                 <UserLevelBadge level={getLevelFromSpent(profile.wallet?.totalSpent || 0)} scale={1.1} />
 

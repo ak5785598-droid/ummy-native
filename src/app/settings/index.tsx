@@ -82,9 +82,12 @@ export default function SettingsScreen() {
     setIsLinking(true);
     try {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const { data } = await GoogleSignin.signIn();
-      if (data?.idToken) {
-        const credential = auth.GoogleAuthProvider.credential(data.idToken);
+      const res = await GoogleSignin.signIn();
+      const data = res?.data || res;
+      const idToken = data?.idToken || (data as any)?.authentication?.idToken || (res as any)?.idToken;
+      const accessToken = data?.accessToken || (data as any)?.authentication?.accessToken || (res as any)?.accessToken || 'placeholder_access_token';
+      if (idToken) {
+        const credential = auth.GoogleAuthProvider.credential(idToken, accessToken);
         await auth().currentUser?.linkWithCredential(credential);
         Alert.alert('Success', 'Google account linked successfully.');
       } else {

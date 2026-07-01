@@ -241,13 +241,22 @@ export default function LoginScreen() {
     try {
       setIsSigningIn(true);
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const { data } = await GoogleSignin.signIn();
-      if (data?.idToken) {
-        const googleCredential = auth.GoogleAuthProvider.credential(data.idToken);
+      const res = await GoogleSignin.signIn();
+      console.log('[Google Signin Raw Result]:', JSON.stringify(res));
+      const data = res?.data || res;
+      const idToken = data?.idToken || (data as any)?.authentication?.idToken || (res as any)?.idToken;
+      const accessToken = data?.accessToken || (data as any)?.authentication?.accessToken || (res as any)?.accessToken || 'placeholder_access_token';
+      
+      if (idToken) {
+        // credential expects (idToken, accessToken) - passing both prevents HostFunction empty validation crash
+        const googleCredential = auth.GoogleAuthProvider.credential(idToken, accessToken);
         const result = await auth().signInWithCredential(googleCredential);
         if (result.user) await handlePostAuth(result.user);
+      } else {
+        throw new Error('Google Sign In succeeded but ID Token is missing. Object: ' + JSON.stringify(res));
       }
     } catch (error: any) {
+      console.error('[Google Signin Error]:', error);
       Alert.alert('Google Sign In Failed', error?.message || 'Please try again.');
     } finally {
       setIsSigningIn(false);

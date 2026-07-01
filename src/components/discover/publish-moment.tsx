@@ -1,11 +1,10 @@
-﻿import React, { useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Platform, Alert } from 'react-native';
 import { X, Camera, Trash2 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
-import { useFirestore, useUser, useStorage, useDoc } from '../../firebase/provider';
+import { useFirestore, useUser, useDoc } from '../../firebase/provider';
 import { collection, addDoc, serverTimestamp, doc } from '@/firebase/firestore-compat';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Image } from 'expo-image';
 import { getLevelFromSpent } from '../../hooks/use-user-level';
 
@@ -17,7 +16,6 @@ interface PublishMomentProps {
 export function PublishMoment({ visible, onClose }: PublishMomentProps) {
   const { user } = useUser();
   const firestore = useFirestore();
-  const storage = useStorage();
 
   const [content, setContent] = useState('');
   const [selectedFile, setSelectedFile] = useState<{ uri: string; type: 'image' | 'video' } | null>(null);
@@ -31,6 +29,11 @@ export function PublishMoment({ visible, onClose }: PublishMomentProps) {
   const { data: profile } = useDoc(profileRef);
 
   const handlePick = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'Please grant gallery access to upload media.');
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.All,
       allowsEditing: true,
@@ -47,7 +50,7 @@ export function PublishMoment({ visible, onClose }: PublishMomentProps) {
   };
 
   const handlePublish = async () => {
-    if (!firestore || !user?.uid || !storage) return;
+    if (!firestore || !user?.uid) return;
     if (!content.trim() && !selectedFile) return;
 
     setUploading(true);
@@ -55,15 +58,20 @@ export function PublishMoment({ visible, onClose }: PublishMomentProps) {
     try {
       let mediaUrl = '';
       if (selectedFile) {
-        const responseUser = await fetch(selectedFile.uri);
-        const ext = selectedFile.uri.split('.').pop() || 'jpg';
+        const ext = selectedFile.uri.split('.').pop()?.toLowerCase() || (selectedFile.type === 'video' ? 'mp4' : 'jpg');
         const subfolder = selectedFile.type === 'video' ? 'videos' : 'images';
         const filename = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-        const fileRef = storageRef(storage, `moments/${user.uid}/${subfolder}/${filename}`);
-
-        const blob = await responseUser.blob();
-        await uploadBytes(fileRef, blob, { cacheControl: 'public, max-age=2592000, immutable' });
-        mediaUrl = await getDownloadURL(fileRef);
+        const path = `moments/${user.uid}/${subfolder}/${filename}`;
+        
+        // Import native storage dynamically to avoid mixing environments
+        const rnfbStorage = require('@react-native-firebase/storage').default;
+        const reference = rnfbStorage().ref(path);
+        
+        await reference.putFile(selectedFile.uri, {
+          contentType: selectedFile.type === 'video' ? 'video/mp4' : 'image/jpeg',
+          cacheControl: 'public, max-age=2592000, immutable'
+        });
+        mediaUrl = await reference.getDownloadURL();
       }
 
       const momentData: any = {
@@ -92,7 +100,8 @@ export function PublishMoment({ visible, onClose }: PublishMomentProps) {
       setContent('');
       setSelectedFile(null);
       onClose();
-    } catch (e) {
+    } catch (e: any) {
+      Alert.alert('Upload Failed', e.message || 'Could not publish moment. Please try again.');
     }
     setUploading(false);
   };

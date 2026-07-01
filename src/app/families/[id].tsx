@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Alert, Share } from 'react-na
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Users, Trophy, Flame, ShieldCheck, Crown, Share2, Trash2, UserPlus, UserMinus } from 'lucide-react-native';
 import { useFirebase, useUser, useDoc, useCollection } from '../../firebase/provider';
-import { doc, collection, query, where, deleteDoc, updateDoc, increment, arrayUnion, arrayRemove, serverTimestamp } from '../../firebase/firestore-compat';
+import { doc, collection, query, where, deleteDoc, updateDoc, increment, arrayUnion, arrayRemove, serverTimestamp, writeBatch } from '../../firebase/firestore-compat';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
 import { toCDN } from '@/lib/cdn';
@@ -55,13 +55,17 @@ export default function FamilyDetail() {
   const handleJoin = async () => {
     if (!user || !firestore || !family || !id) return;
     try {
-      await updateDoc(doc(firestore, 'users', user.uid), { familyId: id, updatedAt: serverTimestamp() });
-      await updateDoc(familyRef!, {
+      const batch = writeBatch(firestore);
+      batch.update(doc(firestore, 'users', user.uid), { familyId: id, updatedAt: serverTimestamp() });
+      batch.update(familyRef!, {
         members: arrayUnion(user.uid),
         memberCount: increment(1),
         updatedAt: serverTimestamp()
       });
-    } catch (e) {}
+      await batch.commit();
+    } catch (e: any) {
+      Alert.alert('Join Failed', e.message || 'Could not join family. Please try again.');
+    }
   };
 
   const handleLeave = async () => {
@@ -71,13 +75,17 @@ export default function FamilyDetail() {
       {
         text: 'Leave', style: 'destructive', onPress: async () => {
           try {
-            await updateDoc(doc(firestore, 'users', user.uid), { familyId: null, updatedAt: serverTimestamp() });
-            await updateDoc(familyRef!, {
+            const batch = writeBatch(firestore);
+            batch.update(doc(firestore, 'users', user.uid), { familyId: null, updatedAt: serverTimestamp() });
+            batch.update(familyRef!, {
               members: arrayRemove(user.uid),
               memberCount: increment(-1),
               updatedAt: serverTimestamp()
             });
-          } catch (e) {}
+            await batch.commit();
+          } catch (e: any) {
+            Alert.alert('Leave Failed', e.message || 'Could not leave family.');
+          }
         }
       }
     ]);
@@ -92,7 +100,9 @@ export default function FamilyDetail() {
           try {
             await deleteDoc(familyRef!);
             router.back();
-          } catch (e) {}
+          } catch (e: any) {
+            Alert.alert('Delete Failed', e.message || 'Could not delete family.');
+          }
         }
       }
     ]);

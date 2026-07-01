@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useFirestore, useDatabase } from '../firebase/provider';
 import { ref as databaseRef, set as databaseSet, update as databaseUpdate, remove as databaseRemove, onValue } from 'firebase/database';
-import { doc, runTransaction, increment } from '@/firebase/firestore-compat';
+import { doc, runTransaction, increment, writeBatch, serverTimestamp } from '@/firebase/firestore-compat';
 
 export interface LudoPlayer {
   uid: string;
@@ -435,6 +435,18 @@ export function useLudoEngine(roomId: string | null, userId: string | null) {
         ...(isGameOver ? { status: 'ended', winner } : {}),
         updatedAt: Date.now(),
       });
+
+      if (isGameOver && winner && firestore && winner !== 'bot') {
+        const WIN_REWARD = 5000;
+        try {
+          const batch = writeBatch(firestore);
+          const userRef = doc(firestore, 'users', winner);
+          const profileRef = doc(firestore, 'users', winner, 'profile', winner);
+          batch.set(userRef, { 'wallet.coins': increment(WIN_REWARD), updatedAt: serverTimestamp() }, { merge: true });
+          batch.set(profileRef, { 'wallet.coins': increment(WIN_REWARD), updatedAt: serverTimestamp() }, { merge: true });
+          await batch.commit();
+        } catch {}
+      }
     } catch {}
   }, [database, gamePath, gameState, userId]);
 

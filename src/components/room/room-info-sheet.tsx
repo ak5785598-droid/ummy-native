@@ -275,7 +275,7 @@ function UserRow({ uid, role, isOwnerUser, onToggleAdmin, onPress }: { uid: stri
             <View className="flex-row items-center gap-1 mt-1">
               {profile.gender && (
                 <View className={`h-3.5 w-3.5 rounded-full items-center justify-center ${profile.gender === 'Female' ? 'bg-pink-400' : 'bg-blue-400'}`}>
-                  <Text className="text-white text-[9px] font-bold leading-none">{profile.gender === 'Female' ? 'â™€' : 'â™‚'}</Text>
+                  <Text className="text-white text-[9px] font-bold leading-none">{profile.gender === 'Female' ? String.fromCodePoint(0x2640) : String.fromCodePoint(0x2642)}</Text>
                 </View>
               )}
               <LinearGradient colors={['#fbbf24', '#f59e0b']} className="flex-row items-center gap-0.5 px-2 py-0.5 rounded-full">

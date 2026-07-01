@@ -250,11 +250,14 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
 
       validUids.forEach(uid => {
         const recipientProfileRef = doc(firestore, 'users', uid, 'profile', uid);
+        const recipientUserRef = doc(firestore, 'users', uid);
         const diamondReward = Math.floor((gift.price * qty) * 0.4);
         const isHidden = recipientProfiles[uid]?.hideGiftRecord;
         
         batch.update(recipientProfileRef, {
           'wallet.diamonds': increment(diamondReward),
+          'activityPoints': increment(gift.price * qty),
+          'dailyActivityPoints': increment(gift.price * qty),
           [`stats.receivedGifts.${gift.id || gift.name}`]: increment(qty),
           [`stats.giftDetails.${gift.id || gift.name}_name`]: gift.name || "Gift",
           [`stats.giftDetails.${gift.id || gift.name}_imageUrl`]: gift.imageUrl || null,
@@ -267,7 +270,6 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
         });
 
         if (!isHidden) {
-          const recipientUserRef = doc(firestore, 'users', uid);
           batch.update(recipientUserRef, {
             'stats.dailyGiftsReceived': increment(diamondReward),
             'stats.weeklyGiftsReceived': increment(diamondReward),
@@ -275,6 +277,25 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
           });
         }
       });
+
+      const roomRef = doc(firestore, 'chatRooms', roomId);
+      try {
+        const roomSnap = await getDoc(roomRef);
+        if (roomSnap.exists()) {
+          const roomData = roomSnap.data();
+          const ownerUid = roomData.ownerId || roomData.creatorId;
+          if (ownerUid && !validUids.includes(ownerUid)) {
+            const ownerProfileRef = doc(firestore, 'users', ownerUid, 'profile', ownerUid);
+            batch.update(ownerProfileRef, {
+              'activityPoints': increment(totalCost),
+              'dailyActivityPoints': increment(totalCost),
+              updatedAt: serverTimestamp(),
+            });
+          }
+        }
+      } catch (err) {
+        console.log('[Gift Picker] Failed to award activityPoints to room owner:', err);
+      }
 
       const supporterRef = doc(firestore, 'chatRooms', roomId, 'topSupporters', user.uid);
       batch.set(supporterRef, {
@@ -287,7 +308,6 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
         updatedAt: serverTimestamp(),
       }, { merge: true });
 
-      const roomRef = doc(firestore, 'chatRooms', roomId);
       batch.update(roomRef, {
         'stats.totalGifts': increment(totalCost),
         'stats.dailyGifts': increment(totalCost),

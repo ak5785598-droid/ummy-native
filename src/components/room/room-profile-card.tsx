@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity } from 'react-native';
-import { X, Heart, MessageCircle, Shield, Crown, Mic, MicOff, Gift, AtSign, UserX, Star, Zap, Sparkles, UserPlus } from 'lucide-react-native';
+import { X, Heart, MessageCircle, Shield, Crown, Mic, MicOff, Gift, AtSign, UserX, Star, Zap, Sparkles, UserPlus, MoreVertical } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SVGA_OfficialTag, SVGA_SellerTag, SVGA_CSLeaderTag, SVGA_CustomerServiceTag, SVGA_ServiceTag, SVGA_HostTag } from '../profile/NativeSVGs';
 import { Image } from 'expo-image';
@@ -61,8 +61,16 @@ interface RoomProfileCardProps {
   onBan?: (uid: string) => void;
 }
 
+const getSVIPColor = (level: number): string => {
+  if (level >= 1 && level <= 6) return '#0ea5e9';
+  if (level >= 7 && level <= 10) return '#9333ea';
+  if (level >= 11 && level <= 15) return '#dc2626';
+  return '#7c3aed';
+};
+
 const SVIPBadge = ({ level }: { level: number }) => {
   const [badgeUrl, setBadgeUrl] = useState<string | null>(null);
+  const [pillColor, setPillColor] = useState<string>(getSVIPColor(level));
 
   useEffect(() => {
     if (!level || level < 1) return;
@@ -73,7 +81,9 @@ const SVIPBadge = ({ level }: { level: number }) => {
         if (snap.exists()) {
           const data = snap.data();
           const url = data?.levels?.[String(level)]?.badgeUrl;
+          const color = data?.levels?.[String(level)]?.color;
           if (url) setBadgeUrl(url);
+          if (color) setPillColor(color);
         }
       } catch (e) {}
     })();
@@ -81,7 +91,12 @@ const SVIPBadge = ({ level }: { level: number }) => {
 
   if (!level || level < 1 || !badgeUrl) return null;
 
-  return <Image cachePolicy="memory-disk" source={{ uri: toCDN(badgeUrl) }} className="w-9 h-9" contentFit="contain" />;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: pillColor + 'D9', borderRadius: 12, paddingHorizontal: 4, paddingVertical: 2, gap: 2 }}>
+      <Image cachePolicy="memory-disk" source={{ uri: toCDN(badgeUrl) }} style={{ width: 20, height: 20 }} contentFit="contain" />
+      <Text style={{ fontSize: 8, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.3, paddingRight: 4 }}>SVIP{level}</Text>
+    </View>
+  );
 };
 
 export function RoomProfileCard({
@@ -92,6 +107,7 @@ export function RoomProfileCard({
 }: RoomProfileCardProps) {
   const { profile } = useUserProfile(user?.uid);
   const [firestoreMedals, setFirestoreMedals] = useState<any[]>([]);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   useEffect(() => {
     try {
@@ -140,21 +156,51 @@ export function RoomProfileCard({
             </TouchableOpacity>
           </View>
 
-          {/* Close Button */}
-          <TouchableOpacity onPress={onClose} style={{ position: 'absolute', top: 4, right: 4, padding: 6, zIndex: 50, backgroundColor: '#E2E8F0', borderRadius: 20 }}>
-            <X size={18} color="#64748b" />
-          </TouchableOpacity>
+          {/* Close Button (right) + More Menu (left) */}
+          <View style={{ position: 'absolute', top: 4, left: 4, right: 4, flexDirection: 'row', justifyContent: 'space-between', zIndex: 50 }}>
+            {(canManage || !isMe) && (
+              <View>
+                <TouchableOpacity onPress={() => setShowMoreMenu(!showMoreMenu)} style={{ padding: 6, backgroundColor: '#E2E8F0', borderRadius: 20 }}>
+                  <MoreVertical size={18} color="#64748b" />
+                </TouchableOpacity>
+                {showMoreMenu && (
+                  <TouchableOpacity className="absolute inset-0" onPress={() => setShowMoreMenu(false)} activeOpacity={1}>
+                    <View style={{ position: 'absolute', top: 36, left: 0, backgroundColor: 'white', borderRadius: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 5, minWidth: 140, overflow: 'hidden' }}>
+                      {canManage && onToggleMod && (
+                        <TouchableOpacity onPress={() => { setShowMoreMenu(false); onClose(); onToggleMod(user.uid); }} style={{ paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: '#7C3AED' }}>{isModerator ? 'Demote' : 'Set Admin'}</Text>
+                        </TouchableOpacity>
+                      )}
+                      {canManage && onBan && (
+                        <TouchableOpacity onPress={() => { setShowMoreMenu(false); onClose(); onBan(user.uid); }} style={{ paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: '#DC2626' }}>{isBanned ? 'Unban' : 'Ban'}</Text>
+                        </TouchableOpacity>
+                      )}
+                      {!isMe && onReport && (
+                        <TouchableOpacity onPress={() => { setShowMoreMenu(false); onClose(); onReport(user.uid); }} style={{ paddingHorizontal: 14, paddingVertical: 10 }}>
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: '#DC2626' }}>Report User</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+            <TouchableOpacity onPress={onClose} style={{ padding: 6, backgroundColor: '#E2E8F0', borderRadius: 20 }}>
+              <X size={18} color="#64748b" />
+            </TouchableOpacity>
+          </View>
 
           {/* Name & Badges */}
           <View className={`flex-row items-center gap-1.5 ${hasTags || hasMedals ? 'mb-3' : 'mb-1.5'}`}>
             <Text className="text-[#1E293B] text-2xl font-black">{user.name}</Text>
             {user.gender !== 'female' ? (
               <View className="bg-blue-100 w-5 h-5 rounded-full items-center justify-center">
-                <Text className="text-blue-600 text-xs font-bold">â™‚</Text>
+                <Text className="text-blue-600 text-xs font-bold">{String.fromCodePoint(0x2642)}</Text>
               </View>
             ) : (
               <View className="bg-pink-100 w-5 h-5 rounded-full items-center justify-center">
-                <Text className="text-pink-600 text-xs font-bold">â™€</Text>
+                <Text className="text-pink-600 text-xs font-bold">{String.fromCodePoint(0x2640)}</Text>
               </View>
             )}
             {profile?.country ? (
@@ -321,31 +367,10 @@ export function RoomProfileCard({
                   </Text>
                 </TouchableOpacity>
               </View>
-              <View className="flex-row items-center justify-center gap-6 mt-2">
-                {onToggleMod && (
-                  <TouchableOpacity onPress={() => { onClose(); onToggleMod(user.uid); }}>
-                    <Text className="text-[10px] font-black uppercase tracking-wider text-purple-500 active:text-purple-600">
-                      {isModerator ? 'Demote' : 'Set Admin'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-                {onBan && (
-                  <TouchableOpacity onPress={() => { onClose(); onBan(user.uid); }}>
-                    <Text className="text-[10px] font-black uppercase tracking-wider text-red-600 active:text-red-700">
-                      {isBanned ? 'Unban' : 'Ban'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
             </View>
           )}
 
-          {/* Report profile (only for other users) */}
-          {!isMe && (
-            <TouchableOpacity onPress={() => onReport?.(user.uid)} className="px-6 pt-4">
-              <Text className="text-red-500 text-xs font-bold text-center">Report User</Text>
-            </TouchableOpacity>
-          )}
+          {/* Report profile removed — now in 3-dot menu */}
         </View>
       </View>
     </Modal>
