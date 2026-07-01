@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Animated, Modal, Alert, BackH
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { doc, setDoc, collection, query, orderBy, limit, where, Timestamp, serverTimestamp, arrayUnion, arrayRemove, increment, deleteDoc, getDoc } from '@/firebase/firestore-compat';
+import { doc, setDoc, collection, query, orderBy, limit, where, Timestamp, serverTimestamp, arrayUnion, arrayRemove, increment, deleteDoc, getDoc, onSnapshot } from '@/firebase/firestore-compat';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, useStorage, useDatabase } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
