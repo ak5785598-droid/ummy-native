@@ -155,12 +155,6 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
-    // Firebase App Check — debug provider (non-Play-Store builds)
-    // This is REQUIRED for DEBUG_TOKEN in AndroidManifest to work
-    debugImplementation("com.google.firebase:firebase-appcheck-debug:18.0.0")
-    // Firebase App Check — Play Integrity (production/Play Store builds)
-    releaseImplementation("com.google.firebase:firebase-appcheck-playintegrity:18.0.0")
-
     def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";
     def isWebpEnabled = (findProperty('expo.webp.enabled') ?: "") == "true";
     def isWebpAnimatedEnabled = (findProperty('expo.webp.animated') ?: "") == "true";
@@ -185,6 +179,5 @@ dependencies {
         implementation jscFlavor
     }
 }
-
 
 apply plugin: 'com.google.gms.google-services'

@@ -502,7 +502,7 @@ export default function ProfileScreen() {
       {/* Render Modals */}
       <MedalModal open={medalModalOpen} onClose={() => setMedalModalOpen(false)} profile={profile} />
       <SocialRelationsDialog open={socialOpen} onOpenChange={setSocialOpen} userId={profileId} initialTab={socialTab} username={profile.username} />
-      <FullProfileDialog open={fullViewOpen} onOpenChange={setFullViewOpen} profile={profile} stats={stats} isOwnProfile={true} displayId={displayID} />
+      <FullProfileDialog open={fullViewOpen} onOpenChange={setFullViewOpen} profile={profile} stats={stats} isOwnProfile={true} displayId={displayID} onViewProfile={(uid: string) => { setFullViewOpen(false); router.push(`/profile/${uid}`); }} />
       <ReportUserDialog open={reportOpen} onOpenChange={setReportOpen} targetUser={profile} />
       <OfficialCenterDialog open={officialCenterOpen} onOpenChange={setOfficialCenterOpen} isAuthorized={isAuthorizedAdmin} />
 

@@ -18,7 +18,12 @@ export async function updateDocumentNonBlocking(
   try {
     await updateDoc(docRef, data);
   } catch (error: any) {
-    if (error?.code === 'permission-denied' || error?.code === 'firestore/not-found') {
+    if (
+      error?.code === 'permission-denied' ||
+      error?.code === 'firestore/permission-denied' ||
+      error?.code === 'firestore/not-found'
+    ) {
+      // Catch and ignore permission errors silently as designed
     } else {
       throw error;
     }
@@ -33,7 +38,8 @@ export async function addDocumentNonBlocking(
     const docRef = await addDoc(collectionRef, data);
     return docRef.id;
   } catch (error: any) {
-    if (error?.code === 'permission-denied') {
+    if (error?.code === 'permission-denied' || error?.code === 'firestore/permission-denied') {
+      // Catch silently
     } else {
       throw error;
     }
@@ -47,7 +53,8 @@ export async function deleteDocumentNonBlocking(
   try {
     await deleteDoc(docRef);
   } catch (error: any) {
-    if (error?.code === 'permission-denied') {
+    if (error?.code === 'permission-denied' || error?.code === 'firestore/permission-denied') {
+      // Catch silently
     } else {
       throw error;
     }

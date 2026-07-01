@@ -206,6 +206,7 @@ export function FullProfileDialog({
   isProcessingFollow,
   followData,
   onReport,
+  onViewProfile,
 }: any) {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -224,10 +225,6 @@ export function FullProfileDialog({
 
   // Medals list from Firestore
   const [allMedals, setAllMedals] = useState<any[]>([]);
-
-  // Supporter profile dialog state
-  const [supporterProfileUid, setSupporterProfileUid] = useState<string | null>(null);
-  const { profile: supporterProfile } = useUserProfile(supporterProfileUid || undefined);
 
   const heartScale = React.useRef(new Animated.Value(1)).current;
 
@@ -360,7 +357,8 @@ export function FullProfileDialog({
     <Modal visible={open} transparent animationType="slide" onRequestClose={() => onOpenChange(false)}>
       <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
         <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }} edges={[]}>
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 128 }} showsVerticalScrollIndicator={false} bounces={false}>
+          <View style={{ flex: 1 }}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false} bounces={false}>
 
             {/* Cover Image — auto-scrolling carousel */}
             <View style={{ height: SCREEN_HEIGHT * 0.35, width: '100%', position: 'relative' }}>
@@ -683,7 +681,7 @@ export function FullProfileDialog({
             </View>
 
             {/* Top Supporters Section */}
-            <TopSupportersSection profileId={profile?.id} isOwnProfile={isOwnProfile} firestore={firestore} user={user} />
+            <TopSupportersSection profileId={profile?.id} isOwnProfile={isOwnProfile} firestore={firestore} user={user} onViewProfile={onViewProfile} />
 
             {/* Tab Navigation */}
             <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#F1F5F9', marginTop: 20 }}>
@@ -780,12 +778,12 @@ export function FullProfileDialog({
         {/* FIXED Bottom Action Bar â€” Other users only */}
         {profile && !isOwnProfile && (
           <View style={{
-            position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 999,
+            
             flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-            paddingHorizontal: 16, paddingBottom: Platform.OS === 'ios' ? 34 : 20, paddingTop: 12,
+            paddingHorizontal: 16, paddingBottom: Platform.OS === 'ios' ? 34 : 12, paddingTop: 10,
             backgroundColor: '#FFFFFF',
             borderTopWidth: 1, borderTopColor: '#F1F5F9',
-            shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 20,
+            elevation: 20,
           }}>
             <TouchableOpacity onPress={onFollow} disabled={isProcessingFollow}
               style={{ flex: 1, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: '#EC4899', backgroundColor: followData ? '#FDF2F8' : '#FFFFFF', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
@@ -800,6 +798,7 @@ export function FullProfileDialog({
           </View>
         )}
 
+          </View>
         {/* CP Search Popup â€” inline overlay */}
         {showCpSearch && (
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 99999 }}>
@@ -949,14 +948,12 @@ function getISOWeek(d: Date): number {
   return Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 }
 
-function TopSupportersSection({ profileId, isOwnProfile, firestore, user }: { profileId: string; isOwnProfile: boolean; firestore: any; user: any }) {
+function TopSupportersSection({ profileId, isOwnProfile, firestore, user, onViewProfile }: { profileId: string; isOwnProfile: boolean; firestore: any; user: any; onViewProfile?: (uid: string) => void }) {
   const [supporters, setSupporters] = useState<any[]>([]);
   const [showAll, setShowAll] = useState(false);
   const [period, setPeriod] = useState<'total' | 'weekly' | 'monthly'>('total');
   const [dailySupported, setDailySupported] = useState(false);
   const [supporting, setSupporting] = useState(false);
-  const [supporterProfileUid, setSupporterProfileUid] = useState<string | null>(null);
-  const { profile: supporterProfile } = useUserProfile(supporterProfileUid || undefined);
   const { profile: myProfile } = useUserProfile(user?.uid);
 
   useEffect(() => {
@@ -1074,7 +1071,7 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user }: { pr
         {slots.map((slot, i) => (
           <View key={i} style={{ alignItems: 'center', transform: [{ translateY: slot.translateY }] }}>
             <TouchableOpacity
-              onPress={() => slot.supporter?.supporterId && setSupporterProfileUid(slot.supporter.supporterId)}
+              onPress={() => { if (slot.supporter?.supporterId) { setShowAll(false); onViewProfile?.(slot.supporter.supporterId); } }}
               disabled={!slot.supporter}
               style={{ width: slot.size, height: slot.size, borderRadius: slot.size / 2, borderWidth: 2, borderColor: slot.color, backgroundColor: slot.supporter ? 'transparent' : 'rgba(148,163,184,0.08)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
             >
@@ -1133,7 +1130,7 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user }: { pr
                 ].map((slot, i) => (
                   <View key={i} style={{ alignItems: 'center', transform: [{ translateY: slot.ty }] }}>
                     <TouchableOpacity
-                      onPress={() => slot.s?.supporterId && setSupporterProfileUid(slot.s.supporterId)}
+                      onPress={() => { if (slot.s?.supporterId) { setShowAll(false); onViewProfile?.(slot.s.supporterId); } }}
                       disabled={!slot.s}
                       style={{ width: slot.size, height: slot.size, borderRadius: slot.size / 2, borderWidth: 2.5, borderColor: slot.color, backgroundColor: slot.s ? 'transparent' : 'rgba(148,163,184,0.08)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
                     >
@@ -1162,7 +1159,7 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user }: { pr
             <ScrollView style={{ flex: 1, paddingHorizontal: 16 }}>
               <Text style={{ fontSize: 10, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 1, marginTop: 12, marginBottom: 8 }}>All Supporters</Text>
               {sorted.map((s: any, i: number) => (
-                <TouchableOpacity key={s.id} onPress={() => s.supporterId && setSupporterProfileUid(s.supporterId)}
+                <TouchableOpacity key={s.id} onPress={() => { if (s.supporterId) { setShowAll(false); onViewProfile?.(s.supporterId); } }}
                   style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F8FAFC', gap: 12 }}>
                   <Text style={{ fontSize: 15, fontWeight: '900', color: i < 3 ? '#f43f5e' : '#94A3B8', width: 28, textAlign: 'center' }}>{i + 1}</Text>
                   <Image cachePolicy="memory-disk" source={{ uri: toCDN(s.supporterAvatar) || 'https://picsum.photos/100' }}
@@ -1181,16 +1178,6 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user }: { pr
         </Modal>
       )}
 
-      {/* Nested supporter FullProfileDialog */}
-      {supporterProfileUid && supporterProfile && (
-        <FullProfileDialog
-          open={!!supporterProfileUid}
-          onOpenChange={(open: boolean) => { if (!open) setSupporterProfileUid(null); }}
-          profile={supporterProfile}
-          isOwnProfile={supporterProfileUid === user?.uid}
-          displayId={supporterProfile.accountNumber || '000000'}
-        />
-      )}
     </View>
   );
 }

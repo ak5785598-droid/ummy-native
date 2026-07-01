@@ -4,9 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Search, Shield, Heart, ChevronRight, Send, X, Image as ImageIcon, MoreHorizontal, Loader, Check, CheckCheck, Gift, Mic, Smile, Plus, Play, Pause } from 'lucide-react-native';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc, useStorage } from '../../firebase/provider';
-import { collection, query, where, orderBy, limit, doc, serverTimestamp, deleteDoc, updateDoc, arrayUnion, arrayRemove, runTransaction, onSnapshot, getDoc } from '@/firebase/firestore-compat';
+import { collection, query, where, orderBy, limit, doc, setDoc, serverTimestamp, deleteDoc, updateDoc, arrayUnion, arrayRemove, runTransaction, onSnapshot, getDoc } from '@/firebase/firestore-compat';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { useRouter, useNavigation } from 'expo-router';
+import { useRouter, useNavigation, useLocalSearchParams } from 'expo-router';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { PrivateChat, PrivateMessage, Proposal, CpPair } from '../../lib/types';
 import { setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '../../lib/non-blocking-writes';
@@ -23,6 +23,18 @@ export default function MessagesScreen() {
   const storage = useStorage();
   const router = useRouter();
   const navigation = useNavigation();
+  const params = useLocalSearchParams<any>();
+
+  useEffect(() => {
+    if (params?.recipientUid && params?.chatId) {
+      setActiveChatId(params.chatId);
+      setSelectedRecipient({
+        uid: params.recipientUid,
+        username: params.recipientName || 'User',
+        avatarUrl: params.recipientAvatar || ''
+      });
+    }
+  }, [params?.recipientUid, params?.chatId]);
 
   const [showOfficial, setShowOfficial] = useState(false);
   const [showSystem, setShowSystem] = useState(false);
@@ -33,6 +45,20 @@ export default function MessagesScreen() {
   const [selectedChatForOptions, setSelectedChatForOptions] = useState<PrivateChat | null>(null);
   const [profileDialogUid, setProfileDialogUid] = useState<string | null>(null);
   const { profile: dialogProfile } = useUserProfile(profileDialogUid || undefined);
+  const [dialogFollowData, setDialogFollowData] = useState<any>(null);
+  const [dialogProcessingFollow, setDialogProcessingFollow] = useState(false);
+
+  useEffect(() => {
+    if (!profileDialogUid || !user?.uid || !firestore) { setDialogFollowData(null); return; }
+    setDialogFollowData(null);
+    const followId = `${user.uid}_${profileDialogUid}`;
+    const followRef = doc(firestore, 'followers', followId);
+    const unsub = onSnapshot(followRef, (snap: any) => {
+      const exists = snap && (typeof snap.exists === 'function' ? snap.exists() : snap.exists);
+      setDialogFollowData(exists ? { id: snap.id, ...snap.data() } : null);
+    }, () => setDialogFollowData(null));
+    return () => unsub();
+  }, [profileDialogUid, user?.uid, firestore]);
 
   // Observer to check Admin-dispatched logo from Firebase
   const configRef = useMemo(() => firestore ? doc(firestore, 'appConfig', 'global') : null, [firestore]);
@@ -294,7 +320,38 @@ export default function MessagesScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
-      <FullProfileDialog open={!!profileDialogUid} onOpenChange={(open: boolean) => { if (!open) setProfileDialogUid(null); }} profile={dialogProfile} isOwnProfile={profileDialogUid === user?.uid} />
+      <FullProfileDialog
+        open={!!profileDialogUid}
+        onOpenChange={(open: boolean) => { if (!open) setProfileDialogUid(null); }}
+        profile={dialogProfile}
+        isOwnProfile={profileDialogUid === user?.uid}
+        displayId={dialogProfile?.accountNumber || profileDialogUid?.slice(0, 6) || '000000'}
+        followData={dialogFollowData}
+        isProcessingFollow={dialogProcessingFollow}
+        onViewProfile={(uid: string) => { setProfileDialogUid(null); router.push(`/profile/${uid}`); }}
+        onFollow={async () => {
+          if (!profileDialogUid || !firestore || !user?.uid) return;
+          setDialogProcessingFollow(true);
+          const followId = `${user.uid}_${profileDialogUid}`;
+          const followRef = doc(firestore, 'followers', followId);
+          try {
+            if (dialogFollowData) {
+              await deleteDoc(followRef);
+              setDialogFollowData(null);
+            } else {
+              await setDoc(followRef, { followerId: user.uid, followingId: profileDialogUid, timestamp: new Date() }, { merge: true });
+              setDialogFollowData({ id: followId, followerId: user.uid, followingId: profileDialogUid });
+            }
+          } catch (e: any) {}
+          setDialogProcessingFollow(false);
+        }}
+        onChat={(p: any) => {
+          setProfileDialogUid(null);
+          const chatPartId = [user?.uid, profileDialogUid].sort().join('_');
+          setActiveChatId(chatPartId);
+          setSelectedRecipient({ uid: profileDialogUid, username: p.username || p.name, avatarUrl: p.avatarUrl });
+        }}
+      />
     </SafeAreaView>
   );
 }

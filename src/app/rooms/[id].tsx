@@ -1401,6 +1401,7 @@ export default function RoomScreen() {
           if (!firestore || !fullProfileUid) return;
           try { await setDocumentNonBlocking(doc(firestore, 'users', fullProfileUid, 'profile', fullProfileUid), { 'inventory.activeFrame': 'None' }, { merge: true }); } catch {}
         }}
+        onViewProfile={(uid: string) => { setShowFullProfile(false); setTimeout(() => { setFullProfileUid(uid); setShowFullProfile(true); }, 100); }}
       />
       <Modal visible={showAudienceInvite} transparent animationType="slide">
         <View className="flex-1 bg-black/60 justify-end">

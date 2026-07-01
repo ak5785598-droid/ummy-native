@@ -204,10 +204,17 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (!firestore || !currentUser?.uid || !id || currentUser.uid === id) return;
     const ref = doc(firestore, 'followers', `${currentUser.uid}_${id}`);
-    getDoc(ref).then((snap: any) => {
-      setFollowData(snap?.data?.() || null);
-      setIsFollowing(typeof snap?.exists === 'function' ? snap.exists() : (snap?.exists || false));
+    const unsub = onSnapshot(ref, (snap: any) => {
+      const exists = snap && (typeof snap.exists === 'function' ? snap.exists() : snap.exists);
+      if (exists) {
+        setFollowData({ id: snap.id, ...snap.data() });
+        setIsFollowing(true);
+      } else {
+        setFollowData(null);
+        setIsFollowing(false);
+      }
     });
+    return () => unsub();
   }, [firestore, currentUser?.uid, id]);
 
   // Record visit (only for non-own profile, skip if mysteriousVisitor is enabled)
@@ -364,6 +371,18 @@ export default function ProfileScreen() {
         isProcessingFollow={isProcessingFollow}
         isOwnProfile={false}
         displayId={displayID}
+        onViewProfile={(uid: string) => { router.push(`/profile/${uid}`); }}
+        onChat={(p: any) => {
+          router.replace({
+            pathname: '/(tabs)/messages',
+            params: {
+              chatId: [currentUser?.uid, id].sort().join('_'),
+              recipientUid: id,
+              recipientName: p.username || p.name,
+              recipientAvatar: p.avatarUrl
+            }
+          });
+        }}
       />
       </>
     );
@@ -655,6 +674,19 @@ export default function ProfileScreen() {
         isOwnProfile={isOwnProfile} 
         displayId={displayID} 
         onReport={() => setReportOpen(true)}
+        onViewProfile={(uid: string) => { setFullViewOpen(false); router.push(`/profile/${uid}`); }}
+        onChat={(p: any) => {
+          setFullViewOpen(false);
+          router.push({
+            pathname: '/(tabs)/messages',
+            params: {
+              chatId: [currentUser?.uid, profile.id || userId].sort().join('_'),
+              recipientUid: profile.id || userId,
+              recipientName: p.username || p.name,
+              recipientAvatar: p.avatarUrl
+            }
+          });
+        }}
       />
       <ReportUserDialog
         open={reportOpen}
