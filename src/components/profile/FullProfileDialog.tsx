@@ -792,7 +792,7 @@ export function FullProfileDialog({
               <Heart size={14} color="#EC4899" fill={followData ? '#EC4899' : 'transparent'} />
               <Text style={{ fontSize: 11, fontWeight: '800', color: '#EC4899' }}>{followData ? 'Joined' : 'Follow'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={async () => { const p = profile; if (onChat) onChat(p); setTimeout(() => onOpenChange(false), 50); }}
+            <TouchableOpacity onPress={() => { if (onChat) onChat(profile); }}
               style={{ flex: 1, height: 40, borderRadius: 20, backgroundColor: '#2563EB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
               <MessageCircle size={14} color="#FFF" />
               <Text style={{ fontSize: 11, fontWeight: '800', color: '#FFF' }}>Chat</Text>

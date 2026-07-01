@@ -183,14 +183,15 @@ export default function RoomScreen() {
 
   useEffect(() => {
     if (!fullProfileUid || !user?.uid || !firestore) { setFullProfileFollowData(null); return; }
-    const db = require('@react-native-firebase/firestore').default;
+    setFullProfileFollowData(null);
     const followId = `${user.uid}_${fullProfileUid}`;
-    const unsub = db().collection('followers').doc(followId)
-      .onSnapshot((snap: any) => {
-        setFullProfileFollowData(snap && (typeof snap.exists === 'function' ? snap.exists() : snap.exists) ? { id: snap.id, ...snap.data() } : null);
-      }, () => setFullProfileFollowData(null));
-    return () => { if (typeof unsub === 'function') unsub(); };
-  }, [fullProfileUid, user?.uid]);
+    const followRef = doc(firestore, 'followers', followId);
+    const unsub = onSnapshot(followRef, (snap: any) => {
+      const exists = snap && (typeof snap.exists === 'function' ? snap.exists() : snap.exists);
+      setFullProfileFollowData(exists ? { id: snap.id, ...snap.data() } : null);
+    }, () => setFullProfileFollowData(null));
+    return () => unsub();
+  }, [fullProfileUid, user?.uid, firestore]);
   // Real-time stats for the clicked user profile
   const [fullProfileStats, setFullProfileStats] = useState({ fans: 0, following: 0, friends: 0, visitors: 0 });
 
@@ -1380,6 +1381,8 @@ export default function RoomScreen() {
           setIsFullProfileProcessingFollow(false);
         }}
         onChat={(p: any) => {
+          setShowFullProfile(false);
+          setFullProfileUid(null);
           setMessageRecipient({ uid: p.id || p.uid, name: p.username || p.name, avatarUrl: p.avatarUrl });
           setIsMessagesOpen(true);
         }}
