@@ -1371,10 +1371,12 @@ export default function RoomScreen() {
           try {
             if (fullProfileFollowData) {
               await deleteDoc(followRef);
+              setFullProfileFollowData(null);
             } else {
-              setDocumentNonBlocking(followRef, { followerId: user.uid, followingId: fullProfileUid, timestamp: new Date() }, { merge: true });
+              await setDoc(followRef, { followerId: user.uid, followingId: fullProfileUid, timestamp: new Date() }, { merge: true });
+              setFullProfileFollowData({ id: followId, followerId: user.uid, followingId: fullProfileUid });
             }
-          } catch {}
+          } catch (e: any) { console.log('[FullProfile follow] error:', e?.message || e); }
           setIsFullProfileProcessingFollow(false);
         }}
         onChat={(p: any) => {
