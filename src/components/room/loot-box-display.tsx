@@ -27,6 +27,7 @@ import { RocketLevelSection } from '../loot/rocket-level-section';
 import { LootLevelAnimation } from './loot-level-animation';
 import { GoldenCoin } from '../GoldenCoin';
 import { AvatarFrame } from '../profile/AvatarFrame';
+import { getTodayIST } from '../../lib/bonus-utils';
 
 const AnimatedG = Animated.createAnimatedComponent(G);
 const AnimatedLine = Animated.createAnimatedComponent(Line);
@@ -204,11 +205,40 @@ export function LootBoxDisplay({ onOpenGate, onGateReady, roomId, topSupporters 
 
   useEffect(() => {
     const saved = userDoc?.lootProgress?.[roomId]?.completedGates;
-    if (saved && !lootInitializedRef.current) {
-      setCompletedGateLevels(saved);
+    const savedDate = userDoc?.lootProgress?.[roomId]?.date;
+    const todayStr = getTodayIST();
+
+    if (!lootInitializedRef.current) {
+      if (saved) {
+        if (savedDate && savedDate !== todayStr) {
+          // Next day detected: Reset completed gates to empty
+          setCompletedGateLevels({});
+          gateFiredRef.current = {};
+          if (firestore && user?.uid) {
+            updateDoc(
+              doc(firestore, 'users', user.uid),
+              { 
+                [`lootProgress.${roomId}.completedGates`]: {},
+                [`lootProgress.${roomId}.gateFired`]: {},
+                [`lootProgress.${roomId}.date`]: todayStr
+              }
+            ).catch(() => {});
+          }
+        } else {
+          setCompletedGateLevels(saved);
+        }
+      } else {
+        // First time initialization for today
+        if (firestore && user?.uid) {
+          updateDoc(
+            doc(firestore, 'users', user.uid),
+            { [`lootProgress.${roomId}.date`]: todayStr }
+          ).catch(() => {});
+        }
+      }
       lootInitializedRef.current = true;
     }
-  }, [userDoc, roomId]);
+  }, [userDoc, roomId, firestore, user?.uid]);
 
   // Find the NEXT uncompleted level whose threshold is met
   useEffect(() => {
@@ -236,10 +266,12 @@ export function LootBoxDisplay({ onOpenGate, onGateReady, roomId, topSupporters 
   }, [currentProgress, levels, completedGateLevels]);
 
   const curLevel = levels[currentLevelIndex] || levels[0];
-  const nextLevel = levels[currentLevelIndex + 1];
-  const progressPct = nextLevel
-    ? Math.min(Math.max(((effProgress - curLevel.threshold) / (nextLevel.threshold - curLevel.threshold)) * 100, 0), 100)
-    : effProgress >= curLevel.threshold ? 100 : 0;
+  const prevThreshold = currentLevelIndex === 0 ? 0 : levels[currentLevelIndex - 1].threshold;
+  const targetThreshold = curLevel.threshold;
+  const progressPct = Math.min(
+    Math.max(((effProgress - prevThreshold) / (targetThreshold - prevThreshold)) * 100, 0),
+    100
+  );
 
   const canOpenGate = effProgress >= curLevel.threshold;
   const isGateCompleted = !!completedGateLevels[currentLevelIndex];
@@ -433,7 +465,26 @@ export function LootBoxDisplay({ onOpenGate, onGateReady, roomId, topSupporters 
   const isGateLocked = isCurrentActive && canOpenGate && !isGateCompleted;
 
   const handleOpenGateClick = () => {
-    const newCompleted = { ...completedGateLevels, [currentLevelIndex]: true };
+    let newCompleted = { ...completedGateLevels, [currentLevelIndex]: true };
+    const todayStr = getTodayIST();
+    
+    // Loop/Prestige: If all 10 levels (indexes 0 to 9) are completed, start over from Level 1 immediately
+    const completedCount = Object.keys(newCompleted).filter(k => newCompleted[Number(k)]).length;
+    let updateFields: Record<string, any> = {
+      [`lootProgress.${roomId}.completedGates`]: newCompleted,
+      [`lootProgress.${roomId}.date`]: todayStr
+    };
+
+    if (completedCount >= levels.length) {
+      newCompleted = {};
+      gateFiredRef.current = {};
+      updateFields = {
+        [`lootProgress.${roomId}.completedGates`]: {},
+        [`lootProgress.${roomId}.gateFired`]: {},
+        [`lootProgress.${roomId}.date`]: todayStr
+      };
+    }
+
     setCompletedGateLevels(newCompleted);
     
     // First close the selector path panel modal smoothly
@@ -447,7 +498,7 @@ export function LootBoxDisplay({ onOpenGate, onGateReady, roomId, topSupporters 
     if (firestore && user?.uid) {
       updateDoc(
         doc(firestore, 'users', user.uid),
-        { [`lootProgress.${roomId}.completedGates`]: newCompleted }
+        updateFields
       ).catch(() => {});
     }
   };

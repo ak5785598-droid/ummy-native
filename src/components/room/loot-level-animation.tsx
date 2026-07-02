@@ -26,14 +26,17 @@ const AnimatedLine = Animated.createAnimatedComponent(Line);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
+import { TopSupporter } from '../../lib/types';
+
 interface LootLevelAnimationProps {
   visible: boolean;
   videoUrl?: string;
   levelName?: string;
+  topSupporters?: TopSupporter[];
   onComplete: () => void;
 }
 
-export function LootLevelAnimation({ visible, videoUrl, levelName, onComplete }: LootLevelAnimationProps) {
+export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters = [], onComplete }: LootLevelAnimationProps) {
   const videoRef = useRef<any>(null);
   const [status, setStatus] = useState<any>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -470,23 +473,24 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, onComplete }:
           ]).start();
         });
 
-        // 3. Simulated Reward Data setup for local presentation summary representation
-        const mockContributors = [
-          { uid: 'u1', name: 'Aman Pro', contribution: 5500000, avatar: '🥇' },
-          { uid: 'u2', name: 'Rahul King', contribution: 3200000, avatar: '🥈' },
-          { uid: 'u3', name: 'Vicky', contribution: 1200000, avatar: '🥉' },
-          { uid: 'u4', name: 'Kabir', contribution: 800000, avatar: '👤' },
-        ];
-        
+        // 3. Reward Data from real top supporters
+        const rankEmojis = ['🥇', '🥈', '🥉', '👤'];
+        const realContributors = topSupporters.slice(0, 4).map((s, i) => ({
+          uid: s.uid,
+          name: s.displayName || 'User',
+          contribution: s.dailyAmount || 0,
+          avatar: rankEmojis[i] || '👤',
+        }));
+
         // Sum total active contributors contributions
-        const totalContribution = mockContributors.reduce((acc, curr) => acc + curr.contribution, 0);
+        const totalContribution = realContributors.reduce((acc, curr) => acc + curr.contribution, 0);
         const list = ['home', 'bank', 'car', 'hotel', 'bus', 'train', 'ship', 'aeroplane', 'submarine', 'rocket'];
         const currentLvlIdx = Math.max(0, list.indexOf(levelName?.toLowerCase() || 'home'));
         const thresholdMap = [10000000, 30000000, 50000000, 80000000, 90000000, 120000000, 130000000, 150000000, 180000000, 220000000];
         const currentThreshold = thresholdMap[currentLvlIdx] || 10000000;
         const totalRewardPool = currentThreshold * 2; // 2x Threshold dynamic coins pool
 
-        const results = mockContributors.map((c, index) => {
+        const results = realContributors.map((c, index) => {
           const sharePct = totalContribution > 0 ? (c.contribution / totalContribution) : 0.25;
           const coinsWon = Math.round(sharePct * totalRewardPool);
           const rank = index + 1;

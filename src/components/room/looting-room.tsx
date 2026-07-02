@@ -17,14 +17,19 @@ interface LootingRoomProps {
   levelIndex?: number;
 }
 
+const COIN_EMOJI = String.fromCodePoint(0x1FA99);
+const GEM_EMOJI = String.fromCodePoint(0x1F48E);
+const STAR_EMOJI = String.fromCodePoint(0x2B50);
+const SKULL_EMOJI = String.fromCodePoint(0x1F480);
+
 const REWARD_TYPES = [
-  { emoji: 'ðŸª™', value: 10, weight: 45 },
-  { emoji: 'ðŸª™', value: 25, weight: 28 },
-  { emoji: 'ðŸª™', value: 50, weight: 15 },
-  { emoji: 'ðŸ’Ž', value: 100, weight: 4 },
-  { emoji: 'ðŸ’Ž', value: 200, weight: 0.8 },
-  { emoji: 'â­', value: 500, weight: 0.2 },
-  { emoji: 'ðŸ’€', value: -50, weight: 7 }, // Penalty skull obstacle
+  { emoji: COIN_EMOJI, value: 10, weight: 45 },
+  { emoji: COIN_EMOJI, value: 25, weight: 28 },
+  { emoji: COIN_EMOJI, value: 50, weight: 15 },
+  { emoji: GEM_EMOJI, value: 100, weight: 4 },
+  { emoji: GEM_EMOJI, value: 200, weight: 0.8 },
+  { emoji: STAR_EMOJI, value: 500, weight: 0.2 },
+  { emoji: SKULL_EMOJI, value: -50, weight: 7 }, // Penalty skull obstacle
 ];
 
 function pickReward() {

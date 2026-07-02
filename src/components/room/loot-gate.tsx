@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { View, Text, Modal, TouchableOpacity, Animated, StyleSheet } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, Animated, StyleSheet, Dimensions } from 'react-native';
 import { X, Users, Timer, Zap, Crown, Lock } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { doc } from '@/firebase/firestore-compat';
@@ -24,9 +24,17 @@ interface LootGateProps {
   } | null;
 }
 
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const DEFAULT_GATE_DURATION = 15;
 const DEFAULT_MAX_ENTRIES = 20;
 const TOP_CRACKERS = 3;
+const BURST_DURATION = 10;
+const BURST_ITEM_MAX = 60;
+const CASH_EMOJIS = [String.fromCodePoint(0x1F4B5), String.fromCodePoint(0x1F4B6), String.fromCodePoint(0x1F4B8)];
+const COIN_EMOJI = String.fromCodePoint(0x1FA99);
+const GIFT_EMOJI = String.fromCodePoint(0x1F381);
+const CONFETTI_COLORS = ['#fbbf24', '#ef4444', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#f97316'];
+const CONFETTI_SHAPES = ['circle', 'rect', 'triangle'];
 
 const LEVEL_IMAGES: Record<string, any> = {
   home: require('../../../assets/images/loot/level_home.png'),
@@ -37,8 +45,10 @@ const LEVEL_IMAGES: Record<string, any> = {
   train: require('../../../assets/images/loot/level_train.png'),
   ship: require('../../../assets/images/loot/level_ship.png'),
   aeroplane: require('../../../assets/images/loot/level_aeroplane.png'),
+  submarine: require('../../../assets/images/loot/level_submarine.png'),
+  rocket: require('../../../assets/images/loot/level_rocket.png'),
 };
-const LEVEL_KEYS = ['home', 'bank', 'car', 'hotel', 'bus', 'train', 'ship', 'aeroplane'];
+const LEVEL_KEYS = ['home', 'bank', 'car', 'hotel', 'bus', 'train', 'ship', 'aeroplane', 'submarine', 'rocket'];
 
 const LEVEL_COLORS: Record<string, string> = {
   home: '#fbbf24',
@@ -48,7 +58,9 @@ const LEVEL_COLORS: Record<string, string> = {
   bus: '#3b82f6',
   train: '#22c55e',
   ship: '#06b6d4',
-  aeroplane: '#f472b6',
+  aeroplane: '#f59e0b',
+  submarine: '#0ea5e9',
+  rocket: '#ec4899',
 };
 
 export function LootGate({
@@ -76,7 +88,25 @@ export function LootGate({
   const blastOpacity = useRef(new Animated.Value(1)).current;
   const explosionScale = useRef(new Animated.Value(0)).current;
   const explosionOpacity = useRef(new Animated.Value(0)).current;
+  const flashAnimated = useRef(new Animated.Value(0)).current;
   const crackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  interface BurstParticle {
+    id: number;
+    x: Animated.Value;
+    y: Animated.Value;
+    rotation: Animated.Value;
+    scale: Animated.Value;
+    opacity: Animated.Value;
+    type: 'cash' | 'coin' | 'gift' | 'confetti';
+    emoji?: string;
+    color?: string;
+    shape?: string;
+    size: number;
+  }
+  const [particles, setParticles] = useState<BurstParticle[]>([]);
+  const particleCounterRef = useRef(0);
+  const burstIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const GATE_DURATION = lootConfig?.duration || DEFAULT_GATE_DURATION;
   const MAX_ENTRIES = lootConfig?.entryLimit || DEFAULT_MAX_ENTRIES;
@@ -128,12 +158,16 @@ export function LootGate({
     setCracked(false);
     setMyRank(-1);
     setBlastPhase('gate');
+    setParticles([]);
+    particleCounterRef.current = 0;
     gateAnim.setValue(0);
     blastScale.setValue(0);
     blastRotate.setValue(0);
     blastOpacity.setValue(1);
     explosionScale.setValue(0);
     explosionOpacity.setValue(0);
+    flashAnimated.setValue(0);
+    if (burstIntervalRef.current) { clearInterval(burstIntervalRef.current); burstIntervalRef.current = null; }
 
     if (isOwner && database && roomId) {
       const rtdbPath = `rooms/${roomId}/lootGates/${levelIndex}/entries`;
@@ -179,22 +213,94 @@ export function LootGate({
 
   useEffect(() => {
     if (blastPhase === 'explosion') {
-      explosionOpacity.setValue(1);
-      explosionScale.setValue(0);
-      const particles = Array.from({ length: 8 }, (_, i) => {
-        const angle = (i / 8) * Math.PI * 2;
-        return Animated.parallel([
-          Animated.timing(explosionScale, { toValue: 1.5, duration: 600, useNativeDriver: true }),
-          Animated.timing(explosionOpacity, { toValue: 0, duration: 800, useNativeDriver: true }),
-        ]);
-      });
-      Animated.parallel(particles).start(() => {
+      // Center flash burst
+      flashAnimated.setValue(0);
+      Animated.sequence([
+        Animated.timing(flashAnimated, { toValue: 1, duration: 150, useNativeDriver: true }),
+        Animated.timing(flashAnimated, { toValue: 0, duration: 800, useNativeDriver: true }),
+      ]).start();
+
+      // Continuous particle rain for 10 seconds
+      const createParticle = (): BurstParticle => {
+        const id = particleCounterRef.current++;
+        const type = Math.random() < 0.30 ? 'cash' : Math.random() < 0.55 ? 'coin' : Math.random() < 0.80 ? 'gift' : 'confetti';
+        const startX = Math.random() * SCREEN_W;
+        const startY = -30 - Math.random() * 60;
+
+        let emoji: string | undefined;
+        let color: string | undefined;
+        let shape: string | undefined;
+        let size: number;
+
+        if (type === 'cash') {
+          emoji = CASH_EMOJIS[Math.floor(Math.random() * CASH_EMOJIS.length)];
+          size = 28 + Math.random() * 16;
+        } else if (type === 'coin') {
+          emoji = COIN_EMOJI;
+          size = 22 + Math.random() * 18;
+        } else if (type === 'gift') {
+          emoji = GIFT_EMOJI;
+          size = 30 + Math.random() * 14;
+        } else {
+          color = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+          shape = CONFETTI_SHAPES[Math.floor(Math.random() * CONFETTI_SHAPES.length)];
+          size = 6 + Math.random() * 10;
+        }
+
+        const x = new Animated.Value(startX);
+        const y = new Animated.Value(startY);
+        const rotation = new Animated.Value(0);
+        const scale = new Animated.Value(0);
+        const opacity = new Animated.Value(0);
+
+        opacity.addListener(({ value }) => { if (value <= 0) { x.stopAnimation(); y.stopAnimation(); rotation.stopAnimation(); scale.stopAnimation(); opacity.stopAnimation(); } });
+
+        const delay = Math.random() * 200;
+        const fallDuration = 3000 + Math.random() * 5000;
+        const driftX = (Math.random() - 0.5) * 120;
+        const spin = Math.random() * 720 - 360;
+        const targetY = SCREEN_H + 50;
+
+        setTimeout(() => {
+          Animated.parallel([
+            Animated.timing(y, { toValue: targetY, duration: fallDuration, useNativeDriver: true }),
+            Animated.timing(x, { toValue: startX + driftX, duration: fallDuration, useNativeDriver: true }),
+            Animated.timing(rotation, { toValue: spin, duration: fallDuration, useNativeDriver: true }),
+            Animated.sequence([
+              Animated.delay(fallDuration * 0.1),
+              Animated.parallel([
+                Animated.timing(scale, { toValue: 1, duration: 200, useNativeDriver: true }),
+                Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+              ]),
+              Animated.delay(fallDuration * 0.6),
+              Animated.timing(opacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+            ]),
+          ]).start();
+        }, delay);
+
+        return { id, x, y, rotation, scale, opacity, type, emoji, color, shape, size };
+      };
+
+      burstIntervalRef.current = setInterval(() => {
+        setParticles(prev => {
+          const batch = Array.from({ length: 4 + Math.floor(Math.random() * 2) }, createParticle);
+          const next = [...prev, ...batch];
+          return next.length > BURST_ITEM_MAX ? next.slice(-BURST_ITEM_MAX) : next;
+        });
+      }, 180);
+
+      // Auto-transition to done after 10 seconds
+      crackTimerRef.current = setTimeout(() => {
+        if (burstIntervalRef.current) { clearInterval(burstIntervalRef.current); burstIntervalRef.current = null; }
+        setParticles([]);
         setBlastPhase('done');
-        crackTimerRef.current = setTimeout(() => {
-          onCrack?.(levelIndex);
-        }, 500);
-      });
+        setTimeout(() => { onCrack?.(levelIndex); }, 600);
+      }, BURST_DURATION * 1000);
     }
+
+    return () => {
+      if (burstIntervalRef.current) { clearInterval(burstIntervalRef.current); burstIntervalRef.current = null; }
+    };
   }, [blastPhase]);
 
   useEffect(() => {
@@ -285,43 +391,50 @@ export function LootGate({
 
             {blastPhase === 'explosion' && (
               <>
-                {Array.from({ length: 8 }, (_, i) => {
-                  const angle = (i / 8) * Math.PI * 2;
-                  const ex = Math.cos(angle) * 140;
-                  const ey = Math.sin(angle) * 140;
+                {/* Center flash burst */}
+                <Animated.View style={{
+                  position: 'absolute', width: 120, height: 120, borderRadius: 60,
+                  backgroundColor: 'white', opacity: flashAnimated,
+                  transform: [{ scale: flashAnimated.interpolate({ inputRange: [0, 1], outputRange: [0.5, 4] }) }],
+                }} />
+                {/* Shockwave rings */}
+                {[0, 1, 2].map(ring => (
+                  <Animated.View key={`ring-${ring}`} style={{
+                    position: 'absolute', width: 100 + ring * 60, height: 100 + ring * 60,
+                    borderRadius: (100 + ring * 60) / 2, borderWidth: 3,
+                    borderColor: ring === 0 ? 'white' : levelColor,
+                    opacity: flashAnimated.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0.6, 0] }),
+                    transform: [{ scale: flashAnimated.interpolate({ inputRange: [0, 1], outputRange: [0.3, 2.5 + ring * 0.5] }) }],
+                  }} />
+                ))}
+                {/* Falling particles: cash, coins, gifts, confetti */}
+                {particles.map(p => {
+                  if (p.type === 'confetti') {
+                    const triSize = p.size;
+                    return (
+                      <Animated.View key={p.id} style={{
+                        position: 'absolute', left: 0, top: 0, opacity: p.opacity,
+                        transform: [{ translateX: p.x }, { translateY: p.y }, { rotate: p.rotation.interpolate({ inputRange: [0, 360], outputRange: ['0deg', '360deg'] }) }, { scale: p.scale }],
+                      }}>
+                        {p.shape === 'circle' ? (
+                          <View style={{ width: triSize, height: triSize, borderRadius: triSize / 2, backgroundColor: p.color }} />
+                        ) : p.shape === 'rect' ? (
+                          <View style={{ width: triSize, height: triSize * 0.5, borderRadius: 2, backgroundColor: p.color }} />
+                        ) : (
+                          <View style={{ width: 0, height: 0, borderLeftWidth: triSize / 2, borderRightWidth: triSize / 2, borderBottomWidth: triSize, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: p.color }} />
+                        )}
+                      </Animated.View>
+                    );
+                  }
                   return (
-                    <Animated.View
-                      key={i}
-                      style={{
-                        position: 'absolute',
-                        width: 20 + (i % 3) * 10,
-                        height: 20 + (i % 3) * 10,
-                        borderRadius: (20 + (i % 3) * 10) / 2,
-                        backgroundColor: levelColor,
-                        opacity: explosionOpacity,
-                        transform: [
-                          { scale: explosionScale },
-                          { translateX: ex },
-                          { translateY: ey },
-                        ],
-                      }}
-                    />
+                    <Animated.Text key={p.id} style={{
+                      position: 'absolute', left: 0, top: 0, fontSize: p.size, opacity: p.opacity,
+                      transform: [{ translateX: p.x }, { translateY: p.y }, { rotate: p.rotation.interpolate({ inputRange: [0, 360], outputRange: ['0deg', '360deg'] }) }, { scale: p.scale }],
+                    }}>
+                      {p.emoji}
+                    </Animated.Text>
                   );
                 })}
-                <Animated.View style={{
-                  position: 'absolute',
-                  width: 80, height: 80, borderRadius: 40,
-                  backgroundColor: 'white',
-                  opacity: explosionOpacity,
-                  transform: [{ scale: explosionScale }],
-                }} />
-                <Animated.View style={{
-                  position: 'absolute',
-                  width: 160, height: 160, borderRadius: 80,
-                  borderWidth: 4, borderColor: levelColor,
-                  opacity: explosionOpacity,
-                  transform: [{ scale: explosionScale }],
-                }} />
               </>
             )}
 

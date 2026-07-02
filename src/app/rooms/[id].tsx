@@ -1231,9 +1231,10 @@ export default function RoomScreen() {
         visible={showLevelAnimation}
         videoUrl={levelAnimationUrl}
         levelName={currentGateLevelName}
+        topSupporters={topSupporters || []}
         onComplete={() => { setShowLevelAnimation(false); setLevelAnimationUrl(undefined); setTimeout(() => setShowLootingRoom(true), 300); }}
       />
-      <LootingRoom visible={showLootingRoom} onClose={() => setShowLootingRoom(false)} roomId={id} />
+      <LootingRoom visible={showLootingRoom} onClose={() => setShowLootingRoom(false)} roomId={id} levelIndex={currentGateIndex} />
       <MountOverlay visible={showMountOverlay} type="car" username={user?.displayName || 'Someone'} onComplete={() => setShowMountOverlay(false)} />
       <RoomEchoDialog visible={showEcho} onClose={() => { setShowEcho(false); setEchoTarget(null); }} targetUser={echoTarget} />
       <RoomThemeArchitectDialog visible={showThemeArchitect} onClose={() => setShowThemeArchitect(false)} roomId={id} isOwner={isOwner} />
