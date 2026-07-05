@@ -174,7 +174,7 @@ function Particle({ index }: { index: number }) {
   const distance = 60;
 
   useEffect(() => {
-    Animated.loop(
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(anim, {
           toValue: 1,
@@ -187,7 +187,12 @@ function Particle({ index }: { index: number }) {
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
+    loop.start();
+
+    return () => {
+      loop.stop();
+    };
   }, []);
 
   const translateX = anim.interpolate({

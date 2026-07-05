@@ -51,6 +51,7 @@ export function useMusicSync({ room, canManageRoom, userId, isSpeakerMuted, keep
   const currentUrlRef = useRef<string | null>(null);
   const keepAliveRef = useRef(keepAlive);
   keepAliveRef.current = keepAlive;
+  const musicStateRef = useRef<MusicState>({ duration: 0, currentTime: 0, progress: 0 });
   const [roomMusicLibrary, setRoomMusicLibrary] = useState<MusicTrack[]>([]);
 
   useEffect(() => {
@@ -225,13 +226,16 @@ export function useMusicSync({ room, canManageRoom, userId, isSpeakerMuted, keep
     };
   }, [room?.currentMusicUrl, room?.isMusicPlaying, room?.musicStartedAt, room?.musicStartOffset, room?.id, isSpeakerMuted]);
 
-  const onPlaybackStatusUpdate = (status: any) => {
+  const onPlaybackStatusUpdateRef = useRef<(status: any) => void>(() => {});
+  onPlaybackStatusUpdateRef.current = (status: any) => {
     if (status.isLoaded) {
-      setMusicState({
+      const newState = {
         duration: status.durationMillis / 1000,
         currentTime: status.positionMillis / 1000,
         progress: status.durationMillis > 0 ? (status.positionMillis / status.durationMillis) * 100 : 0,
-      });
+      };
+      musicStateRef.current = newState;
+      setMusicState(newState);
 
       if (status.didJustFinish) {
         if (isRepeatEnabled && soundRef.current) {
@@ -249,6 +253,10 @@ export function useMusicSync({ room, canManageRoom, userId, isSpeakerMuted, keep
     }
   };
 
+  const onPlaybackStatusUpdate = useCallback((status: any) => {
+    onPlaybackStatusUpdateRef.current(status);
+  }, []);
+
   // Simulated music intensity for seat isSpeaking visualization
   useEffect(() => {
     if (!isMusicPlaying) {
@@ -261,7 +269,7 @@ export function useMusicSync({ room, canManageRoom, userId, isSpeakerMuted, keep
       return;
     }
     const intensity = () => {
-      const pos = musicState.currentTime;
+      const pos = musicStateRef.current.currentTime;
       const beat = Math.sin(pos * 2.4 * Math.PI) * 0.5 + 0.5;
       const bass = Math.sin(pos * 4.8 * Math.PI) * 0.6 + 0.4;
       const variation = ((Math.sin(pos * 1.1) * Math.cos(pos * 0.7)) * 0.3 + 0.7);
@@ -285,7 +293,7 @@ export function useMusicSync({ room, canManageRoom, userId, isSpeakerMuted, keep
         intensityAnimRef.current = null;
       }
     };
-  }, [isMusicPlaying, musicState.currentTime]);
+  }, [isMusicPlaying]);
 
   const handleToggleMusic = async () => {
     if (!canManageRoom || !firestore || !room?.id) return;

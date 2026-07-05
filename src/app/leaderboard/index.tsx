@@ -108,17 +108,18 @@ function LeaderboardAnimOverlay() {
   }))).current;
 
   useEffect(() => {
-    // Border pulsing loop
-    Animated.loop(
+    const borderLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(borderGlow, { toValue: 1, duration: 2000, useNativeDriver: true }),
         Animated.timing(borderGlow, { toValue: 0.4, duration: 2000, useNativeDriver: true }),
       ])
-    ).start();
+    );
+    borderLoop.start();
 
-    // Raining particles loop
-    goldenRain.forEach(p => {
+    const activeFlags = goldenRain.map(() => ({ current: true }));
+    goldenRain.forEach((p, idx) => {
       const runRain = () => {
+        if (!activeFlags[idx].current) return;
         p.animY.setValue(0);
         p.animX.setValue(0);
         p.opacity.setValue(0);
@@ -127,37 +128,22 @@ function LeaderboardAnimOverlay() {
         Animated.sequence([
           Animated.delay(p.delay),
           Animated.parallel([
-            // Fade-in at top, fade-out near bottom
             Animated.sequence([
               Animated.timing(p.opacity, { toValue: 0.9, duration: 800, useNativeDriver: true }),
               Animated.delay(p.speed - 2200),
               Animated.timing(p.opacity, { toValue: 0, duration: 1400, useNativeDriver: true }),
             ]),
-            // Fall downwards
-            Animated.timing(p.animY, {
-              toValue: 780,
-              duration: p.speed,
-              useNativeDriver: true,
-            }),
-            // Drift sideways
-            Animated.timing(p.animX, {
-              toValue: p.drift,
-              duration: p.speed,
-              useNativeDriver: true,
-            }),
-            // Shrink as it falls
-            Animated.timing(p.scale, {
-              toValue: 0.2,
-              duration: p.speed,
-              useNativeDriver: true,
-            }),
+            Animated.timing(p.animY, { toValue: 780, duration: p.speed, useNativeDriver: true }),
+            Animated.timing(p.animX, { toValue: p.drift, duration: p.speed, useNativeDriver: true }),
+            Animated.timing(p.scale, { toValue: 0.2, duration: p.speed, useNativeDriver: true }),
           ]),
         ]).start(() => {
-          runRain();
+          if (activeFlags[idx].current) runRain();
         });
       };
       runRain();
     });
+    return () => { borderLoop.stop(); activeFlags.forEach(f => { f.current = false; }); };
   }, []);
 
   return (
@@ -545,22 +531,24 @@ const AnimatedAvatarFrame = React.memo(function AnimatedAvatarFrame({ children, 
   const pulseAnim = useRef(new Animated.Value(0.5)).current;
 
   useEffect(() => {
-    // Rotation for orbiting stars & shine
-    Animated.loop(
+    const rotateLoop = Animated.loop(
       Animated.timing(rotateAnim, {
         toValue: 1,
         duration: rank === 1 ? 4000 : rank === 2 ? 6000 : 8000,
         useNativeDriver: true,
       })
-    ).start();
+    );
+    rotateLoop.start();
 
-    // Pulsing border glow
-    Animated.loop(
+    const pulseLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
         Animated.timing(pulseAnim, { toValue: 0.5, duration: 1500, useNativeDriver: true }),
       ])
-    ).start();
+    );
+    pulseLoop.start();
+
+    return () => { rotateLoop.stop(); pulseLoop.stop(); };
   }, [rank]);
 
   const rotate = rotateAnim.interpolate({
@@ -580,7 +568,7 @@ const AnimatedAvatarFrame = React.memo(function AnimatedAvatarFrame({ children, 
   const hasFrame = !!(frameConfig?.isEnabled && ((frameConfig?.imageUrl?.startsWith('http')) || (frameConfig?.type === 'video' && frameConfig?.videoUrl?.startsWith('http'))));
   const isVideo = hasFrame && frameConfig?.type === 'video' && frameConfig?.videoUrl?.startsWith('http');
   const frameUrl = isVideo ? frameConfig!.videoUrl! : (frameConfig?.imageUrl || null);
-  const frameOverlaySize = size * 5.0;
+  const frameOverlaySize = size * 1.45;
 
   if (hasFrame) {
     return (
@@ -588,7 +576,7 @@ const AnimatedAvatarFrame = React.memo(function AnimatedAvatarFrame({ children, 
         <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden', zIndex: 1 }}>
           {children}
         </View>
-        <View style={{ position: 'absolute', width: frameOverlaySize, height: frameOverlaySize, backgroundColor: 'transparent', zIndex: 2 }}>
+        <View pointerEvents="none" style={{ position: 'absolute', width: frameOverlaySize, height: frameOverlaySize, backgroundColor: 'transparent', zIndex: 2 }}>
           {isVideo ? (
             <Video
               source={{ uri: frameUrl! }}

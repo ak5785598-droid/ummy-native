@@ -119,6 +119,7 @@ export function RoomProfileCard({
   };
 
   useEffect(() => {
+    if (!visible) return;
     try {
       const db = require('@react-native-firebase/firestore').default;
       const unsub = db().collection('medalsList').onSnapshot((snap: any) => {
@@ -129,7 +130,7 @@ export function RoomProfileCard({
       return () => unsub();
     } catch (e) {
     }
-  }, []);
+  }, [visible]);
 
   const hasTags = profile?.tags?.includes('Official') || 
                   profile?.tags?.some((t: string) => ['Seller', 'Seller center', 'Coin Seller'].includes(t)) || 

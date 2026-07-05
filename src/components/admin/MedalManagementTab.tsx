@@ -222,7 +222,7 @@ export function MedalManagementTab() {
         medals.map(m => (
           <View key={m.id} style={{ flexDirection: 'row', alignItems: 'center', padding: 10, backgroundColor: '#f8fafc', borderRadius: 10, borderWidth: 1, borderColor: '#cbd5e1', marginBottom: 8 }}>
             {m.imageUrl ? (
-              <Image source={{ uri: m.imageUrl }} style={{ width: 40, height: 40, borderRadius: 8, marginRight: 10 }} contentFit="cover" />
+              <Image source={{ uri: m.imageUrl }} style={{ width: 40, height: 40, borderRadius: 8, marginRight: 10 }} contentFit="cover" cachePolicy="memory-disk" />
             ) : (
               <View style={{ width: 40, height: 40, borderRadius: 8, marginRight: 10, backgroundColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center' }}>
                 <Text>🏅</Text>

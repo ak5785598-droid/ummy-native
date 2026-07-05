@@ -282,13 +282,15 @@ function GoldenChest({ visible, onClose }: { visible: boolean; onClose: () => vo
 
   React.useEffect(() => {
     if (!visible) { setOpened(false); setReward(null); return; }
-    Animated.loop(
+    const pulseLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
         Animated.timing(pulseAnim, { toValue: 0, duration: 1000, useNativeDriver: true }),
       ])
-    ).start();
+    );
+    pulseLoop.start();
     checkCooldown();
+    return () => { pulseLoop.stop(); };
   }, [visible]);
 
   const checkCooldown = async () => {

@@ -52,11 +52,14 @@ export function AnimatedLoveHandShake({ size = 64, visible, noAnimation }: Anima
 
     shake.start();
     clap.start();
-    makeHeart(h1, 0).start();
-    makeHeart(h2, 350).start();
-    makeHeart(h3, 700).start();
+    const heart1 = makeHeart(h1, 0);
+    const heart2 = makeHeart(h2, 350);
+    const heart3 = makeHeart(h3, 700);
+    heart1.start();
+    heart2.start();
+    heart3.start();
 
-    return () => { shake.stop(); clap.stop(); };
+    return () => { shake.stop(); clap.stop(); heart1.stop(); heart2.stop(); heart3.stop(); };
   }, [visible]);
 
   if (!visible) return null;

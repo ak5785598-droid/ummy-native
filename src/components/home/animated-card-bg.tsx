@@ -12,13 +12,18 @@ function Sparkle({ delay, x, y }: { delay: number; x: number; y: number }) {
   const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.delay(delay),
         Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }),
         Animated.timing(opacity, { toValue: 0, duration: 600, useNativeDriver: true }),
       ])
-    ).start();
+    );
+    loop.start();
+
+    return () => {
+      loop.stop();
+    };
   }, []);
 
   return (
@@ -48,7 +53,7 @@ export function AnimatedCardBackground({ colors, sparkleCount = 5, children }: P
   const glow = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
-    Animated.loop(
+    const waveLoop = Animated.loop(
       Animated.parallel([
         Animated.sequence([
           Animated.timing(wave1, { toValue: 1, duration: 2500, useNativeDriver: false }),
@@ -60,14 +65,21 @@ export function AnimatedCardBackground({ colors, sparkleCount = 5, children }: P
           Animated.timing(wave2, { toValue: 0, duration: 2500, useNativeDriver: false }),
         ]),
       ])
-    ).start();
+    );
+    waveLoop.start();
 
-    Animated.loop(
+    const glowLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(glow, { toValue: 0.6, duration: 1500, useNativeDriver: true }),
         Animated.timing(glow, { toValue: 0.3, duration: 1500, useNativeDriver: true }),
       ])
-    ).start();
+    );
+    glowLoop.start();
+
+    return () => {
+      waveLoop.stop();
+      glowLoop.stop();
+    };
   }, []);
 
   // Wave 1: translate X + rotate

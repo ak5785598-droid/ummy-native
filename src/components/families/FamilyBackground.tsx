@@ -140,6 +140,8 @@ export function FamilyBackground() {
   const sparks = useRef(buildSparks()).current;
 
   useEffect(() => {
+    let active = true;
+
     // Glow orbs
     Animated.loop(Animated.sequence([
       Animated.timing(glowA, { toValue: 1, duration: 3000, useNativeDriver: true, easing: Easing.inOut(Easing.sin) }),
@@ -201,6 +203,7 @@ export function FamilyBackground() {
     // Floating clan symbols
     symbols.forEach((p) => {
       const loop = () => {
+        if (!active) return;
         p.anim.setValue(0);
         p.drift.setValue(0);
         Animated.parallel([
@@ -228,8 +231,15 @@ export function FamilyBackground() {
     });
 
     return () => {
+      active = false;
       [glowA, glowB, glowC, rotateMain, aurora1, aurora2, aurora3, shimmer, crownPulse]
         .forEach(a => a.stopAnimation());
+      stars.forEach(s => s.anim.stopAnimation());
+      symbols.forEach(p => {
+        p.anim.stopAnimation();
+        p.drift.stopAnimation();
+      });
+      sparks.forEach(s => s.anim.stopAnimation());
     };
   }, []);
 

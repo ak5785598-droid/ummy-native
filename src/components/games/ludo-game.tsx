@@ -738,7 +738,7 @@ export function LudoGame({ onClose, roomId, onRoundEnd, isMuted, isAdmin }: Ludo
             <View style={{ flex: 1, alignItems: 'center', marginHorizontal: 4 }}>
               <View style={{ width: 56, height: 56, borderRadius: 28, borderWidth: 3, borderColor: '#cbd5e1', overflow: 'hidden', backgroundColor: '#1e293b', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, elevation: 4 }}>
                 {second.player.avatarUrl ? (
-                  <Image source={{ uri: toCDN(second.player.avatarUrl) }} style={{ width: '100%', height: '100%' }} />
+                  <Image source={{ uri: toCDN(second.player.avatarUrl) }} style={{ width: '100%', height: '100%' }} cachePolicy="memory-disk" />
                 ) : (
                   <View style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
                     <Text style={{ color: 'white', fontWeight: 'bold' }}>{second.player.username[0].toUpperCase()}</Text>
@@ -767,7 +767,7 @@ export function LudoGame({ onClose, roomId, onRoundEnd, isMuted, isAdmin }: Ludo
               <Text style={{ fontSize: 24, top: 4, zIndex: 12 }}>👑</Text>
               <View style={{ width: 72, height: 72, borderRadius: 36, borderWidth: 4, borderColor: '#ffd700', overflow: 'hidden', backgroundColor: '#1e293b', shadowColor: '#ffd700', shadowOpacity: 0.3, shadowRadius: 10, elevation: 8 }}>
                 {first.player.avatarUrl ? (
-                  <Image source={{ uri: toCDN(first.player.avatarUrl) }} style={{ width: '100%', height: '100%' }} />
+                  <Image source={{ uri: toCDN(first.player.avatarUrl) }} style={{ width: '100%', height: '100%' }} cachePolicy="memory-disk" />
                 ) : (
                   <View style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
                     <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 20 }}>{first.player.username[0].toUpperCase()}</Text>
@@ -795,7 +795,7 @@ export function LudoGame({ onClose, roomId, onRoundEnd, isMuted, isAdmin }: Ludo
             <View style={{ flex: 0.9, alignItems: 'center', marginHorizontal: 4 }}>
               <View style={{ width: 50, height: 50, borderRadius: 25, borderWidth: 3, borderColor: '#d97706', overflow: 'hidden', backgroundColor: '#1e293b', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, elevation: 4 }}>
                 {third.player.avatarUrl ? (
-                  <Image source={{ uri: toCDN(third.player.avatarUrl) }} style={{ width: '100%', height: '100%' }} />
+                  <Image source={{ uri: toCDN(third.player.avatarUrl) }} style={{ width: '100%', height: '100%' }} cachePolicy="memory-disk" />
                 ) : (
                   <View style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
                     <Text style={{ color: 'white', fontWeight: 'bold' }}>{third.player.username[0].toUpperCase()}</Text>
@@ -826,7 +826,7 @@ export function LudoGame({ onClose, roomId, onRoundEnd, isMuted, isAdmin }: Ludo
               <Text style={{ color: '#a1a1aa', fontSize: 12, fontWeight: 'bold' }}>4th</Text>
               <View style={{ width: 32, height: 32, borderRadius: 16, overflow: 'hidden', backgroundColor: '#1e293b' }}>
                 {fourth.player.avatarUrl ? (
-                  <Image source={{ uri: toCDN(fourth.player.avatarUrl) }} style={{ width: '100%', height: '100%' }} />
+                  <Image source={{ uri: toCDN(fourth.player.avatarUrl) }} style={{ width: '100%', height: '100%' }} cachePolicy="memory-disk" />
                 ) : (
                   <View style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
                     <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 12 }}>{fourth.player.username[0].toUpperCase()}</Text>

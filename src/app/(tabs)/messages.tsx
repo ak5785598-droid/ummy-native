@@ -700,7 +700,6 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
 
         // Strip file:// prefix so Android native FS can resolve the path
         const nativePath = uri.replace(/^file:\/\//, '');
-        console.log('[Image Upload] uploading from path:', nativePath);
 
         // Upload via React Native Firebase Storage (native wrapper with auto-auth and appcheck)
         const rnfbStorage = require('@react-native-firebase/storage').default;
@@ -746,7 +745,6 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
 
               // Step 2: Strip file:// prefix so Android native FS can resolve the path
               const nativePath = cleanPath.replace(/^file:\/\//, '');
-              console.log('[Voice] uploading from path:', nativePath);
 
               // Step 3: Upload via RNFB (uses native auth + App Check automatically)
               const rnfbStorage = require('@react-native-firebase/storage').default;

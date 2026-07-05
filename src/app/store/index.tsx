@@ -140,7 +140,6 @@ export default function StoreScreen() {
         }
       }
     } catch (err) {
-      console.log('Error checking ID availability:', err);
       setIdAvailability('taken');
     } finally {
       setIsCheckingId(false);

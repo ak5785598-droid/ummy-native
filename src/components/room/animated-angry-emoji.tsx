@@ -27,30 +27,32 @@ export function AnimatedAngryEmoji({ size = 64, visible, noAnimation }: Animated
       return;
     }
 
+    const shakeLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shakeAnim, { toValue: 1, duration: 80, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -1, duration: 80, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 0, duration: 80, useNativeDriver: true }),
+      ])
+    );
+    const browLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(browAnim, { toValue: -3, duration: 300, useNativeDriver: true }),
+        Animated.timing(browAnim, { toValue: 3, duration: 300, useNativeDriver: true }),
+      ])
+    );
+    const steamLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(steamAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(steamAnim, { toValue: 0, duration: 800, useNativeDriver: true }),
+      ])
+    );
+
     Animated.sequence([
       Animated.spring(scaleAnim, { toValue: 1, friction: 3, tension: 80, useNativeDriver: true }),
-      Animated.parallel([
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(shakeAnim, { toValue: 1, duration: 80, useNativeDriver: true }),
-            Animated.timing(shakeAnim, { toValue: -1, duration: 80, useNativeDriver: true }),
-            Animated.timing(shakeAnim, { toValue: 0, duration: 80, useNativeDriver: true }),
-          ])
-        ),
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(browAnim, { toValue: -3, duration: 300, useNativeDriver: true }),
-            Animated.timing(browAnim, { toValue: 3, duration: 300, useNativeDriver: true }),
-          ])
-        ),
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(steamAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-            Animated.timing(steamAnim, { toValue: 0, duration: 800, useNativeDriver: true }),
-          ])
-        ),
-      ]),
+      Animated.parallel([shakeLoop, browLoop, steamLoop]),
     ]).start();
+
+    return () => { shakeLoop.stop(); browLoop.stop(); steamLoop.stop(); };
   }, [visible]);
 
   if (!visible) return null;

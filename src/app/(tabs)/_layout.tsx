@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
 import { Home, Compass, Mail, User } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUser, useFirestore } from '../../firebase/provider';
 import { collection, query, where, onSnapshot } from '@/firebase/firestore-compat';
 
@@ -12,6 +13,7 @@ const NeonIndicator = () => (
 export default function TabLayout() {
   const { user } = useUser();
   const firestore = useFirestore();
+  const insets = useSafeAreaInsets();
   const [hasUnread, setHasUnread] = useState(false);
 
   // Monitor all private chats in background for global unread dot
@@ -43,6 +45,10 @@ export default function TabLayout() {
     return () => unsub();
   }, [firestore, user?.uid]);
 
+  // Adjust tab bar height and bottom padding safely depending on the device notch/buttons
+  const safeBottom = insets.bottom > 0 ? insets.bottom : 12;
+  const tabHeight = 52 + safeBottom;
+
   return (
     <Tabs
       screenOptions={{
@@ -50,8 +56,8 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: '#1a0b2e',
           borderTopWidth: 0,
-          minHeight: 72,
-          paddingBottom: 22,
+          height: tabHeight,
+          paddingBottom: safeBottom - 4,
           paddingTop: 4,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -5 },

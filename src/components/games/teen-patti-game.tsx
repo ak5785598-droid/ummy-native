@@ -70,7 +70,7 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
     const t = setTimeout(() => setGameState('betting'), 1500);
     
     // Slow breathing / zoom animation for background image
-    Animated.loop(
+    const bgLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(bgScaleAnim, {
           toValue: 1.05,
@@ -85,9 +85,10 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
+    bgLoop.start();
 
-    return () => clearTimeout(t);
+    return () => { clearTimeout(t); bgLoop.stop(); };
   }, []);
 
   useEffect(() => {
@@ -102,14 +103,17 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
   }, [gameState, timeLeft]);
 
   useEffect(() => {
+    let pulseLoop: Animated.CompositeAnimation | null = null;
     if (gameState === 'betting' && timeLeft > 0 && timeLeft <= 5) {
-      Animated.loop(Animated.sequence([
+      pulseLoop = Animated.loop(Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
         Animated.timing(pulseAnim, { toValue: 0.6, duration: 500, useNativeDriver: true }),
-      ])).start();
+      ]));
+      pulseLoop.start();
     } else {
       pulseAnim.setValue(0.6);
     }
+    return () => { pulseLoop?.stop(); };
   }, [gameState, timeLeft]);
 
   const handlePlaceBet = async (factionId: string) => {
@@ -713,11 +717,14 @@ function LaunchingScreen() {
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(Animated.sequence([
+    const pLoop = Animated.loop(Animated.sequence([
       Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
       Animated.timing(pulseAnim, { toValue: 0.4, duration: 1000, useNativeDriver: true }),
-    ])).start();
-    Animated.loop(Animated.timing(rotateAnim, { toValue: 1, duration: 3000, easing: Easing.linear, useNativeDriver: true })).start();
+    ]));
+    pLoop.start();
+    const rLoop = Animated.loop(Animated.timing(rotateAnim, { toValue: 1, duration: 3000, easing: Easing.linear, useNativeDriver: true }));
+    rLoop.start();
+    return () => { pLoop.stop(); rLoop.stop(); };
   }, []);
 
   return (

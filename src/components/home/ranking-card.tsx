@@ -27,22 +27,23 @@ function RankingCardAnimOverlay() {
   }))).current;
 
   useEffect(() => {
-    // Pulse glow loop
-    Animated.loop(Animated.sequence([
+    const glowLoop = Animated.loop(Animated.sequence([
       Animated.timing(glow, { toValue: 1, duration: 2000, useNativeDriver: true }),
       Animated.timing(glow, { toValue: 0, duration: 2000, useNativeDriver: true }),
-    ])).start();
+    ]));
+    glowLoop.start();
 
-    // Laser sheen sweep loop
-    Animated.loop(Animated.sequence([
+    const sweepLoop = Animated.loop(Animated.sequence([
       Animated.timing(sweep, { toValue: 1, duration: 2500, useNativeDriver: true }),
       Animated.delay(1500),
       Animated.timing(sweep, { toValue: 0, duration: 0, useNativeDriver: true }),
-    ])).start();
+    ]));
+    sweepLoop.start();
 
-    // Embers animation loops
-    embers.forEach(ember => {
+    const activeFlags = embers.map(() => ({ current: true }));
+    embers.forEach((ember, idx) => {
       const runEmber = () => {
+        if (!activeFlags[idx].current) return;
         ember.animY.setValue(0);
         ember.animX.setValue(0);
         ember.opacity.setValue(0);
@@ -50,33 +51,18 @@ function RankingCardAnimOverlay() {
         Animated.sequence([
           Animated.delay(ember.delay),
           Animated.parallel([
-            Animated.timing(ember.opacity, {
-              toValue: 1,
-              duration: 500,
-              useNativeDriver: true,
-            }),
-            Animated.timing(ember.animY, {
-              toValue: -80,
-              duration: 2000,
-              useNativeDriver: true,
-            }),
-            Animated.timing(ember.animX, {
-              toValue: (Math.random() - 0.5) * 30,
-              duration: 2000,
-              useNativeDriver: true,
-            }),
+            Animated.timing(ember.opacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+            Animated.timing(ember.animY, { toValue: -80, duration: 2000, useNativeDriver: true }),
+            Animated.timing(ember.animX, { toValue: (Math.random() - 0.5) * 30, duration: 2000, useNativeDriver: true }),
           ]),
-          Animated.timing(ember.opacity, {
-            toValue: 0,
-            duration: 500,
-            useNativeDriver: true,
-          }),
+          Animated.timing(ember.opacity, { toValue: 0, duration: 500, useNativeDriver: true }),
         ]).start(() => {
-          runEmber();
+          if (activeFlags[idx].current) runEmber();
         });
       };
       runEmber();
     });
+    return () => { glowLoop.stop(); sweepLoop.stop(); activeFlags.forEach(f => { f.current = false; }); };
   }, []);
 
   const sweepX = sweep.interpolate({ inputRange: [0, 1], outputRange: [-120, 240] });

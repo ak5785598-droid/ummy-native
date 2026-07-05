@@ -111,20 +111,24 @@ export function LootBoxDisplay({ onOpenGate, onGateReady, roomId, topSupporters 
 
   // Initialize loop for rocket flame and continuous mansion float
   useEffect(() => {
-    Animated.loop(
+    const flameLoop = Animated.loop(
       Animated.timing(rocketFlameAnim, {
         toValue: 1,
         duration: 400,
-        useNativeDriver: false, // SVG paths coordinates interpolation requires false
+        useNativeDriver: false,
       })
-    ).start();
+    );
+    flameLoop.start();
 
-    Animated.loop(
+    const floatLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(floatAnim, { toValue: 1, duration: 1200, useNativeDriver: true }),
         Animated.timing(floatAnim, { toValue: 0, duration: 1200, useNativeDriver: true }),
       ])
-    ).start();
+    );
+    floatLoop.start();
+
+    return () => { flameLoop.stop(); floatLoop.stop(); };
   }, [rocketFlameAnim, floatAnim]);
 
   const firestore = useFirestore();
@@ -150,17 +154,16 @@ export function LootBoxDisplay({ onOpenGate, onGateReady, roomId, topSupporters 
   const currentProgress = room?.stats?.dailyGifts || 0;
 
   const [storeItems, setStoreItems] = useState<any[]>([]);
-  const dbInstance = useFirestore();
 
   useEffect(() => {
-    if (!dbInstance) return;
-    const unsub = onSnapshot(collection(dbInstance, 'storeItems'), (snap: any) => {
+    if (!firestore) return;
+    const unsub = onSnapshot(collection(firestore, 'storeItems'), (snap: any) => {
       if (snap) {
         setStoreItems(snap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
       }
     }, () => {});
     return () => unsub();
-  }, [dbInstance]);
+  }, [firestore]);
 
   const [timeLeftVal, setTimeLeftVal] = useState({ hours: '23', minutes: '59', seconds: '59' });
 
@@ -306,24 +309,30 @@ export function LootBoxDisplay({ onOpenGate, onGateReady, roomId, topSupporters 
 
   // Pulse on unlock
   useEffect(() => {
+    let loop: Animated.CompositeAnimation | null = null;
     if (canOpenGate && !isGateCompleted) {
-      Animated.loop(Animated.sequence([
+      loop = Animated.loop(Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1.15, duration: 500, useNativeDriver: true }),
         Animated.timing(pulseAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-      ])).start();
+      ]));
+      loop.start();
     } else { pulseAnim.setValue(1); }
+    return () => { if (loop) loop.stop(); };
   }, [canOpenGate, isGateCompleted]);
 
   const activeLevel = levels[activeIndex] || levels[0];
 
   // "READY" text pulse
   useEffect(() => {
+    let loop: Animated.CompositeAnimation | null = null;
     if (shouldFireGate) {
-      Animated.loop(Animated.sequence([
+      loop = Animated.loop(Animated.sequence([
         Animated.timing(readyAnim, { toValue: 0.4, duration: 400, useNativeDriver: true }),
         Animated.timing(readyAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-      ])).start();
+      ]));
+      loop.start();
     } else { readyAnim.setValue(1); }
+    return () => { if (loop) loop.stop(); };
   }, [shouldFireGate]);
 
   // Lightning crackle loop for Car

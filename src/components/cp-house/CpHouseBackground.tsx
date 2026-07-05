@@ -154,6 +154,8 @@ export function CpHouseBackground({ mode = 'cp' }: CpHouseBackgroundProps) {
   const isCp = mode === 'cp';
 
   useEffect(() => {
+    let active = true;
+
     // Glow orb A
     Animated.loop(
       Animated.sequence([
@@ -205,6 +207,7 @@ export function CpHouseBackground({ mode = 'cp' }: CpHouseBackgroundProps) {
     // Petals
     petals.forEach((p) => {
       const loopPetal = () => {
+        if (!active) return;
         p.anim.setValue(0);
         p.drift.setValue(0);
         Animated.parallel([
@@ -240,12 +243,18 @@ export function CpHouseBackground({ mode = 'cp' }: CpHouseBackgroundProps) {
     });
 
     return () => {
+      active = false;
       glowA.stopAnimation();
       glowB.stopAnimation();
       rotateMain.stopAnimation();
       aurora1.stopAnimation();
       aurora2.stopAnimation();
       shimmer.stopAnimation();
+      petals.forEach(p => {
+        p.anim.stopAnimation();
+        p.drift.stopAnimation();
+      });
+      sparks.forEach(s => s.anim.stopAnimation());
     };
   }, [mode]);
 

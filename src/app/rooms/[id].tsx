@@ -303,10 +303,8 @@ export default function RoomScreen() {
   const [showThemeArchitect, setShowThemeArchitect] = useState(false);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [showSupportDialog, setShowSupportDialog] = useState(false);
-  const [showAiVoiceAnnouncer, setShowAiVoiceAnnouncer] = useState(false);
   const [showCPPropose, setShowCPPropose] = useState(false);
   const [cpProposeTarget, setCpProposeTarget] = useState<{ uid: string; name: string; avatarUrl: string } | null>(null);
-  const [emojiEffects, setEmojiEffects] = useState<Record<number, { emoji: string; key: number }>>({});
   const [aiVoiceAnnouncements, setAiVoiceAnnouncements] = useState<any[]>([]);
 
   const roomDocRef = useMemo(() => {
@@ -431,6 +429,7 @@ export default function RoomScreen() {
     return query(collection(firestore, 'chatRooms', id, 'topSupporters'), orderBy('dailyAmount', 'desc'), limit(50));
   }, [firestore, id, secondaryQueriesReady]);
   const { data: topSupporters } = useCollection<TopSupporter>(topSupportersQuery);
+  const safeTopSupporters = useMemo(() => topSupporters || [], [topSupporters]);
 
   const customEmojisQuery = useMemoFirebase(() => {
     if (!firestore || !secondaryQueriesReady) return null;
@@ -472,40 +471,53 @@ export default function RoomScreen() {
     };
   }, [room, setActiveRoom, setIsMinimized]);
 
+  const backStateRef = useRef({
+    showExitDialog, showProfileCard, showFullProfile, isGiftPickerOpen, showGames, showYouTube, showNetMirror,
+    showEntertainmentHub, showMultiMovies, showScreenMirror, showSports, showMoviePlayer, showSeatMenu,
+    isEmojiPickerOpen, isInfoOpen, showLootGate, showLevelAnimation, showLootingRoom, showLuckySpin,
+    showGoldenChest, showSoundboard, showFollowers, showTopSupporters, isPlayOpen, isMessagesOpen, showLanguagePicker
+  });
+  backStateRef.current = {
+    showExitDialog, showProfileCard, showFullProfile, isGiftPickerOpen, showGames, showYouTube, showNetMirror,
+    showEntertainmentHub, showMultiMovies, showScreenMirror, showSports, showMoviePlayer, showSeatMenu,
+    isEmojiPickerOpen, isInfoOpen, showLootGate, showLevelAnimation, showLootingRoom, showLuckySpin,
+    showGoldenChest, showSoundboard, showFollowers, showTopSupporters, isPlayOpen, isMessagesOpen, showLanguagePicker
+  };
   useEffect(() => {
     const onBackPress = () => {
-      if (showExitDialog) { setShowExitDialog(false); return true; }
-      if (showProfileCard) { setShowProfileCard(false); return true; }
-      if (showFullProfile) { setShowFullProfile(false); setFullProfileUid(null); return true; }
-      if (isGiftPickerOpen) { setIsGiftPickerOpen(false); return true; }
-      if (showGames) { setShowGames(false); return true; }
-      if (showYouTube) { setShowYouTube(false); return true; }
-      if (showNetMirror) { setShowNetMirror(false); return true; }
-      if (showEntertainmentHub) { setShowEntertainmentHub(false); return true; }
-      if (showMultiMovies) { setShowMultiMovies(false); return true; }
-      if (showScreenMirror) { setShowScreenMirror(false); return true; }
-      if (showSports) { setShowSports(false); return true; }
-      if (showMoviePlayer) { setShowMoviePlayer(false); return true; }
-      if (showSeatMenu) { setShowSeatMenu(false); return true; }
-      if (isEmojiPickerOpen) { setIsEmojiPickerOpen(false); return true; }
-      if (isInfoOpen) { setIsInfoOpen(false); return true; }
-      if (showLootGate) { setShowLootGate(false); return true; }
-      if (showLevelAnimation) { setShowLevelAnimation(false); setLevelAnimationUrl(undefined); return true; }
-      if (showLootingRoom) { setShowLootingRoom(false); return true; }
-      if (showLuckySpin) { setShowLuckySpin(false); return true; }
-      if (showGoldenChest) { setShowGoldenChest(false); return true; }
-      if (showSoundboard) { setShowSoundboard(false); return true; }
-      if (showFollowers) { setShowFollowers(false); return true; }
-      if (showTopSupporters) { setShowTopSupporters(false); return true; }
-      if (isPlayOpen) { setIsPlayOpen(false); return true; }
-      if (isMessagesOpen) { setIsMessagesOpen(false); return true; }
-      if (showLanguagePicker) { setShowLanguagePicker(false); return true; }
+      const s = backStateRef.current;
+      if (s.showExitDialog) { setShowExitDialog(false); return true; }
+      if (s.showProfileCard) { setShowProfileCard(false); return true; }
+      if (s.showFullProfile) { setShowFullProfile(false); setFullProfileUid(null); return true; }
+      if (s.isGiftPickerOpen) { setIsGiftPickerOpen(false); return true; }
+      if (s.showGames) { setShowGames(false); return true; }
+      if (s.showYouTube) { setShowYouTube(false); return true; }
+      if (s.showNetMirror) { setShowNetMirror(false); return true; }
+      if (s.showEntertainmentHub) { setShowEntertainmentHub(false); return true; }
+      if (s.showMultiMovies) { setShowMultiMovies(false); return true; }
+      if (s.showScreenMirror) { setShowScreenMirror(false); return true; }
+      if (s.showSports) { setShowSports(false); return true; }
+      if (s.showMoviePlayer) { setShowMoviePlayer(false); return true; }
+      if (s.showSeatMenu) { setShowSeatMenu(false); return true; }
+      if (s.isEmojiPickerOpen) { setIsEmojiPickerOpen(false); return true; }
+      if (s.isInfoOpen) { setIsInfoOpen(false); return true; }
+      if (s.showLootGate) { setShowLootGate(false); return true; }
+      if (s.showLevelAnimation) { setShowLevelAnimation(false); setLevelAnimationUrl(undefined); return true; }
+      if (s.showLootingRoom) { setShowLootingRoom(false); return true; }
+      if (s.showLuckySpin) { setShowLuckySpin(false); return true; }
+      if (s.showGoldenChest) { setShowGoldenChest(false); return true; }
+      if (s.showSoundboard) { setShowSoundboard(false); return true; }
+      if (s.showFollowers) { setShowFollowers(false); return true; }
+      if (s.showTopSupporters) { setShowTopSupporters(false); return true; }
+      if (s.isPlayOpen) { setIsPlayOpen(false); return true; }
+      if (s.isMessagesOpen) { setIsMessagesOpen(false); return true; }
+      if (s.showLanguagePicker) { setShowLanguagePicker(false); return true; }
       setShowExitDialog(true);
       return true;
     };
     const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => sub.remove();
-  }, [showExitDialog, showProfileCard, showFullProfile, isGiftPickerOpen, showGames, showYouTube, showNetMirror, showEntertainmentHub, showMultiMovies, showScreenMirror, showSports, showMoviePlayer, showSeatMenu, isEmojiPickerOpen, isInfoOpen, showLootGate, showLevelAnimation, showLootingRoom, showLuckySpin, showGoldenChest, showSoundboard, showFollowers, showTopSupporters, isPlayOpen, isMessagesOpen, showLanguagePicker]);
+  }, []);
 
   const processedMsgIds = useMemo(() => new Set<string>(), []);
   const shownEntranceEffects = useRef<Set<string>>(new Set());
@@ -547,9 +559,7 @@ export default function RoomScreen() {
       if (msg.type === 'emoji' && !(msg as any).isSfx && msg.senderId) {
         const p = seatedParticipants.find(pp => pp.uid === msg.senderId);
         if (p && p.seatIndex) {
-          const key = Date.now();
-          setEmojiEffects(prev => ({ ...prev, [p.seatIndex!]: { emoji: (msg as any).text || '😊', key } }));
-          const emojiTid = setTimeout(() => setEmojiEffects(prev => { const n = { ...prev }; delete n[p.seatIndex!]; return n; }), 2500);
+          const emojiTid = setTimeout(() => {}, 2500);
           emojiClearTimeouts.current.push(emojiTid);
         }
       }
@@ -580,6 +590,12 @@ export default function RoomScreen() {
   const muteOverrideRef = useRef<boolean | null>(null);
   const muteOverrideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [, forceUpdate] = useState(0); // just to trigger re-render
+
+  useEffect(() => {
+    return () => {
+      if (muteOverrideTimer.current) { clearTimeout(muteOverrideTimer.current); muteOverrideTimer.current = null; }
+    };
+  }, []);
 
   const isMuted = muteOverrideRef.current !== null
     ? muteOverrideRef.current
@@ -1054,17 +1070,19 @@ export default function RoomScreen() {
     );
   }
 
-  const themeConfigBg = ROOM_THEMES.find(t => t.id === displayRoom?.roomThemeId);
-  const backgroundSource = themeConfigBg 
+  const themeConfigBg = useMemo(() => ROOM_THEMES.find(t => t.id === displayRoom?.roomThemeId), [displayRoom?.roomThemeId]);
+  const backgroundSource = useMemo(() => themeConfigBg 
     ? (typeof themeConfigBg.url === 'string' ? { uri: themeConfigBg.url } : themeConfigBg.url) 
-    : { uri: displayRoom?.backgroundUrl || displayRoom?.coverUrl || 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=2000' };
+    : { uri: displayRoom?.backgroundUrl || displayRoom?.coverUrl || 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=2000' }, [themeConfigBg, displayRoom?.backgroundUrl, displayRoom?.coverUrl]);
+
+  const profileCardUserWithSeat = useMemo(() => profileCardUser ? { ...profileCardUser, isInSeat: seatedParticipants.some(p => p.uid === profileCardUser?.uid) } : null, [profileCardUser, seatedParticipants]);
 
   return (
     <View className="flex-1">
       <Image key={displayRoom?.backgroundUrl || displayRoom?.coverUrl || 'default'} source={backgroundSource} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} contentFit="cover" cachePolicy="memory-disk" transition={300} />
       <RoomAISystems 
         roomId={id} 
-        messages={filteredMessages || []} 
+        messages={filteredMessages} 
         participants={onlineParticipants} 
         isOwner={isOwner} 
         isModerator={isModerator} 
@@ -1077,7 +1095,7 @@ export default function RoomScreen() {
 
         <RoomHeader roomTitle={displayRoom.name || displayRoom.title || 'Room'} roomId={displayRoom.id} roomNumber={displayRoom.roomNumber} onlineCount={participants.length} coverUrl={displayRoom.coverUrl} isOwner={isOwner} isFollowing={isFollowing} onOpenInfo={() => setIsInfoOpen(true)} onFollow={handleFollow} onOpenSettings={() => setIsSettingsOpen(true)} onOpenShare={() => setIsShareOpen(true)} onExit={() => setShowExitDialog(true)} onOpenUserList={() => setIsUserListOpen(true)} />
 
-        <RoomTrophyBadge dailyGifts={displayRoom?.stats?.dailyGifts || 0} supporters={topSupporters || []} onPress={() => setShowTopSupporters(true)} />
+        <RoomTrophyBadge dailyGifts={displayRoom?.stats?.dailyGifts || 0} supporters={safeTopSupporters} onPress={() => setShowTopSupporters(true)} />
 
         <View className="flex-1 z-10">
           {/* Seats — fixed, never scroll */}
@@ -1109,7 +1127,7 @@ export default function RoomScreen() {
             )}
             <View className="mt-2" style={{ flex: 1 }}>
               <RoomChatArea 
-                messages={filteredMessages || []} 
+                messages={filteredMessages} 
                 chatClearedAt={displayRoom.chatClearedAt} 
                 onAvatarPress={(uid) => { setFullProfileUid(uid); setShowFullProfile(true); }} 
                 onImagePress={(url) => { setPreviewImageUrl(url); setShowImagePreview(true); }} 
@@ -1120,7 +1138,7 @@ export default function RoomScreen() {
                 onMentionPress={(username) => {
                   const p = participants?.find(pp => 
                     pp.name?.toLowerCase() === username.toLowerCase() || 
-                    pp.username?.toLowerCase() === username.toLowerCase()
+                    (pp as any).username?.toLowerCase() === username.toLowerCase()
                   );
                   if (p) {
                     setProfileCardUser(p);
@@ -1141,7 +1159,7 @@ export default function RoomScreen() {
         <View className="absolute bottom-20 right-2 z-50" pointerEvents="box-none">
           <LootBoxDisplay
             roomId={id}
-            topSupporters={topSupporters || []}
+            topSupporters={safeTopSupporters}
             isOwner={isOwner}
             onOpenGate={(idx) => { setCurrentGateIndex(idx); setShowLootGate(true); }}
             onGateReady={(idx, name) => { setCurrentGateIndex(idx); setCurrentGateLevelName(name); setShowLootGate(true); }}
@@ -1247,7 +1265,7 @@ export default function RoomScreen() {
       <RoomEmojiPickerDialog visible={isEmojiPickerOpen} onClose={() => setIsEmojiPickerOpen(false)} roomId={id} />
       <RoomTasksDialog visible={isTasksOpen} onClose={() => setIsTasksOpen(false)} taskProgress={taskProgress} achievedTasks={achievedTasks} claimedTasks={claimedTasks} onClaim={claimTask} totalRoomGifts={displayRoom.stats?.totalGifts || 0} />
 
-      <RoomTopSupportersDialog visible={showTopSupporters} onClose={() => setShowTopSupporters(false)} supporters={topSupporters || []} />
+      <RoomTopSupportersDialog visible={showTopSupporters} onClose={() => setShowTopSupporters(false)} supporters={safeTopSupporters} />
       <RoomLuckySpinDialog visible={showLuckySpin} onClose={() => setShowLuckySpin(false)} roomId={id} />
       <RoomGoldenChestDialog visible={showGoldenChest} onClose={() => setShowGoldenChest(false)} roomId={id} />
       <ImagePreviewDialog visible={showImagePreview} onClose={() => setShowImagePreview(false)} imageUrl={previewImageUrl} />
@@ -1271,7 +1289,7 @@ export default function RoomScreen() {
         roomId={id}
         levelName={currentGateLevelName}
         levelIndex={currentGateIndex}
-        topSupporters={topSupporters || []}
+        topSupporters={safeTopSupporters}
         isOwner={isOwner}
         currentUserId={user?.uid}
         onCrack={(idx) => {
@@ -1291,7 +1309,7 @@ export default function RoomScreen() {
         visible={showLevelAnimation}
         videoUrl={levelAnimationUrl}
         levelName={currentGateLevelName}
-        topSupporters={topSupporters || []}
+        topSupporters={safeTopSupporters}
         onComplete={() => { setShowLevelAnimation(false); setLevelAnimationUrl(undefined); setTimeout(() => setShowLootingRoom(true), 300); }}
       />
       <LootingRoom visible={showLootingRoom} onClose={() => setShowLootingRoom(false)} roomId={id} levelIndex={currentGateIndex} />
@@ -1326,7 +1344,7 @@ export default function RoomScreen() {
       <RoomProfileCard
         visible={showProfileCard}
         onClose={() => setShowProfileCard(false)}
-        user={profileCardUser ? { ...profileCardUser, isInSeat: seatedParticipants.some(p => p.uid === profileCardUser?.uid) } : null}
+        user={profileCardUserWithSeat}
         isOwner={profileCardUser?.uid === room?.ownerId}
         isModerator={room?.moderatorIds?.includes(profileCardUser?.uid)}
         isMe={profileCardUser?.uid === user?.uid}
@@ -1438,7 +1456,7 @@ export default function RoomScreen() {
               await setDoc(followRef, { followerId: user.uid, followingId: fullProfileUid, timestamp: new Date() }, { merge: true });
               setFullProfileFollowData({ id: followId, followerId: user.uid, followingId: fullProfileUid });
             }
-          } catch (e: any) { console.log('[FullProfile follow] error:', e?.message || e); }
+          } catch (e: any) { /* follow error handled silently */ }
           setIsFullProfileProcessingFollow(false);
         }}
         onChat={(p: any) => {

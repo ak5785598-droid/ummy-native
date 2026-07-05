@@ -86,12 +86,16 @@ export function AnimatedCryEmoji({ size = 64, visible, noAnimation }: AnimatedCr
     shake.start();
     mouthAnim.start();
     brow.start();
-    makeTear(tear1Y, tear1Op, 0).start();
-    makeTear(tear2Y, tear2Op, 400).start();
-    makeTear(tear3Y, tear3Op, 200).start();
-    makeTear(tear4Y, tear4Op, 600).start();
+    const tear1 = makeTear(tear1Y, tear1Op, 0);
+    const tear2 = makeTear(tear2Y, tear2Op, 400);
+    const tear3 = makeTear(tear3Y, tear3Op, 200);
+    const tear4 = makeTear(tear4Y, tear4Op, 600);
+    tear1.start();
+    tear2.start();
+    tear3.start();
+    tear4.start();
 
-    return () => { shake.stop(); mouthAnim.stop(); brow.stop(); };
+    return () => { shake.stop(); mouthAnim.stop(); brow.stop(); tear1.stop(); tear2.stop(); tear3.stop(); tear4.stop(); };
   }, [visible]);
 
   if (!visible) return null;

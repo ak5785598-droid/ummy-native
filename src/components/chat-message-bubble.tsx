@@ -319,7 +319,7 @@ export const ChatMessageBubble = memo(({ bubbleId, bubbleMediaUrl, isMe, childre
 
   React.useEffect(() => {
     // Emoji floating loop
-    Animated.loop(
+    const floatLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(floatAnim, {
           toValue: -4,
@@ -332,10 +332,11 @@ export const ChatMessageBubble = memo(({ bubbleId, bubbleMediaUrl, isMe, childre
           useNativeDriver: true,
         })
       ])
-    ).start();
+    );
+    floatLoop.start();
 
     // Shine sweep loop running periodically
-    Animated.loop(
+    const shineLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(shineAnim, {
           toValue: 250,
@@ -344,20 +345,22 @@ export const ChatMessageBubble = memo(({ bubbleId, bubbleMediaUrl, isMe, childre
         }),
         Animated.delay(2000),
       ])
-    ).start();
+    );
+    shineLoop.start();
 
     // Rotation loop for candy
-    Animated.loop(
+    const rotateLoop = Animated.loop(
       Animated.timing(rotateAnim, {
         toValue: 1,
         duration: 4000,
         easing: Easing.linear,
         useNativeDriver: true,
       })
-    ).start();
+    );
+    rotateLoop.start();
 
     // Fade loop for sparkles
-    Animated.loop(
+    const fadeLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -370,17 +373,27 @@ export const ChatMessageBubble = memo(({ bubbleId, bubbleMediaUrl, isMe, childre
           useNativeDriver: true,
         })
       ])
-    ).start();
+    );
+    fadeLoop.start();
 
     // Falling loop for falling roses & snowfall
-    Animated.loop(
+    const fallLoop = Animated.loop(
       Animated.timing(fallAnim, {
         toValue: 40,
         duration: 3000,
         easing: Easing.linear,
         useNativeDriver: true,
       })
-    ).start();
+    );
+    fallLoop.start();
+
+    return () => {
+      floatLoop.stop();
+      shineLoop.stop();
+      rotateLoop.stop();
+      fadeLoop.stop();
+      fallLoop.stop();
+    };
   }, [floatAnim, shineAnim, rotateAnim, fadeAnim, fallAnim]);
 
   const { width: bubbleWidth, minWidth: bubbleMinWidth, ...restStyle } = style || {};

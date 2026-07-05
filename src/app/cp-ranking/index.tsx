@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   StyleSheet,
   Easing,
   StatusBar,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,6 +23,7 @@ import {
   Star,
   Trophy,
   Flame,
+  X,
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useUser, useCollection, useFirebase } from '../../firebase/provider';
@@ -59,14 +62,14 @@ function getMedalStyle(rank: number) {
 /* ─────────────────────────────────────────────────
    Podium avatar for top 3
 ───────────────────────────────────────────────── */
-function PodiumCard({ cp, rank }: { cp: any; rank: number }) {
+const PodiumCard = React.memo(function PodiumCard({ cp, rank, onPress }: { cp: any; rank: number; onPress: () => void }) {
   const medal = getMedalStyle(rank);
   const isCenter = rank === 1;
   const cardH = isCenter ? 140 : 115;
   const avatarSz = isCenter ? 54 : 42;
 
   return (
-    <View style={[styles.podiumCol, isCenter && styles.podiumColCenter]}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[styles.podiumCol, isCenter && styles.podiumColCenter]}>
       {/* Glow halo */}
       <View style={[styles.podiumGlow, { shadowColor: medal.glow, width: avatarSz + 24, height: avatarSz + 24, borderRadius: (avatarSz + 24) / 2 }]} />
 
@@ -120,16 +123,16 @@ function PodiumCard({ cp, rank }: { cp: any; rank: number }) {
       >
         <Text style={styles.podiumRankText}>#{rank}</Text>
       </LinearGradient>
-    </View>
+    </TouchableOpacity>
   );
-}
+});
 
 /* ─────────────────────────────────────────────────
    Row item for ranks 4+
 ───────────────────────────────────────────────── */
-function RankRow({ cp, rank, isMe }: { cp: any; rank: number; isMe?: boolean }) {
+const RankRow = React.memo(function RankRow({ cp, rank, isMe, onPress }: { cp: any; rank: number; isMe?: boolean; onPress: () => void }) {
   return (
-    <View style={[styles.rankRow, isMe && styles.rankRowMe]}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[styles.rankRow, isMe && styles.rankRowMe]}>
       {/* Rank number */}
       <Text style={[styles.rankNum, isMe && { color: '#f43f5e' }]}>#{rank}</Text>
 
@@ -162,14 +165,14 @@ function RankRow({ cp, rank, isMe }: { cp: any; rank: number; isMe?: boolean }) 
         <Heart size={9} color="#f43f5e" fill="#f43f5e" />
         <Text style={styles.rankScoreText}>{cp.cpValue?.toLocaleString() || 0}</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
-}
+});
 
 /* ─────────────────────────────────────────────────
    My CP card at top
 ───────────────────────────────────────────────── */
-function MyCpBanner({ cp, myUid }: { cp: any; myUid: string }) {
+const MyCpBanner = React.memo(function MyCpBanner({ cp, myUid, onPress }: { cp: any; myUid: string; onPress: () => void }) {
   const partnerUid = cp.participantIds?.find((id: string) => id !== myUid);
   const { profile: myP } = useUserProfile(myUid);
   const { profile: partnerP } = useUserProfile(partnerUid);
@@ -178,7 +181,7 @@ function MyCpBanner({ cp, myUid }: { cp: any; myUid: string }) {
     : 0;
 
   return (
-    <View style={styles.myCpBanner}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.9} style={styles.myCpBanner}>
       <LinearGradient
         colors={['rgba(244,63,94,0.18)', 'rgba(139,92,246,0.14)', 'rgba(244,63,94,0.08)']}
         start={{ x: 0, y: 0 }}
@@ -207,9 +210,9 @@ function MyCpBanner({ cp, myUid }: { cp: any; myUid: string }) {
       <View style={styles.myCpBadge}>
         <Text style={styles.myCpBadgeText}>MY CP</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
-}
+});
 
 /* ─────────────────────────────────────────────────
    Main Screen
@@ -218,6 +221,17 @@ export default function CpRankingScreen() {
   const router = useRouter();
   const { firestore, isHydrated } = useFirebase();
   const { user } = useUser();
+  const [selectedCp, setSelectedCp] = useState<any>(null);
+
+  const handleUserPress = (userId?: string) => {
+    if (!userId) return;
+    setSelectedCp(null);
+    if (userId === user?.uid) {
+      router.replace('/profile');
+    } else {
+      router.push(`/profile/${userId}`);
+    }
+  };
 
   // Fetch top 50 CP pairs
   const topCpQuery = useMemo(() => {
@@ -255,52 +269,59 @@ export default function CpRankingScreen() {
     ]).start();
 
     // Glow pulse
-    Animated.loop(
+    const glowLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(glowPulse, { toValue: 1, duration: 2200, useNativeDriver: true, easing: Easing.inOut(Easing.sin) }),
         Animated.timing(glowPulse, { toValue: 0, duration: 2200, useNativeDriver: true, easing: Easing.inOut(Easing.sin) }),
       ])
-    ).start();
+    );
+    glowLoop.start();
 
     // Rotate rings
-    Animated.loop(
+    const rotateLoop = Animated.loop(
       Animated.timing(rotateAnim, { toValue: 1, duration: 12000, useNativeDriver: true, easing: Easing.linear })
-    ).start();
+    );
+    rotateLoop.start();
 
     // Shimmer
-    Animated.loop(
+    const shimmerLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(shimmerAnim, { toValue: 1, duration: 2800, useNativeDriver: true, easing: Easing.inOut(Easing.quad) }),
         Animated.delay(600),
         Animated.timing(shimmerAnim, { toValue: 0, duration: 0, useNativeDriver: true }),
       ])
-    ).start();
+    );
+    shimmerLoop.start();
 
     // Heartbeat
-    Animated.loop(
+    const heartLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(heartBeat, { toValue: 1.3, duration: 350, useNativeDriver: true }),
         Animated.timing(heartBeat, { toValue: 1, duration: 350, useNativeDriver: true }),
         Animated.delay(800),
       ])
-    ).start();
+    );
+    heartLoop.start();
 
     // Particles
-    particles.forEach((p) => {
-      Animated.loop(
+    const particleLoops = particles.map((p) => {
+      const loop = Animated.loop(
         Animated.sequence([
           Animated.delay(p.delay),
           Animated.timing(p.anim, { toValue: 1, duration: p.duration, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
           Animated.timing(p.anim, { toValue: 0, duration: 0, useNativeDriver: true }),
         ])
-      ).start();
+      );
+      loop.start();
+      return loop;
     });
 
     return () => {
-      glowPulse.stopAnimation();
-      rotateAnim.stopAnimation();
-      shimmerAnim.stopAnimation();
-      heartBeat.stopAnimation();
+      glowLoop.stop();
+      rotateLoop.stop();
+      shimmerLoop.stop();
+      heartLoop.stop();
+      particleLoops.forEach((l) => l.stop());
     };
   }, []);
 
@@ -406,7 +427,7 @@ export default function CpRankingScreen() {
               <Text style={styles.sectionLabel}>
                 <Flame size={12} color="#f43f5e" /> {'  '}Your CP
               </Text>
-              <MyCpBanner cp={activeCp} myUid={user.uid} />
+              <MyCpBanner cp={activeCp} myUid={user.uid} onPress={() => setSelectedCp(activeCp)} />
               {myRank >= 0 && (
                 <Text style={styles.myRankHint}>You are ranked #{myRank + 1} globally 🎉</Text>
               )}
@@ -430,16 +451,16 @@ export default function CpRankingScreen() {
 
                 <View style={styles.podiumRow}>
                   {/* 2nd place (left) */}
-                  {top3[1] && <PodiumCard cp={top3[1]} rank={2} />}
+                  {top3[1] && <PodiumCard cp={top3[1]} rank={2} onPress={() => setSelectedCp(top3[1])} />}
                   {/* 1st place (center, raised) */}
-                  {top3[0] && <PodiumCard cp={top3[0]} rank={1} />}
+                  {top3[0] && <PodiumCard cp={top3[0]} rank={1} onPress={() => setSelectedCp(top3[0])} />}
                   {/* 3rd place (right) */}
-                  {top3[2] && <PodiumCard cp={top3[2]} rank={3} />}
+                  {top3[2] && <PodiumCard cp={top3[2]} rank={3} onPress={() => setSelectedCp(top3[2])} />}
                 </View>
 
                 {/* Podium platform bar */}
                 <LinearGradient
-                  colors={['rgba(244,63,94,0.25)', 'rgba(139,92,246,0.2)', 'rgba(244,63,94,0.15)']}
+                  colors={['rgba(244,63,94,0.25)', 'rgba(139,92,246,0.25)', 'rgba(244,63,94,0.15)']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.podiumPlatform}
@@ -465,7 +486,7 @@ export default function CpRankingScreen() {
               rest.map((cp: any, i: number) => {
                 const rank = i + 4;
                 const isMe = cp.participantIds?.includes(user?.uid);
-                return <RankRow key={cp.id || i} cp={cp} rank={rank} isMe={isMe} />;
+                return <RankRow key={cp.id || i} cp={cp} rank={rank} isMe={isMe} onPress={() => setSelectedCp(cp)} />;
               })
             ) : (
               topCp === undefined ? (
@@ -487,6 +508,150 @@ export default function CpRankingScreen() {
           <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>
+
+      {/* ── CP PREVIEW MODAL ── */}
+      <Modal
+        visible={selectedCp !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedCp(null)}
+      >
+        <Pressable 
+          style={{ flex: 1, backgroundColor: 'rgba(8,0,20,0.85)', justifyContent: 'center', alignItems: 'center' }}
+          onPress={() => setSelectedCp(null)}
+        >
+          <Pressable 
+            style={{
+              width: width * 0.85,
+              backgroundColor: '#160b24',
+              borderRadius: 24,
+              borderWidth: 1.5,
+              borderColor: 'rgba(244,63,94,0.3)',
+              padding: 24,
+              alignItems: 'center',
+              shadowColor: '#f43f5e',
+              shadowOffset: { width: 0, height: 10 },
+              shadowOpacity: 0.35,
+              shadowRadius: 20,
+              elevation: 15,
+            }}
+            onPress={(e: any) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <TouchableOpacity 
+              onPress={() => setSelectedCp(null)}
+              style={{ position: 'absolute', top: 12, right: 12, padding: 6, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12 }}
+            >
+              <X size={16} color="rgba(255,255,255,0.7)" />
+            </TouchableOpacity>
+
+            {/* Title */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 }}>
+              <Sparkles size={14} color="#fbbf24" />
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '900', letterSpacing: 0.5, textTransform: 'uppercase' }}>CP Profile</Text>
+              <Sparkles size={14} color="#fbbf24" />
+            </View>
+
+            {/* Layout: Left DP | Middle Score | Right DP */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 12 }}>
+              {/* User 1 Column */}
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <TouchableOpacity 
+                  onPress={() => handleUserPress(selectedCp?.participantIds?.[0])}
+                  activeOpacity={0.8}
+                  style={{
+                    width: 72,
+                    height: 72,
+                    borderRadius: 36,
+                    borderWidth: 2,
+                    borderColor: '#f43f5e',
+                    padding: 2,
+                    backgroundColor: 'rgba(244,63,94,0.1)',
+                    marginBottom: 8,
+                    shadowColor: '#f43f5e',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 5,
+                  }}
+                >
+                  <Image
+                    source={{ uri: toCDN(selectedCp?.user1Avatar) || 'https://picsum.photos/100' }}
+                    style={{ width: '100%', height: '100%', borderRadius: 32 }}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                  />
+                </TouchableOpacity>
+                <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800', textAlign: 'center', width: '90%' }} numberOfLines={1}>
+                  {selectedCp?.user1Name || 'User'}
+                </Text>
+              </View>
+
+              {/* Center score pillar */}
+              <View style={{ alignItems: 'center', paddingHorizontal: 10, minWidth: 80 }}>
+                <LinearGradient
+                  colors={['rgba(244,63,94,0.45)', 'rgba(139,92,246,0.3)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 16,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.1)',
+                  }}
+                >
+                  <Heart size={14} color="#f43f5e" fill="#f43f5e" style={{ marginBottom: 4 }} />
+                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: '900' }}>
+                    {selectedCp?.cpValue?.toLocaleString() || 0}
+                  </Text>
+                </LinearGradient>
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 9, fontWeight: '700', marginTop: 6 }}>CP Points</Text>
+              </View>
+
+              {/* User 2 Column */}
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <TouchableOpacity 
+                  onPress={() => handleUserPress(selectedCp?.participantIds?.[1])}
+                  activeOpacity={0.8}
+                  style={{
+                    width: 72,
+                    height: 72,
+                    borderRadius: 36,
+                    borderWidth: 2,
+                    borderColor: '#8b5cf6',
+                    padding: 2,
+                    backgroundColor: 'rgba(139,92,246,0.1)',
+                    marginBottom: 8,
+                    shadowColor: '#8b5cf6',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 5,
+                  }}
+                >
+                  <Image
+                    source={{ uri: toCDN(selectedCp?.user2Avatar) || 'https://picsum.photos/101' }}
+                    style={{ width: '100%', height: '100%', borderRadius: 32 }}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                  />
+                </TouchableOpacity>
+                <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800', textAlign: 'center', width: '90%' }} numberOfLines={1}>
+                  {selectedCp?.user2Name || 'User'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Sub-details */}
+            <View style={{ width: '100%', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 14, paddingVertical: 8, paddingHorizontal: 12, alignItems: 'center', marginTop: 10 }}>
+              <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '800' }}>
+                CP Relationship Level: <Text style={{ color: '#f43f5e' }}>Lv.{selectedCp?.level || 1}</Text>
+              </Text>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }

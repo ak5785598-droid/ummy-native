@@ -104,6 +104,10 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
   const comboClicksRef = useRef(1);
   const comboTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(() => {
+    return () => { if (comboTimerRef.current) { clearTimeout(comboTimerRef.current); comboTimerRef.current = null; } };
+  }, []);
+
   const giftsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return collection(firestore, 'gifts');
@@ -293,9 +297,7 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
             });
           }
         }
-      } catch (err) {
-        console.log('[Gift Picker] Failed to award activityPoints to room owner:', err);
-      }
+      } catch (err) { /* activityPoints error handled silently */ }
 
       const supporterRef = doc(firestore, 'chatRooms', roomId, 'topSupporters', user.uid);
       batch.set(supporterRef, {

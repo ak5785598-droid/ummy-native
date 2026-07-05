@@ -61,7 +61,7 @@ export function useWebRTCVoice(
   const keepAliveRef = useRef(keepAlive);
   keepAliveRef.current = keepAlive;
 
-  const speakingUsersRef = useRef<Record<number, number>>({});
+  const signalingCleanupsRef = useRef<(() => void)[]>([]);
   const lastSpeakingUpdateRef = useRef(0);
 
   useEffect(() => {
@@ -104,7 +104,7 @@ export function useWebRTCVoice(
 
         await signaling.announcePresence();
 
-        signaling.listenForUsers((users) => {
+        const unsubUsers = signaling.listenForUsers((users) => {
           if (!isMountedRef.current) return;
           const remoteUids = Object.keys(users).filter((u) => u !== uid);
           setRemoteUsers(remoteUids.map((u) => hashUidToNumber(u)));
@@ -116,12 +116,12 @@ export function useWebRTCVoice(
           });
         });
 
-        signaling.listenForOffers(async (offer: SignalingOffer, from: string) => {
+        const unsubOffers = signaling.listenForOffers(async (offer: SignalingOffer, from: string) => {
           if (!isMountedRef.current) return;
           await handleOffer(from, offer, signaling, stream);
         });
 
-        signaling.listenForAnswers(async (answer: SignalingAnswer, from: string) => {
+        const unsubAnswers = signaling.listenForAnswers(async (answer: SignalingAnswer, from: string) => {
           if (!isMountedRef.current) return;
           const pc = peerConnectionsRef.current.get(from);
           if (pc) {
@@ -132,7 +132,7 @@ export function useWebRTCVoice(
           }
         });
 
-        signaling.listenForCandidates(async (cand: SignalingCandidate, from: string) => {
+        const unsubCandidates = signaling.listenForCandidates(async (cand: SignalingCandidate, from: string) => {
           if (!isMountedRef.current) return;
           const pc = peerConnectionsRef.current.get(from);
           if (pc) {
@@ -150,6 +150,8 @@ export function useWebRTCVoice(
           staysActiveInBackground: true,
           allowsRecordingIOS: true,
         }).catch(() => {});
+
+        signalingCleanupsRef.current = [unsubUsers, unsubOffers, unsubAnswers, unsubCandidates];
       } catch (e) {
         setConnectionState('DISCONNECTED');
       }
@@ -171,6 +173,8 @@ export function useWebRTCVoice(
     return () => {
       isMountedRef.current = false;
       sub.remove();
+      signalingCleanupsRef.current.forEach((unsub) => unsub());
+      signalingCleanupsRef.current = [];
       cleanup();
     };
   }, [roomId, uid]);

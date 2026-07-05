@@ -109,25 +109,24 @@ const BackgroundMascot = ({ theme }: { theme: string }) => {
     breatheAnim.setValue(0); blinkAnim.setValue(1);
     flutterAnim.setValue(0); glowAnim.setValue(0.5);
 
-    // Body float
-    Animated.loop(Animated.sequence([
+    const breatheLoop = Animated.loop(Animated.sequence([
       Animated.timing(breatheAnim, { toValue: 1, duration: 3000, useNativeDriver: true }),
       Animated.timing(breatheAnim, { toValue: 0, duration: 3000, useNativeDriver: true }),
-    ])).start();
+    ]));
+    breatheLoop.start();
 
-    // Wing/ear/mane flutter
-    Animated.loop(Animated.sequence([
+    const flutterLoop = Animated.loop(Animated.sequence([
       Animated.timing(flutterAnim, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
       Animated.timing(flutterAnim, { toValue: 0, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-    ])).start();
+    ]));
+    flutterLoop.start();
 
-    // Eye/fire glow pulse
-    Animated.loop(Animated.sequence([
+    const glowLoop = Animated.loop(Animated.sequence([
       Animated.timing(glowAnim, { toValue: 1,   duration: 900, useNativeDriver: true }),
       Animated.timing(glowAnim, { toValue: 0.3, duration: 900, useNativeDriver: true }),
-    ])).start();
+    ]));
+    glowLoop.start();
 
-    // Periodic blink
     const blinkInterval = setInterval(() => {
       Animated.sequence([
         Animated.timing(blinkAnim, { toValue: 0.05, duration: 110, useNativeDriver: true }),
@@ -135,7 +134,7 @@ const BackgroundMascot = ({ theme }: { theme: string }) => {
       ]).start();
     }, 4000);
 
-    return () => clearInterval(blinkInterval);
+    return () => { breatheLoop.stop(); flutterLoop.stop(); glowLoop.stop(); clearInterval(blinkInterval); };
   }, [theme]);
 
   if (theme === 'owl') return (
@@ -493,18 +492,22 @@ const AnimatedMascot = ({ theme, colors, level }: { theme: string; colors: { bg:
 
   useEffect(() => {
     floatAnim.setValue(0); glowAnim.setValue(0.5); scaleAnim.setValue(1);
-    Animated.loop(Animated.sequence([
+    const floatLoop = Animated.loop(Animated.sequence([
       Animated.timing(floatAnim, { toValue: -10, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
       Animated.timing(floatAnim, { toValue: 0,   duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-    ])).start();
-    Animated.loop(Animated.sequence([
+    ]));
+    floatLoop.start();
+    const glowLoop = Animated.loop(Animated.sequence([
       Animated.timing(glowAnim,  { toValue: 1,   duration: 900,  easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
       Animated.timing(glowAnim,  { toValue: 0.3, duration: 900,  easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-    ])).start();
-    Animated.loop(Animated.sequence([
+    ]));
+    glowLoop.start();
+    const scaleLoop = Animated.loop(Animated.sequence([
       Animated.timing(scaleAnim, { toValue: 1.04, duration: 2800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
       Animated.timing(scaleAnim, { toValue: 1,    duration: 2800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-    ])).start();
+    ]));
+    scaleLoop.start();
+    return () => { floatLoop.stop(); glowLoop.stop(); scaleLoop.stop(); };
   }, [theme]);
 
   const g = colors.gradient;
@@ -795,8 +798,7 @@ export default function VipsClubScreen() {
   const owlBlinkAnim = React.useRef(new Animated.Value(1)).current;
 
   React.useEffect(() => {
-    // 1. Slow cosmic breathing cycle (Wings float up/down & head tilts softly)
-    Animated.loop(
+    const owlBreatheLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(owlBreatheAnim, {
           toValue: 1,
@@ -809,9 +811,9 @@ export default function VipsClubScreen() {
           useNativeDriver: true,
         })
       ])
-    ).start();
+    );
+    owlBreatheLoop.start();
 
-    // 2. Periodic natural eye blinking cycle
     const blinkInterval = setInterval(() => {
       Animated.sequence([
         Animated.timing(owlBlinkAnim, {
@@ -827,7 +829,7 @@ export default function VipsClubScreen() {
       ]).start();
     }, 4500);
 
-    return () => clearInterval(blinkInterval);
+    return () => { owlBreatheLoop.stop(); clearInterval(blinkInterval); };
   }, []);
 
   // Stealth toggles state

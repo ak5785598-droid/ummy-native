@@ -21,7 +21,14 @@ function RainDrop({ delay }: { delay: number }) {
   const rotate = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.sequence([
+    const rotateLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(rotate, { toValue: 1, duration: 300, useNativeDriver: true }),
+        Animated.timing(rotate, { toValue: 0, duration: 300, useNativeDriver: true }),
+      ])
+    );
+
+    const seq = Animated.sequence([
       Animated.delay(delay),
       Animated.parallel([
         Animated.timing(anim, {
@@ -30,14 +37,15 @@ function RainDrop({ delay }: { delay: number }) {
           easing: Easing.linear,
           useNativeDriver: true,
         }),
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(rotate, { toValue: 1, duration: 300, useNativeDriver: true }),
-            Animated.timing(rotate, { toValue: 0, duration: 300, useNativeDriver: true }),
-          ])
-        ),
+        rotateLoop,
       ]),
-    ]).start();
+    ]);
+    seq.start();
+
+    return () => {
+      seq.stop();
+      rotateLoop.stop();
+    };
   }, []);
 
   const rotation = rotate.interpolate({

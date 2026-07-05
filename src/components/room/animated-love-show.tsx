@@ -48,12 +48,16 @@ export function AnimatedLoveShow({ size = 64, visible, noAnimation }: AnimatedLo
 
     pulse.start();
     shine.start();
-    makeHeart(h1, 0).start();
-    makeHeart(h2, 300).start();
-    makeHeart(h3, 600).start();
-    makeHeart(h4, 900).start();
+    const heart1 = makeHeart(h1, 0);
+    const heart2 = makeHeart(h2, 300);
+    const heart3 = makeHeart(h3, 600);
+    const heart4 = makeHeart(h4, 900);
+    heart1.start();
+    heart2.start();
+    heart3.start();
+    heart4.start();
 
-    return () => { pulse.stop(); shine.stop(); };
+    return () => { pulse.stop(); shine.stop(); heart1.stop(); heart2.stop(); heart3.stop(); heart4.stop(); };
   }, [visible]);
 
   if (!visible) return null;

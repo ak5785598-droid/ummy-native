@@ -117,9 +117,12 @@ export function NetMirrorDialog({ visible, onClose }: NetMirrorDialogProps) {
       (function() {
         var meta = document.querySelector('meta[name="viewport"]');
         if (meta) { meta.setAttribute('content', 'width=device-width, initial-scale=0.65, maximum-scale=1.0, user-scalable=no'); }
-        var s = document.createElement('style');
-        s.textContent = 'footer{display:none!important;}';
-        document.head.appendChild(s);
+        if (!document.getElementById('__nmStyle')) {
+          var s = document.createElement('style');
+          s.id = '__nmStyle';
+          s.textContent = 'footer{display:none!important;}';
+          document.head.appendChild(s);
+        }
         document.body.style.margin = '0';
         document.body.style.padding = '0';
 

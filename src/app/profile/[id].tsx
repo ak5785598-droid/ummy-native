@@ -188,6 +188,13 @@ export default function ProfileScreen() {
   const { user: currentUser, isUserLoading } = useUser();
   const { profile, isLoading: isProfileLoading } = useUserProfile(id as string);
 
+  // Redirect to main Me tab if viewing own profile
+  useEffect(() => {
+    if (currentUser?.uid && id === currentUser.uid) {
+      router.replace('/profile');
+    }
+  }, [id, currentUser?.uid, router]);
+
   const [isProcessingFollow, setIsProcessingFollow] = useState(false);
   const [followData, setFollowData] = useState<any>(null);
   const [isFollowing, setIsFollowing] = useState(false);

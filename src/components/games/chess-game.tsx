@@ -575,7 +575,7 @@ function LobbyScreen({ gameState, currentUser, userProfile, onJoin, onStart, onC
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    Animated.loop(Animated.sequence([
+    const vsLoop = Animated.loop(Animated.sequence([
       Animated.parallel([
         Animated.timing(pulseAnim, { toValue: 1, duration: 1200, useNativeDriver: true }),
         Animated.timing(scaleAnim, { toValue: 1.05, duration: 1200, useNativeDriver: true }),
@@ -584,7 +584,9 @@ function LobbyScreen({ gameState, currentUser, userProfile, onJoin, onStart, onC
         Animated.timing(pulseAnim, { toValue: 0.6, duration: 1200, useNativeDriver: true }),
         Animated.timing(scaleAnim, { toValue: 1, duration: 1200, useNativeDriver: true }),
       ]),
-    ])).start();
+    ]));
+    vsLoop.start();
+    return () => { vsLoop.stop(); };
   }, []);
 
   const hasOpponent = gameState.black && gameState.white;
@@ -678,10 +680,12 @@ function EndedScreen({ status, iWon, onClose }: { status: string; iWon: boolean;
   const bounceAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(Animated.sequence([
+    const bounceLoop = Animated.loop(Animated.sequence([
       Animated.timing(bounceAnim, { toValue: -10, duration: 500, useNativeDriver: true }),
       Animated.timing(bounceAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
-    ])).start();
+    ]));
+    bounceLoop.start();
+    return () => { bounceLoop.stop(); };
   }, []);
 
   const emoji = status === 'checkmate' ? (iWon ? '👑' : '💀') : status === 'resigned' ? '🏳️' : '🤝';
@@ -739,12 +743,15 @@ function LoadingScreen() {
   const progressAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(Animated.timing(spinAnim, { toValue: 1, duration: 2000, easing: Easing.linear, useNativeDriver: true })).start();
-    Animated.loop(Animated.sequence([
+    const sLoop = Animated.loop(Animated.timing(spinAnim, { toValue: 1, duration: 2000, easing: Easing.linear, useNativeDriver: true }));
+    sLoop.start();
+    const pLoop = Animated.loop(Animated.sequence([
       Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
       Animated.timing(pulseAnim, { toValue: 0.4, duration: 1000, useNativeDriver: true }),
-    ])).start();
+    ]));
+    pLoop.start();
     Animated.timing(progressAnim, { toValue: 1, duration: 5000, easing: Easing.linear, useNativeDriver: false }).start();
+    return () => { sLoop.stop(); pLoop.stop(); };
   }, []);
 
   return (

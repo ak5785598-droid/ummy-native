@@ -360,6 +360,9 @@ export function FullProfileDialog({
 
   if (!profile) return null;
 
+  const ownedVehicles = useMemo(() => profile.inventory?.ownedItems?.filter((id: string) => id.includes('vehicle') || id.includes('car')) || [], [profile.inventory?.ownedItems]);
+  const ownedFrames = useMemo(() => profile.inventory?.ownedItems?.filter((id: string) => id.includes('frame') || id.includes('ring')) || [], [profile.inventory?.ownedItems]);
+
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={() => onOpenChange(false)}>
       <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
@@ -717,8 +720,8 @@ export function FullProfileDialog({
               )}
               {activeTab === 'vehicle' && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-                  {profile.inventory?.ownedItems?.filter((id: string) => id.includes('vehicle') || id.includes('car')).length > 0 ? (
-                    profile.inventory.ownedItems.filter((id: string) => id.includes('vehicle') || id.includes('car')).map((id: string, idx: number) => (
+                  {ownedVehicles.length > 0 ? (
+                    ownedVehicles.map((id: string, idx: number) => (
                       <View key={idx} style={{ padding: 8, backgroundColor: '#F8FAFC', borderRadius: 12, alignItems: 'center', width: (SCREEN_WIDTH - 64) / 4 }}>
                         <Text style={{ fontSize: 22 }}>🚗</Text>
                         <Text style={{ fontSize: 8, fontWeight: '800', color: '#64748B', marginTop: 4, textAlign: 'center' }} numberOfLines={1}>{id}</Text>
@@ -731,8 +734,8 @@ export function FullProfileDialog({
               )}
               {activeTab === 'frame' && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-                  {profile.inventory?.ownedItems?.filter((id: string) => id.includes('frame') || id.includes('ring')).length > 0 ? (
-                    profile.inventory.ownedItems.filter((id: string) => id.includes('frame') || id.includes('ring')).map((id: string, idx: number) => (
+                  {ownedFrames.length > 0 ? (
+                    ownedFrames.map((id: string, idx: number) => (
                       <View key={idx} style={{ padding: 8, backgroundColor: '#F8FAFC', borderRadius: 12, alignItems: 'center', width: (SCREEN_WIDTH - 64) / 4 }}>
                         <Text style={{ fontSize: 22 }}>🖼️</Text>
                         <Text style={{ fontSize: 8, fontWeight: '800', color: '#64748B', marginTop: 4, textAlign: 'center' }} numberOfLines={1}>{id}</Text>
@@ -752,7 +755,7 @@ export function FullProfileDialog({
                       return (
                         <View key={idx} style={{ padding: 2, borderRadius: 8, alignItems: 'center', width: (SCREEN_WIDTH - 32) / 5 }}>
                           {giftImage ? (
-                            <Image source={{ uri: toCDN(giftImage) }} style={{ width: 60, height: 60, borderRadius: 6 }} contentFit="contain" />
+                            <Image source={{ uri: toCDN(giftImage) }} style={{ width: 60, height: 60, borderRadius: 6 }} contentFit="contain" cachePolicy="memory-disk" />
                           ) : (
                             <Text style={{ fontSize: 22 }}>&#127873;</Text>
                           )}
