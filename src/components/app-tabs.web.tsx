@@ -66,7 +66,7 @@ export function CustomTabList(props: TabListProps) {
             <ThemedText type="link">Docs</ThemedText>
             <SymbolView
               tintColor={colors.text}
-              name={{ ios: 'arrow.up.right.square', web: 'link' }}
+              name={{ ios: 'arrow.up.right.square', web: 'link' } as any}
               size={12}
             />
           </Pressable>

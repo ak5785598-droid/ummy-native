@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useUser, useFirestore } from '../firebase/provider';
 import { doc, increment, serverTimestamp } from '@/firebase/firestore-compat';
 import { setDocumentNonBlocking } from '../lib/non-blocking-writes';
+import { getTodayIST } from '../lib/bonus-utils';
 
 export function useActivityTracker(roomId: string | null, isInSeat: boolean) {
   const { user } = useUser();
@@ -13,7 +14,7 @@ export function useActivityTracker(roomId: string | null, isInSeat: boolean) {
     if (!firestore || !user?.uid || !roomId) return;
     const profileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
     const roomRef = doc(firestore, 'chatRooms', roomId);
-    setDocumentNonBlocking(profileRef, { activityPoints: increment(5), dailyActivityPoints: increment(5), updatedAt: serverTimestamp() }, { merge: true });
+    setDocumentNonBlocking(profileRef, { activityPoints: increment(5), dailyActivityPoints: increment(5), dailyActivityPointsDate: getTodayIST(), updatedAt: serverTimestamp() }, { merge: true });
     setDocumentNonBlocking(roomRef, { levelPoints: increment(5), updatedAt: serverTimestamp() }, { merge: true });
   }, [firestore, user?.uid, roomId]);
 

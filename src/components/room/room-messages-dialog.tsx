@@ -6,6 +6,7 @@ import { collection, query, orderBy, limit, doc, addDoc, serverTimestamp, onSnap
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { Image } from 'expo-image';
 import { toCDN } from '../../lib/cdn';
+import { isInventoryItemExpired } from '../../lib/types';
 
 interface RoomMessagesDialogProps {
   visible: boolean;
@@ -130,10 +131,14 @@ export function RoomMessagesDialog({ visible, onClose, roomId, initialRecipient 
       const participantIds = [user.uid, otherUid].sort();
       const msgRef = collection(firestore, 'privateChats', chatId, 'messages');
       
+      const activeBubble = userProfile?.inventory?.activeBubble || null;
+      const isExpired = isInventoryItemExpired(userProfile?.inventory || {}, activeBubble);
+      const bubbleToSend = isExpired ? null : activeBubble;
+
       const messageData = {
         text: inputText.trim(),
         senderId: user.uid,
-        senderBubble: userProfile?.inventory?.activeBubble || null,
+        senderBubble: bubbleToSend,
         timestamp: serverTimestamp()
       };
       

@@ -1634,9 +1634,9 @@ export default function VipsClubScreen() {
               <View className="pt-2">
                 <TouchableOpacity
                   onPress={handlePurchaseSvip}
-                  disabled={isPurchasing || (userProfile?.wallet?.totalSpent || 0) >= SVIP_LEVELS_DATA.find(l => l.level === selectedLevel)?.exp}
+                  disabled={isPurchasing || (userProfile?.wallet?.totalSpent || 0) >= (SVIP_LEVELS_DATA.find(l => l.level === selectedLevel)?.exp || 0)}
                   className={`h-14 rounded-2xl items-center justify-center flex-row gap-2 ${
-                    (userProfile?.wallet?.totalSpent || 0) >= SVIP_LEVELS_DATA.find(l => l.level === selectedLevel)?.exp
+                    (userProfile?.wallet?.totalSpent || 0) >= (SVIP_LEVELS_DATA.find(l => l.level === selectedLevel)?.exp || 0)
                       ? 'bg-slate-800' : themeColors.btnBg
                   }`}
                 >
@@ -1646,7 +1646,7 @@ export default function VipsClubScreen() {
                     <>
                       <Zap size={16} color="#fff" fill="#fff" />
                       <Text className="text-white font-black text-sm uppercase tracking-wider">
-                        {(userProfile?.wallet?.totalSpent || 0) >= SVIP_LEVELS_DATA.find(l => l.level === selectedLevel)?.exp
+                        {(userProfile?.wallet?.totalSpent || 0) >= (SVIP_LEVELS_DATA.find(l => l.level === selectedLevel)?.exp || 0)
                           ? 'Already Reached' : `Buy SVIP ${selectedLevel}`
                         }
                       </Text>

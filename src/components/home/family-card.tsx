@@ -30,7 +30,7 @@ export function FamilyCard({ onPress }: FamilyCardProps) {
   useEffect(() => {
     if (familiesCount === 0) return;
 
-    let timer: NodeJS.Timeout;
+    let timer: any;
 
     if (mode === 'carousel') {
       timer = setInterval(() => {

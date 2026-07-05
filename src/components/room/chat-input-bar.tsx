@@ -150,17 +150,20 @@ export function ChatInputBar({ visible, onClose, onSend, onImageUpload, targetLa
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
-    if (!visible) return;
-    if (initialText) {
-      setText(initialText);
+    if (visible) {
+      setText(initialText || '');
     }
+  }, [visible]);
+
+  useEffect(() => {
+    if (!visible) return;
     const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
       onClose();
     });
     return () => {
       hideSubscription.remove();
     };
-  }, [visible, onClose, initialText]);
+  }, [visible, onClose]);
 
   const handlePickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();

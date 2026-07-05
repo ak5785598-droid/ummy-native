@@ -241,7 +241,7 @@ export default function LoginScreen() {
     try {
       setIsSigningIn(true);
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const res = await GoogleSignin.signIn();
+      const res: any = await GoogleSignin.signIn();
       console.log('[Google Signin Raw Result]:', JSON.stringify(res));
       const data = res?.data || res;
       const idToken = data?.idToken || (data as any)?.authentication?.idToken || (res as any)?.idToken;

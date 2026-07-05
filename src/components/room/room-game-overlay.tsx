@@ -203,7 +203,7 @@ export function RoomGameOverlay({ visible, gameId, onClose, roomId, isAdmin }: R
       }, 1000);
       return () => clearInterval(countTimer);
     }
-  }, [roundPopup]);
+  }, [roundPopup !== null]);
 
   const handleRoundEnd = useCallback(async (data: { resultText: string; resultEmoji: string; resultImage?: any; myPrize?: number; myWager?: number }) => {
     setRoundPopup({ resultText: data.resultText, resultEmoji: data.resultEmoji, resultImage: data.resultImage, myPrize: data.myPrize || 0, myWager: data.myWager || 0, winners: [] });
@@ -227,7 +227,7 @@ export function RoomGameOverlay({ visible, gameId, onClose, roomId, isAdmin }: R
           if (!w.timestamp) return false;
           const ts = w.timestamp?.toDate?.() ?? new Date(w.timestamp);
           const age = now - ts.getTime();
-          return age < 600000;
+          return age < 20000; // 20 seconds (only winners of the current round)
         });
 
         const seen = new Map<string, any>();
@@ -244,7 +244,7 @@ export function RoomGameOverlay({ visible, gameId, onClose, roomId, isAdmin }: R
 
         setRoundPopup(prev => prev ? { ...prev, winners: sorted } : null);
       } catch (e) {}
-    }, 5000);
+    }, 1500);
   }, [firestore, gameId]);
 
   const fetchWinnerList = useCallback(async () => {
@@ -645,14 +645,14 @@ const s = StyleSheet.create({
   },
   roundPopupContent: {
     width: '100%',
-    height: '55%',
+    height: '62%',
     backgroundColor: '#0c0624',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderWidth: 0,
     paddingHorizontal: 16,
-    paddingTop: 54,
-    paddingBottom: 16,
+    paddingTop: 45,
+    paddingBottom: 32,
     elevation: 20,
   },
   popupTimerBadge: {

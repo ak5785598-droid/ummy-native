@@ -27,11 +27,19 @@ export function SovereignIdsTab() {
 
       if (!querySnap.empty) {
         const doc = querySnap.docs[0];
-        setFoundUser({ id: doc.id, ...doc.data() });
+        const data = doc.data() as any;
+        setFoundUser({ id: doc.id, ...data });
+        setSelectedIdColor(data.idColor || 'none');
+        setIsSovereignBudget(data.isBudgetId || false);
+        setIsSovereignAdmin(data.isAdmin || false);
       } else {
         const docSnap = await firestore().collection('users').doc(userIdInput.trim()).get();
         if (docSnap.exists()) {
-          setFoundUser({ id: docSnap.id, ...docSnap.data() });
+          const data = docSnap.data() as any;
+          setFoundUser({ id: docSnap.id, ...data });
+          setSelectedIdColor(data.idColor || 'none');
+          setIsSovereignBudget(data.isBudgetId || false);
+          setIsSovereignAdmin(data.isAdmin || false);
         } else {
           Alert.alert('Not Found', 'No user matches this ID or UID.');
         }
@@ -60,7 +68,16 @@ export function SovereignIdsTab() {
       };
 
       if (newSovereignId.trim()) {
-        payload.accountNumber = newSovereignId.trim();
+        const oldId = String(foundUser.accountNumber || '');
+        const newId = newSovereignId.trim();
+
+        payload.accountNumber = newId;
+        payload.accountNumberLocked = true;
+
+        if (oldId && oldId !== newId) {
+          batch.delete(firestore().collection('assigned_ids').doc(oldId));
+        }
+        batch.set(firestore().collection('assigned_ids').doc(newId), { uid: foundUser.id, assignedAt: firestore.FieldValue.serverTimestamp() });
       }
 
       batch.update(uRef, payload);

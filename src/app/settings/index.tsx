@@ -82,7 +82,7 @@ export default function SettingsScreen() {
     setIsLinking(true);
     try {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const res = await GoogleSignin.signIn();
+      const res: any = await GoogleSignin.signIn();
       const data = res?.data || res;
       const idToken = data?.idToken || (data as any)?.authentication?.idToken || (res as any)?.idToken;
       const accessToken = data?.accessToken || (data as any)?.authentication?.accessToken || (res as any)?.accessToken || 'placeholder_access_token';

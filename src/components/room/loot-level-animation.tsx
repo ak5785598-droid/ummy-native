@@ -21,7 +21,7 @@ import Svg, {
   FeMergeNode
 } from 'react-native-svg';
 
-const AnimatedG = Animated.createAnimatedComponent(G);
+const AnimatedG: any = Animated.createAnimatedComponent(G);
 const AnimatedLine = Animated.createAnimatedComponent(Line);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -477,7 +477,7 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
         const rankEmojis = ['🥇', '🥈', '🥉', '👤'];
         const realContributors = topSupporters.slice(0, 4).map((s, i) => ({
           uid: s.uid,
-          name: s.displayName || 'User',
+          name: (s as any).name || (s as any).displayName || 'User',
           contribution: s.dailyAmount || 0,
           avatar: rankEmojis[i] || '👤',
         }));
@@ -1402,7 +1402,6 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
                         fontSize="24"
                         fontWeight="900"
                         textAnchor="middle"
-                        textShadow="0 0 8px #fbbf24"
                       >
                         $
                       </SvgText>
@@ -2275,8 +2274,8 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
                         </SvgLinearGradient>
                         {/* Fire Orange/Red Exhaust Flame */}
                         <SvgLinearGradient id="modalRocketFlameGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                          <Stop offset="0%" stopColor="#ef4444" opacity={0.95} />
-                          <Stop offset="50%" stopColor="#f97316" opacity={0.75} />
+                          <Stop offset="0%" stopColor="#ef4444" stopOpacity={0.95} />
+                          <Stop offset="50%" stopColor="#f97316" stopOpacity={0.75} />
                           <Stop offset="100%" stopColor="transparent" />
                         </SvgLinearGradient>
                         <Filter id="modalRocketOrangeGlow" x="-20%" y="-20%" width="140%" height="140%">

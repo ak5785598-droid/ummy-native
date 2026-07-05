@@ -120,7 +120,7 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
       const freshCoins = snap.exists() ? ((snap.data() as any)?.wallet?.coins ?? (userProfile?.wallet?.coins ?? 0)) : (userProfile?.wallet?.coins ?? 0);
       if (freshCoins < selectedChip) return;
       const batch = writeBatch(firestore);
-      const deductData = { 'wallet.coins': increment(-selectedChip) };
+      const deductData = { wallet: { coins: increment(-selectedChip) } };
       batch.set(profileRef, deductData, { merge: true });
       batch.set(doc(firestore, 'users', currentUser.uid), deductData, { merge: true });
       await batch.commit();
@@ -180,10 +180,12 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
         const batch = writeBatch(firestore);
         const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
         batch.set(profileRef, {
-          'wallet.coins': increment(winAmount),
-          'stats.dailyGameWins': increment(winAmount),
+          wallet: { coins: increment(winAmount) },
+          stats: { dailyGameWins: increment(winAmount) },
         }, { merge: true });
-        batch.set(doc(firestore, 'users', currentUser.uid), { 'wallet.coins': increment(winAmount) }, { merge: true });
+        batch.set(doc(firestore, 'users', currentUser.uid), {
+          wallet: { coins: increment(winAmount) }
+        }, { merge: true });
         await batch.commit();
         addDoc(collection(firestore, 'globalGameWins'), {
           gameId: 'teen-patti',

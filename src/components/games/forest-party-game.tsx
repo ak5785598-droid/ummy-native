@@ -163,7 +163,7 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
       const freshCoins = snap.exists() ? ((snap.data() as any)?.wallet?.coins ?? (userProfile?.wallet?.coins ?? 0)) : (userProfile?.wallet?.coins ?? 0);
       if (freshCoins < selectedChip) { handleGoToWallet(); return; }
       const batch = writeBatch(firestore);
-      const deductData = { 'wallet.coins': increment(-selectedChip) };
+      const deductData = { wallet: { coins: increment(-selectedChip) } };
       batch.set(profileRef, deductData, { merge: true });
       batch.set(doc(firestore, 'users', currentUser.uid), deductData, { merge: true });
       await batch.commit();
@@ -182,7 +182,7 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
       const freshCoins = snap.exists() ? ((snap.data() as any)?.wallet?.coins ?? (userProfile?.wallet?.coins ?? 0)) : (userProfile?.wallet?.coins ?? 0);
       if (freshCoins < totalCost) { handleGoToWallet(); return; }
       const batch = writeBatch(firestore);
-      const deductData = { 'wallet.coins': increment(-totalCost) };
+      const deductData = { wallet: { coins: increment(-totalCost) } };
       batch.set(profileRef, deductData, { merge: true });
       batch.set(doc(firestore, 'users', currentUser.uid), deductData, { merge: true });
       await batch.commit();
@@ -282,7 +282,7 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
     if (winAmount > 0 && currentUser && firestore && userProfile) {
       try {
         const batch = writeBatch(firestore);
-        const winData = { 'wallet.coins': increment(winAmount) };
+        const winData = { wallet: { coins: increment(winAmount) } };
         batch.set(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), winData, { merge: true });
         batch.set(doc(firestore, 'users', currentUser.uid), winData, { merge: true });
         await batch.commit();
@@ -787,7 +787,7 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
               }}
             >
               <RotateCcw size={12} color="white" />
-              <Text style={{ color: 'white', fontSize: 10, fontWeight: '950', textTransform: 'uppercase' }}>Repeat Bet</Text>
+              <Text style={{ color: 'white', fontSize: 10, fontWeight: '900', textTransform: 'uppercase' }}>Repeat Bet</Text>
             </TouchableOpacity>
           )}
         </View>

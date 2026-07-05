@@ -14,6 +14,9 @@ import { autoAssignMedals } from '../../lib/auto-assign-medals';
 import firestore from '@react-native-firebase/firestore';
 import { PremiumDiamond } from '@/components/PremiumDiamond';
 import { toCDN } from '@/lib/cdn';
+import { isInventoryItemExpired } from '@/lib/types';
+import { ActiveIDBadge, SovereignIDBadge } from '@/components/native-id-badge';
+
 
 // Subcomponents
 import { 
@@ -205,34 +208,27 @@ export default function ProfileScreen() {
     };
   }, [profileId, firestoreDb]);
 
-  // Auto-assign medals based on tags
-  const medalAssignedRef = useRef(false);
-  useEffect(() => {
-    if (!profileId || !firestore || medalAssignedRef.current) return;
-    if (profile?.tags && profile.tags.length > 0) {
-      medalAssignedRef.current = true;
-      autoAssignMedals(firestore, profileId);
-    }
-  }, [profileId, firestore, profile?.tags]);
-
   const profile = useMemo(() => {
     if (!baseProfile) return null;
     
-    // Pick the best valid 6-digit ID between baseProfile and sub-collection data
+    // Pick the best valid ID between baseProfile and sub-collection data
     const isValidAccNum = (id: any) => {
       if (!id) return false;
       const s = String(id).trim();
-      return /^\d{6}$/.test(s) || s === '0000';
+      return /^\d+$/.test(s) || s === '0000';
     };
 
     const baseAccNum = baseProfile?.accountNumber;
     const subAccNum = profileSubData?.accountNumber;
 
-    let bestAccNum = subAccNum;
-    if (!isValidAccNum(subAccNum) && isValidAccNum(baseAccNum)) {
+    // Prioritize baseAccNum (Admin source of truth) if they mismatch or exist
+    let bestAccNum = baseAccNum || subAccNum;
+    if (baseAccNum && subAccNum && baseAccNum !== subAccNum) {
       bestAccNum = baseAccNum;
-    } else if (!bestAccNum) {
+    } else if (!isValidAccNum(subAccNum) && isValidAccNum(baseAccNum)) {
       bestAccNum = baseAccNum;
+    } else if (isValidAccNum(subAccNum) && !isValidAccNum(baseAccNum)) {
+      bestAccNum = subAccNum;
     }
 
     return {
@@ -242,6 +238,16 @@ export default function ProfileScreen() {
       id: profileId,
     };
   }, [baseProfile, profileSubData, profileId]);
+
+  // Auto-assign medals based on tags
+  const medalAssignedRef = useRef(false);
+  useEffect(() => {
+    if (!profileId || !firestore || medalAssignedRef.current) return;
+    if (profile?.tags && profile.tags.length > 0) {
+      medalAssignedRef.current = true;
+      autoAssignMedals(firestore, profileId);
+    }
+  }, [profileId, firestore, profile?.tags]);
 
   // ── Real-time Stats via live listeners ───────────────────
   const [fansData, setFansData] = useState<any[]>([]);
@@ -309,16 +315,20 @@ export default function ProfileScreen() {
   const isValidAccNum = (id: any) => {
     if (!id) return false;
     const s = String(id).trim();
-    return /^\d{6}$/.test(s) || s === '0000';
+    return /^\d+$/.test(s) || s === '0000';
   };
 
   const baseAccNum = baseProfile?.accountNumber;
   const subAccNum = profileSubData?.accountNumber;
-  let finalAccNum = subAccNum;
-  if (!isValidAccNum(subAccNum) && isValidAccNum(baseAccNum)) {
+  
+  // Prioritize baseAccNum (Admin source of truth) if they mismatch or exist
+  let finalAccNum = baseAccNum || subAccNum;
+  if (baseAccNum && subAccNum && baseAccNum !== subAccNum) {
     finalAccNum = baseAccNum;
-  } else if (!finalAccNum) {
+  } else if (!isValidAccNum(subAccNum) && isValidAccNum(baseAccNum)) {
     finalAccNum = baseAccNum;
+  } else if (isValidAccNum(subAccNum) && !isValidAccNum(baseAccNum)) {
+    finalAccNum = subAccNum;
   }
 
   const displayID = finalAccNum || '000000';
@@ -366,7 +376,7 @@ export default function ProfileScreen() {
           <View className="flex-row items-center gap-1 mb-0 pt-0 pl-5">
             <TouchableOpacity onPress={() => setFullViewOpen(true)} style={{ marginLeft: -6 }}>
               <AvatarFrame
-                frameMediaUrl={profile.inventory?.activeFrameMediaUrl}
+                frameMediaUrl={isInventoryItemExpired(profile.inventory || {}, profile.inventory?.activeFrame) ? null : profile.inventory?.activeFrameMediaUrl}
                 size={88}
               >
                 <View className="w-full h-full rounded-full border-2 border-white overflow-hidden shadow-xl">
@@ -388,13 +398,12 @@ export default function ProfileScreen() {
                 <TouchableOpacity onPress={handleCopyId}>
                   {profile.tags?.includes('Official') ? (
                     <SVGA_GlossyID label={`ID: ${displayID}`} />
+                  ) : profile.activeIdBadge ? (
+                    <ActiveIDBadge badgeData={profile.activeIdBadge} fallbackNumber={displayID} />
                   ) : (profile.isAdmin || (isBudgetId && idColor && idColor !== 'none')) ? (
-                    <NativeBudgetTag
-                      variant={
-                        profile.isAdmin ? 'gold'
-                        : idColor as BudgetVariant
-                      }
-                      label={`ID: ${displayID}`}
+                    <SovereignIDBadge
+                      color={profile.isAdmin ? 'gold' : idColor}
+                      number={displayID}
                     />
                   ) : (
                     <View style={{ backgroundColor: '#f1f5f9', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3.5, flexDirection: 'row', alignItems: 'center' }}>

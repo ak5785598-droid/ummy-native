@@ -97,7 +97,7 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
   const [quantity, setQuantity] = useState('1');
   const [isSending, setIsSending] = useState(false);
   const [showQuantityPopup, setShowQuantityPopup] = useState(false);
-  const [comboState, setComboState] = useState<{ active: boolean; multiplier: number; gift: Gift | null } | null>(null);
+  const [comboState, setComboState] = useState<{ active: boolean; multiplier: number; gift: Gift | null; isLucky?: boolean; totalWinAmount?: number } | null>(null);
   const [showCosmic, setShowCosmic] = useState(false);
   const [cosmicGift, setCosmicGift] = useState<{ name: string; image: string | null } | null>(null);
   
@@ -457,7 +457,7 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
 
   const startComboTimer = (gift: Gift, multiplier: number, totalWinAmount: number, isLucky: boolean) => {
     if (comboTimerRef.current) clearTimeout(comboTimerRef.current);
-    setComboState({ active: true, multiplier, gift });
+    setComboState({ active: true, multiplier, gift, totalWinAmount, isLucky });
     
     comboTimerRef.current = setTimeout(() => {
       setComboState(null);
@@ -509,7 +509,12 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
     const result = await executeSend(comboState.gift!, qty, selectedUids, comboClicksRef.current);
     
     if (result) {
-      setComboState({ ...comboState, multiplier: comboClicksRef.current });
+      setComboState({ 
+        ...comboState, 
+        multiplier: comboClicksRef.current,
+        totalWinAmount: result.winAmount,
+        isLucky: !!result.isLuckyGift
+      });
       
       if (comboTimerRef.current) clearTimeout(comboTimerRef.current);
       comboTimerRef.current = setTimeout(() => {
@@ -636,10 +641,22 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
 
       {comboState?.active && (
         <View className="absolute top-32 right-4 z-50">
-          <LinearGradient colors={['#f59e0b', '#eab308']} className="rounded-full px-4 py-2 flex-row items-center gap-2 shadow-lg">
-            <Text className="text-white font-bold text-sm">
+          <LinearGradient
+            colors={comboState.isLucky ? ['#FFF0A0', '#E6C14A', '#C99A2E'] : ['#f59e0b', '#eab308']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            className="rounded-full px-4 py-2 flex-row items-center gap-2 shadow-lg border border-yellow-600/30"
+          >
+            <Text style={{ color: comboState.isLucky ? '#5C3D0E' : 'white', fontWeight: 'bold', fontSize: 13 }}>
               {comboState.gift?.name} x{comboState.multiplier}
             </Text>
+            {comboState.isLucky && (comboState.totalWinAmount || 0) > 0 && (
+              <View style={{ backgroundColor: 'rgba(92, 61, 14, 0.2)' }} className="rounded-full px-2 py-0.5 ml-1">
+                <Text style={{ color: '#5C3D0E', fontWeight: '900', fontSize: 12 }}>
+                  🪙 +{comboState.totalWinAmount?.toLocaleString()}
+                </Text>
+              </View>
+            )}
           </LinearGradient>
         </View>
       )}
@@ -649,8 +666,18 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
           onPress={handleComboPress}
           className="absolute bottom-32 right-6 z-50"
         >
-          <LinearGradient colors={['#fbbf24', '#eab308']} className="w-16 h-16 rounded-full items-center justify-center shadow-lg border-2 border-yellow-300">
-            <Text className="text-white font-black text-lg">x{comboState.multiplier}</Text>
+          <LinearGradient
+            colors={comboState.isLucky ? ['#FFF0A0', '#E6C14A', '#C99A2E'] : ['#fbbf24', '#eab308']}
+            className="w-16 h-16 rounded-full items-center justify-center shadow-lg border-2 border-yellow-400"
+          >
+            <Text style={{ color: comboState.isLucky ? '#5C3D0E' : 'white', fontWeight: '900', fontSize: 18 }}>
+              x{comboState.multiplier}
+            </Text>
+            {comboState.isLucky && (comboState.totalWinAmount || 0) > 0 && (
+              <Text style={{ color: '#5C3D0E', fontWeight: 'bold', fontSize: 9, marginTop: -2 }}>
+                +{comboState.totalWinAmount}
+              </Text>
+            )}
           </LinearGradient>
         </TouchableOpacity>
       )}

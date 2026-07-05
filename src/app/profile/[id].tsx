@@ -20,6 +20,7 @@ import { FullProfileDialog } from '../../components/profile/FullProfileDialog';
 import { MedalModal } from '../../components/profile/MedalModal';
 import { Image } from 'expo-image';
 import { PremiumDiamond } from '@/components/PremiumDiamond';
+import { ActiveIDBadge, SovereignIDBadge } from '@/components/native-id-badge';
 import {
   SVGA_OfficialTag,
   SVGA_SellerTag,
@@ -285,7 +286,7 @@ export default function ProfileScreen() {
   const isValidAccNum = (id: any) => {
     if (!id) return false;
     const s = String(id).trim();
-    return /^\d{6}$/.test(s) || s === '0000';
+    return /^\d+$/.test(s) || s === '0000';
   };
 
   const currentDBId = profile?.accountNumber;
@@ -460,14 +461,13 @@ export default function ProfileScreen() {
                 <TouchableOpacity onPress={handleCopyId}>
                   {profile.tags?.includes('Official') ? (
                     <SVGA_GlossyID label={`ID: ${displayID}`} />
+                  ) : (profile as any).activeIdBadge ? (
+                    <ActiveIDBadge badgeData={(profile as any).activeIdBadge} fallbackNumber={displayID} />
                   ) : (profile.isAdmin || (profile.isBudgetId && profile.idColor && profile.idColor !== 'none')) ? (
-                    <NativeBudgetTag
-                      variant={
-                        profile.isAdmin ? 'gold'
-                        : profile.idColor as BudgetVariant
-                      }
-                      label={`ID: ${displayID}`}
-                    />
+                    <SovereignIDBadge
+                       color={profile.isAdmin ? 'gold' : (profile.idColor || 'silver')}
+                       number={displayID}
+                     />
                   ) : (
                     <View style={{ backgroundColor: '#f1f5f9', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3.5 }}>
                       <Text style={{ fontSize: 11, fontWeight: '700', color: '#475569' }}>ID: {displayID}</Text>

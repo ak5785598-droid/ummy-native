@@ -13,7 +13,7 @@ import { useRoomContext } from '../../context/room-context';
 import { useAgoraNative, destroyAgoraEngine } from '../../hooks/use-agora-native';
 import { useVoiceEngine } from '../../hooks/use-voice-engine';
 import { useRoomTasks } from '../../hooks/use-room-tasks';
-import { Room, Message, RoomParticipant, MusicTrack, TopSupporter } from '../../lib/types';
+import { Room, Message, RoomParticipant, MusicTrack, TopSupporter, isInventoryItemExpired } from '../../lib/types';
 import { ROOM_THEMES } from '../../lib/themes';
 import { setDocumentNonBlocking, updateDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '../../lib/non-blocking-writes';
 import { Seat } from '../../components/room/seat';
@@ -56,6 +56,7 @@ import { RoomGameOverlay } from '../../components/room/room-game-overlay';
 import { YouTubeDialog } from '../../components/room/youtube-dialog';
 import { NetMirrorDialog } from '../../components/room/net-mirror-dialog';
 import { EntertainmentHubDialog } from '../../components/room/entertainment-hub-dialog';
+import { MultiMoviesDialog } from '../../components/room/multi-movies-dialog';
 import { ScreenMirrorDialog } from '../../components/room/screen-mirror-dialog';
 import { SportsHubDialog } from '../../components/room/sports-hub-dialog';
 import { MoviePlayer } from '../../components/room/movie-player';
@@ -124,6 +125,7 @@ export default function RoomScreen() {
   const [showYouTube, setShowYouTube] = useState(false);
   const [showNetMirror, setShowNetMirror] = useState(false);
   const [showEntertainmentHub, setShowEntertainmentHub] = useState(false);
+  const [showMultiMovies, setShowMultiMovies] = useState(false);
   const [showScreenMirror, setShowScreenMirror] = useState(false);
   const [showSports, setShowSports] = useState(false);
   const [showMoviePlayer, setShowMoviePlayer] = useState(false);
@@ -280,6 +282,13 @@ export default function RoomScreen() {
           uid: user.uid,
           followedAt: serverTimestamp()
         }, { merge: true });
+        // Real-time task triggers for following
+        triggerTask?.('follow_1', 1);
+        triggerTask?.('follow_10', 1);
+        const isNewUser = (Date.now() - (userProfile?.createdAt?.toDate?.()?.getTime() || Date.now())) < 86400000;
+        if (isNewUser) {
+          triggerTask?.('follow_new_3', 1);
+        }
         Alert.alert('Followed', 'You are now following this room.');
       }
     } catch (e: any) {
@@ -473,6 +482,7 @@ export default function RoomScreen() {
       if (showYouTube) { setShowYouTube(false); return true; }
       if (showNetMirror) { setShowNetMirror(false); return true; }
       if (showEntertainmentHub) { setShowEntertainmentHub(false); return true; }
+      if (showMultiMovies) { setShowMultiMovies(false); return true; }
       if (showScreenMirror) { setShowScreenMirror(false); return true; }
       if (showSports) { setShowSports(false); return true; }
       if (showMoviePlayer) { setShowMoviePlayer(false); return true; }
@@ -495,7 +505,7 @@ export default function RoomScreen() {
     };
     const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => sub.remove();
-  }, [showExitDialog, showProfileCard, showFullProfile, isGiftPickerOpen, showGames, showYouTube, showNetMirror, showEntertainmentHub, showScreenMirror, showSports, showMoviePlayer, showSeatMenu, isEmojiPickerOpen, isInfoOpen, showLootGate, showLevelAnimation, showLootingRoom, showLuckySpin, showGoldenChest, showSoundboard, showFollowers, showTopSupporters, isPlayOpen, isMessagesOpen, showLanguagePicker]);
+  }, [showExitDialog, showProfileCard, showFullProfile, isGiftPickerOpen, showGames, showYouTube, showNetMirror, showEntertainmentHub, showMultiMovies, showScreenMirror, showSports, showMoviePlayer, showSeatMenu, isEmojiPickerOpen, isInfoOpen, showLootGate, showLevelAnimation, showLootingRoom, showLuckySpin, showGoldenChest, showSoundboard, showFollowers, showTopSupporters, isPlayOpen, isMessagesOpen, showLanguagePicker]);
 
   const processedMsgIds = useMemo(() => new Set<string>(), []);
   const shownEntranceEffects = useRef<Set<string>>(new Set());
@@ -624,10 +634,29 @@ export default function RoomScreen() {
 
   const { isMusicPlaying, musicState, isRepeatEnabled, setIsRepeatEnabled, handleToggleMusic, handleStopMusic, handleSeekMusic, handleNextMusic, handlePreviousMusic, setLocalVolume, songIntensity } = useMusicSync({ room: room || null, canManageRoom, userId: user?.uid, isSpeakerMuted, keepAlive: isMinimizingRef.current });
 
-  const { taskProgress, achievedTasks, claimedTasks, claimTask, totalTasks, completedTasks } = useRoomTasks(id, onlineParticipants, room?.ownerId || '', isModerator);
+  const { taskProgress, achievedTasks, claimedTasks, claimTask, triggerTask, totalTasks, completedTasks } = useRoomTasks(id, onlineParticipants, room?.ownerId || '', isModerator);
   const { captions, isCaptionsEnabled, setIsCaptionsEnabled, sttEngine } = useVoiceCaptions(id, isInSeat, isMuted);
   const { targetLanguage, setTargetLanguage, sourceLanguage, setSourceLanguage, translateMessage, translating } = useTranslation();
   useActivityTracker(id, isInSeat);
+
+  // SEAT TIME TRACKING: Update daily seat time in minutes when user is on a seat
+  useEffect(() => {
+    if (!firestore || !user?.uid || !isInSeat) return;
+
+    const trackSeatTime = () => {
+      const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+      const userRef = doc(firestore, 'users', user.uid);
+      setDocumentNonBlocking(userRef, {
+        [`seatTime.${today}`]: increment(1),
+        totalSeatTime: increment(1)
+      }, { merge: true });
+    };
+
+    // Track 1 minute of seat time every 60 seconds
+    const seatInterval = setInterval(trackSeatTime, 60000);
+    return () => clearInterval(seatInterval);
+  }, [firestore, user?.uid, isInSeat]);
+
   useMediaPreloader([], []);
   useScreenWakeLock(true);
 
@@ -794,8 +823,11 @@ export default function RoomScreen() {
     }
     const isSeatMuted = room?.mutedSeats?.includes(seatIdx) || false;
     muteOverrideRef.current = isSeatMuted;
-    forceUpdate(n => n + 1);
-    await setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', user.uid), { seatIndex: seatIdx, isMuted: isSeatMuted, name: userProfile.username, avatarUrl: userProfile.avatarUrl, activeFrameMediaUrl: userProfile.inventory?.activeFrameMediaUrl || null, lastSeen: serverTimestamp() }, { merge: true });
+    const activeFrame = userProfile.inventory?.activeFrame || null;
+    const isFrameExpired = isInventoryItemExpired(userProfile.inventory || {}, activeFrame);
+    const frameUrlToSend = isFrameExpired ? null : (userProfile.inventory?.activeFrameMediaUrl || null);
+
+    await setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', user.uid), { seatIndex: seatIdx, isMuted: isSeatMuted, name: userProfile.username, avatarUrl: userProfile.avatarUrl, activeFrameMediaUrl: frameUrlToSend, lastSeen: serverTimestamp() }, { merge: true });
     const takeSeatTid = setTimeout(() => { muteOverrideRef.current = null; forceUpdate(n => n + 1); }, 2000);
     seatTimeoutIds.current.push(takeSeatTid);
   };
@@ -831,7 +863,10 @@ export default function RoomScreen() {
 
   const handleSendMessage = async (text: string, imageUrl?: string) => {
     if (!firestore || !id || !user?.uid || !userProfile || (!text && !imageUrl)) return;
-    await addDocumentNonBlocking(collection(firestore, 'chatRooms', id, 'messages'), { content: text, imageUrl: imageUrl || null, senderId: user.uid, senderName: userProfile.username, senderAvatar: userProfile.avatarUrl || null, senderBubble: userProfile.inventory?.activeBubble || null, chatRoomId: id, timestamp: serverTimestamp(), type: 'text' });
+    const activeBubble = userProfile.inventory?.activeBubble || null;
+    const isExpired = isInventoryItemExpired(userProfile.inventory, activeBubble);
+    const bubbleToSend = isExpired ? null : activeBubble;
+    await addDocumentNonBlocking(collection(firestore, 'chatRooms', id, 'messages'), { content: text, imageUrl: imageUrl || null, senderId: user.uid, senderName: userProfile.username, senderAvatar: userProfile.avatarUrl || null, senderBubble: bubbleToSend, chatRoomId: id, timestamp: serverTimestamp(), type: 'text' });
   };
 
   const handleImageUpload = async (uri: string): Promise<string | null> => {
@@ -1073,7 +1108,26 @@ export default function RoomScreen() {
               </View>
             )}
             <View className="mt-2" style={{ flex: 1 }}>
-              <RoomChatArea messages={filteredMessages || []} chatClearedAt={displayRoom.chatClearedAt} onAvatarPress={(uid) => { setFullProfileUid(uid); setShowFullProfile(true); }} onImagePress={(url) => { setPreviewImageUrl(url); setShowImagePreview(true); }} targetLanguage={targetLanguage} sourceLanguage={sourceLanguage} canManage={canManageRoom} onDeleteMessage={(msgId) => { if (!firestore || !id) return; deleteDoc(doc(firestore, 'chatRooms', id, 'messages', msgId)); }} />
+              <RoomChatArea 
+                messages={filteredMessages || []} 
+                chatClearedAt={displayRoom.chatClearedAt} 
+                onAvatarPress={(uid) => { setFullProfileUid(uid); setShowFullProfile(true); }} 
+                onImagePress={(url) => { setPreviewImageUrl(url); setShowImagePreview(true); }} 
+                targetLanguage={targetLanguage} 
+                sourceLanguage={sourceLanguage} 
+                canManage={canManageRoom} 
+                onDeleteMessage={(msgId) => { if (!firestore || !id) return; deleteDoc(doc(firestore, 'chatRooms', id, 'messages', msgId)); }} 
+                onMentionPress={(username) => {
+                  const p = participants?.find(pp => 
+                    pp.name?.toLowerCase() === username.toLowerCase() || 
+                    pp.username?.toLowerCase() === username.toLowerCase()
+                  );
+                  if (p) {
+                    setProfileCardUser(p);
+                    setShowProfileCard(true);
+                  }
+                }}
+              />
             </View>
           </ScrollView>
         </View>
@@ -1146,8 +1200,8 @@ export default function RoomScreen() {
       </SafeAreaView>
 
       <ExitRoomSheet visible={showExitDialog} onClose={() => setShowExitDialog(false)} onExit={handleExit} onMinimize={handleMinimize} />
-      <RoomSettingsSheet visible={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} room={displayRoom} participants={onlineParticipants} />
-      <RoomShareSheet visible={isShareOpen} onClose={() => setIsShareOpen(false)} room={displayRoom} />
+       <RoomSettingsSheet visible={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} room={displayRoom} participants={onlineParticipants} />
+      <RoomShareSheet visible={isShareOpen} onClose={() => setIsShareOpen(false)} room={displayRoom} onShare={() => triggerTask?.('share_whatsapp', 1)} />
       <RoomUserList 
         visible={isUserListOpen} 
         onClose={() => setIsUserListOpen(false)} 
@@ -1168,7 +1222,11 @@ export default function RoomScreen() {
         onClose={() => setIsInfoOpen(false)} 
         room={displayRoom} 
         isOwner={isOwner} 
-        onUserPress={(uid) => { setIsInfoOpen(false); setFullProfileUid(uid); setShowFullProfile(true); }} 
+        onUserPress={(uid) => { 
+          setIsInfoOpen(false); 
+          setProfileCardUser({ uid, name: '', avatarUrl: '' }); 
+          setShowProfileCard(true); 
+        }}
       />
       <RoomPlaySheet
         visible={isPlayOpen}
@@ -1181,9 +1239,10 @@ export default function RoomScreen() {
         onOpenNetMirror={() => { setIsPlayOpen(false); setTimeout(() => setShowNetMirror(true), 350); }}
         onOpenEntertainment={() => { setIsPlayOpen(false); setTimeout(() => setShowEntertainmentHub(true), 350); }}
         onOpenScreenMirror={() => { setIsPlayOpen(false); setTimeout(() => setShowScreenMirror(true), 350); }}
+        onOpenMultiMovies={() => { setIsPlayOpen(false); setTimeout(() => setShowMultiMovies(true), 350); }}
       />
       <RoomMicInvite visible={showMicInvite} onClose={() => setShowMicInvite(false)} onAccept={() => { if (inviteData.seatIndex) handleTakeSeat(inviteData.seatIndex); setShowMicInvite(false); }} onDecline={() => setShowMicInvite(false)} inviterName={inviteData.inviterName} seatIndex={inviteData.seatIndex} />
-      <GiftPicker visible={isGiftPickerOpen} onClose={() => setIsGiftPickerOpen(false)} roomId={id} participants={onlineParticipants} initialRecipient={giftRecipient} onLocalGiftEvent={(evt) => setGiftAnimEvents(prev => [...prev.slice(-5), evt])} />
+      <GiftPicker visible={isGiftPickerOpen} onClose={() => setIsGiftPickerOpen(false)} roomId={id} participants={onlineParticipants} initialRecipient={giftRecipient} onGiftSent={() => triggerTask?.('gift_once', 1)} onLocalGiftEvent={(evt) => setGiftAnimEvents(prev => [...prev.slice(-5), evt])} />
       <RoomLanguagePicker visible={showLanguagePicker} onClose={() => setShowLanguagePicker(false)} sourceLanguage={sourceLanguage} targetLanguage={targetLanguage} onSelectSourceLanguage={setSourceLanguage} onSelectLanguage={setTargetLanguage} />
       <RoomEmojiPickerDialog visible={isEmojiPickerOpen} onClose={() => setIsEmojiPickerOpen(false)} roomId={id} />
       <RoomTasksDialog visible={isTasksOpen} onClose={() => setIsTasksOpen(false)} taskProgress={taskProgress} achievedTasks={achievedTasks} claimedTasks={claimedTasks} onClaim={claimTask} totalRoomGifts={displayRoom.stats?.totalGifts || 0} />
@@ -1201,6 +1260,7 @@ export default function RoomScreen() {
       <YouTubeDialog visible={showYouTube} onClose={() => setShowYouTube(false)} roomId={id} isHost={isOwner || isModerator} canClose={canManageRoom} />
       <NetMirrorDialog visible={showNetMirror} onClose={() => setShowNetMirror(false)} />
       <EntertainmentHubDialog visible={showEntertainmentHub} onClose={() => setShowEntertainmentHub(false)} roomId={id} isHost={isOwner || isModerator} canManage={canManageRoom} />
+      <MultiMoviesDialog visible={showMultiMovies} onClose={() => setShowMultiMovies(false)} />
       <ScreenMirrorDialog visible={showScreenMirror} onClose={() => setShowScreenMirror(false)} roomId={id} userId={user?.uid || ''} isHost={isOwner || isModerator} agoraHook={agoraHook} />
       <SportsHubDialog visible={showSports} onClose={() => setShowSports(false)} />
       <MoviePlayer visible={showMoviePlayer} onClose={() => setShowMoviePlayer(false)} tmdbId={moviePlayerData?.tmdbId} title={moviePlayerData?.title} posterPath={moviePlayerData?.posterPath} mediaType={moviePlayerData?.mediaType} season={moviePlayerData?.season} episode={moviePlayerData?.episode} />
@@ -1357,7 +1417,7 @@ export default function RoomScreen() {
           const isValidAccNum = (id: any) => {
             if (!id) return false;
             const s = String(id).trim();
-            return /^\d{6}$/.test(s) || s === '0000';
+            return /^\d+$/.test(s) || s === '0000';
           };
           const baseId = fullProfileData?.accountNumber;
           if (isValidAccNum(baseId)) return String(baseId);

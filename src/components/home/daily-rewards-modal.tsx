@@ -84,7 +84,7 @@ export function DailyRewardsModal({ visible, onClose }: DailyRewardsModalProps) 
     setClaimedReward(null);
   }, [visible, userData]);
 
-  const currentDay = Math.min(streak, 7);
+  const currentDay = streak > 0 ? ((streak - 1) % 7) + 1 : 1;
   const currentReward = REWARDS.find((r) => r.day === currentDay) || REWARDS[0];
 
   const handleClaim = async () => {

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, Linking } from 'react-native';
 import { X, Copy, Share2, Check } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -13,9 +13,10 @@ interface RoomShareSheetProps {
     roomNumber: string;
     coverUrl?: string;
   } | null;
+  onShare?: () => void;
 }
 
-export function RoomShareSheet({ visible, onClose, room }: RoomShareSheetProps) {
+export function RoomShareSheet({ visible, onClose, room, onShare }: RoomShareSheetProps) {
   const [copied, setCopied] = useState(false);
 
   if (!room) return null;
@@ -43,9 +44,11 @@ export function RoomShareSheet({ visible, onClose, room }: RoomShareSheetProps) 
         } else {
           Linking.openURL(webUrl);
         }
+        onShare?.();
       })
       .catch((err) => {
         Linking.openURL(webUrl);
+        onShare?.();
       });
   };
 

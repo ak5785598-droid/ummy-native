@@ -347,3 +347,12 @@ export type LeaderboardThemeConfig = {
     top: { videoUrl: string; imageUrl: string; type: 'video' | 'image'; isEnabled: boolean };
   };
 };
+
+export function isInventoryItemExpired(inventory: any, itemId: string | undefined | null): boolean {
+  if (!itemId || itemId === 'None' || itemId === '') return true;
+  if (!inventory || !inventory.expiries) return false;
+  const exp = inventory.expiries[itemId];
+  if (!exp) return false;
+  const expDate = exp.toDate ? exp.toDate() : new Date(exp);
+  return expDate <= new Date();
+}

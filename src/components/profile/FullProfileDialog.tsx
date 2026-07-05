@@ -11,6 +11,8 @@ import { useUserProfile } from '../../hooks/use-user-profile';
 import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, getDoc, limit, deleteDoc, updateDoc, addDoc, orderBy, onSnapshot, increment } from '@/firebase/firestore-compat';
 import { AvatarFrame } from './AvatarFrame';
 import { toCDN } from '../../lib/cdn';
+import { isInventoryItemExpired } from '../../lib/types';
+import { ActiveIDBadge, SovereignIDBadge } from '@/components/native-id-badge';
 import {
   SVGA_OfficialTag,
   SVGA_SellerTag,
@@ -148,7 +150,7 @@ const SVIPBadge = ({ level }: { level: number }) => {
 function CoverCarousel({ images }: { images: string[] }) {
   const flatListRef = useRef<FlatList>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const autoScrollRef = useRef<NodeJS.Timeout | null>(null);
+  const autoScrollRef = useRef<any>(null);
 
   useEffect(() => {
     if (images.length <= 1) return;
@@ -245,7 +247,12 @@ export function FullProfileDialog({
   }, [open]);
 
   const handleCopyId = useCallback(() => {
-    if (displayId) { Clipboard.setString(displayId); setCopiedId(true); setTimeout(() => setCopiedId(false), 2000); }
+    if (displayId) {
+      Clipboard.setString(displayId);
+      setCopiedId(true);
+      Alert.alert('ID Copied', `ID: ${displayId} copied to clipboard`);
+      setTimeout(() => setCopiedId(false), 2000);
+    }
   }, [displayId]);
 
   const hasRelationship = profile?.relationship && (profile.relationship.type === 'CP') || profile?.bestFriend || profile?.besties;
@@ -379,7 +386,7 @@ export function FullProfileDialog({
             {/* Avatar â€” straddles cover and card */}
             <View style={{ alignItems: 'center', marginTop: -40, marginBottom: 10, zIndex: 30 }}>
               <View>
-                <AvatarFrame frameMediaUrl={profile.inventory?.activeFrameMediaUrl} size={88}>
+                <AvatarFrame frameMediaUrl={isInventoryItemExpired(profile.inventory || {}, profile.inventory?.activeFrame) ? null : profile.inventory?.activeFrameMediaUrl} size={88}>
                   <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile.avatarUrl) || 'https://picsum.photos/200' }} style={{ width: '100%', height: '100%' }} />
                 </AvatarFrame>
               </View>
@@ -394,27 +401,16 @@ export function FullProfileDialog({
 
             {/* Level Badges + ID Row */}
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 6, marginTop: 8, overflow: 'visible' }}>
-              <TouchableOpacity onPress={handleCopyId} activeOpacity={0.7}>
+              <TouchableOpacity onPress={handleCopyId}>
                 {hasOfficialTag ? (
                   <SVGA_GlossyID label={`ID: ${displayId}`} />
+                ) : profile.activeIdBadge ? (
+                  <ActiveIDBadge badgeData={profile.activeIdBadge} fallbackNumber={displayId} />
                 ) : (profile.isAdmin || (profile.isBudgetId && profile.idColor && profile.idColor !== 'none')) ? (
-                  <View style={{ borderRadius: 12, overflow: 'hidden' }}>
-                    <LinearGradient
-                      colors={
-                        (profile.isAdmin ? BUDGET_COLORS.gold
-                        : (BUDGET_COLORS[profile.idColor] || BUDGET_COLORS.purple)) as any
-                      }
-                      start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1.5, borderColor: profile.isAdmin ? '#fbbf2450' : '#94a3b850' }}
-                    >
-                      <Text style={{ fontSize: 10 }}>
-                        {profile.isAdmin ? BUDGET_ICONS.gold
-                         : (BUDGET_ICONS[profile.idColor] || BUDGET_ICONS.purple)}
-                      </Text>
-                      <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff', letterSpacing: -0.2, textTransform: 'uppercase' }}>ID: {displayId}</Text>
-                      {copiedId ? <CheckCircle size={10} color="#22C55E" /> : <Copy size={10} color="rgba(255,255,255,0.6)" />}
-                    </LinearGradient>
-                  </View>
+                  <SovereignIDBadge
+                    color={profile.isAdmin ? 'gold' : profile.idColor}
+                    number={displayId}
+                  />
                 ) : (
                   <View style={{ backgroundColor: '#f1f5f9', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4.5, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <Text style={{ fontSize: 11, fontWeight: '700', color: '#475569' }}>

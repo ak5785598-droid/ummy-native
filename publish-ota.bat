@@ -20,7 +20,7 @@ echo.
 
 echo [2/4] Exporting bundle...
 if exist %EXPORT_DIR% rmdir /s /q %EXPORT_DIR%
-npx expo export --platform %PLATFORM% --output-dir %EXPORT_DIR%
+call npx expo export --platform %PLATFORM% --output-dir %EXPORT_DIR%
 if errorlevel 1 (
     echo Export failed!
     exit /b 1

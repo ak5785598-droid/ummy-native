@@ -5,6 +5,7 @@ import { Message } from '../../lib/types';
 import { useTranslation } from '../../hooks/use-translation';
 import { Image } from 'expo-image';
 import { toCDN } from '../../lib/cdn';
+import { ChatMessageBubble } from '../chat-message-bubble';
 
 interface RoomChatAreaProps {
   messages: Message[];
@@ -16,9 +17,10 @@ interface RoomChatAreaProps {
   sourceLanguage?: string;
   canManage?: boolean;
   onDeleteMessage?: (messageId: string) => void;
+  onMentionPress?: (username: string) => void;
 }
 
-export function RoomChatArea({ messages, chatClearedAt, onMessagePress, onAvatarPress, onImagePress, targetLanguage, sourceLanguage, canManage, onDeleteMessage }: RoomChatAreaProps) {
+export function RoomChatArea({ messages, chatClearedAt, onMessagePress, onAvatarPress, onImagePress, targetLanguage, sourceLanguage, canManage, onDeleteMessage, onMentionPress }: RoomChatAreaProps) {
   const scrollViewRef = useRef<ScrollView>(null);
   const [translatedTexts, setTranslatedTexts] = useState<Record<string, string>>({});
   const { translateMessage, translating } = useTranslation();
@@ -68,12 +70,34 @@ export function RoomChatArea({ messages, chatClearedAt, onMessagePress, onAvatar
             translationText={translatedTexts[msg.id]}
             isTranslating={!!translating[msg.id]}
             onImagePress={onImagePress}
+            onMentionPress={onMentionPress}
           />
         ))}
       </ScrollView>
     </View>
   );
 }
+
+const renderParsedMessage = (text: string, onMentionPress?: (username: string) => void) => {
+  if (!text) return null;
+  const regex = /(@[A-Za-z0-9_.-]+)/g;
+  const parts = text.split(regex);
+  return parts.map((part, index) => {
+    if (part.startsWith('@') && part.length > 1) {
+      const username = part.slice(1);
+      return (
+        <Text
+          key={index}
+          style={{ color: '#38bdf8', fontWeight: 'bold' }}
+          onPress={() => onMentionPress?.(username)}
+        >
+          {part}
+        </Text>
+      );
+    }
+    return <Text key={index}>{part}</Text>;
+  });
+};
 
 interface ChatMessageRowProps {
   message: Message;
@@ -85,9 +109,10 @@ interface ChatMessageRowProps {
   isTranslating?: boolean;
   canManage?: boolean;
   onDeleteMessage?: (messageId: string) => void;
+  onMentionPress?: (username: string) => void;
 }
 
-const ChatMessageRow = React.memo(function ChatMessageRow({ message, onPress, onAvatarPress, onImagePress, onTranslate, translationText, isTranslating, canManage, onDeleteMessage }: ChatMessageRowProps) {
+const ChatMessageRow = React.memo(function ChatMessageRow({ message, onPress, onAvatarPress, onImagePress, onTranslate, translationText, isTranslating, canManage, onDeleteMessage, onMentionPress }: ChatMessageRowProps) {
   if (message.type === 'system') {
     return (
       <View style={styles.systemRow}>
@@ -184,15 +209,32 @@ const ChatMessageRow = React.memo(function ChatMessageRow({ message, onPress, on
           )}
         </View>
         
-        <View style={styles.textMessageBubble}>
-          {message.imageUrl ? (
-            <TouchableOpacity onPress={() => onImagePress?.(message.imageUrl!)}>
-              <Image cachePolicy="memory-disk" source={{ uri: toCDN(message.imageUrl) }} style={styles.uploadedImage} />
-            </TouchableOpacity>
-          ) : (
-            <Text style={styles.messageText}>{message.content || message.text}</Text>
-          )}
-        </View>
+        {message.senderBubble && message.senderBubble !== 'None' ? (
+          <ChatMessageBubble
+            bubbleId={message.senderBubble}
+            bubbleMediaUrl={(message as any).senderBubbleMediaUrl}
+            isMe={false}
+            showTail={false}
+          >
+            {message.imageUrl ? (
+              <TouchableOpacity onPress={() => onImagePress?.(message.imageUrl!)}>
+                <Image cachePolicy="memory-disk" source={{ uri: toCDN(message.imageUrl) }} style={styles.uploadedImage} />
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.messageText}>{renderParsedMessage(message.content || message.text || '', onMentionPress)}</Text>
+            )}
+          </ChatMessageBubble>
+        ) : (
+          <View style={styles.textMessageBubble}>
+            {message.imageUrl ? (
+              <TouchableOpacity onPress={() => onImagePress?.(message.imageUrl!)}>
+                <Image cachePolicy="memory-disk" source={{ uri: toCDN(message.imageUrl) }} style={styles.uploadedImage} />
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.messageText}>{renderParsedMessage(message.content || message.text || '', onMentionPress)}</Text>
+            )}
+          </View>
+        )}
 
         {!!translationText && (
           <View style={styles.translationBubble}>

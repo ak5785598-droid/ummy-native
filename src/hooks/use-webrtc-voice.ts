@@ -83,7 +83,7 @@ export function useWebRTCVoice(
             echoCancellation: true,
             noiseSuppression: true,
             autoGainControl: true,
-          },
+          } as any,
           video: false,
         });
 
@@ -126,7 +126,7 @@ export function useWebRTCVoice(
           const pc = peerConnectionsRef.current.get(from);
           if (pc) {
             try {
-              await pc.setRemoteDescription(new RTCSessionDescription(answer.sdp));
+              await pc.setRemoteDescription(new RTCSessionDescription(answer.sdp as any));
             } catch (e) {
             }
           }
@@ -181,7 +181,7 @@ export function useWebRTCVoice(
     stream: any
   ) => {
     try {
-      const pc = new RTCPeerConnection(RTC_CONFIG);
+      const pc = new RTCPeerConnection(RTC_CONFIG) as any;
       peerConnectionsRef.current.set(remoteUid, pc);
 
       stream.getTracks().forEach((track: any) => {
@@ -218,9 +218,9 @@ export function useWebRTCVoice(
     stream: any
   ) => {
     try {
-      let pc = peerConnectionsRef.current.get(from);
+      let pc: any = peerConnectionsRef.current.get(from);
       if (!pc) {
-        pc = new RTCPeerConnection(RTC_CONFIG);
+        pc = new RTCPeerConnection(RTC_CONFIG) as any;
         peerConnectionsRef.current.set(from, pc);
 
         stream.getTracks().forEach((track: any) => {
@@ -244,7 +244,7 @@ export function useWebRTCVoice(
         };
       }
 
-      await pc.setRemoteDescription(new RTCSessionDescription(offer.sdp));
+      await pc.setRemoteDescription(new RTCSessionDescription(offer.sdp as any));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       await signaling.sendAnswer(from, pc.localDescription?.toJSON() || answer);

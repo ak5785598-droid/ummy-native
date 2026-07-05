@@ -357,6 +357,8 @@ export function ChessGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, i
     );
   }
 
+  if (!gameState) return null;
+
   if (gameState.status === 'lobby') {
     return (
       <LobbyScreen

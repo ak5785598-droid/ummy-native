@@ -726,7 +726,7 @@ export function UserLevelBadge({ level = 0, scale = 1.0 }: UserLevelBadgeProps) 
         } : {}),
       }}>
         <LinearGradient
-          colors={pillGradient}
+          colors={pillGradient as [string, string, ...string[]]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={[StyleSheet.absoluteFillObject, { borderRadius: pillHeight / 2 }]}

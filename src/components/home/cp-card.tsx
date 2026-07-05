@@ -30,7 +30,7 @@ export function CpCard({ onPress }: CpCardProps) {
   useEffect(() => {
     if (cpCount === 0) return;
 
-    let timer: NodeJS.Timeout;
+    let timer: any;
 
     if (mode === 'carousel') {
       timer = setInterval(() => {

@@ -21,23 +21,24 @@ export async function getCachedFile(url: string | null | undefined): Promise<str
       hash |= 0; // Convert to 32bit integer
     }
     const filename = `cached_asset_${Math.abs(hash)}.${extension}`;
-    const cacheDir = FileSystem.cacheDirectory + 'ummy_assets/';
+    const fs = FileSystem as any;
+    const cacheDir = fs.cacheDirectory + 'ummy_assets/';
     const localUri = cacheDir + filename;
 
     // Check directory existence
-    const dirInfo = await FileSystem.getInfoAsync(cacheDir);
+    const dirInfo = await fs.getInfoAsync(cacheDir);
     if (!dirInfo.exists) {
-      await FileSystem.makeDirectoryAsync(cacheDir, { intermediates: true });
+      await fs.makeDirectoryAsync(cacheDir, { intermediates: true });
     }
 
     // Check file existence
-    const fileInfo = await FileSystem.getInfoAsync(localUri);
+    const fileInfo = await fs.getInfoAsync(localUri);
     if (fileInfo.exists) {
       return localUri;
     }
 
     // Download to local storage
-    const downloadResult = await FileSystem.downloadAsync(url, localUri);
+    const downloadResult = await fs.downloadAsync(url, localUri);
     return downloadResult.uri;
   } catch (error) {
     return url; // fallback to the remote url

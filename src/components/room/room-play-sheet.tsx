@@ -14,6 +14,7 @@ const ICON_YOUTUBE = require('../../../assets/images/play-icons/icon_youtube.jpg
 const ICON_NETMIRROR = require('../../../assets/images/play-icons/icon_netmirror.jpg');
 const ICON_MOVIE = require('../../../assets/images/play-icons/icon_movie.png');
 const ICON_SCREEN = require('../../../assets/images/play-icons/icon_screen.png');
+const ICON_MULTIMOVIES = require('../../../assets/images/play-icons/icon_movie.png');
 
 import { useFirestore, useUser, useCollection, useMemoFirebase, useDatabase } from '../../firebase/provider';
 import { ref as databaseRef, set as databaseSet, push as databasePush } from 'firebase/database';
@@ -37,9 +38,10 @@ interface RoomPlaySheetProps {
   onOpenNetMirror?: () => void;
   onOpenEntertainment?: () => void;
   onOpenScreenMirror?: () => void;
+  onOpenMultiMovies?: () => void;
 }
 
-export function RoomPlaySheet({ visible, onClose, roomId, room, participants, onOpenGames, onOpenYouTube, onOpenNetMirror, onOpenEntertainment, onOpenScreenMirror }: RoomPlaySheetProps) {
+export function RoomPlaySheet({ visible, onClose, roomId, room, participants, onOpenGames, onOpenYouTube, onOpenNetMirror, onOpenEntertainment, onOpenScreenMirror, onOpenMultiMovies }: RoomPlaySheetProps) {
   const firestore = useFirestore();
   const { user } = useUser();
   const database = useDatabase();
@@ -270,6 +272,13 @@ export function RoomPlaySheet({ visible, onClose, roomId, room, participants, on
       onPress: () => { onOpenEntertainment?.(); onClose(); },
     },
     {
+      id: 'multimovies',
+      label: 'MOVIE HUB 3',
+      icon: ICON_MULTIMOVIES,
+      gradient: ['#f59e0b', '#d97706'],
+      onPress: () => { onOpenMultiMovies?.(); onClose(); },
+    },
+    {
       id: 'screenmirror',
       label: 'SCREEN',
       icon: ICON_SCREEN,
@@ -304,6 +313,13 @@ export function RoomPlaySheet({ visible, onClose, roomId, room, participants, on
       icon: ICON_MOVIE,
       gradient: ['#a855f7', '#6d28d9'],
       onPress: () => { onOpenEntertainment?.(); onClose(); },
+    },
+    {
+      id: 'multimovies',
+      label: 'MOVIE HUB 3',
+      icon: ICON_MULTIMOVIES,
+      gradient: ['#f59e0b', '#d97706'],
+      onPress: () => { onOpenMultiMovies?.(); onClose(); },
     },
     {
       id: 'screenmirror',

@@ -1,12 +1,13 @@
-﻿import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, TouchableOpacity } from 'react-native';
-import { X, Heart, MessageCircle, Shield, Crown, Mic, MicOff, Gift, AtSign, UserX, Star, Zap, Sparkles, UserPlus, MoreVertical } from 'lucide-react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Modal, TouchableOpacity, Clipboard, Alert } from 'react-native';
+import { X, Heart, MessageCircle, Shield, Crown, Mic, MicOff, Gift, AtSign, UserX, Star, Zap, Sparkles, UserPlus, MoreVertical, Copy } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SVGA_OfficialTag, SVGA_SellerTag, SVGA_CSLeaderTag, SVGA_CustomerServiceTag, SVGA_ServiceTag, SVGA_HostTag } from '../profile/NativeSVGs';
 import { Image } from 'expo-image';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { AvatarFrame } from '../profile/AvatarFrame';
 import { toCDN } from '../../lib/cdn';
+import { isInventoryItemExpired } from '../../lib/types';
 
 const COUNTRY_FLAGS: Record<string, string> = {
   india: String.fromCodePoint(0x1F1EE, 0x1F1F3), pakistan: String.fromCodePoint(0x1F1F5, 0x1F1F0), bangladesh: String.fromCodePoint(0x1F1E7, 0x1F1E9), nepal: String.fromCodePoint(0x1F1F3, 0x1F1F5), sri_lanka: String.fromCodePoint(0x1F1F1, 0x1F1F0),
@@ -109,6 +110,14 @@ export function RoomProfileCard({
   const [firestoreMedals, setFirestoreMedals] = useState<any[]>([]);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
+  const handleCopyId = () => {
+    const displayId = String(user?.accountNumber || profile?.accountNumber || '');
+    if (displayId) {
+      Clipboard.setString(displayId);
+      Alert.alert('ID Copied', `ID: ${displayId} copied to clipboard`);
+    }
+  };
+
   useEffect(() => {
     try {
       const db = require('@react-native-firebase/firestore').default;
@@ -145,10 +154,10 @@ export function RoomProfileCard({
           <View className="absolute top-[-48] left-0 right-0 items-center z-50">
             <TouchableOpacity onPress={() => { onClose(); onViewProfile?.(user.uid); }} className="shadow-lg" activeOpacity={0.8}>
               <AvatarFrame
-                frameMediaUrl={profile?.activeFrameMediaUrl || profile?.inventory?.activeFrameMediaUrl || null}
+                frameMediaUrl={isInventoryItemExpired(profile?.inventory || {}, profile?.inventory?.activeFrame) ? null : ((profile as any)?.activeFrameMediaUrl || (profile as any)?.inventory?.activeFrameMediaUrl || null)}
                 size={96}
               >
-                <Image cachePolicy="memory-disk" source={{ uri: toCDN(user.avatarUrl) || 'https://picsum.photos/200' }}
+                <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile?.avatarUrl || user.avatarUrl) || 'https://picsum.photos/200' }}
                   style={{ width: 96, height: 96 }}
                   contentFit="cover"
                 />
@@ -193,8 +202,8 @@ export function RoomProfileCard({
 
           {/* Name & Badges */}
           <View className={`flex-row items-center gap-1.5 ${hasTags || hasMedals ? 'mb-3' : 'mb-1.5'}`}>
-            <Text className="text-[#1E293B] text-2xl font-black">{user.name}</Text>
-            {user.gender !== 'female' ? (
+            <Text className="text-[#1E293B] text-2xl font-black">{profile?.username || user.name}</Text>
+            {(profile?.gender || user.gender) !== 'female' ? (
               <View className="bg-blue-100 w-5 h-5 rounded-full items-center justify-center">
                 <Text className="text-blue-600 text-xs font-bold">{String.fromCodePoint(0x2642)}</Text>
               </View>
@@ -224,7 +233,7 @@ export function RoomProfileCard({
                 <View className="flex-row items-center gap-1 px-2.5 py-0.5 bg-rose-500/10 border border-rose-500/20 rounded-full h-[18px]">
                   <Heart size={9} color="#F43F5E" fill="#F43F5E" />
                   <Text className="text-[9px] font-black uppercase text-rose-500 tracking-tight">
-                    {profile.relationship.type}: {profile.relationship.partnerName}
+                    {profile?.relationship?.type}: {profile?.relationship?.partnerName}
                   </Text>
                 </View>
               )}
@@ -235,7 +244,7 @@ export function RoomProfileCard({
           <View className="flex-row flex-wrap justify-center gap-2 -mt-1 px-6">
             {(profile?.svip || 0) > 0 && (
               <View className="items-center justify-center">
-                <SVIPBadge level={profile.svip} />
+                <SVIPBadge level={profile?.svip || 0} />
               </View>
             )}
             {profile?.medals && profile.medals.length > 0 && profile.medals.map((mId: string, idx: number) => {
@@ -261,9 +270,10 @@ export function RoomProfileCard({
 
           {/* User ID, Fans & Gift */}
           <View className={`flex-row items-center gap-3 mb-1 ${hasMedals ? '-mt-2.5' : (hasTags ? 'mt-1.5' : '-mt-2')}`}>
-            <View className="bg-slate-100/80 px-3 py-1 rounded-full border border-slate-200/50">
-              <Text className="text-slate-600 text-[11px] font-black uppercase">ID: {user.accountNumber || '0000'}</Text>
-            </View>
+            <TouchableOpacity onPress={handleCopyId} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} className="bg-slate-100/80 px-3 py-1 rounded-full border border-slate-200/50">
+              <Text className="text-slate-600 text-[11px] font-black uppercase">ID: {user?.accountNumber || profile?.accountNumber || '0000'}</Text>
+              <Copy size={10} color="#64748b" />
+            </TouchableOpacity>
             <View className="h-4 w-[1px] bg-slate-200" />
             <Text className="text-slate-400 text-[11px] font-black uppercase">0 FANS</Text>
             <View className="h-4 w-[1px] bg-slate-200" />
@@ -293,19 +303,19 @@ export function RoomProfileCard({
                   <Text style={{ color: 'white', fontSize: 10, fontWeight: '800' }}>Follow</Text>
                 </TouchableOpacity>
                 {onMention && (
-                  <TouchableOpacity onPress={() => { onClose(); onMention(user.name); }}
+                  <TouchableOpacity onPress={() => { onClose(); onMention(profile?.username || user.name); }}
                     style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' }}>
                     <AtSign size={16} color="#475569" />
                   </TouchableOpacity>
                 )}
                 {onEcho && (
-                  <TouchableOpacity onPress={() => { onClose(); onEcho({ uid: user.uid, name: user.name, avatarUrl: user.avatarUrl }); }}
+                  <TouchableOpacity onPress={() => { onClose(); onEcho({ uid: user.uid, name: profile?.username || user.name, avatarUrl: profile?.avatarUrl || user.avatarUrl }); }}
                     style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#FAF5FF', alignItems: 'center', justifyContent: 'center' }}>
                     <Sparkles size={16} color="#8B5CF6" />
                   </TouchableOpacity>
                 )}
                 {onPropose && (
-                  <TouchableOpacity onPress={() => { onClose(); onPropose({ uid: user.uid, name: user.name, avatarUrl: user.avatarUrl }); }}
+                  <TouchableOpacity onPress={() => { onClose(); onPropose({ uid: user.uid, name: profile?.username || user.name, avatarUrl: profile?.avatarUrl || user.avatarUrl }); }}
                     style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#FFF1F2', alignItems: 'center', justifyContent: 'center' }}>
                     <Zap size={16} color="#EC4899" fill="#EC4899" />
                   </TouchableOpacity>

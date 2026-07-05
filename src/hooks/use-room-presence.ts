@@ -4,7 +4,7 @@ import { doc, getDoc, setDoc, deleteDoc, serverTimestamp, writeBatch, increment,
 import { ref, set, onDisconnect, onValue, remove, push, serverTimestamp as dbServerTimestamp } from 'firebase/database';
 import { AppState, AppStateStatus } from 'react-native';
 import { setDocumentNonBlocking, updateDocumentNonBlocking, addDocumentNonBlocking } from '../lib/non-blocking-writes';
-import { Room, User } from '../lib/types';
+import { Room, User, isInventoryItemExpired } from '../lib/types';
 
 const enteredRooms = new Set<string>();
 
@@ -52,15 +52,23 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
       try {
         const batch = writeBatch(firestore);
 
+        const inventory = userProfile?.inventory;
+        const frame = inventory?.activeFrame || null;
+        const bubble = inventory?.activeBubble || null;
+        
+        const frameToSend = isInventoryItemExpired(inventory || {}, frame) ? null : frame;
+        const frameMediaUrlToSend = isInventoryItemExpired(inventory || {}, frame) ? null : (inventory?.activeFrameMediaUrl || null);
+        const bubbleToSend = isInventoryItemExpired(inventory || {}, bubble) ? null : bubble;
+
         // Use set+merge directly — no need for getDoc check
         batch.set(participantRef, {
           uid,
           name: userProfile?.username || user.displayName || 'Anonymous',
           avatarUrl: userProfile?.avatarUrl || user.photoURL || '',
-          activeFrame: userProfile?.inventory?.activeFrame || null,
-          activeFrameMediaUrl: userProfile?.inventory?.activeFrameMediaUrl || null,
+          activeFrame: frameToSend,
+          activeFrameMediaUrl: frameMediaUrlToSend,
           activeWave: null,
-          activeBubble: userProfile?.inventory?.activeBubble || null,
+          activeBubble: bubbleToSend,
           activeIdBadge: null,
           lastSeen: serverTimestamp(),
           isMuted: false,

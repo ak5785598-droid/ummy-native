@@ -97,7 +97,7 @@ export function RoomSettingsSheet({ visible, onClose, room, participants }: Room
 
   const customThemesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'roomThemes'), orderBy('createdAt', 'desc'));
+    return query(collection(firestore, 'storeItems'), orderBy('createdAt', 'desc'));
   }, [firestore]);
   const { data: customThemes } = useCollection<any>(customThemesQuery);
 
@@ -109,40 +109,62 @@ export function RoomSettingsSheet({ visible, onClose, room, participants }: Room
   const canUseOfficialThemes = isOfficialHelpRoom || (userIsOfficial && isOwner) || isOwner;
 
   const filteredThemes = useMemo(() => {
+    const ownedIds = userProfile?.inventory?.ownedItems as string[] || [];
+    const expiries = userProfile?.inventory?.expiries || {};
+    const now = new Date();
+
+    const isOwned = (themeId: string) => {
+      if (userIsOfficial) return true; // Admins/Official users have access to all themes
+      if (!ownedIds.includes(themeId)) return false;
+      const exp = expiries[themeId];
+      if (exp) {
+        const expDate = exp?.toDate ? exp.toDate() : new Date(exp);
+        if (expDate <= now) return false; // Expired
+      }
+      return true;
+    };
+
+    // 1. Filter static baseline themes
     const baseline = ROOM_THEMES.filter(theme => {
-      if (isOfficialHelpRoom) return theme.category === 'help' || theme.category === 'general';
-      if (userIsOfficial || isOwner) return true;
-      return theme.category === 'entertainment' || theme.category === 'general';
+      // Help room can only use help/general themes
+      if (isOfficialHelpRoom) {
+        return theme.category === 'help' || theme.category === 'general';
+      }
+      // If it's a free category (general, entertainment, help), anyone can use it
+      const isFreeCategory = ['general', 'entertainment', 'help'].includes(theme.category || '');
+      if (isFreeCategory) return true;
+
+      // Otherwise it's a premium static theme, check if owned
+      return isOwned(theme.id);
     });
 
-    const dynamic = (customThemes || []).filter(theme => {
-      if (isOfficialHelpRoom) return theme.category === 'help' || theme.category === 'general';
-      if (userIsOfficial || isOwner) return true;
-      return theme.category === 'entertainment' || theme.category === 'general';
-    });
-    
-    // Add user's purchased themes from inventory
-    const purchasedThemes: any[] = [];
-    if (userProfile?.inventory?.ownedItems && customThemes) {
-      const ownedIds = userProfile.inventory.ownedItems as string[];
-      customThemes.forEach(theme => {
-        if (ownedIds.includes(theme.id)) {
-          purchasedThemes.push({
-            id: theme.id,
-            name: theme.name || 'Purchased Theme',
-            url: theme.videoUrl || theme.imageUrl || theme.mediaUrl || theme.thumbnailUrl || '',
-            category: 'inventory',
-            isOfficial: false
-          });
-        }
-      });
-    }
+    // 2. Filter dynamic custom themes from Firestore storeItems
+    const dynamic: any[] = [];
+    (customThemes || []).forEach(theme => {
+      // Filter only Theme items
+      const isThemeItem = theme.category === 'Theme' || theme.type === 'Theme';
+      if (!isThemeItem) return;
 
-    return [...baseline, ...dynamic, ...purchasedThemes].map(t => ({ 
+      // Skip if already in baseline (to avoid duplicates)
+      if (baseline.some(t => t.id === theme.id)) return;
+
+      const isPaid = theme.price && theme.price > 0;
+      if (!isPaid || isOwned(theme.id)) {
+        dynamic.push({
+          id: theme.id,
+          name: theme.name || 'Custom Theme',
+          url: theme.imageUrl || theme.url || theme.videoUrl || theme.mediaUrl || theme.thumbnailUrl || '',
+          category: theme.category || 'general',
+          isOfficial: theme.isOfficial || false
+        });
+      }
+    });
+
+    return [...baseline, ...dynamic].map(t => ({ 
       ...t, 
       url: typeof t.url === 'string' ? t.url.replace('w=2000', 'w=200') : t.url 
     }));
-  }, [isOfficialHelpRoom, userIsOfficial, isOwner, customThemes, userProfile?.inventory?.ownedItems]);
+  }, [isOfficialHelpRoom, userIsOfficial, isOwner, customThemes, userProfile?.inventory?.ownedItems, userProfile?.inventory?.expiries]);
 
   const handleUpdate = async (field: string, value: any) => {
     if (!firestore || !room?.id || !canManage) return;
@@ -267,7 +289,24 @@ export function RoomSettingsSheet({ visible, onClose, room, participants }: Room
             showsVerticalScrollIndicator={false}
           >
             {themeEditOpen ? (
-              <ThemePage room={room} themes={filteredThemes} onSelect={async (id: string) => { await handleUpdate('roomThemeId', id); setThemeEditOpen(false); }} onClose={() => setThemeEditOpen(false)} />
+              <ThemePage room={room} themes={filteredThemes} onSelect={async (id: string) => {
+                const selectedTheme = filteredThemes.find(t => t.id === id);
+                if (selectedTheme) {
+                  const urlToUpdate = typeof selectedTheme.url === 'string' ? selectedTheme.url : '';
+                  if (firestore && room?.id && canManage) {
+                    try {
+                      await updateDoc(doc(firestore, 'chatRooms', room.id), {
+                        roomThemeId: id,
+                        backgroundUrl: urlToUpdate,
+                        updatedAt: serverTimestamp()
+                      });
+                    } catch (e) {
+                      console.error('Failed to apply theme:', e);
+                    }
+                  }
+                }
+                setThemeEditOpen(false);
+              }} onClose={() => setThemeEditOpen(false)} />
             ) : (
               <MainMenu
                 room={room} isOwner={isOwner} canManage={canManage} isUploading={isUploading}

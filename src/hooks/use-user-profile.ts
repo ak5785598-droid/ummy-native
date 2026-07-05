@@ -6,7 +6,7 @@ import { User } from '../lib/types';
 function isValidAccNum(id: any): boolean {
   if (!id) return false;
   const s = String(id).trim();
-  return /^\d{6}$/.test(s) || s === '0000';
+  return s.length > 0;
 }
 
 export function useUserProfile(uid: string | undefined | null) {
@@ -36,17 +36,19 @@ export function useUserProfile(uid: string | undefined | null) {
       const baseAccNum = base?.accountNumber;
       const subAccNum = sub?.accountNumber;
 
-      // Pick the best valid 6-digit ID from either document
-      let bestAccNum: any = subAccNum;
-      if (!isValidAccNum(subAccNum) && isValidAccNum(baseAccNum)) {
+      // Prioritize baseAccNum (Admin source of truth) if it exists, otherwise fallback to subAccNum
+      let bestAccNum: any = baseAccNum || subAccNum;
+
+      if (baseAccNum && subAccNum && baseAccNum !== subAccNum) {
         bestAccNum = baseAccNum;
-        // Silently fix mismatch in background — write correct ID to both docs
-        if (sub !== null) {
-          setDoc(profileRef, { accountNumber: bestAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
-          setDoc(userRef, { accountNumber: bestAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
-        }
+        // Sync the profile subcollection with the new admin-assigned ID
+        setDoc(profileRef, { accountNumber: baseAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
+      } else if (!isValidAccNum(subAccNum) && isValidAccNum(baseAccNum)) {
+        bestAccNum = baseAccNum;
+        setDoc(profileRef, { accountNumber: bestAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
+        setDoc(userRef, { accountNumber: bestAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
       } else if (isValidAccNum(subAccNum) && !isValidAccNum(baseAccNum)) {
-        // Profile subcollection valid but base missing — sync up
+        bestAccNum = subAccNum;
         setDoc(userRef, { accountNumber: subAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
       }
 

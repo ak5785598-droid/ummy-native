@@ -10,7 +10,7 @@ import { toCDN } from '../../lib/cdn';
 interface AvatarFrameProps {
   frameMediaUrl?: string | null;
   size: number;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   containerStyle?: ViewStyle;
 }
 

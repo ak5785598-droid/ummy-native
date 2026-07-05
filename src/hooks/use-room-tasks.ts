@@ -6,16 +6,24 @@ import { RoomParticipant } from '../lib/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ROOM_TASKS = [
-  { id: 'mic_10', title: 'Speak 10 min on mic', target: 10, reward: 500, category: 'mic' },
-  { id: 'mic_30', title: 'Speak 30 min on mic', target: 30, reward: 1500, category: 'mic' },
-  { id: 'mic_60', title: 'Speak 60 min on mic', target: 60, reward: 3000, category: 'mic' },
-  { id: 'entry_3', title: 'Room 3 entries', target: 3, reward: 200, category: 'traffic' },
-  { id: 'entry_10', title: 'Room 10 entries', target: 10, reward: 800, category: 'traffic' },
-  { id: 'invite_1', title: 'Invite 1 to mic', target: 1, reward: 300, category: 'invite' },
-  { id: 'invite_10', title: 'Invite 10 to mic', target: 10, reward: 2000, category: 'invite' },
-  { id: 'sim_mic_1', title: '3 users on mic 1 min', target: 1, reward: 400, category: 'mic' },
-  { id: 'sim_mic_10', title: '3 users on mic 10 min', target: 10, reward: 2000, category: 'mic' },
-  { id: 'sim_mic_new_5', title: '3 new users on mic 5 min', target: 5, reward: 1500, category: 'mic' },
+  { id: 'mic_10', title: 'On mic for 10 Minutes', target: 10, reward: 2500, category: 'mic' },
+  { id: 'mic_30', title: 'On mic for 30 Minutes', target: 30, reward: 10000, category: 'mic' },
+  { id: 'mic_60', title: 'On mic for 60 Minute', target: 60, reward: 25000, category: 'mic' },
+  { id: 'invite_1', title: 'Successfully invited 1 user on mic', target: 1, reward: 2500, category: 'invite' },
+  { id: 'invite_10', title: 'Successfully Invited 10 user on mic', target: 10, reward: 25000, category: 'invite' },
+  { id: 'invite_new_3', title: 'Successfully invited 3 New user on mic', target: 3, reward: 2000, category: 'invite' },
+  { id: 'gift_once', title: 'Send gift once', target: 1, reward: 500, category: 'gift' },
+  { id: 'traffic_consecutive', title: 'more then 5 user enter Your room for 2 Consecutive days', target: 2, reward: 20000, category: 'traffic' },
+  { id: 'sim_mic_1', title: '3 User on mic at the same time for 1 minutes', target: 1, reward: 5000, category: 'mic' },
+  { id: 'sim_mic_10', title: '3 user on mic at the same time for 10 minutes', target: 10, reward: 10000, category: 'mic' },
+  { id: 'sim_mic_new_5', title: '3 New user on mice at the same time for 5 minutes', target: 5, reward: 10000, category: 'mic' },
+  { id: 'new_user_gift_3', title: '3 New user send gifts in the room', target: 3, reward: 5000, category: 'gift' },
+  { id: 'follow_1', title: '1 New follower', target: 1, reward: 1000, category: 'follow' },
+  { id: 'follow_10', title: '10 New follower', target: 10, reward: 5000, category: 'follow' },
+  { id: 'follow_new_3', title: '3 New follower From new user', target: 3, reward: 2500, category: 'follow' },
+  { id: 'share_whatsapp', title: 'Successfully Shared room link to whatsApp', target: 1, reward: 5000, category: 'share' },
+  { id: 'entry_10', title: '10 User enter the room', target: 10, reward: 10000, category: 'traffic' },
+  { id: 'entry_3', title: '3 User enter the room', target: 3, reward: 2500, category: 'traffic' }
 ];
 
 export function useRoomTasks(roomId: string, participants: RoomParticipant[], roomOwnerId: string, isModerator: boolean) {
@@ -130,7 +138,8 @@ export function useRoomTasks(roomId: string, participants: RoomParticipant[], ro
     const isMeOnMic = participants.some(p => p.uid === user.uid && p.seatIndex > 0);
     if (isMeOnMic && !prevIsMeOnMic.current) {
       if (micTimerRef.current) clearInterval(micTimerRef.current);
-      micTimerRef.current = setInterval(() => { updateTask('mic_10', 1); updateTask('mic_30', 1); updateTask('mic_60', 1); }, 300000);
+      // Change timer interval to 1 minute (60000ms) to correctly track minutes
+      micTimerRef.current = setInterval(() => { updateTask('mic_10', 1); updateTask('mic_30', 1); updateTask('mic_60', 1); }, 60000);
     } else if (!isMeOnMic && prevIsMeOnMic.current) {
       if (micTimerRef.current) { clearInterval(micTimerRef.current); micTimerRef.current = null; }
     }
@@ -143,11 +152,12 @@ export function useRoomTasks(roomId: string, participants: RoomParticipant[], ro
     const hasThreeOnMic = usersOnMic.length >= 3;
     if (hasThreeOnMic && !prevHasThreeOnMic.current) {
       if (simMicTimerRef.current) clearInterval(simMicTimerRef.current);
+      // Change timer interval to 1 minute (60000ms) to correctly track minutes
       simMicTimerRef.current = setInterval(() => {
         updateTask('sim_mic_1', 1); updateTask('sim_mic_10', 1);
         const newUsers = (participants || []).filter(p => p.seatIndex > 0 && p.joinedAt?.toDate?.() && (Date.now() - p.joinedAt.toDate().getTime()) < 86400000).length;
         if (newUsers >= 3) updateTask('sim_mic_new_5', 1);
-      }, 300000);
+      }, 60000);
     } else if (!hasThreeOnMic && prevHasThreeOnMic.current) {
       if (simMicTimerRef.current) { clearInterval(simMicTimerRef.current); simMicTimerRef.current = null; }
     }
@@ -160,9 +170,9 @@ export function useRoomTasks(roomId: string, participants: RoomParticipant[], ro
     participants.forEach(p => {
       if (!uniqueEntries.current.has(p.uid)) {
         uniqueEntries.current.add(p.uid);
-        const count = uniqueEntries.current.size;
-        if (count === 3) updateTask('entry_3');
-        if (count === 10) updateTask('entry_10');
+        // Correct entries logic: increment progress by 1 for each new unique user entry
+        updateTask('entry_3', 1);
+        updateTask('entry_10', 1);
       }
     });
     const currentOnMic = participants.filter(p => p.seatIndex > 0).map(p => p.uid);

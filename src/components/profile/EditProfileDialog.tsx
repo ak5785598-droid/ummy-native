@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, Switch, FlatList } from 'react-native';
 import {
   ChevronLeft,
@@ -19,6 +19,7 @@ import { Image } from 'expo-image';
 import { Video } from 'expo-av';
 import { AvatarFrame } from './AvatarFrame';
 import { toCDN } from '../../lib/cdn';
+import { isInventoryItemExpired } from '../../lib/types';
 
 const COUNTRIES = [
   { name: 'India', code: 'IN', flag: String.fromCodePoint(0x1F1EE, 0x1F1F3) },
@@ -370,7 +371,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
             <View style={{ alignItems: 'center', marginTop: 8, marginBottom: 24 }}>
               <View style={{ position: 'relative' }}>
                 <AvatarFrame
-                  frameMediaUrl={profile?.inventory?.activeFrameMediaUrl}
+                  frameMediaUrl={isInventoryItemExpired(profile?.inventory || {}, profile?.inventory?.activeFrame) ? null : profile?.inventory?.activeFrameMediaUrl}
                   size={120}
                 >
                   {isUploadingAvatar ? (

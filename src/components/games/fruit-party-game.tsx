@@ -156,7 +156,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
       const freshCoins = snap.exists() ? ((snap.data() as any)?.wallet?.coins ?? (userProfile?.wallet?.coins ?? 0)) : (userProfile?.wallet?.coins ?? 0);
       if (freshCoins < selectedChip) { handleGoToWallet(); return; }
       const batch = writeBatch(firestore);
-      const deductData = { 'wallet.coins': increment(-selectedChip) };
+      const deductData = { wallet: { coins: increment(-selectedChip) } };
       batch.set(profileRef, deductData, { merge: true });
       batch.set(doc(firestore, 'users', currentUser.uid), deductData, { merge: true });
       await batch.commit();
@@ -175,7 +175,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
       const freshCoins = snap.exists() ? ((snap.data() as any)?.wallet?.coins ?? (userProfile?.wallet?.coins ?? 0)) : (userProfile?.wallet?.coins ?? 0);
       if (freshCoins < totalCost) { handleGoToWallet(); return; }
       const batch = writeBatch(firestore);
-      const deductData = { 'wallet.coins': increment(-totalCost) };
+      const deductData = { wallet: { coins: increment(-totalCost) } };
       batch.set(profileRef, deductData, { merge: true });
       batch.set(doc(firestore, 'users', currentUser.uid), deductData, { merge: true });
       await batch.commit();
@@ -274,7 +274,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
     if (winAmount > 0 && currentUser && firestore && userProfile) {
       try {
         const batch = writeBatch(firestore);
-        const winData = { 'wallet.coins': increment(winAmount) };
+        const winData = { wallet: { coins: increment(winAmount) } };
         batch.set(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), winData, { merge: true });
         batch.set(doc(firestore, 'users', currentUser.uid), winData, { merge: true });
         await batch.commit();
@@ -376,7 +376,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
           shadowRadius: shiningGroup === 'left' ? 10 : 0,
           transform: shiningGroup === 'left' ? [{ scale: 1.25 }] : [{ scale: 1 }],
         }}>
-          <Image source={require('../../../assets/images/games/nonveg_mix.png')} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+          <Image source={require('../../../assets/images/games/nonveg_mix.png')} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
         </View>
 
         <View style={{
@@ -400,7 +400,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
           shadowRadius: shiningGroup === 'right' ? 10 : 0,
           transform: shiningGroup === 'right' ? [{ scale: 1.25 }] : [{ scale: 1 }],
         }}>
-          <Image source={require('../../../assets/images/games/fruit_mix.png')} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+          <Image source={require('../../../assets/images/games/fruit_mix.png')} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
         </View>
         
 
@@ -530,7 +530,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
                 <Image
                   source={fruit.image}
                   style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }}
-                  contentFit="cover"
+                  resizeMode="cover"
                 />
 
                 {/* Empty spacer to align the banner at bottom */}
@@ -725,7 +725,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
               }}
             >
               <RotateCcw size={12} color="white" />
-              <Text style={{ color: 'white', fontSize: 10, fontWeight: '950', textTransform: 'uppercase' }}>Repeat Bet</Text>
+              <Text style={{ color: 'white', fontSize: 10, fontWeight: '900', textTransform: 'uppercase' }}>Repeat Bet</Text>
             </TouchableOpacity>
           )}
         </View>

@@ -8,10 +8,12 @@ import {
 import { useRouter } from 'expo-router';
 import { useUser, useFirestore } from '@/firebase/provider';
 import { useUserProfile } from '@/hooks/use-user-profile';
-import { collection, query, orderBy, onSnapshot, doc, increment, serverTimestamp, arrayUnion, updateDoc, where, getDocs, limit as firestoreLimit, writeBatch } from '@/firebase/firestore-compat';
+import { collection, query, orderBy, onSnapshot, doc, increment, serverTimestamp, arrayUnion, updateDoc, where, getDocs, getDoc, limit as firestoreLimit, writeBatch } from '@/firebase/firestore-compat';
 import { Image } from 'expo-image';
 import { AvatarFrame } from '@/components/profile/AvatarFrame';
 import { GoldenCoin } from '@/components/GoldenCoin';
+import { PinkDiamondIDBadgeIcon, SilverBlueIDBadgeIcon, IDBadgeIcon } from '@/components/native-id-badge';
+import { ChatMessageBubble } from '@/components/chat-message-bubble';
 
 const LOCAL_FRAME_ASSETS: Record<string, any> = {
   'sea_sands': require('../../../assets/images/sea_sands_frame.png'),
@@ -20,6 +22,11 @@ const LOCAL_FRAME_ASSETS: Record<string, any> = {
   'basra_frame': require('../../../assets/images/basra_frame.png'),
   'top3family_topuser': require('../../../assets/images/top3family_topuser.png'),
   'top2family_topuser': require('../../../assets/images/top2family_topuser.png'),
+};
+
+const cleanItemName = (name: string): string => {
+  if (!name) return '';
+  return name.replace(/\b2025\b/g, '').replace(/\b2026\b/g, '').replace(/\s+/g, ' ').trim();
 };
 
 const { width } = Dimensions.get('window');
@@ -45,6 +52,12 @@ const STATIC_FRAME_ITEMS = [
   { id: 'top2family_topuser', name: 'Top 2 Family User Frame', type: 'Frame', price: 0, durationDays: 30, description: 'Exclusive Top 2 Family User Reward Frame.', imageUrl: 'top2family_topuser', notForSale: true }
 ];
 
+const STATIC_ID_ITEMS = [
+  { id: 'theme-pink', name: 'Pink Diamond ID', type: 'ID', price: 0, durationDays: 7, description: 'Exclusive Premium Pink ID Diamond Badge theme.', isPinkDiamond: true },
+  { id: 'theme-silver', name: 'Silver Blue ID', type: 'ID', price: 0, durationDays: 7, description: 'Exclusive Premium Silver Blue ID Badge theme.', isSilver: true },
+  { id: 'theme-gold', name: 'Gold SSS ID', type: 'ID', price: 0, durationDays: 7, description: 'Exclusive VIP Gold SSS ID Badge theme.', variant: 'red' },
+];
+
 // ─── Tab definition ─────────────────────────────────────────────────────────
 const TABS = ['Store', 'My Items'];
 
@@ -61,7 +74,7 @@ export default function StoreScreen() {
   const [previewItem, setPreviewItem] = useState<any>(null);
   const [selectedDuration, setSelectedDuration] = useState(7);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [activeType, setActiveType] = useState('All');
+  const [activeType, setActiveType] = useState('Frame');
   const [activatingEntry, setActivatingEntry] = useState<string | null>(null);
   const [activatingItem, setActivatingItem] = useState<string | null>(null);
   const [showRecipientSearch, setShowRecipientSearch] = useState(false);
@@ -69,17 +82,92 @@ export default function StoreScreen() {
   const [recipientResults, setRecipientResults] = useState<any[]>([]);
   const [isSearchingRecipient, setIsSearchingRecipient] = useState(false);
   const [selectedRecipient, setSelectedRecipient] = useState<any>(null);
+  const [config, setConfig] = useState<any>(null);
+
+  // Custom ID Store states & logic
+  const [customIdInput, setCustomIdInput] = useState('');
+  const [isCheckingId, setIsCheckingId] = useState(false);
+  const [idAvailability, setIdAvailability] = useState<'none' | 'available' | 'taken' | 'invalid'>('none');
+  const [checkedId, setCheckedId] = useState('');
+
+  const getDynamicIDPrice = (idString: string, duration: number) => {
+    const len = idString.length;
+    let basePrice = 5000; // 8 digits default
+    if (len === 1) basePrice = 1000000;
+    else if (len === 2) basePrice = 500000;
+    else if (len === 3) basePrice = 250000;
+    else if (len === 4) basePrice = 100000;
+    else if (len === 5) basePrice = 50000;
+    else if (len === 6) basePrice = 20000;
+    else if (len === 7) basePrice = 10000;
+
+    // Duration multiplier
+    if (duration === 3) return Math.floor(basePrice * 0.5);
+    if (duration === 7) return basePrice;
+    if (duration === 15) return basePrice * 2;
+    if (duration === 30) return Math.floor(basePrice * 3.5);
+    return basePrice;
+  };
+
+  const checkIdAvailability = async () => {
+    if (!firestore) return;
+    const trimmed = customIdInput.trim();
+    if (trimmed.length < 1 || trimmed.length > 8) {
+      setIdAvailability('invalid');
+      return;
+    }
+    setIsCheckingId(true);
+    try {
+      const snap = await getDoc(doc(firestore, 'taken_ids', trimmed));
+      
+      if (!snap.exists()) {
+        setIdAvailability('available');
+        setCheckedId(trimmed);
+      } else {
+        const docData = snap.data();
+        const expiryStr = docData?.expiry;
+        if (expiryStr) {
+          const expiryDate = new Date(expiryStr);
+          if (expiryDate.getTime() < Date.now()) {
+            // Expired, therefore available
+            setIdAvailability('available');
+            setCheckedId(trimmed);
+          } else {
+            setIdAvailability('taken');
+          }
+        } else {
+          setIdAvailability('taken');
+        }
+      }
+    } catch (err) {
+      console.log('Error checking ID availability:', err);
+      setIdAvailability('taken');
+    } finally {
+      setIsCheckingId(false);
+    }
+  };
 
   // Back handler: preview → category → exit
   useEffect(() => {
     const onBackPress = () => {
       if (previewItem) { setPreviewItem(null); return true; }
-      if (activeType !== 'All') { setActiveType('All'); return true; }
+      if (activeType !== 'Frame') { setActiveType('Frame'); return true; }
       return false;
     };
     const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => sub.remove();
   }, [previewItem, activeType]);
+
+  // Load global app config for storeNotForSale flags
+  useEffect(() => {
+    if (!firestore) return;
+    const unsub = onSnapshot(doc(firestore, 'appConfig', 'global'), (snap: any) => {
+      if (snap.exists()) {
+        setConfig(snap.data());
+      }
+    }, () => {});
+    return () => unsub();
+  }, [firestore]);
 
   // Fetch dynamic store items from Firestore
   useEffect(() => {
@@ -131,18 +219,28 @@ export default function StoreScreen() {
       ...t,
       description: t.description || `High-fidelity ${t.name} background.`,
     }));
-    return [...dynamic, ...themes, ...STATIC_WAVE_ITEMS, ...STATIC_ENTRY_ITEMS, ...STATIC_FRAME_ITEMS];
+    return [...dynamic, ...themes, ...STATIC_WAVE_ITEMS, ...STATIC_ENTRY_ITEMS, ...STATIC_FRAME_ITEMS, ...STATIC_ID_ITEMS];
   }, [storeItems, roomThemes]);
 
+  const storeNotForSale = config?.storeNotForSale || {};
+
+  const allItemsWithFlags = useMemo(() => {
+    return allItems
+      .map(item => ({ 
+        ...item, 
+        notForSale: !!storeNotForSale[item.id] || !!item.notForSale 
+      }))
+      .filter(item => !item.notForSale);
+  }, [allItems, storeNotForSale]);
+
   const TYPE_FILTERS = useMemo(() => {
-    const types = ['All', ...Array.from(new Set(allItems.map(i => i.type).filter(Boolean)))];
+    const types = Array.from(new Set(allItemsWithFlags.map(i => i.type).filter(Boolean)));
     return types;
-  }, [allItems]);
+  }, [allItemsWithFlags]);
 
   const filteredItems = useMemo(() => {
-    if (activeType === 'All') return allItems;
-    return allItems.filter(i => i.type === activeType);
-  }, [allItems, activeType]);
+    return allItemsWithFlags.filter(i => i.type === activeType);
+  }, [allItemsWithFlags, activeType]);
 
   // My Items: owned + valid
   const purchasedItems = useMemo(() => {
@@ -173,13 +271,22 @@ export default function StoreScreen() {
   const activeFrameId = (userProfile?.inventory as any)?.activeFrame || null;
   const activeWaveId = (userProfile?.inventory as any)?.activeWave || null;
   const activeBubbleId = (userProfile?.inventory as any)?.activeBubble || null;
-
-  const getPrice = (basePrice: number, duration: number) =>
-    duration === 7 ? basePrice : Math.floor((basePrice / 7) * 3);
+  const getPrice = (item: any, duration: number) => {
+    if (!item) return 0;
+    if (item.type === 'ID') {
+      return getDynamicIDPrice(checkedId || '888888', duration);
+    }
+    return duration === 7 ? item.price : Math.floor((item.price / 7) * 3);
+  };
 
   const handlePurchase = async () => {
     if (!previewItem || !user || !firestore || isProcessing) return;
-    const finalPrice = getPrice(previewItem.price, selectedDuration);
+    if (previewItem.type === 'ID' && (!checkedId || idAvailability !== 'available')) {
+      Alert.alert('Search ID First', 'Please enter a custom ID and check its availability first.');
+      return;
+    }
+    
+    const finalPrice = getPrice(previewItem, selectedDuration);
     const coins = userProfile?.wallet?.coins || 0;
     if (coins < finalPrice) {
       Alert.alert('Insufficient Coins', `You need ${finalPrice.toLocaleString()} coins but have ${coins.toLocaleString()}.`);
@@ -191,27 +298,72 @@ export default function StoreScreen() {
       expiryDate.setDate(expiryDate.getDate() + selectedDuration);
       const profileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
       const userRef = doc(firestore, 'users', user.uid);
-      const updateData: any = {
-        'wallet.coins': increment(-finalPrice),
-        'inventory.ownedItems': arrayUnion(previewItem.id),
-        [`inventory.expiries.${previewItem.id}`]: expiryDate.toISOString(),
-        updatedAt: serverTimestamp(),
-      };
-      if (previewItem.type === 'Entry') {
-        let entryType = previewItem.entryType;
-        if (!entryType) {
-          const name = (previewItem.name || '').toLowerCase();
-          if (name.includes('dragon')) entryType = 'dragon';
-          else if (name.includes('lion')) entryType = 'lion';
-          else entryType = 'line';
-        }
-        const entryVideo = previewItem.videoUrl || previewItem.imageUrl || null;
-        updateData['inventory.entryTypes'] = arrayUnion(entryType);
-        updateData['inventory.activeEntryEffect'] = entryType;
-        updateData['inventory.activeEntryVideoUrl'] = entryVideo;
-      }
       const batch = writeBatch(firestore);
-      batch.update(profileRef, updateData);
+
+      if (previewItem.type === 'ID') {
+        const trimmed = checkedId;
+        const checkSnap = await getDoc(doc(firestore, 'taken_ids', trimmed));
+        
+        if (checkSnap.exists()) {
+          const docData = checkSnap.data();
+          const expiryStr = docData?.expiry;
+          if (expiryStr) {
+            const expiryDateCheck = new Date(expiryStr);
+            if (expiryDateCheck.getTime() >= Date.now()) {
+              Alert.alert('ID Already Taken', `ID ${trimmed} was just taken by another user.`);
+              setIsProcessing(false);
+              return;
+            }
+          }
+        }
+        
+        // Write the taken ID doc
+        const takenIdRef = doc(firestore, 'taken_ids', trimmed);
+        batch.set(takenIdRef, {
+          displayId: trimmed,
+          ownerUid: user.uid,
+          expiry: expiryDate.toISOString(),
+          badgeTheme: previewItem.id,
+          createdAt: serverTimestamp()
+        });
+
+        // Set active ID badge in profile
+        const activeIdBadge = {
+          displayId: trimmed,
+          isPinkDiamond: previewItem.isPinkDiamond || false,
+          isSilver: previewItem.isSilver || false,
+          variant: previewItem.variant || '',
+          expiry: expiryDate.toISOString()
+        };
+
+        batch.update(profileRef, {
+          'wallet.coins': increment(-finalPrice),
+          activeIdBadge: activeIdBadge,
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        const updateData: any = {
+          'wallet.coins': increment(-finalPrice),
+          'inventory.ownedItems': arrayUnion(previewItem.id),
+          [`inventory.expiries.${previewItem.id}`]: expiryDate.toISOString(),
+          updatedAt: serverTimestamp(),
+        };
+        if (previewItem.type === 'Entry') {
+          let entryType = previewItem.entryType;
+          if (!entryType) {
+            const name = (previewItem.name || '').toLowerCase();
+            if (name.includes('dragon')) entryType = 'dragon';
+            else if (name.includes('lion')) entryType = 'lion';
+            else entryType = 'line';
+          }
+          const entryVideo = previewItem.videoUrl || previewItem.imageUrl || null;
+          updateData['inventory.entryTypes'] = arrayUnion(entryType);
+          updateData['inventory.activeEntryEffect'] = entryType;
+          updateData['inventory.activeEntryVideoUrl'] = entryVideo;
+        }
+        batch.update(profileRef, updateData);
+      }
+
       batch.update(userRef, { 'wallet.coins': increment(-finalPrice), updatedAt: serverTimestamp() });
       await batch.commit();
       Alert.alert('✅ Purchase Successful!', `${previewItem.name} added to your inventory.`);
@@ -317,10 +469,19 @@ export default function StoreScreen() {
       if (item.type === 'Frame') { field = 'inventory.activeFrame'; }
       else if (item.type === 'Wave') { field = 'inventory.activeWave'; }
       else if (item.type === 'Bubble') { field = 'inventory.activeBubble'; }
+      else if (item.type === 'ID') { field = 'inventory.activeID'; }
       else { setActivatingItem(null); return; }
       const urlField = field + 'MediaUrl';
       const updateData: any = { [field]: item.id, updatedAt: serverTimestamp() };
-      if (itemUrl) updateData[urlField] = itemUrl;
+      if (itemUrl && item.type !== 'ID') updateData[urlField] = itemUrl;
+      if (item.type === 'ID') {
+        updateData['inventory.activeIdBadge'] = {
+          displayId: item.displayId || null,
+          isPinkDiamond: !!item.isPinkDiamond,
+          isSilver: !!item.isSilver,
+          id: item.id
+        };
+      }
       await updateDoc(profileRef, updateData);
       await updateDoc(userRef, updateData);
       Alert.alert('✅ Activated!', `${item.name} is now your active ${item.type.toLowerCase()}.`);
@@ -345,11 +506,13 @@ export default function StoreScreen() {
             else if (item.type === 'Wave') field = 'inventory.activeWave';
             else if (item.type === 'Bubble') field = 'inventory.activeBubble';
             else if (item.type === 'Entry') field = 'inventory.activeEntryEffect';
+            else if (item.type === 'ID') field = 'inventory.activeID';
             else return;
             const urlField = field + 'MediaUrl';
             const updateData: any = { [field]: null, updatedAt: serverTimestamp() };
-            if (field !== 'inventory.activeEntryEffect') updateData[urlField] = null;
+            if (field !== 'inventory.activeEntryEffect' && field !== 'inventory.activeID') updateData[urlField] = null;
             if (field === 'inventory.activeEntryEffect') updateData['inventory.activeEntryVideoUrl'] = null;
+            if (field === 'inventory.activeID') updateData['inventory.activeIdBadge'] = null;
             await updateDoc(profileRef, updateData);
             await updateDoc(userRef, updateData);
             Alert.alert('✅ Removed', `${item.name} deactivated.`);
@@ -401,6 +564,24 @@ export default function StoreScreen() {
                 <User size={18} color="rgba(255,255,255,0.25)" />
               </View>
             </AvatarFrame>
+          ) : item.type === 'ID' ? (
+            <View style={{ transform: [{ scale: 0.65 }] }}>
+              {item.isPinkDiamond ? <PinkDiamondIDBadgeIcon number={checkedId || '888888'} /> :
+               item.isSilver ? <SilverBlueIDBadgeIcon number={checkedId || '888888'} /> :
+               <IDBadgeIcon number={checkedId || '888888'} />}
+            </View>
+          ) : item.type === 'Bubble' ? (
+            <View style={{ width: '100%', justifyContent: 'center', alignItems: 'center', paddingVertical: 6 }}>
+              <ChatMessageBubble
+                bubbleId={item.id}
+                bubbleMediaUrl={mediaUrl}
+                isMe={false}
+                showTail={false}
+                style={{ alignSelf: 'center', minWidth: 130, transform: [{ scale: 1.25 }] }}
+              >
+                <Text style={{ fontSize: 9, color: '#fff', fontWeight: 'bold' }}>Hello! 💬</Text>
+              </ChatMessageBubble>
+            </View>
           ) : localAsset ? (
             <Image source={localAsset} style={styles.mediaFill} contentFit="contain" />
           ) : mediaUrl ? (
@@ -429,7 +610,7 @@ export default function StoreScreen() {
 
         {/* Info */}
         <View style={styles.itemInfo}>
-          <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.itemName} numberOfLines={1}>{cleanItemName(item.name)}</Text>
           <Text style={styles.itemType}>{item.type}</Text>
           {owned && isUsableItem ? (
             isAnyActive ? (
@@ -508,6 +689,54 @@ export default function StoreScreen() {
               ))}
             </ScrollView>
 
+            {activeType === 'ID' && (
+              <View style={{ marginHorizontal: 16, marginTop: 8, padding: 16, backgroundColor: 'white', borderRadius: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2, gap: 12 }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#1e293b' }}>Search & Reserve Custom ID</Text>
+                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                  <TextInput
+                    style={{ flex: 1, height: 44, borderRadius: 10, borderWidth: 1, borderColor: '#cbd5e1', paddingHorizontal: 12, color: '#0f172a', fontSize: 15 }}
+                    placeholder="Enter ID (1-8 chars)"
+                    placeholderTextColor="#94a3b8"
+                    value={customIdInput}
+                    onChangeText={(val) => {
+                      setCustomIdInput(val.replace(/[^A-Za-z0-9_]/g, ''));
+                      setIdAvailability('none');
+                    }}
+                    maxLength={8}
+                    autoCapitalize="none"
+                  />
+                  <TouchableOpacity
+                    onPress={checkIdAvailability}
+                    disabled={isCheckingId || !customIdInput.trim()}
+                    style={{ height: 44, paddingHorizontal: 16, backgroundColor: '#7c3aed', borderRadius: 10, justifyContent: 'center', alignItems: 'center', opacity: (!customIdInput.trim() || isCheckingId) ? 0.6 : 1 }}
+                  >
+                    {isCheckingId ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontWeight: '600' }}>Check</Text>}
+                  </TouchableOpacity>
+                </View>
+
+                {idAvailability === 'available' && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#10b981' }} />
+                    <Text style={{ fontSize: 13, color: '#10b981', fontWeight: '600' }}>ID "{checkedId}" is available!</Text>
+                  </View>
+                )}
+
+                {idAvailability === 'taken' && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#ef4444' }} />
+                    <Text style={{ fontSize: 13, color: '#ef4444', fontWeight: '600' }}>ID is already taken or active.</Text>
+                  </View>
+                )}
+
+                {idAvailability === 'invalid' && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#f59e0b' }} />
+                    <Text style={{ fontSize: 13, color: '#f59e0b', fontWeight: '600' }}>ID must be between 1 and 8 characters.</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
             {isLoadingStore ? (
               <View style={styles.centerBox}>
                 <ActivityIndicator color="#7c3aed" size="large" />
@@ -584,6 +813,26 @@ export default function StoreScreen() {
                         </View>
                       )}
                     </AvatarFrame>
+                  ) : previewItem.type === 'ID' ? (
+                    <View style={{ transform: [{ scale: 1.2 }] }}>
+                      {previewItem.isPinkDiamond ? <PinkDiamondIDBadgeIcon number={checkedId || '888888'} /> :
+                       previewItem.isSilver ? <SilverBlueIDBadgeIcon number={checkedId || '888888'} /> :
+                       <IDBadgeIcon number={checkedId || '888888'} />}
+                    </View>
+                  ) : previewItem.type === 'Bubble' ? (
+                    <View style={{ width: '100%', padding: 6, alignItems: 'center', justifyContent: 'center' }}>
+                      <ChatMessageBubble
+                        bubbleId={previewItem.id}
+                        bubbleMediaUrl={((typeof previewItem.videoUrl === 'string' && previewItem.videoUrl.startsWith('http')) ? previewItem.videoUrl : null) || ((typeof previewItem.imageUrl === 'string' && previewItem.imageUrl.startsWith('http')) ? previewItem.imageUrl : null)}
+                        isMe={false}
+                        showTail={false}
+                        style={{ alignSelf: 'center', transform: [{ scale: 1.4 }] }}
+                      >
+                        <Text style={{ fontSize: 11, color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>
+                          This is how your chat bubble looks! 💬🔥
+                        </Text>
+                      </ChatMessageBubble>
+                    </View>
                   ) : (
                     (() => {
                       const rawUrl = previewItem.videoUrl || previewItem.imageUrl;
@@ -600,13 +849,13 @@ export default function StoreScreen() {
                   )}
                 </View>
 
-                <Text style={styles.modalItemName}>{previewItem.name}</Text>
+                <Text style={styles.modalItemName}>{cleanItemName(previewItem.name)}</Text>
                 <Text style={styles.modalItemType}>{previewItem.type}</Text>
                 <Text style={styles.modalItemDesc}>{previewItem.description}</Text>
 
                 {/* Duration selector */}
                 <View style={styles.durationRow}>
-                  {[7, 3].map(d => (
+                  {(previewItem.type === 'ID' ? [3, 7, 15, 30] : [7, 3]).map(d => (
                     <TouchableOpacity
                       key={d}
                       onPress={() => setSelectedDuration(d)}
@@ -616,18 +865,19 @@ export default function StoreScreen() {
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
                         <GoldenCoin size={18} />
                         <Text style={[styles.durationPrice, { marginTop: 0 }, selectedDuration === d && styles.durationTextActive]}>
-                          {getPrice(previewItem.price, d).toLocaleString()}
+                          {getPrice(previewItem, d).toLocaleString()}
                         </Text>
                       </View>
                     </TouchableOpacity>
                   ))}
                 </View>
 
-                {isItemOwned(previewItem.id) ? (
+                {previewItem.type !== 'ID' && isItemOwned(previewItem.id) ? (
                   <View style={{ gap: 10 }}>
                     {(previewItem.type === 'Frame' && activeFrameId === previewItem.id) ||
                      (previewItem.type === 'Wave' && activeWaveId === previewItem.id) ||
                      (previewItem.type === 'Bubble' && activeBubbleId === previewItem.id) ||
+                     (previewItem.type === 'ID' && (userProfile?.inventory as any)?.activeID === previewItem.id) ||
                      (previewItem.type === 'Entry' && activeEntryEffect === (previewItem.entryType || 'line')) ? (
                       <View style={styles.ownedBox}>
                         <Check size={16} color="#10b981" />
@@ -660,17 +910,19 @@ export default function StoreScreen() {
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                           <Text style={styles.buyBtnText}>Buy</Text>
                           <GoldenCoin size={24} />
-                          <Text style={styles.buyBtnText}>{getPrice(previewItem.price, selectedDuration).toLocaleString()}</Text>
+                          <Text style={styles.buyBtnText}>{getPrice(previewItem, selectedDuration).toLocaleString()}</Text>
                         </View>
                       )}
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.sendBtn, { flex: 1 }, isProcessing && { opacity: 0.6 }]}
-                      onPress={() => setShowRecipientSearch(true)}
-                      disabled={isProcessing}
-                    >
-                      <Text style={styles.sendBtnText}>Send as Gift</Text>
-                    </TouchableOpacity>
+                    {previewItem.type !== 'ID' && (
+                      <TouchableOpacity
+                        style={[styles.sendBtn, { flex: 1 }, isProcessing && { opacity: 0.6 }]}
+                        onPress={() => setShowRecipientSearch(true)}
+                        disabled={isProcessing}
+                      >
+                        <Text style={styles.sendBtnText}>Send as Gift</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )}
               </>

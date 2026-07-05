@@ -29,7 +29,7 @@ import { GoldenCoin } from '../GoldenCoin';
 import { AvatarFrame } from '../profile/AvatarFrame';
 import { getTodayIST } from '../../lib/bonus-utils';
 
-const AnimatedG = Animated.createAnimatedComponent(G);
+const AnimatedG: any = Animated.createAnimatedComponent(G);
 const AnimatedLine = Animated.createAnimatedComponent(Line);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -1656,11 +1656,10 @@ export function LootBoxDisplay({ onOpenGate, onGateReady, roomId, topSupporters 
                   <Stop offset="0%" stopColor="#facc15" />
                   <Stop offset="100%" stopColor="#d97706" />
                 </SvgLinearGradient>
-                {/* Cockpit Canopy glass shader */}
                 <SvgLinearGradient id="refJetGlass" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <Stop offset="0%" stopColor="#e0f2fe" opacity={0.8} />
-                  <Stop offset="50%" stopColor="#7dd3fc" opacity={0.65} />
-                  <Stop offset="100%" stopColor="#0284c7" opacity={0.9} />
+                  <Stop offset="0%" stopColor="#e0f2fe" stopOpacity={0.8} />
+                  <Stop offset="50%" stopColor="#7dd3fc" stopOpacity={0.65} />
+                  <Stop offset="100%" stopColor="#0284c7" stopOpacity={0.9} />
                 </SvgLinearGradient>
                 {/* Engine Flame */}
                 <SvgLinearGradient id="refEngineFire" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -2009,8 +2008,8 @@ export function LootBoxDisplay({ onOpenGate, onGateReady, roomId, topSupporters 
                 </SvgLinearGradient>
                 {/* Fire Orange/Red Exhaust Flame */}
                 <SvgLinearGradient id="dangerousFlameGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <Stop offset="0%" stopColor="#ef4444" opacity={0.95} />
-                  <Stop offset="50%" stopColor="#f97316" opacity={0.75} />
+                  <Stop offset="0%" stopColor="#ef4444" stopOpacity={0.95} />
+                  <Stop offset="50%" stopColor="#f97316" stopOpacity={0.75} />
                   <Stop offset="100%" stopColor="transparent" />
                 </SvgLinearGradient>
                 <Filter id="dangerousOrangeGlow" x="-20%" y="-20%" width="140%" height="140%">
@@ -2622,10 +2621,10 @@ export function LootBoxDisplay({ onOpenGate, onGateReady, roomId, topSupporters 
                       </Text>
                       {isHighLvl && (
                         <>
-                          <Text style={{ fontSize: 6, color: '#f8fafc', fontWeight: '600', marginTop: 1, backgroundColor: 'rgba(251,191,36,0.15)', px: 4, borderRadius: 2, textAlign: 'center' }} numberOfLines={1}>
+                          <Text style={{ fontSize: 6, color: '#f8fafc', fontWeight: '600', marginTop: 1, backgroundColor: 'rgba(251,191,36,0.15)', paddingHorizontal: 4, borderRadius: 2, textAlign: 'center' }} numberOfLines={1}>
                             ✨ Theme Reward
                           </Text>
-                          <Text style={{ fontSize: 6, color: '#38bdf8', fontWeight: '600', marginTop: 1, backgroundColor: 'rgba(56,189,248,0.15)', px: 4, borderRadius: 2, textAlign: 'center' }} numberOfLines={1}>
+                          <Text style={{ fontSize: 6, color: '#38bdf8', fontWeight: '600', marginTop: 1, backgroundColor: 'rgba(56,189,248,0.15)', paddingHorizontal: 4, borderRadius: 2, textAlign: 'center' }} numberOfLines={1}>
                             🚀 {storeConfig.entryName}
                           </Text>
                         </>
