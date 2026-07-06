@@ -180,8 +180,9 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex }: LootingRoo
     }
     const rtdbPath = `rooms/${roomId}/lootGates/${levelIndex}/entries`;
     const unsub = onValue(databaseRef(database, rtdbPath), (snap: any) => {
-      const arr = snap.val();
-      if (Array.isArray(arr) && arr.includes(user.uid)) {
+      const val = snap.val();
+      const entries = Array.isArray(val) ? val : val ? Object.values(val) : [];
+      if (entries.includes(user.uid)) {
         setIsAuthorized(true);
       } else {
         setIsAuthorized(false);

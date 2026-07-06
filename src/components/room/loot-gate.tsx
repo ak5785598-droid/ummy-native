@@ -142,12 +142,9 @@ export function LootGate({
     if (!visible || !database || !roomId) return;
     const rtdbPath = `rooms/${roomId}/lootGates/${levelIndex}/entries`;
     const unsub = onValue(databaseRef(database, rtdbPath), (snap: any) => {
-      const arr = snap.val();
-      if (Array.isArray(arr)) {
-        setEntries(arr);
-      } else {
-        setEntries([]);
-      }
+      const val = snap.val();
+      const arr = Array.isArray(val) ? val : val ? Object.values(val) : [];
+      setEntries(arr as string[]);
     });
     return () => unsub();
   }, [visible, database, roomId, levelIndex]);
