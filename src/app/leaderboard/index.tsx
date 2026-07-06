@@ -568,7 +568,7 @@ const AnimatedAvatarFrame = React.memo(function AnimatedAvatarFrame({ children, 
   const hasFrame = !!(frameConfig?.isEnabled && ((frameConfig?.imageUrl?.startsWith('http')) || (frameConfig?.type === 'video' && frameConfig?.videoUrl?.startsWith('http'))));
   const isVideo = hasFrame && frameConfig?.type === 'video' && frameConfig?.videoUrl?.startsWith('http');
   const frameUrl = isVideo ? frameConfig!.videoUrl! : (frameConfig?.imageUrl || null);
-  const frameOverlaySize = size * 1.45;
+  const frameOverlaySize = size * 5.0;
 
   if (hasFrame) {
     return (
