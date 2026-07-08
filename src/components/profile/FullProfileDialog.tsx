@@ -358,10 +358,10 @@ export function FullProfileDialog({
     ]);
   }, [firestore, user, profile?.relationship, onOpenChange]);
 
-  if (!profile) return null;
+  const ownedVehicles = useMemo(() => profile?.inventory?.ownedItems?.filter((id: string) => id.includes('vehicle') || id.includes('car')) || [], [profile?.inventory?.ownedItems]);
+  const ownedFrames = useMemo(() => profile?.inventory?.ownedItems?.filter((id: string) => id.includes('frame') || id.includes('ring')) || [], [profile?.inventory?.ownedItems]);
 
-  const ownedVehicles = useMemo(() => profile.inventory?.ownedItems?.filter((id: string) => id.includes('vehicle') || id.includes('car')) || [], [profile.inventory?.ownedItems]);
-  const ownedFrames = useMemo(() => profile.inventory?.ownedItems?.filter((id: string) => id.includes('frame') || id.includes('ring')) || [], [profile.inventory?.ownedItems]);
+  if (!profile) return null;
 
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={() => onOpenChange(false)}>
