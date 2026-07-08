@@ -182,8 +182,8 @@ export default function ProfileScreen() {
         setIsBudgetId(d?.isBudgetId || false);
         if (d?.wallet) {
           setWallet(w => ({
-            coins: d.wallet.coins ?? w.coins,
-            diamonds: d.wallet.diamonds ?? w.diamonds,
+            coins: Math.max(0, d.wallet.coins ?? w.coins),
+            diamonds: Math.max(0, d.wallet.diamonds ?? w.diamonds),
           }));
         }
       }
@@ -195,8 +195,8 @@ export default function ProfileScreen() {
         const d = snap.data() as any;
         if (d?.wallet) {
           setWallet(w => ({
-            coins: d.wallet.coins ?? w.coins,
-            diamonds: d.wallet.diamonds ?? w.diamonds,
+            coins: Math.max(0, d.wallet.coins ?? w.coins),
+            diamonds: Math.max(0, d.wallet.diamonds ?? w.diamonds),
           }));
         }
       }
@@ -448,8 +448,12 @@ export default function ProfileScreen() {
                 <SVGA_GoldDollar />
                 <Text className="text-[10px] font-black text-[#5C4000] uppercase tracking-widest">Coins</Text>
               </View>
-              <Text className="font-black text-[20px] text-[#422E00] tracking-tighter absolute bottom-4 left-5">
-                {wallet.coins?.toFixed(1) || '0.0'}
+              <Text 
+                adjustsFontSizeToFit 
+                numberOfLines={1} 
+                style={{ position: 'absolute', bottom: 12, left: 16, right: 16, fontSize: 18, fontWeight: '900', color: '#422E00', letterSpacing: -0.5 }}
+              >
+                {wallet.coins?.toLocaleString() || '0'}
               </Text>
             </TouchableOpacity>
 
@@ -459,8 +463,12 @@ export default function ProfileScreen() {
                 <PremiumDiamond size={32} />
                 <Text className="text-[10px] font-black text-white uppercase tracking-widest">Diamonds</Text>
               </View>
-              <Text className="font-black text-[20px] text-white tracking-tighter absolute bottom-4 left-5">
-                {wallet.diamonds?.toFixed(1) || '0.0'}
+              <Text 
+                adjustsFontSizeToFit 
+                numberOfLines={1} 
+                style={{ position: 'absolute', bottom: 12, left: 16, right: 16, fontSize: 18, fontWeight: '900', color: '#ffffff', letterSpacing: -0.5 }}
+              >
+                {wallet.diamonds?.toLocaleString() || '0'}
               </Text>
             </TouchableOpacity>
           </View>

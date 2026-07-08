@@ -24,6 +24,7 @@ import {
   Trophy,
   Flame,
   X,
+  Castle,
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useUser, useCollection, useFirebase } from '../../firebase/provider';
@@ -33,7 +34,7 @@ import { toCDN } from '@/lib/cdn';
 
 const { width, height } = Dimensions.get('window');
 
-const PARTICLE_COUNT = 22;
+const PARTICLE_COUNT = 8;
 const HEART_EMOJIS = ['💖', '💕', '💗', '❤️', '💓', '💝', '🌹', '✨', '🫶', '💞'];
 
 /* ─────────────────────────────────────────────────
@@ -62,70 +63,7 @@ function getMedalStyle(rank: number) {
 /* ─────────────────────────────────────────────────
    Podium avatar for top 3
 ───────────────────────────────────────────────── */
-const PodiumCard = React.memo(function PodiumCard({ cp, rank, onPress }: { cp: any; rank: number; onPress: () => void }) {
-  const medal = getMedalStyle(rank);
-  const isCenter = rank === 1;
-  const cardH = isCenter ? 140 : 115;
-  const avatarSz = isCenter ? 54 : 42;
-
-  return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[styles.podiumCol, isCenter && styles.podiumColCenter]}>
-      {/* Glow halo */}
-      <View style={[styles.podiumGlow, { shadowColor: medal.glow, width: avatarSz + 24, height: avatarSz + 24, borderRadius: (avatarSz + 24) / 2 }]} />
-
-      {/* Crown for #1 */}
-      {isCenter && (
-        <View style={styles.podiumCrown}>
-          <Crown size={18} color="#FFD700" fill="#FFD700" />
-        </View>
-      )}
-
-      {/* Couple avatars */}
-      <View style={[styles.podiumAvatarRow, { marginBottom: 6 }]}>
-        <LinearGradient colors={medal.ring} style={[styles.podiumRingWrap, { width: avatarSz + 4, height: avatarSz + 4, borderRadius: (avatarSz + 4) / 2 }]}>
-          <Image
-            source={{ uri: toCDN(cp.user1Avatar) || 'https://picsum.photos/80' }}
-            style={{ width: avatarSz, height: avatarSz, borderRadius: avatarSz / 2, borderWidth: 2, borderColor: '#0d0019' }}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-          />
-        </LinearGradient>
-        <LinearGradient colors={medal.ring} style={[styles.podiumRingWrap, { width: avatarSz + 4, height: avatarSz + 4, borderRadius: (avatarSz + 4) / 2, marginLeft: -(avatarSz * 0.22) }]}>
-          <Image
-            source={{ uri: toCDN(cp.user2Avatar) || 'https://picsum.photos/81' }}
-            style={{ width: avatarSz, height: avatarSz, borderRadius: avatarSz / 2, borderWidth: 2, borderColor: '#0d0019' }}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-          />
-        </LinearGradient>
-      </View>
-
-      {/* Medal badge */}
-      <Text style={styles.podiumMedalEmoji}>{medal.label}</Text>
-
-      {/* Names */}
-      <Text style={[styles.podiumNames, isCenter && { fontSize: 11, color: '#fff' }]} numberOfLines={1}>
-        {cp.user1Name || '?'} & {cp.user2Name || '?'}
-      </Text>
-
-      {/* Score */}
-      <View style={styles.podiumScorePill}>
-        <LinearGradient colors={['rgba(244,63,94,0.35)', 'rgba(139,92,246,0.25)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.podiumScoreGrad}>
-          <Heart size={8} color="#f43f5e" fill="#f43f5e" />
-          <Text style={styles.podiumScore}>{cp.cpValue?.toLocaleString() || 0}</Text>
-        </LinearGradient>
-      </View>
-
-      {/* Podium base */}
-      <LinearGradient
-        colors={medal.ring}
-        style={[styles.podiumBase, { height: isCenter ? 36 : 24 }]}
-      >
-        <Text style={styles.podiumRankText}>#{rank}</Text>
-      </LinearGradient>
-    </TouchableOpacity>
-  );
-});
+// PodiumCard removed since it is replaced by Ferris Wheel map
 
 /* ─────────────────────────────────────────────────
    Row item for ranks 4+
@@ -259,9 +197,37 @@ export default function CpRankingScreen() {
   const heartBeat = useRef(new Animated.Value(1)).current;
   const headerSlide = useRef(new Animated.Value(-40)).current;
   const headerOpacity = useRef(new Animated.Value(0)).current;
+  const meteor1 = useRef(new Animated.Value(0)).current;
+  const meteor2 = useRef(new Animated.Value(0)).current;
+  const meteor3 = useRef(new Animated.Value(0)).current;
   const particles = useRef(buildParticles()).current;
 
   useEffect(() => {
+    // Shooting stars
+    const animateMeteor = (anim: Animated.Value, delay: number) => {
+      const loop = Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 1600,
+            useNativeDriver: true,
+            easing: Easing.out(Easing.quad),
+          }),
+          Animated.timing(anim, {
+            toValue: 0,
+            duration: 0,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      loop.start();
+      return loop;
+    };
+    const m1Loop = animateMeteor(meteor1, 0);
+    const m2Loop = animateMeteor(meteor2, 1400);
+    const m3Loop = animateMeteor(meteor3, 2800);
+
     // Header entrance
     Animated.parallel([
       Animated.spring(headerSlide, { toValue: 0, useNativeDriver: true, tension: 60, friction: 10 }),
@@ -277,33 +243,13 @@ export default function CpRankingScreen() {
     );
     glowLoop.start();
 
-    // Rotate rings
+    // Rotate rings (8000ms speed for Ferris Wheel)
     const rotateLoop = Animated.loop(
-      Animated.timing(rotateAnim, { toValue: 1, duration: 12000, useNativeDriver: true, easing: Easing.linear })
+      Animated.timing(rotateAnim, { toValue: 1, duration: 8000, useNativeDriver: true, easing: Easing.linear })
     );
     rotateLoop.start();
 
-    // Shimmer
-    const shimmerLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(shimmerAnim, { toValue: 1, duration: 2800, useNativeDriver: true, easing: Easing.inOut(Easing.quad) }),
-        Animated.delay(600),
-        Animated.timing(shimmerAnim, { toValue: 0, duration: 0, useNativeDriver: true }),
-      ])
-    );
-    shimmerLoop.start();
-
-    // Heartbeat
-    const heartLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(heartBeat, { toValue: 1.3, duration: 350, useNativeDriver: true }),
-        Animated.timing(heartBeat, { toValue: 1, duration: 350, useNativeDriver: true }),
-        Animated.delay(800),
-      ])
-    );
-    heartLoop.start();
-
-    // Particles
+    // Particles (optimized to 8 items to prevent CPU/GPU lags)
     const particleLoops = particles.map((p) => {
       const loop = Animated.loop(
         Animated.sequence([
@@ -319,19 +265,19 @@ export default function CpRankingScreen() {
     return () => {
       glowLoop.stop();
       rotateLoop.stop();
-      shimmerLoop.stop();
-      heartLoop.stop();
+      m1Loop.stop();
+      m2Loop.stop();
+      m3Loop.stop();
       particleLoops.forEach((l) => l.stop());
     };
   }, []);
 
   const spin = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
-  const spinReverse = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-360deg'] });
+  const spinInverse = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-360deg'] });
   const glowScale = glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1.06] });
-  const shimmerX = shimmerAnim.interpolate({ inputRange: [0, 1], outputRange: [-100, width + 100] });
 
-  const top3 = topCp?.slice(0, 3) || [];
-  const rest = topCp?.slice(3) || [];
+  const top7 = topCp?.slice(0, 7) || [];
+  const rest = topCp?.slice(7) || [];
 
   // Find my rank
   const myRank = topCp?.findIndex((c: any) => c.participantIds?.includes(user?.uid)) ?? -1;
@@ -342,13 +288,13 @@ export default function CpRankingScreen() {
 
       {/* ── ANIMATED BACKGROUND ── */}
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        {/* Base gradient */}
+        {/* Original Base gradient */}
         <LinearGradient
           colors={['#080014', '#120020', '#1e0038', '#120020', '#080014']}
           locations={[0, 0.2, 0.5, 0.8, 1]}
           style={StyleSheet.absoluteFill}
         />
-        {/* Pink-purple mid overlay */}
+        {/* Original Pink-purple mid overlay */}
         <LinearGradient
           colors={['transparent', 'rgba(244,63,94,0.1)', 'rgba(168,85,247,0.12)', 'transparent']}
           start={{ x: 0.1, y: 0.2 }}
@@ -356,8 +302,21 @@ export default function CpRankingScreen() {
           style={StyleSheet.absoluteFill}
         />
 
-        {/* Glow orb – top centre */}
-        <Animated.View style={[styles.glowOrb, { top: -80, left: width / 2 - 110, transform: [{ scale: glowScale }] }]}>
+        {/* Starry Galaxy background image (only behind the wheel) */}
+        <Image
+          source={require('../../../assets/images/haza_bg.png')}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 450, opacity: 0.9 }}
+          contentFit="fill"
+        />
+        {/* Overlay gradient to fade it to dark at the bottom of the image area */}
+        <LinearGradient
+          colors={['transparent', 'rgba(13,0,25,0.2)', '#120020']}
+          locations={[0, 0.6, 1]}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 450 }}
+        />
+
+        {/* Glow orb – top centre (opacity lowered to prevent washing out the starry image) */}
+        <Animated.View style={[styles.glowOrb, { top: -80, left: width / 2 - 110, transform: [{ scale: glowScale }], opacity: 0.15 }]}>
           <LinearGradient colors={['rgba(244,63,94,0.55)', 'transparent']} style={{ flex: 1, borderRadius: 110 }} />
         </Animated.View>
 
@@ -371,13 +330,37 @@ export default function CpRankingScreen() {
           <LinearGradient colors={['rgba(236,72,153,0.4)', 'transparent']} style={{ flex: 1, borderRadius: 80 }} />
         </Animated.View>
 
-        {/* Rotating rings */}
-        <Animated.View style={[styles.bigRing, { transform: [{ rotate: spin }] }]} />
-        <Animated.View style={[styles.midRing, { transform: [{ rotate: spinReverse }] }]} />
-        <Animated.View style={[styles.smallRing, { transform: [{ rotate: spin }] }]} />
-
-        {/* Shimmer sweep */}
-        <Animated.View style={[styles.shimmer, { transform: [{ translateX: shimmerX }] }]} />
+        {/* Shooting Stars (Meteors) in Top Part */}
+        {[
+          { anim: meteor1, top: 30, left: -20 },
+          { anim: meteor2, top: 110, left: 60 },
+          { anim: meteor3, top: 70, left: width * 0.35 },
+        ].map((m, i) => {
+          const translateX = m.anim.interpolate({ inputRange: [0, 1], outputRange: [-80, width * 0.7] });
+          const translateY = m.anim.interpolate({ inputRange: [0, 1], outputRange: [-80, height * 0.35] });
+          const opacity = m.anim.interpolate({ inputRange: [0, 0.15, 0.8, 1], outputRange: [0, 1, 1, 0] });
+          return (
+            <Animated.View
+              key={i}
+              style={[
+                styles.meteorLine,
+                {
+                  top: m.top,
+                  left: m.left,
+                  opacity,
+                  transform: [{ translateX }, { translateY }],
+                },
+              ]}
+            >
+              <LinearGradient
+                colors={['rgba(255,255,255,0.95)', 'rgba(236,72,153,0.3)', 'transparent']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+            </Animated.View>
+          );
+        })}
 
         {/* Floating particles */}
         {particles.map((p, i) => {
@@ -398,15 +381,11 @@ export default function CpRankingScreen() {
         {/* ── HEADER ── */}
         <Animated.View style={[styles.header, { transform: [{ translateY: headerSlide }], opacity: headerOpacity }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <ChevronLeft size={20} color="rgba(255,255,255,0.85)" />
+            <ChevronLeft size={16} color="rgba(255,255,255,0.85)" />
           </TouchableOpacity>
 
           <View style={styles.headerCenter}>
-            <Animated.View style={{ transform: [{ scale: heartBeat }] }}>
-              <Heart size={16} color="#f43f5e" fill="#f43f5e" />
-            </Animated.View>
-            <Text style={styles.headerTitle}>CP Ranking</Text>
-            <Sparkles size={14} color="#fbbf24" />
+            <Text style={styles.headerTitle}>TOP CP</Text>
           </View>
 
           <TouchableOpacity onPress={() => router.push('/cp-house')} style={styles.houseBtn}>
@@ -418,56 +397,139 @@ export default function CpRankingScreen() {
 
         {/* ── SCROLLABLE BODY ── */}
         <ScrollView
+          style={{ overflow: 'visible' }}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* My CP Banner */}
-          {activeCp && user?.uid && (
-            <View style={{ marginBottom: 20 }}>
-              <Text style={styles.sectionLabel}>
-                <Flame size={12} color="#f43f5e" /> {'  '}Your CP
-              </Text>
-              <MyCpBanner cp={activeCp} myUid={user.uid} onPress={() => setSelectedCp(activeCp)} />
-              {myRank >= 0 && (
-                <Text style={styles.myRankHint}>You are ranked #{myRank + 1} globally 🎉</Text>
+
+
+          {/* ── ROTATING FERRIS WHEEL MAP ── */}
+          {top7.length > 0 && (
+            <View style={styles.wheelMapContainer}>
+              {/* Soft cosmic background glow */}
+              <LinearGradient
+                colors={['transparent', 'rgba(236,72,153,0.06)', 'rgba(244,63,94,0.08)', 'transparent']}
+                style={StyleSheet.absoluteFill}
+              />
+
+              {/* Physical Ferris Wheel stand behind the rim */}
+              <LinearGradient
+                colors={['#FFD700', '#FFA500', '#FF8C00']}
+                style={styles.wheelSupportStand}
+              />
+              <LinearGradient
+                colors={['#FFD700', '#FFA500', '#FF8C00']}
+                style={styles.wheelSupportStandRight}
+              />
+
+              {/* 3D Metallic Stand Base (Platform) at the bottom */}
+              <LinearGradient
+                colors={['#FFD700', '#FFA500', '#FF8C00', '#FFD700']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.standBasePlatform}
+              />
+
+              {/* Rotating Outer Wheel */}
+              <Animated.View style={[styles.wheelRim, { transform: [{ rotate: spin }] }]}>
+                {/* Concentric inner circle for double ring effect */}
+                <View style={styles.wheelRimInner} />
+
+                {/* 12 Rotating Spokes with 2.8px thickness radiating from center (perfectly aligns with 6 seats) */}
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.wheelSpokeThick,
+                      { transform: [{ rotate: `${i * 30}deg` }] },
+                    ]}
+                  >
+                    {/* Solid Gold Spoke (top half of the parent height 240) */}
+                    <View
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: 2.8,
+                        height: 120,
+                        backgroundColor: '#fbbf24',
+                      }}
+                    />
+                  </View>
+                ))}
+                
+                 {/* 6 Rotating outer seats (Ranks #2 to #7) */}
+                 {top7.slice(1).map((cp: any, index: number) => {
+                   const rank = index + 2;
+                   const angle = (index * 60 * Math.PI) / 180;
+                   const x = 115 * Math.cos(angle);
+                   const y = 115 * Math.sin(angle);
+ 
+                   return (
+                     <Animated.View
+                       key={cp.id || index}
+                       style={[
+                         styles.wheelSeat,
+                         {
+                           left: 140 + x - 33, // 140 is center of 280px wheel, minus half of seat width (33px)
+                           top: 140 + y - 28,
+                           transform: [{ rotate: spinInverse }],
+                         },
+                       ]}
+                     >
+                      <TouchableOpacity
+                        onPress={() => setSelectedCp(cp)}
+                        activeOpacity={0.85}
+                        style={styles.seatClickTarget}
+                      >
+                        {/* Clean Circular CP Pair Container */}
+                        <View style={styles.seatCircleSimple}>
+                          <Image source={{ uri: toCDN(cp.user1Avatar) || 'https://picsum.photos/60' }} style={styles.seatAvatarLarge} contentFit="cover" cachePolicy="memory-disk" />
+                          <Image source={{ uri: toCDN(cp.user2Avatar) || 'https://picsum.photos/61' }} style={[styles.seatAvatarLarge, { marginLeft: -12 }]} contentFit="cover" cachePolicy="memory-disk" />
+                        </View>
+
+                        <View style={styles.seatBadge}>
+                          <Text style={styles.seatBadgeText}>TOP{rank}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    </Animated.View>
+                  );
+                })}
+              </Animated.View>
+
+              {/* Central Stationary Rank 1 Couple Card */}
+              {top7[0] && (
+                <TouchableOpacity 
+                  onPress={() => setSelectedCp(top7[0])}
+                  activeOpacity={0.9}
+                  style={styles.wheelCenterCard}
+                >
+                  {/* Floating Crown on TOP1 */}
+                  <View style={{ marginBottom: -6, zIndex: 12 }}>
+                    <Crown size={22} color="#FFD700" fill="#FFD700" />
+                  </View>
+
+                  {/* Clean Circular Center Container */}
+                  <View style={styles.centerCircleSimple}>
+                    <Image source={{ uri: toCDN(top7[0].user1Avatar) || 'https://picsum.photos/80' }} style={styles.centerAvatarLarge} contentFit="cover" cachePolicy="memory-disk" />
+                    <Heart size={14} color="#f43f5e" fill="#f43f5e" style={{ marginHorizontal: -4, zIndex: 10 }} />
+                    <Image source={{ uri: toCDN(top7[0].user2Avatar) || 'https://picsum.photos/81' }} style={styles.centerAvatarLarge} contentFit="cover" cachePolicy="memory-disk" />
+                  </View>
+
+                  <View style={styles.centerBadge}>
+                    <Text style={styles.centerBadgeText}>TOP1</Text>
+                  </View>
+                </TouchableOpacity>
               )}
+
+              {/* Pink cloud puff layers at the bottom of the stand */}
+              <View style={[styles.cloudPuff, { bottom: -10, left: -20, width: 140, height: 80, backgroundColor: 'rgba(236,72,153,0.32)' }]} />
+              <View style={[styles.cloudPuff, { bottom: -15, right: -20, width: 140, height: 80, backgroundColor: 'rgba(236,72,153,0.32)' }]} />
+              <View style={[styles.cloudPuff, { bottom: -20, width: 200, height: 85, backgroundColor: 'rgba(244,63,94,0.36)' }]} />
             </View>
           )}
 
-          {/* ── TOP 3 PODIUM ── */}
-          {top3.length > 0 && (
-            <View style={{ marginBottom: 24 }}>
-              <Text style={styles.sectionLabel}>
-                <Trophy size={12} color="#fbbf24" /> {'  '}Hall of Love
-              </Text>
 
-              {/* Decorative podium stage */}
-              <View style={styles.podiumStage}>
-                {/* Stage glow */}
-                <LinearGradient
-                  colors={['transparent', 'rgba(244,63,94,0.08)', 'rgba(139,92,246,0.06)', 'transparent']}
-                  style={StyleSheet.absoluteFill}
-                />
-
-                <View style={styles.podiumRow}>
-                  {/* 2nd place (left) */}
-                  {top3[1] && <PodiumCard cp={top3[1]} rank={2} onPress={() => setSelectedCp(top3[1])} />}
-                  {/* 1st place (center, raised) */}
-                  {top3[0] && <PodiumCard cp={top3[0]} rank={1} onPress={() => setSelectedCp(top3[0])} />}
-                  {/* 3rd place (right) */}
-                  {top3[2] && <PodiumCard cp={top3[2]} rank={3} onPress={() => setSelectedCp(top3[2])} />}
-                </View>
-
-                {/* Podium platform bar */}
-                <LinearGradient
-                  colors={['rgba(244,63,94,0.25)', 'rgba(139,92,246,0.25)', 'rgba(244,63,94,0.15)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.podiumPlatform}
-                />
-              </View>
-            </View>
-          )}
 
           {/* Divider */}
           <View style={styles.divider}>
@@ -504,9 +566,35 @@ export default function CpRankingScreen() {
             )}
           </View>
 
-          {/* Bottom padding */}
-          <View style={{ height: 40 }} />
+          {/* Bottom padding spacer to allow scroll past floating banner */}
+          <View style={{ height: 130 }} />
         </ScrollView>
+
+        {/* ── FLOATING BOTTOM OVERLAY ── */}
+        {activeCp && user?.uid ? (
+          <View style={styles.floatingBottomContainer}>
+            <View style={styles.parallelYellowLine} />
+            <MyCpBanner cp={activeCp} myUid={user.uid} onPress={() => setSelectedCp(activeCp)} />
+            {myRank >= 0 && (
+              <Text style={styles.myRankHint}>You are ranked #{myRank + 1} globally 🎉</Text>
+            )}
+          </View>
+        ) : (
+          <View style={styles.floatingBottomContainer}>
+            <View style={styles.parallelYellowLine} />
+            <LinearGradient
+              colors={['#FFD700', '#FFA500', '#FFD700']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.inviteBannerGrad}
+            >
+              <Text style={styles.inviteBannerText}>You don't have a CP yet</Text>
+              <TouchableOpacity onPress={() => router.push('/search')} style={styles.inviteButton}>
+                <Text style={styles.inviteButtonText}>Invite</Text>
+              </TouchableOpacity>
+            </LinearGradient>
+          </View>
+        )}
       </SafeAreaView>
 
       {/* ── CP PREVIEW MODAL ── */}
@@ -718,13 +806,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingTop: 8,
+    paddingVertical: 4,
+    paddingTop: 0,
+    marginTop: -8,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
@@ -757,13 +846,13 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   houseBtnGrad: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
     borderRadius: 18,
   },
   houseBtnText: {
     color: '#fff',
-    fontSize: 11,
+    fontSize: 9.5,
     fontWeight: '900',
     letterSpacing: 0.5,
   },
@@ -772,6 +861,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 8,
+    paddingBottom: 140,
   },
 
   // Section label
@@ -849,92 +939,210 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Podium
-  podiumStage: {
+  wheelMapContainer: {
+    height: 370,
     borderRadius: 24,
-    overflow: 'hidden',
-    paddingTop: 20,
-    paddingBottom: 0,
-    borderWidth: 1,
-    borderColor: 'rgba(244,63,94,0.15)',
-    backgroundColor: 'rgba(255,255,255,0.025)',
-  },
-  podiumRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+    marginTop: -55,
+    marginBottom: 16,
     justifyContent: 'center',
-    paddingHorizontal: 8,
-    gap: 6,
-  },
-  podiumCol: {
     alignItems: 'center',
-    width: (width - 64) / 3,
-    paddingBottom: 0,
   },
-  podiumColCenter: {
-    marginBottom: 18,
-  },
-  podiumGlow: {
-    position: 'absolute',
-    top: 0,
-    shadowColor: '#FFD700',
+  wheelRim: {
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    borderWidth: 3.5,
+    borderColor: '#fbbf24',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#fbbf24',
     shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 15,
+    elevation: 8,
+  },
+  wheelRimInner: {
+    position: 'absolute',
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    borderWidth: 1.6,
+    borderColor: 'rgba(251,191,36,0.55)',
+    shadowColor: '#fbbf24',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  wheelSpokeThick: {
+    position: 'absolute',
+    width: 2.8,
+    height: 240,
+  },
+  wheelSupportStand: {
+    position: 'absolute',
+    bottom: 20,
+    left: width / 2 - 38,
+    width: 12,
+    height: 175,
+    transform: [{ rotate: '16deg' }],
+    opacity: 0.9,
+  },
+  wheelSupportStandRight: {
+    position: 'absolute',
+    bottom: 20,
+    left: width / 2 + 26,
+    width: 12,
+    height: 175,
+    transform: [{ rotate: '-16deg' }],
+    opacity: 0.9,
+  },
+  standBasePlatform: {
+    position: 'absolute',
+    bottom: 12,
+    left: width / 2 - 80,
+    width: 160,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+    shadowColor: '#fbbf24',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.6,
-    shadowRadius: 18,
-    elevation: 10,
-    backgroundColor: 'transparent',
+    shadowRadius: 4,
+    elevation: 3,
   },
-  podiumCrown: {
-    marginBottom: 4,
+  wheelSeat: {
+    position: 'absolute',
+    width: 66,
+    alignItems: 'center',
   },
-  podiumAvatarRow: {
+  seatClickTarget: {
+    alignItems: 'center',
+  },
+  seatCircleSimple: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  podiumRingWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 2,
-  },
-  podiumMedalEmoji: {
-    fontSize: 16,
-    marginBottom: 4,
-  },
-  podiumNames: {
-    color: 'rgba(255,255,255,0.75)',
-    fontSize: 9.5,
-    fontWeight: '800',
-    textAlign: 'center',
-    marginBottom: 5,
-    paddingHorizontal: 2,
-  },
-  podiumScorePill: {
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  podiumScoreGrad: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    gap: 3,
-  },
-  podiumScore: {
-    color: '#f43f5e',
-    fontSize: 9,
-    fontWeight: '900',
-  },
-  podiumBase: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 4,
     paddingVertical: 2,
   },
-  podiumRankText: {
-    color: 'rgba(0,0,0,0.65)',
-    fontSize: 11,
+  seatAvatarLarge: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1.5,
+    borderColor: '#ffffff',
+  },
+  seatBadge: {
+    backgroundColor: '#f43f5e',
+    borderRadius: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    marginTop: 3,
+    borderWidth: 0.8,
+    borderColor: '#fbbf24',
+  },
+  seatBadgeText: {
+    color: '#fff',
+    fontSize: 7.5,
+    fontWeight: '900',
+  },
+  wheelCenterCard: {
+    position: 'absolute',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  centerCircleSimple: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  centerAvatarLarge: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    borderWidth: 2,
+    borderColor: '#ffffff',
+  },
+  centerBadge: {
+    backgroundColor: '#fbbf24',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: '#0d0019',
+  },
+  centerBadgeText: {
+    color: '#0d0019',
+    fontSize: 8,
+    fontWeight: 'bold',
+  },
+  cloudPuff: {
+    position: 'absolute',
+    height: 70,
+    borderRadius: 45,
+    opacity: 0.85,
+  },
+  meteorLine: {
+    position: 'absolute',
+    width: 90,
+    height: 1.8,
+    transform: [{ rotate: '35deg' }],
+  },
+  floatingBottomContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(13,0,25,0.96)',
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    paddingBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 20,
+  },
+  parallelYellowLine: {
+    height: 1.8,
+    backgroundColor: '#fbbf24',
+    borderRadius: 1,
+    marginBottom: 6,
+  },
+  inviteBannerGrad: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#fff',
+  },
+  inviteBannerText: {
+    color: '#0d0019',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  inviteButton: {
+    backgroundColor: '#db2777', // hot pink/magenta button
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#fff',
+    shadowColor: '#db2777',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  inviteButtonText: {
+    color: '#fff',
+    fontSize: 12,
     fontWeight: '900',
   },
   podiumPlatform: {
@@ -946,7 +1154,8 @@ const styles = StyleSheet.create({
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginTop: -10,
+    marginBottom: 2,
     gap: 10,
   },
   dividerLine: {
@@ -976,6 +1185,7 @@ const styles = StyleSheet.create({
   // Rank rows
   listContainer: {
     gap: 8,
+    marginTop: -4,
   },
   rankRow: {
     flexDirection: 'row',
@@ -1043,7 +1253,8 @@ const styles = StyleSheet.create({
   // Empty
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingTop: 4,
+    paddingBottom: 16,
   },
   emptyEmoji: {
     fontSize: 40,

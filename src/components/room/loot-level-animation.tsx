@@ -162,10 +162,10 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
       if (timerRef.current) clearTimeout(timerRef.current);
       return;
     }
-    // Auto-complete after 4.5 seconds
+    // Auto-complete after 1.5 seconds for lag-free instant play transition
     timerRef.current = setTimeout(() => {
       onComplete();
-    }, 4500);
+    }, 1500);
 
     // If it is the car level, trigger engine vibration, glow loop, and lightning bolt loops
     let cleanupFuncs: Array<() => void> = [];
@@ -505,10 +505,10 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
 
         setSummaryData(results);
 
-        // Show distribution report overlay card after coins shower finishes
-        setTimeout(() => {
-          setShowSummary(true);
-        }, 3200);
+        // Bypassed distribution report overlay to prevent game play flow freeze
+        // setTimeout(() => {
+        //   setShowSummary(true);
+        // }, 3200);
       };
 
       // Execute unlock sequence (matching HTML unlock() timing)

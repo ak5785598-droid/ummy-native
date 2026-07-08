@@ -74,9 +74,9 @@ export default function WalletScreen() {
     return () => sub.remove();
   }, [activeTab]);
 
-  const coins = userProfile?.wallet?.coins || 0;
-  const diamonds = userProfile?.wallet?.diamonds || 0;
-  const totalSpent = userProfile?.wallet?.totalSpent || 0;
+  const coins = Math.max(0, userProfile?.wallet?.coins || 0);
+  const diamonds = Math.max(0, userProfile?.wallet?.diamonds || 0);
+  const totalSpent = Math.max(0, userProfile?.wallet?.totalSpent || 0);
 
   // 1. RECHARGE COINS FLOW
   const handleOpenUPI = async () => {
@@ -274,7 +274,7 @@ export default function WalletScreen() {
             <LinearGradient colors={['#FFD700', '#FDB931', '#9E7302']} start={{x:0, y:0}} end={{x:1, y:1}} style={{ padding: 16, borderRadius: 20, minHeight: 90, justifyContent: 'center' }}>
               <Text style={styles.cardLabel}>Coins Balance</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
-                <Text style={[styles.cardValue, { fontSize: 32 }]} numberOfLines={1}>{coins.toLocaleString()}</Text>
+                <Text style={[styles.cardValue, { fontSize: 32 }]} adjustsFontSizeToFit numberOfLines={1}>{coins.toLocaleString()}</Text>
                 <GoldenCoin size={48} />
               </View>
             </LinearGradient>

@@ -1294,14 +1294,7 @@ export default function RoomScreen() {
         currentUserId={user?.uid}
         onCrack={(idx) => {
           setShowLootGate(false);
-          const levels = lootConfig?.levels || [];
-          const animUrl = levels[idx]?.animation;
-          if (animUrl) {
-            setLevelAnimationUrl(animUrl);
-            setShowLevelAnimation(true);
-          } else {
-            setTimeout(() => setShowLootingRoom(true), 300);
-          }
+          setTimeout(() => setShowLootingRoom(true), 300);
         }}
         lootConfig={lootConfig}
       />
@@ -1312,7 +1305,7 @@ export default function RoomScreen() {
         topSupporters={safeTopSupporters}
         onComplete={() => { setShowLevelAnimation(false); setLevelAnimationUrl(undefined); setTimeout(() => setShowLootingRoom(true), 300); }}
       />
-      <LootingRoom visible={showLootingRoom} onClose={() => setShowLootingRoom(false)} roomId={id} levelIndex={currentGateIndex} />
+      <LootingRoom visible={showLootingRoom} onClose={() => setShowLootingRoom(false)} roomId={id} levelIndex={currentGateIndex} isOwner={isOwner} />
       <MountOverlay visible={showMountOverlay} type="car" username={user?.displayName || 'Someone'} onComplete={() => setShowMountOverlay(false)} />
       <RoomEchoDialog visible={showEcho} onClose={() => { setShowEcho(false); setEchoTarget(null); }} targetUser={echoTarget} />
       <RoomThemeArchitectDialog visible={showThemeArchitect} onClose={() => setShowThemeArchitect(false)} roomId={id} isOwner={isOwner} />

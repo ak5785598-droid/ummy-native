@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, Modal, TouchableOpacity, Animated, Dimensions, StyleSheet } from 'react-native';
 import { X, ShieldAlert } from 'lucide-react-native';
 import { doc, increment } from '@/firebase/firestore-compat';
@@ -15,6 +15,7 @@ interface LootingRoomProps {
   onClose: () => void;
   roomId: string;
   levelIndex?: number;
+  isOwner?: boolean;
 }
 
 const COIN_EMOJI = String.fromCodePoint(0x1FA99);
@@ -150,7 +151,7 @@ function FallingReward({
   );
 }
 
-export function LootingRoom({ visible, onClose, roomId, levelIndex }: LootingRoomProps) {
+export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: LootingRoomProps) {
   const firestore = useFirestore();
   const database = useDatabase();
   const { user } = useUser();
@@ -178,20 +179,36 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex }: LootingRoo
       setIsAuthorized(null);
       return;
     }
+
+    if (isOwner) {
+      setIsAuthorized(true);
+      return;
+    }
+
     const rtdbPath = `rooms/${roomId}/lootGates/${levelIndex}/entries`;
     const unsub = onValue(databaseRef(database, rtdbPath), (snap: any) => {
       const val = snap.val();
-      const entries = Array.isArray(val) ? val : val ? Object.values(val) : [];
-      if (entries.includes(user.uid)) {
-        setIsAuthorized(true);
-      } else {
+      if (!val) {
         setIsAuthorized(false);
+        return;
       }
+      
+      let isUserJoined = false;
+      if (Array.isArray(val)) {
+        isUserJoined = val.includes(user.uid);
+      } else if (typeof val === 'object') {
+        if (val[user.uid] !== undefined) {
+          isUserJoined = true;
+        } else {
+          isUserJoined = Object.values(val).includes(user.uid);
+        }
+      }
+      setIsAuthorized(isUserJoined);
     }, (err) => {
       setIsAuthorized(false);
     });
     return () => unsub();
-  }, [visible, database, roomId, levelIndex, user?.uid]);
+  }, [visible, database, roomId, levelIndex, user?.uid, isOwner]);
 
   // Initialize and Countdown Timer
   useEffect(() => {
