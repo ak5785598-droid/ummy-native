@@ -1161,8 +1161,17 @@ export default function RoomScreen() {
             roomId={id}
             topSupporters={safeTopSupporters}
             isOwner={isOwner}
-            onOpenGate={(idx) => { setCurrentGateIndex(idx); setShowLootGate(true); }}
-            onGateReady={(idx, name) => { setCurrentGateIndex(idx); setCurrentGateLevelName(name); setShowLootGate(true); }}
+            onOpenGate={(idx) => { 
+              const LEVEL_NAMES = ['Home', 'Bank', 'Car', 'Hotel', 'Bus', 'Train', 'Ship', 'Aeroplane', 'Submarine', 'Rocket'];
+              setCurrentGateIndex(idx); 
+              setCurrentGateLevelName(LEVEL_NAMES[idx] || 'Home');
+              setShowLootGate(true); 
+            }}
+            onGateReady={(idx, name) => { 
+              setCurrentGateIndex(idx); 
+              setCurrentGateLevelName(name); 
+              setShowLootGate(true); 
+            }}
           />
         </View>
 
@@ -1294,7 +1303,7 @@ export default function RoomScreen() {
         currentUserId={user?.uid}
         onCrack={(idx) => {
           setShowLootGate(false);
-          setTimeout(() => setShowLootingRoom(true), 300);
+          setShowLevelAnimation(true);
         }}
         lootConfig={lootConfig}
       />
@@ -1303,7 +1312,11 @@ export default function RoomScreen() {
         videoUrl={levelAnimationUrl}
         levelName={currentGateLevelName}
         topSupporters={safeTopSupporters}
-        onComplete={() => { setShowLevelAnimation(false); setLevelAnimationUrl(undefined); setTimeout(() => setShowLootingRoom(true), 300); }}
+        onComplete={() => { 
+          setShowLevelAnimation(false); 
+          setLevelAnimationUrl(undefined); 
+          setShowLootingRoom(true); 
+        }}
       />
       <LootingRoom visible={showLootingRoom} onClose={() => setShowLootingRoom(false)} roomId={id} levelIndex={currentGateIndex} isOwner={isOwner} />
       <MountOverlay visible={showMountOverlay} type="car" username={user?.displayName || 'Someone'} onComplete={() => setShowMountOverlay(false)} />

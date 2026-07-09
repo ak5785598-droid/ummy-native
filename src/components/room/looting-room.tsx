@@ -1,36 +1,90 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { View, Text, Modal, TouchableOpacity, Animated, Dimensions, StyleSheet } from 'react-native';
-import { X, ShieldAlert } from 'lucide-react-native';
-import { doc, increment } from '@/firebase/firestore-compat';
+import { View, Text, Modal, TouchableOpacity, Animated, Dimensions, StyleSheet, Image, ScrollView } from 'react-native';
+import { ShieldAlert, Trophy } from 'lucide-react-native';
+import { Audio } from 'expo-av';
+import { doc, increment, onSnapshot } from '@/firebase/firestore-compat';
 import { useFirestore, useUser, useDatabase } from '../../firebase/provider';
-import { ref as databaseRef, onValue } from 'firebase/database';
+import { ref as databaseRef, onValue, set as rtdbSet } from 'firebase/database';
 import { updateDocumentNonBlocking } from '../../lib/non-blocking-writes';
+import { GoldenCoin } from '../GoldenCoin';
+import { PremiumDiamond } from '../PremiumDiamond';
+import { LootLevelAnimation } from './loot-level-animation';
 
 const { width, height } = Dimensions.get('window');
-const SESSION_DURATION = 60;
-const MAX_ITEMS = 30;
+const SESSION_DURATION = 30; // Changed from 60 to 30 seconds
+const MAX_ITEMS = 60; // Reduced from 120 to 60 for lag-free touch responsiveness
+const GAME_HEIGHT = height * 0.78; // occupy 78% of screen (positioned higher)
+const ANIMATION_BOTTOM_Y = 270; // Reverted falling items start coordinate to drop right below the original size animation
 
-interface LootingRoomProps {
-  visible: boolean;
-  onClose: () => void;
-  roomId: string;
-  levelIndex?: number;
-  isOwner?: boolean;
+const LEVEL_KEYS = ['home', 'bank', 'car', 'hotel', 'bus', 'train', 'ship', 'aeroplane', 'submarine', 'rocket'];
+const THRESHOLD_MAP = [10000000, 30000000, 50000000, 80000000, 90000000, 120000000, 130000000, 150000000, 180000000, 220000000];
+
+// Open-access, direct CDN URLs with double digits for Soundjay compliance (No 404 or 403 errors)
+const COIN_SOUND_URL = 'https://www.soundjay.com/buttons/sounds/button-09.mp3'; // High-pitched collect ping
+const BOX_SOUND_URL = 'https://www.soundjay.com/buttons/sounds/button-10.mp3'; // Grand level/prize chime
+const SKULL_SOUND_URL = 'https://www.soundjay.com/buttons/sounds/button-05.mp3'; // Penalty buzzer
+
+const LEVEL_SOUNDS: Record<string, string> = {
+  home: 'https://www.soundjay.com/buttons/sounds/button-03.mp3',
+  bank: 'https://www.soundjay.com/buttons/sounds/button-01.mp3',
+  car: 'https://www.soundjay.com/buttons/sounds/button-02.mp3',
+  hotel: 'https://www.soundjay.com/buttons/sounds/button-03.mp3',
+  bus: 'https://www.soundjay.com/buttons/sounds/button-04.mp3',
+  train: 'https://www.soundjay.com/buttons/sounds/button-04.mp3',
+  ship: 'https://www.soundjay.com/buttons/sounds/button-01.mp3',
+  aeroplane: 'https://www.soundjay.com/buttons/sounds/button-02.mp3',
+  submarine: 'https://www.soundjay.com/buttons/sounds/button-01.mp3',
+  rocket: 'https://www.soundjay.com/buttons/sounds/button-03.mp3',
+};
+
+// Throttled sound system — max 1 sound per SOUND_THROTTLE_MS to prevent audio overload
+let lastSoundTime = 0;
+const SOUND_THROTTLE_MS = 200;
+// Pre-loaded sound instances (created once, replayed)
+let coinSound: any = null;
+let boxSound: any = null;
+let skullSound: any = null;
+let soundsInitialized = false;
+
+async function initSounds() {
+  if (soundsInitialized) return;
+  try {
+    await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true, staysActiveInBackground: false });
+    const coin = await Audio.Sound.createAsync({ uri: COIN_SOUND_URL }, { volume: 0.5 });
+    coinSound = coin.sound;
+    const box = await Audio.Sound.createAsync({ uri: BOX_SOUND_URL }, { volume: 0.6 });
+    boxSound = box.sound;
+    const skull = await Audio.Sound.createAsync({ uri: SKULL_SOUND_URL }, { volume: 0.5 });
+    skullSound = skull.sound;
+    soundsInitialized = true;
+  } catch (e) {
+    // Audio init failed — will silently skip sounds
+  }
 }
 
-const COIN_EMOJI = String.fromCodePoint(0x1FA99);
-const GEM_EMOJI = String.fromCodePoint(0x1F48E);
-const STAR_EMOJI = String.fromCodePoint(0x2B50);
-const SKULL_EMOJI = String.fromCodePoint(0x1F480);
+async function playAudioEffect(type: 'coin' | 'box' | 'skull') {
+  const now = Date.now();
+  if (now - lastSoundTime < SOUND_THROTTLE_MS) return;
+  lastSoundTime = now;
+  try {
+    const sound = type === 'box' ? boxSound : type === 'skull' ? skullSound : coinSound;
+    if (sound) {
+      await sound.setPositionAsync(0);
+      await sound.playAsync();
+    }
+  } catch (e) {
+    // Replay failed — silently skip
+  }
+}
 
 const REWARD_TYPES = [
-  { emoji: COIN_EMOJI, value: 10, weight: 45 },
-  { emoji: COIN_EMOJI, value: 25, weight: 28 },
-  { emoji: COIN_EMOJI, value: 50, weight: 15 },
-  { emoji: GEM_EMOJI, value: 100, weight: 4 },
-  { emoji: GEM_EMOJI, value: 200, weight: 0.8 },
-  { emoji: STAR_EMOJI, value: 500, weight: 0.2 },
-  { emoji: SKULL_EMOJI, value: -50, weight: 7 }, // Penalty skull obstacle
+  { type: 'coin' as const, value: 10, weight: 15 },
+  { type: 'coin' as const, value: 25, weight: 10 },
+  { type: 'coin' as const, value: 50, weight: 5 },
+  { type: 'diamond' as const, value: 100, weight: 4 },
+  { type: 'diamond' as const, value: 200, weight: 1 },
+  { type: 'note' as const, value: 500, weight: 65 }, // Major proportion is cash notes (65% probability)
+  { type: 'skull' as const, value: -50, weight: 5 }, // Penalty skull obstacle
 ];
 
 function pickReward() {
@@ -65,10 +119,17 @@ interface Confetti {
 
 interface FallingItem {
   uid: string;
-  emoji: string;
+  type: 'coin' | 'diamond' | 'note' | 'skull' | 'box';
   value: number;
   x: number;
   startDelay: number;
+}
+
+interface LooterScore {
+  uid: string;
+  name: string;
+  avatar?: string;
+  score: number;
 }
 
 function FallingReward({
@@ -78,11 +139,11 @@ function FallingReward({
   isFrenzy,
 }: {
   item: FallingItem;
-  onCollect: (x: number, y: number, value: number, itemId: string) => void;
+  onCollect: (x: number, y: number, value: number, type: 'coin' | 'diamond' | 'note' | 'skull' | 'box', itemId: string) => void;
   collected: boolean;
   isFrenzy: boolean;
 }) {
-  const yPos = useRef(new Animated.Value(-60)).current;
+  const yPos = useRef(new Animated.Value(ANIMATION_BOTTOM_Y)).current; // Spawns and starts falling exactly below the animation (ANIMATION_BOTTOM_Y)
   const rotate = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(1)).current;
   const opacity = useRef(new Animated.Value(1)).current;
@@ -90,12 +151,16 @@ function FallingReward({
 
   useEffect(() => {
     if (collected) return;
-    const baseDuration = isFrenzy ? 1600 : 3500;
-    const randomDuration = isFrenzy ? 1000 : 2500;
+    
+    // Boxes fall slightly slower to be distinguished and easily clickable
+    const isBox = item.type === 'box';
+    const baseDuration = isBox ? 3000 : (isFrenzy ? 1200 : 2200);
+    const randomDuration = isBox ? 800 : (isFrenzy ? 400 : 1000);
     const fallDuration = baseDuration + Math.random() * randomDuration;
+    
     Animated.parallel([
       Animated.timing(yPos, {
-        toValue: height - 120,
+        toValue: GAME_HEIGHT - 90,
         duration: fallDuration,
         useNativeDriver: true,
       }),
@@ -103,18 +168,32 @@ function FallingReward({
         Animated.sequence([
           Animated.timing(rotate, {
             toValue: 1,
-            duration: 400 + Math.random() * 400,
+            duration: 350 + Math.random() * 300,
             useNativeDriver: true,
           }),
           Animated.timing(rotate, {
             toValue: 0,
-            duration: 400 + Math.random() * 400,
+            duration: 350 + Math.random() * 300,
             useNativeDriver: true,
           }),
         ])
       ),
     ]).start();
-  }, [isFrenzy]);
+
+    // Natural opacity fadeout at the bottom to avoid abrupt clipping inside the screen boundaries
+    const fadeOutDelay = fallDuration - 350;
+    const t = setTimeout(() => {
+      if (!collected) {
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      }
+    }, fadeOutDelay);
+
+    return () => clearTimeout(t);
+  }, [isFrenzy, collected]);
 
   const handlePress = () => {
     if (collected) return;
@@ -122,7 +201,7 @@ function FallingReward({
       Animated.spring(scale, { toValue: 1.6, friction: 3, useNativeDriver: true }),
       Animated.timing(opacity, { toValue: 0, duration: 250, useNativeDriver: true }),
     ]).start();
-    onCollect(xPos, height / 2, item.value, item.uid);
+    onCollect(xPos, GAME_HEIGHT / 2, item.value, item.type, item.uid);
   };
 
   const rotation = rotate.interpolate({
@@ -143,12 +222,51 @@ function FallingReward({
       <TouchableOpacity
         onPress={handlePress}
         activeOpacity={0.7}
-        style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }}
+        // Expanded hitSlop padding makes fast-moving item touches highly responsive and lag-free
+        hitSlop={{ top: 22, bottom: 22, left: 22, right: 22 }}
+        style={{ width: item.type === 'box' ? 80 : 56, height: item.type === 'box' ? 80 : 56, alignItems: 'center', justifyContent: 'center' }}
       >
-        <Text style={{ fontSize: 30 }}>{item.emoji}</Text>
+        {item.type === 'coin' && <GoldenCoin size={38} />}
+        {item.type === 'diamond' && <PremiumDiamond size={34} />}
+        {item.type === 'note' && (
+          /* Realistic US Dollar note style layout */
+          <View style={{ width: 56, height: 30, backgroundColor: '#85bb65', borderRadius: 2, borderWidth: 1.5, borderColor: '#2e5618', padding: 1, position: 'relative', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 2, elevation: 3 }}>
+            {/* Fine border inside the note */}
+            <View style={{ flex: 1, borderWidth: 0.5, borderColor: '#1b3f09', borderRadius: 1, alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+              {/* Corner mini dollar signs */}
+              <Text style={{ position: 'absolute', top: 0, left: 1, fontSize: 5, fontWeight: 'bold', color: '#1b3f09' }}>$</Text>
+              <Text style={{ position: 'absolute', top: 0, right: 1, fontSize: 5, fontWeight: 'bold', color: '#1b3f09' }}>$</Text>
+              <Text style={{ position: 'absolute', bottom: 0, left: 1, fontSize: 5, fontWeight: 'bold', color: '#1b3f09' }}>$</Text>
+              <Text style={{ position: 'absolute', bottom: 0, right: 1, fontSize: 5, fontWeight: 'bold', color: '#1b3f09' }}>$</Text>
+              
+              {/* Center Oval vignette (US President portrait area) */}
+              <View style={{ width: 22, height: 18, borderRadius: 9, backgroundColor: '#e2efda', borderWidth: 0.75, borderColor: '#4d7c0f', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 11, color: '#15803d', fontWeight: '900', marginTop: -1 }}>$</Text>
+              </View>
+            </View>
+          </View>
+        )}
+        {item.type === 'skull' && (
+          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#7f1d1d', borderWidth: 1.5, borderColor: '#ef4444', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 2, elevation: 3 }}>
+            <Text style={{ fontSize: 18 }}>💀</Text>
+          </View>
+        )}
+        {item.type === 'box' && (
+          <View style={{ width: 72, height: 72, alignItems: 'center', justifyContent: 'center', shadowColor: '#facc15', shadowOpacity: 0.7, shadowRadius: 12 }}>
+            <Text style={{ fontSize: 54 }}>🎁</Text>
+          </View>
+        )}
       </TouchableOpacity>
     </Animated.View>
   );
+}
+
+interface LootingRoomProps {
+  visible: boolean;
+  onClose: () => void;
+  roomId: string;
+  levelIndex?: number;
+  isOwner?: boolean;
 }
 
 export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: LootingRoomProps) {
@@ -160,18 +278,46 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
   const [timeLeft, setTimeLeft] = useState(SESSION_DURATION);
   const [floatingPops, setFloatingPops] = useState<FloatingPop[]>([]);
   const [confettiPieces, setConfettiPieces] = useState<Confetti[]>([]);
+  const [leaderboardScores, setLeaderboardScores] = useState<LooterScore[]>([]);
+  const [showResultPopup, setShowResultPopup] = useState(false);
+  const [profileName, setProfileName] = useState<string>('');
   const collectedItemsRef = useRef<Set<string>>(new Set());
   const comboCountRef = useRef(0);
-  const [comboDisplay, setComboDisplay] = useState(0);
 
   const popIdRef = useRef(0);
   const confettiIdRef = useRef(0);
   const lastCollectTimeRef = useRef<number>(0);
   const accumulatedScoreRef = useRef(0);
+  const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
   const isFrenzy = timeLeft <= 10 && timeLeft > 0;
+  const levelKey = levelIndex !== undefined ? LEVEL_KEYS[levelIndex] || 'home' : 'home';
+
+  // Dynamic Level Threshold and Reward Pool (2x Threshold Pool)
+  const currentThreshold = levelIndex !== undefined ? THRESHOLD_MAP[levelIndex] || 10000000 : 10000000;
+  const rewardPool = currentThreshold * 2;
+
+  // Listen directly to Firestore Profile Document to fetch latest updated user nickname/name
+  useEffect(() => {
+    if (!visible || !firestore || !user?.uid) {
+      setProfileName('');
+      return;
+    }
+    const profileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
+    const unsub = onSnapshot(profileRef, (snap) => {
+      const data = snap.data();
+      if (data && data.name) {
+        setProfileName(data.name);
+      } else {
+        setProfileName(user.displayName || 'Looter');
+      }
+    }, () => {
+      setProfileName(user.displayName || 'Looter');
+    });
+    return () => unsub();
+  }, [visible, firestore, user?.uid]);
 
   // Verify entry eligibility from RTD
   useEffect(() => {
@@ -210,6 +356,27 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
     return () => unsub();
   }, [visible, database, roomId, levelIndex, user?.uid, isOwner]);
 
+  // Subscribe to real-time participant scores
+  useEffect(() => {
+    if (!visible || !database || !roomId || levelIndex === undefined || isAuthorized !== true) {
+      setLeaderboardScores([]);
+      return;
+    }
+
+    const scoresPath = `rooms/${roomId}/lootGates/${levelIndex}/scores`;
+    const scoresRef = databaseRef(database, scoresPath);
+    const unsubScores = onValue(scoresRef, (snap) => {
+      const val = snap.val();
+      if (val) {
+        const scoresList = Object.values(val) as LooterScore[];
+        scoresList.sort((a, b) => b.score - a.score);
+        setLeaderboardScores(scoresList);
+      }
+    });
+
+    return () => unsubScores();
+  }, [visible, database, roomId, levelIndex, isAuthorized]);
+
   // Initialize and Countdown Timer
   useEffect(() => {
     if (!visible || isAuthorized !== true) {
@@ -218,22 +385,28 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
       setTimeLeft(SESSION_DURATION);
       setFloatingPops([]);
       setConfettiPieces([]);
+      setShowResultPopup(false);
       comboCountRef.current = 0;
-      setComboDisplay(0);
       collectedItemsRef.current = new Set();
       accumulatedScoreRef.current = 0;
       lastCollectTimeRef.current = 0;
       return;
     }
 
-    const initialItems: FallingItem[] = Array.from({ length: 8 }, (_, i) => {
+    // Initialize sound system and play level start sound
+    initSounds().then(() => {
+      playAudioEffect('box');
+    });
+
+    // Moderate initial fall to prevent start lag (15 items)
+    const initialItems: FallingItem[] = Array.from({ length: 15 }, (_, i) => {
       const r = pickReward();
       return {
         uid: `init_${Date.now()}_${i}`,
-        emoji: r.emoji,
+        type: r.type,
         value: r.value,
         x: Math.random() * (width - 60),
-        startDelay: i * 300,
+        startDelay: i * 30,
       };
     });
     setItems(initialItems);
@@ -253,27 +426,45 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
     };
   }, [visible, isAuthorized]);
 
-  // Handle dynamic spawn rate for Frenzy Mode
+  // Handle optimized dynamic spawn rate (Continuous rain, 2 items every 250ms)
+  // Balanced for smooth 60 FPS with responsive touch on all devices
   useEffect(() => {
     if (!visible || isAuthorized !== true || timeLeft === 0) return;
-    const spawnTime = isFrenzy ? 700 : 1600;
     const spawnInterval = setInterval(() => {
       setItems((prev) => {
-        const r = pickReward();
-        const newItem: FallingItem = {
-          uid: `spawn_${Date.now()}_${Math.random()}`,
-          emoji: r.emoji,
-          value: r.value,
-          x: Math.random() * (width - 60),
-          startDelay: 0,
-        };
-        const next = [...prev, newItem];
+        const batch: FallingItem[] = Array.from({ length: 2 }, () => {
+          const r = pickReward();
+          return {
+            uid: `spawn_${Date.now()}_${Math.random()}`,
+            type: r.type,
+            value: r.value,
+            x: Math.random() * (width - 60),
+            startDelay: 0,
+          };
+        });
+        const next = [...prev, ...batch];
         return next.length > MAX_ITEMS ? next.slice(next.length - MAX_ITEMS) : next;
       });
-    }, spawnTime);
+    }, 250);
 
     return () => clearInterval(spawnInterval);
-  }, [visible, isFrenzy, timeLeft === 0, isAuthorized]);
+  }, [visible, timeLeft === 0, isAuthorized]);
+
+  // Spawn 3-4 treasure boxes every 5 seconds (5s, 10s, 15s, 20s, 25s, 30s)
+  useEffect(() => {
+    if (!visible || isAuthorized !== true || timeLeft === 0) return;
+    // Trigger check every 5 seconds
+    if (timeLeft % 5 === 0 && timeLeft < SESSION_DURATION) {
+      const newBoxes: FallingItem[] = Array.from({ length: 3 + Math.floor(Math.random() * 2) }, (_, i) => ({
+        uid: `box_${Date.now()}_${i}_${Math.random()}`,
+        type: 'box',
+        value: Math.floor(10000000 + Math.random() * 40000000), // Random 1 Crore to 5 Crore
+        x: Math.random() * (width - 80),
+        startDelay: i * 150,
+      }));
+      setItems((prev) => [...prev, ...newBoxes]);
+    }
+  }, [timeLeft, visible, isAuthorized]);
 
   const spawnConfetti = useCallback((cx: number, cy: number) => {
     const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8'];
@@ -305,27 +496,31 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
   }, []);
 
   const handleCollect = useCallback(
-    (x: number, y: number, value: number, itemId: string) => {
+    (x: number, y: number, value: number, type: 'coin' | 'diamond' | 'note' | 'skull' | 'box', itemId: string) => {
       if (collectedItemsRef.current.has(itemId)) return;
       collectedItemsRef.current.add(itemId);
       let earnedCoins = value;
       let floatingColor = '#fbbf24';
 
+      // Play corresponding collection sound effect (throttled, max 1 per 200ms)
+      playAudioEffect(type === 'box' ? 'box' : type === 'skull' ? 'skull' : 'coin');
+
       if (value > 0) {
-        const now = Date.now();
-        const diff = now - lastCollectTimeRef.current;
-        let newCombo = 1;
-        if (diff <= 800) {
-          newCombo = comboCountRef.current + 1;
+        if (type !== 'box') {
+          const now = Date.now();
+          const diff = now - lastCollectTimeRef.current;
+          let newCombo = 1;
+          if (diff <= 800) {
+            newCombo = comboCountRef.current + 1;
+          }
+          comboCountRef.current = newCombo;
+          lastCollectTimeRef.current = now;
+
+          const comboMult = 1 + Math.min(Math.floor(newCombo / 3) * 0.5, 4.0);
+          const frenzyMult = isFrenzy ? 2 : 1;
+
+          earnedCoins = Math.round(value * comboMult * frenzyMult);
         }
-        comboCountRef.current = newCombo;
-        setComboDisplay(newCombo);
-        lastCollectTimeRef.current = now;
-
-        const comboMult = 1 + Math.min(Math.floor(newCombo / 3) * 0.5, 4.0);
-        const frenzyMult = isFrenzy ? 2 : 1;
-
-        earnedCoins = Math.round(value * comboMult * frenzyMult);
       } else {
         comboCountRef.current = 0;
         lastCollectTimeRef.current = 0;
@@ -337,7 +532,16 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
 
       const popId = popIdRef.current++;
       const anim = new Animated.Value(1);
-      const displayText = earnedCoins > 0 ? `+${earnedCoins}` : `${earnedCoins}`;
+      
+      // Format 1 Cr to 5 Cr pop text nicely
+      let displayText = '';
+      if (type === 'box') {
+        displayText = `+${(value / 10000000).toFixed(1)} Cr`;
+        floatingColor = '#facc15';
+      } else {
+        displayText = earnedCoins > 0 ? `+${earnedCoins}` : `${earnedCoins}`;
+      }
+
       setFloatingPops((prev) => [...prev, { id: popId, x, y, text: displayText, color: floatingColor, anim }]);
       Animated.parallel([
         Animated.timing(anim, { toValue: 0, duration: 1000, useNativeDriver: true }),
@@ -352,47 +556,92 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
     [isFrenzy, spawnConfetti]
   );
 
+  // Compute final distributed proportional share of the threshold pool
+  const getProportionalShare = useCallback((uid: string) => {
+    const totalRawScore = leaderboardScores.reduce((sum, item) => sum + item.score, 0);
+    const targetObj = leaderboardScores.find(item => item.uid === uid);
+    const targetRawScore = targetObj ? targetObj.score : (uid === user?.uid ? accumulatedScoreRef.current : 0);
+
+    if (totalRawScore <= 0) {
+      return 0; // Return 0 if there are no raw scores to split the pool
+    }
+
+    // Distribute the 2x Threshold dynamic rewardPool proportionally
+    return Math.round((targetRawScore / totalRawScore) * rewardPool);
+  }, [leaderboardScores, rewardPool, user?.uid]);
+
   const handleAutoClose = useCallback(() => {
-    const finalScore = accumulatedScoreRef.current;
-    if (finalScore > 0 && firestore && user?.uid && isAuthorized === true) {
-      updateDocumentNonBlocking(
-        doc(firestore, 'users', user.uid),
-        { 'wallet.coins': increment(finalScore) }
-      );
-      updateDocumentNonBlocking(
-        doc(firestore, 'users', user.uid, 'profile', user.uid),
-        { 'wallet.coins': increment(finalScore) }
-      );
+    if (firestore && user?.uid && isAuthorized === true) {
+      // Calculate real proportional share of the threshold pool
+      const poolShare = getProportionalShare(user.uid);
+      const rawLootScore = accumulatedScoreRef.current;
+      
+      // Sum BOTH values as requested: pool reward + direct tapped score
+      const finalCoinsReward = poolShare + rawLootScore;
+
+      if (finalCoinsReward > 0) {
+        // Real write operation crediting both distributed coins + tapped score to user's wallet
+        updateDocumentNonBlocking(
+          doc(firestore, 'users', user.uid),
+          { 'wallet.coins': increment(finalCoinsReward) }
+        );
+        updateDocumentNonBlocking(
+          doc(firestore, 'users', user.uid, 'profile', user.uid),
+          { 'wallet.coins': increment(finalCoinsReward) }
+        );
+      }
     }
     onClose();
-  }, [onClose, firestore, user, isAuthorized]);
+  }, [onClose, firestore, user, isAuthorized, getProportionalShare]);
 
+  // Sync final score to RTDB and trigger exactly ONE 5-second close timer (resolves dependencies cleanup bug)
   useEffect(() => {
-    if (visible && isAuthorized === true && timeLeft === 0) {
-      const t = setTimeout(handleAutoClose, 2000);
-      return () => clearTimeout(t);
-    }
-  }, [timeLeft, visible, isAuthorized, handleAutoClose]);
+    if (visible && isAuthorized === true && timeLeft === 0 && !showResultPopup) {
+      // Record user score to Realtime Database so other room participants can see it
+      if (database && roomId && levelIndex !== undefined && user?.uid) {
+        const userScoreRef = databaseRef(database, `rooms/${roomId}/lootGates/${levelIndex}/scores/${user.uid}`);
+        rtdbSet(userScoreRef, {
+          uid: user.uid,
+          name: profileName || user.displayName || 'Looter',
+          avatar: user.photoURL || '',
+          score: accumulatedScoreRef.current
+        }).catch(err => console.log('RTDB Score Sync Failed:', err));
+      }
 
-  const minutes = Math.floor(timeLeft / 60);
-  const seconds = timeLeft % 60;
+      // Display the multiplayer leaderboard popup
+      setShowResultPopup(true);
+
+      // Trigger the 5-second closing timeout exactly once
+      autoCloseTimerRef.current = setTimeout(() => {
+        handleAutoClose();
+      }, 5000);
+    }
+
+    return () => {
+      if (autoCloseTimerRef.current) {
+        clearTimeout(autoCloseTimerRef.current);
+      }
+    };
+  }, [timeLeft, visible, isAuthorized, database, roomId, levelIndex, user, profileName, showResultPopup, handleAutoClose]);
+
   const isEnding = timeLeft === 0;
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)' }}>
+    <Modal visible={visible} transparent={true} animationType="slide">
+      {/* Container is bottom sheet with transparent background */}
+      <View style={{ flex: 1, backgroundColor: 'transparent', justifyContent: 'flex-end' }}>
         
         {isAuthorized === null && (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ height: GAME_HEIGHT, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ color: '#fff', fontSize: 16 }}>Checking eligibility...</Text>
           </View>
         )}
 
         {isAuthorized === false && (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <View style={{ height: GAME_HEIGHT, backgroundColor: 'rgba(17,7,36,0.95)', borderTopLeftRadius: 28, borderTopRightRadius: 28, borderTopWidth: 2, borderTopColor: '#f59e0b', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
             <ShieldAlert size={48} color="#ef4444" />
             <Text style={{ color: '#ef4444', fontSize: 20, fontWeight: '900', marginTop: 16 }}>Access Denied</Text>
-            <Text style={{ color: '#94a3b8', fontSize: 14, textAlign: 'center', marginTop: 8, marginBottom: 24 }}>
+            <Text style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', marginTop: 8, marginBottom: 24 }}>
               You are not registered in the entry queue for this Loot Gate level. Only successfully joined participants can play.
             </Text>
             <TouchableOpacity
@@ -412,74 +661,19 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
         )}
 
         {isAuthorized === true && (
-          <>
-            {/* Frenzy Border Overlay */}
-            {isFrenzy && (
-              <View style={{
-                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                borderWidth: 4, borderColor: '#f59e0b', pointerEvents: 'none', zIndex: 10,
-                opacity: 0.8,
-              }} />
-            )}
-
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingHorizontal: 16,
-                paddingTop: 50,
-                paddingBottom: 8,
-                zIndex: 20,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={{ fontSize: 18 }}>ðŸŽ¯</Text>
-                <View>
-                  <Text style={{ color: '#fbbf24', fontSize: 16, fontWeight: '900' }}>Looting Room</Text>
-                  {isFrenzy && (
-                    <Text style={{ color: '#f59e0b', fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 }}>Frenzy Mode (2x)!</Text>
-                  )}
-                </View>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                {comboDisplay >= 3 && (
-                  <View style={{ backgroundColor: 'rgba(168,85,247,0.2)', borderWidth: 1, borderColor: '#c084fc', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4 }}>
-                    <Text style={{ color: '#c084fc', fontWeight: '900', fontSize: 11 }}>COMBO x{comboDisplay}</Text>
-                  </View>
-                )}
-                <View
-                  style={{
-                    backgroundColor: 'rgba(251,191,36,0.15)',
-                    borderRadius: 12,
-                    paddingHorizontal: 10,
-                    paddingVertical: 4,
-                    borderWidth: 1,
-                    borderColor: 'rgba(251,191,36,0.3)',
-                  }}
-                >
-                  <Text style={{ color: '#fbbf24', fontWeight: '900', fontSize: 14 }}>ðŸª™ {score.toLocaleString()}</Text>
-                </View>
-                <View
-                  style={{
-                    backgroundColor: timeLeft <= 10 ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.1)',
-                    borderRadius: 10,
-                    paddingHorizontal: 8,
-                    paddingVertical: 4,
-                    borderWidth: 1,
-                    borderColor: timeLeft <= 10 ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.15)',
-                  }}
-                >
-                  <Text style={{ color: timeLeft <= 10 ? '#ef4444' : '#fff', fontWeight: '900', fontSize: 13 }}>
-                    {minutes}:{seconds.toString().padStart(2, '0')}
-                  </Text>
-                </View>
-                <TouchableOpacity onPress={handleAutoClose} style={{ padding: 4 }}>
-                  <X size={18} color="rgba(255,255,255,0.5)" />
-                </TouchableOpacity>
-              </View>
+          <View style={{ height: GAME_HEIGHT, backgroundColor: 'transparent', overflow: 'visible' }}>
+            
+            {/* Position the detailed animation at the top of the sheet container (top: -30) */}
+            <View style={{ position: 'absolute', top: -30, left: 0, right: 0, alignItems: 'center', zIndex: 5, overflow: 'visible' }}>
+              <LootLevelAnimation 
+                visible={visible} 
+                asComponent={true} 
+                levelName={levelKey} 
+                onComplete={() => {}} 
+              />
             </View>
 
+            {/* Falling items viewport area */}
             <View style={{ flex: 1, zIndex: 15 }}>
               {items.map((item) => (
                 <FallingReward
@@ -547,14 +741,112 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
               <View style={{ position: 'absolute', bottom: 120, left: 0, right: 0, alignItems: 'center', zIndex: 30 }}>
                 <View style={{ backgroundColor: 'rgba(251,191,36,0.2)', borderRadius: 16, paddingHorizontal: 24, paddingVertical: 12, borderWidth: 1, borderColor: 'rgba(251,191,36,0.4)' }}>
                   <Text style={{ color: '#fbbf24', fontSize: 18, fontWeight: '900', textAlign: 'center' }}>
-                    Session ended! +{score.toLocaleString()} coins collected
+                    Session ended! Calculating rewards...
                   </Text>
                 </View>
               </View>
             )}
-          </>
+
+            {/* Multiplayer Leaderboard Popup (Show for 5 seconds after session ends) */}
+            {/* Set background to transparent overlay with soft dimming (rgba(0,0,0,0.45)) so chat room is visible */}
+            {showResultPopup && (
+              <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0, 0, 0, 0.45)', zIndex: 100, alignItems: 'center', justifyContent: 'center', padding: 16 }]}>
+                <View style={{ width: '96%', maxHeight: '80%', backgroundColor: 'rgba(30, 16, 56, 0.98)', borderRadius: 24, borderWidth: 2, borderColor: '#fbbf24', padding: 16, alignItems: 'center', shadowColor: '#fbbf24', shadowOpacity: 0.3, shadowRadius: 15 }}>
+                  
+                  {/* Leaderboard Icon & Header */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 5 }}>
+                    <Trophy color="#fbbf24" size={28} />
+                    <Text style={{ color: '#fff', fontSize: 22, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1.5 }}>
+                      Loot Results
+                    </Text>
+                  </View>
+
+                  {/* Dynamic Threshold dynamic pool details */}
+                  <Text style={{ color: '#fbbf24', fontSize: 13, fontWeight: 'bold', marginBottom: 12, textAlign: 'center' }}>
+                    Distributed from {rewardPool.toLocaleString()} Coins Pool!
+                  </Text>
+
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: 11, fontWeight: 'bold', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>
+                    Closing in 5 seconds...
+                  </Text>
+
+                  {/* Participant List */}
+                  <ScrollView style={{ width: '100%', marginBottom: 5 }} showsVerticalScrollIndicator={false}>
+                    {leaderboardScores.map((item, index) => {
+                      const isMe = item.uid === user?.uid;
+                      const poolShare = getProportionalShare(item.uid);
+                      const rawLoot = item.score;
+                      const totalWon = poolShare + rawLoot;
+
+                      return (
+                        <View
+                          key={item.uid}
+                          style={{
+                            backgroundColor: isMe ? 'rgba(251,191,36,0.12)' : 'rgba(255,255,255,0.03)',
+                            borderWidth: 1,
+                            borderColor: isMe ? '#fbbf24' : 'rgba(255,255,255,0.06)',
+                            borderRadius: 14,
+                            padding: 12,
+                            marginBottom: 8
+                          }}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                              {/* Rank */}
+                              <Text style={{ color: index === 0 ? '#fbbf24' : (index === 1 ? '#cbd5e1' : '#94a3b8'), fontSize: 15, fontWeight: 'bold', width: 22 }}>
+                                #{index + 1}
+                              </Text>
+
+                              {/* Avatar */}
+                              {item.avatar ? (
+                                <Image source={{ uri: item.avatar }} style={{ width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: '#a855f7' }} />
+                              ) : (
+                                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#581c87', alignItems: 'center', justifyContent: 'center' }}>
+                                  <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 13 }}>{item.name[0]?.toUpperCase()}</Text>
+                                </View>
+                              )}
+
+                              {/* Username */}
+                              <Text style={{ color: isMe ? '#fbbf24' : '#fff', fontSize: 14, fontWeight: isMe ? 'bold' : '500' }} numberOfLines={1}>
+                                {item.name} {isMe && '(You)'}
+                              </Text>
+                            </View>
+
+                            {/* Total Won Payout */}
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                              <Text style={{ color: '#facc15', fontSize: 15, fontWeight: 'bold' }}>
+                                +{totalWon.toLocaleString()}
+                              </Text>
+                              <GoldenCoin size={15} />
+                            </View>
+                          </View>
+
+                          {/* Breakdown display */}
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 0.5, borderTopColor: 'rgba(255,255,255,0.08)', paddingTop: 6 }}>
+                            <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>
+                              🎯 Tapped: +{rawLoot.toLocaleString()}
+                            </Text>
+                            <Text style={{ color: '#a855f7', fontSize: 11, fontWeight: '600' }}>
+                              🎁 Pool Share: +{poolShare.toLocaleString()}
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+
+                    {leaderboardScores.length === 0 && (
+                      <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                        <Text style={{ color: '#94a3b8' }}>No participant score recorded</Text>
+                      </View>
+                    )}
+                  </ScrollView>
+                </View>
+              </View>
+            )}
+          </View>
         )}
       </View>
     </Modal>
   );
 }
+const styles = StyleSheet.create({});

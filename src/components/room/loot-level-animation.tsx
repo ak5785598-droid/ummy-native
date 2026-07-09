@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Modal, Animated, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, Modal, Animated, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GoldenCoin } from '../GoldenCoin';
@@ -34,9 +34,10 @@ interface LootLevelAnimationProps {
   levelName?: string;
   topSupporters?: TopSupporter[];
   onComplete: () => void;
+  asComponent?: boolean;
 }
 
-export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters = [], onComplete }: LootLevelAnimationProps) {
+export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters = [], onComplete, asComponent = false }: LootLevelAnimationProps) {
   const videoRef = useRef<any>(null);
   const [status, setStatus] = useState<any>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -162,6 +163,7 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
       if (timerRef.current) clearTimeout(timerRef.current);
       return;
     }
+    if (asComponent) return; // Do not auto-close if rendered as component inside looting game
     // Auto-complete after 1.5 seconds for lag-free instant play transition
     timerRef.current = setTimeout(() => {
       onComplete();
@@ -536,6 +538,7 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
 
   const isCarLevel = levelName?.toLowerCase() === 'car';
   const isHomeLevel = levelName?.toLowerCase() === 'home';
+  const isHotelLevel = levelName?.toLowerCase() === 'hotel';
   const isBankLevel = levelName?.toLowerCase() === 'bank';
   const isBusLevel = levelName?.toLowerCase() === 'bus';
   const isTrainLevel = levelName?.toLowerCase() === 'train';
@@ -544,11 +547,9 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
   const isSubmarineLevel = levelName?.toLowerCase() === 'submarine';
   const isRocketLevel = levelName?.toLowerCase() === 'rocket';
 
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onComplete}>
-      <View style={styles.container}>
-        <View style={(isCarLevel || isHomeLevel || isBankLevel || isBusLevel || isTrainLevel || isShipLevel || isPlaneLevel || isSubmarineLevel || isRocketLevel) ? styles.carWrapper : styles.videoWrapper}>
-          {videoUrl && !isCarLevel && !isHomeLevel && !isBankLevel && !isBusLevel && !isTrainLevel && !isShipLevel && !isPlaneLevel && !isSubmarineLevel && !isRocketLevel ? (
+  const innerContent = (
+    <>
+      {videoUrl && !isCarLevel && !isHomeLevel && !isBankLevel && !isBusLevel && !isTrainLevel && !isShipLevel && !isPlaneLevel && !isSubmarineLevel && !isRocketLevel ? (
             <Video
               ref={videoRef}
               source={{ uri: videoUrl }}
@@ -562,12 +563,14 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
             <View style={styles.carStage}>
 
               {/* 1. SKY BACKGROUND */}
-              <View style={StyleSheet.absoluteFillObject}>
-                <LinearGradient
-                  colors={['#04010d', '#080218', '#050209']}
-                  style={{ flex: 1 }}
-                />
-              </View>
+              {!asComponent && (
+                <View style={StyleSheet.absoluteFillObject}>
+                  <LinearGradient
+                    colors={['#04010d', '#080218', '#050209']}
+                    style={{ flex: 1 }}
+                  />
+                </View>
+              )}
 
               {/* 2. CITY SILHOUETTE */}
               <View style={{ position: 'absolute', bottom: 65, left: 0, right: 0, height: 140 }}>
@@ -1209,15 +1212,170 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
                 transform: [{ scale: glowPulse }]
               }} />
             </View>
+          ) : isHotelLevel ? (
+            <View style={[styles.carStage, asComponent && { backgroundColor: 'transparent' }]}>
+              <Text style={{ color: '#a855f7', fontSize: 20, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 2.5, marginBottom: 4, alignSelf: 'center' }}>
+                Level Up: Hotel!
+              </Text>
+              <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: '600', marginBottom: 15, alignSelf: 'center' }}>
+                Unlocking Cyber Hotel Level...
+              </Text>
+
+              <View style={{ alignItems: 'center', justifyContent: 'center', width: 340, height: 300, position: 'relative' }}>
+                {/* Under-pedestal glowing ring */}
+                <Animated.View
+                  style={{ position: 'absolute', width: 340, height: 340, borderRadius: 170, backgroundColor: 'rgba(236,72,153,0.08)', shadowColor: '#ec4899', shadowOpacity: 0.45, shadowRadius: 65, transform: [{ scale: glowPulse }], opacity: 0.68 }}
+                  pointerEvents="none"
+                />
+
+                <Animated.View style={{ transform: [{ scale: glowPulse }, { translateY: engineVibe }], width: 340, height: 300 }}>
+                  <Svg width="340" height="300" viewBox="0 0 400 400" style={{ overflow: 'visible' }}>
+                    <Defs>
+                      <SvgLinearGradient id="hotelHullGrad" x1="0" y1="0" x2="1" y2="1">
+                        <Stop offset="0%" stopColor="#1e1b4b" />
+                        <Stop offset="50%" stopColor="#311042" />
+                        <Stop offset="100%" stopColor="#030712" />
+                      </SvgLinearGradient>
+                      <SvgLinearGradient id="hotelGlassCyan" x1="0" y1="0" x2="0" y2="1">
+                        <Stop offset="0%" stopColor="#00f3ff" />
+                        <Stop offset="100%" stopColor="#1e3a8a" />
+                      </SvgLinearGradient>
+                      <Filter id="hotelNeonPink" x="-20%" y="-20%" width="140%" height="140%">
+                        <FeGaussianBlur stdDeviation="6" result="blur" />
+                        <FeMerge>
+                          <FeMergeNode in="blur" />
+                          <FeMergeNode in="SourceGraphic" />
+                        </FeMerge>
+                      </Filter>
+                    </Defs>
+
+                    {/* Shadow Base */}
+                    <Ellipse cx="200" cy="350" rx="150" ry="22" fill="rgba(0,0,0,0.6)" />
+
+                    {/* Under-pedestal glowing ring */}
+                    <Ellipse cx="200" cy="350" rx="170" ry="30" fill="none" stroke="#ec4899" strokeWidth={2.5} filter="url(#hotelNeonPink)" />
+                    <Ellipse cx="200" cy="350" rx="120" ry="18" fill="none" stroke="#00f3ff" strokeWidth={1.5} />
+
+                    {/* Tower 1 (Left Wing Side Tower) */}
+                    <G transform="translate(-10, 20)">
+                      <Path d="M100 320 L150 295 L150 160 L100 185 Z" fill="url(#hotelHullGrad)" stroke="#ec4899" strokeWidth={1} />
+                      <Path d="M150 295 L200 320 L200 185 L150 160 Z" fill="#030712" stroke="#ec4899" strokeWidth={1} />
+                      
+                      {/* Glowing rooms/windows grid */}
+                      <Rect fill="#00f3ff" x="112" y="200" width="8" height="15" rx="1" filter="url(#hotelNeonPink)" opacity={0.8} />
+                      <Rect fill="#00f3ff" x="128" y="200" width="8" height="15" rx="1" filter="url(#hotelNeonPink)" opacity={0.8} />
+                      <Rect fill="#ec4899" x="162" y="195" width="8" height="15" rx="1" filter="url(#hotelNeonPink)" opacity={0.9} />
+                      <Rect fill="#ec4899" x="178" y="195" width="8" height="15" rx="1" filter="url(#hotelNeonPink)" opacity={0.9} />
+
+                      <Rect fill="#00f3ff" x="112" y="235" width="8" height="15" rx="1" filter="url(#hotelNeonPink)" opacity={0.8} />
+                      <Rect fill="#00f3ff" x="128" y="235" width="8" height="15" rx="1" filter="url(#hotelNeonPink)" opacity={0.8} />
+                      <Rect fill="#ec4899" x="162" y="230" width="8" height="15" rx="1" filter="url(#hotelNeonPink)" opacity={0.9} />
+                      <Rect fill="#ec4899" x="178" y="230" width="8" height="15" rx="1" filter="url(#hotelNeonPink)" opacity={0.9} />
+
+                      <Rect fill="#ec4899" x="112" y="270" width="8" height="15" rx="1" filter="url(#hotelNeonPink)" opacity={0.9} />
+                      <Rect fill="#00f3ff" x="162" y="265" width="8" height="15" rx="1" filter="url(#hotelNeonPink)" opacity={0.8} />
+                    </G>
+
+                    {/* Tower 2 (Right Wing Side Tower) */}
+                    <G transform="translate(10, 20)">
+                      <Path d="M200 320 L250 295 L250 160 L200 185 Z" fill="url(#hotelHullGrad)" stroke="#00f3ff" strokeWidth={1} />
+                      <Path d="M250 295 L300 320 L300 185 L250 160 Z" fill="#030712" stroke="#00f3ff" strokeWidth={1} />
+
+                      {/* Glowing rooms/windows grid */}
+                      <Rect fill="#ec4899" x="212" y="195" width="8" height="15" rx="1" filter="url(#hotelNeonPink)" opacity={0.9} />
+                      <Rect fill="#00f3ff" x="262" y="200" width="8" height="15" rx="1" filter="url(#hotelNeonPink)" opacity={0.8} />
+                      <Rect fill="#00f3ff" x="278" y="200" width="8" height="15" rx="1" filter="url(#hotelNeonPink)" opacity={0.8} />
+
+                      <Rect fill="#ec4899" x="212" y="230" width="8" height="15" rx="1" filter="url(#hotelNeonPink)" opacity={0.9} />
+                      <Rect fill="#00f3ff" x="262" y="235" width="8" height="15" rx="1" filter="url(#hotelNeonPink)" opacity={0.8} />
+                      <Rect fill="#00f3ff" x="278" y="235" width="8" height="15" rx="1" filter="url(#hotelNeonPink)" opacity={0.8} />
+
+                      <Rect fill="#00f3ff" x="212" y="265" width="8" height="15" rx="1" filter="url(#hotelNeonPink)" opacity={0.8} />
+                      <Rect fill="#ec4899" x="262" y="270" width="8" height="15" rx="1" filter="url(#hotelNeonPink)" opacity={0.9} />
+                    </G>
+
+                    {/* Center Main Tall Penthouse Block */}
+                    <Path d="M140 310 L200 280 L260 310 L260 90 L200 60 L140 90 Z" fill="url(#hotelHullGrad)" stroke="#00f3ff" strokeWidth={2.5} />
+                    <Path d="M200 280 L260 310 L260 90 L200 60 Z" fill="#030712" stroke="#ec4899" strokeWidth={1.5} />
+
+                    {/* Vertical Glowing Cyber strip down the center */}
+                    <Line x1="200" y1="60" x2="200" y2="280" stroke="#00f3ff" strokeWidth={3} filter="url(#hotelNeonPink)" />
+
+                    {/* Grand glass balconies & suites */}
+                    <Path d="M152 140 L200 115 L248 140" fill="none" stroke="#ec4899" strokeWidth={2} filter="url(#hotelNeonPink)" />
+                    <Path d="M152 200 L200 175 L248 200" fill="none" stroke="#00f3ff" strokeWidth={2.5} />
+                    <Path d="M152 260 L200 235 L248 260" fill="none" stroke="#ec4899" strokeWidth={2} filter="url(#hotelNeonPink)" />
+
+                    {/* Cyber Signboard "HOTEL" Text Design */}
+                    <G transform="translate(162, 102)">
+                      <Rect x="0" y="0" width="76" height="24" rx="4" fill="#020617" stroke="#ec4899" strokeWidth={2} filter="url(#hotelNeonPink)" />
+                      <SvgText x="38" y="16" fill="#00f3ff" fontSize="11" fontWeight="bold" textAnchor="middle" letterSpacing={2}>
+                        HOTEL
+                      </SvgText>
+                    </G>
+
+                    {/* Penthouse Crown Roof Helipad Deck */}
+                    <Path d="M140 90 L200 60 L260 90 L200 108 Z" fill="#1e1b4b" stroke="#00f3ff" strokeWidth={2.5} />
+                    <Ellipse cx="200" cy="84" rx="35" ry="12" fill="none" stroke="#ec4899" strokeWidth={2} filter="url(#hotelNeonPink)" />
+                    <SvgText x="200" y="88" fill="#fff" fontSize="12" fontWeight="bold" textAnchor="middle">
+                      H
+                    </SvgText>
+
+                    {/* Cyber Scanner Sweeping laser line */}
+                    <AnimatedLine
+                      x1="144"
+                      y1={beamPulseAnim.interpolate({ inputRange: [0.15, 0.85], outputRange: [92, 290] })}
+                      x2="256"
+                      y2={beamPulseAnim.interpolate({ inputRange: [0.15, 0.85], outputRange: [92, 290] })}
+                      stroke="#00f3ff"
+                      strokeWidth={2}
+                      opacity={0.8}
+                      filter="url(#hotelNeonPink)"
+                    />
+
+                    {/* Satellite Dish */}
+                    <AnimatedG style={{
+                      transform: [{
+                        rotate: orbitAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0deg', '360deg']
+                        })
+                      }],
+                      originX: 200,
+                      originY: 84
+                    }}>
+                      <Path d="M190 74 Q200 64 210 74" fill="none" stroke="#ec4899" strokeWidth={2} filter="url(#hotelNeonPink)" />
+                      <Line x1="200" y1="74" x2="200" y2="68" stroke="#00f3ff" strokeWidth={2} />
+                    </AnimatedG>
+                  </Svg>
+                </Animated.View>
+              </View>
+
+              {/* Glowing Ambient Pedestal Ring */}
+              <Animated.View style={{
+                marginTop: 15,
+                width: 270,
+                height: 18,
+                borderRadius: 12,
+                borderWidth: 1.5,
+                borderColor: '#ec4899',
+                backgroundColor: 'rgba(236,72,153,0.05)',
+                opacity: glowPulse,
+                transform: [{ scale: glowPulse }],
+                alignSelf: 'center'
+              }} />
+            </View>
           ) : isBankLevel ? (
             <View style={styles.carStage}>
               {/* 1. BANK DIGITAL SKY BACKDROP */}
-              <View style={StyleSheet.absoluteFillObject}>
-                <LinearGradient
-                  colors={['#020108', '#050314', '#010006']}
-                  style={{ flex: 1 }}
-                />
-              </View>
+              {!asComponent && (
+                <View style={StyleSheet.absoluteFillObject}>
+                  <LinearGradient
+                    colors={['#020108', '#050314', '#010006']}
+                    style={{ flex: 1 }}
+                  />
+                </View>
+              )}
 
               {/* SCENE GLOW – pulsing radial behind the bank building */}
               <Animated.View
@@ -1506,24 +1664,26 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
             </View>
           ) : isBusLevel ? (
             /* Cyber MagLev Smart Bus Animation Modal View */
-            <View style={{ flex: 1, backgroundColor: '#020210', position: 'relative', overflow: 'hidden' }}>
+            <View style={{ flex: 1, backgroundColor: asComponent ? 'transparent' : '#020210', position: 'relative', overflow: 'hidden' }}>
               {/* Stars / Speed Sparks Background */}
-              <View style={StyleSheet.absoluteFill}>
-                {Array.from({ length: 12 }).map((_, i) => (
-                  <View
-                    key={`star-${i}`}
-                    style={{
-                      position: 'absolute',
-                      top: `${Math.random() * 80}%`,
-                      left: `${Math.random() * 90}%`,
-                      width: 2,
-                      height: 2,
-                      backgroundColor: i % 2 === 0 ? '#00f3ff' : '#ec4899',
-                      opacity: 0.45
-                    }}
-                  />
-                ))}
-              </View>
+              {!asComponent && (
+                <View style={StyleSheet.absoluteFill}>
+                  {Array.from({ length: 12 }).map((_, i) => (
+                    <View
+                      key={`star-${i}`}
+                      style={{
+                        position: 'absolute',
+                        top: `${Math.random() * 80}%`,
+                        left: `${Math.random() * 90}%`,
+                        width: 2,
+                        height: 2,
+                        backgroundColor: i % 2 === 0 ? '#00f3ff' : '#ec4899',
+                        opacity: 0.45
+                      }}
+                    />
+                  ))}
+                </View>
+              )}
 
               {/* 3D Tilted Propeller Beam */}
               <Animated.View style={{
@@ -1685,24 +1845,26 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
             </View>
           ) : isTrainLevel ? (
             /* Cyber MagLev Bullet Train Animation Modal View - Curving Space Tracks */
-            <View style={{ flex: 1, backgroundColor: '#020617', position: 'relative', overflow: 'hidden' }}>
+            <View style={{ flex: 1, backgroundColor: asComponent ? 'transparent' : '#020617', position: 'relative', overflow: 'hidden' }}>
               {/* Stars / Space dust in background */}
-              <View style={StyleSheet.absoluteFill}>
-                {Array.from({ length: 20 }).map((_, i) => (
-                  <View
-                    key={`train-star-${i}`}
-                    style={{
-                      position: 'absolute',
-                      top: `${Math.random() * 85}%`,
-                      left: `${Math.random() * 95}%`,
-                      width: i % 2 === 0 ? 3 : 1.5,
-                      height: i % 2 === 0 ? 3 : 1.5,
-                      backgroundColor: i % 3 === 0 ? '#00f3ff' : i % 3 === 1 ? '#fbbf24' : '#e0f',
-                      opacity: 0.65
-                    }}
-                  />
-                ))}
-              </View>
+              {!asComponent && (
+                <View style={StyleSheet.absoluteFill}>
+                  {Array.from({ length: 20 }).map((_, i) => (
+                    <View
+                      key={`train-star-${i}`}
+                      style={{
+                        position: 'absolute',
+                        top: `${Math.random() * 85}%`,
+                        left: `${Math.random() * 95}%`,
+                        width: i % 2 === 0 ? 3 : 1.5,
+                        height: i % 2 === 0 ? 3 : 1.5,
+                        backgroundColor: i % 3 === 0 ? '#00f3ff' : i % 3 === 1 ? '#fbbf24' : '#e0f',
+                        opacity: 0.65
+                      }}
+                    />
+                  ))}
+                </View>
+              )}
 
               {/* 4. TRAIN MODEL SVG */}
               <Animated.View style={{ transform: [{ scale: glowPulse }, { translateY: engineVibe }], zIndex: 10, alignSelf: 'center', bottom: 30, position: 'absolute' }}>
@@ -1832,14 +1994,15 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
             </View>
           ) : isShipLevel ? (
             /* Cyber Cruiser Ship Animation Modal View */
-            <View style={{ flex: 1, backgroundColor: '#020617', position: 'relative', overflow: 'hidden' }}>
+            <View style={{ flex: 1, backgroundColor: asComponent ? 'transparent' : '#020617', position: 'relative', overflow: 'hidden' }}>
               {/* Stars / Space dust in background */}
-              <View style={StyleSheet.absoluteFill}>
-                {Array.from({ length: 15 }).map((_, i) => (
-                  <View
-                    key={`ship-star-${i}`}
-                    style={{
-                      position: 'absolute',
+              {!asComponent && (
+                <View style={StyleSheet.absoluteFill}>
+                  {Array.from({ length: 15 }).map((_, i) => (
+                    <View
+                      key={`ship-star-${i}`}
+                      style={{
+                        position: 'absolute',
                       top: `${Math.random() * 85}%`,
                       left: `${Math.random() * 95}%`,
                       width: i % 2 === 0 ? 3 : 1.5,
@@ -1850,6 +2013,7 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
                   />
                 ))}
               </View>
+            )}
 
               {/* 3D Ship Model SVG */}
               <Animated.View style={{ transform: [{ scale: glowPulse }, { translateY: engineVibe }], zIndex: 10, alignSelf: 'center', bottom: 30, position: 'absolute' }}>
@@ -1967,14 +2131,15 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
             </View>
           ) : isPlaneLevel ? (
             /* Cyber supersonic Fighter Jet Animation Modal View */
-            <View style={{ flex: 1, backgroundColor: '#020617', position: 'relative', overflow: 'hidden' }}>
+            <View style={{ flex: 1, backgroundColor: asComponent ? 'transparent' : '#020617', position: 'relative', overflow: 'hidden' }}>
               {/* Stars / Space dust in background */}
-              <View style={StyleSheet.absoluteFill}>
-                {Array.from({ length: 15 }).map((_, i) => (
-                  <View
-                    key={`plane-star-${i}`}
-                    style={{
-                      position: 'absolute',
+              {!asComponent && (
+                <View style={StyleSheet.absoluteFill}>
+                  {Array.from({ length: 15 }).map((_, i) => (
+                    <View
+                      key={`plane-star-${i}`}
+                      style={{
+                        position: 'absolute',
                       top: `${Math.random() * 85}%`,
                       left: `${Math.random() * 95}%`,
                       width: i % 2 === 0 ? 3 : 1.5,
@@ -1985,6 +2150,7 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
                   />
                 ))}
               </View>
+            )}
 
               {/* 3D Fighter Jet Model SVG */}
               <Animated.View style={{ transform: [{ scale: glowPulse }, { translateY: engineVibe }], zIndex: 10, alignSelf: 'center', bottom: 30, position: 'absolute' }}>
@@ -2100,14 +2266,15 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
             </View>
           ) : isSubmarineLevel ? (
             /* Cyber Submarine Animation Modal View */
-            <View style={{ flex: 1, backgroundColor: '#020617', position: 'relative', overflow: 'hidden' }}>
+            <View style={{ flex: 1, backgroundColor: asComponent ? 'transparent' : '#020617', position: 'relative', overflow: 'hidden' }}>
               {/* Stars / Space bubbles in background */}
-              <View style={StyleSheet.absoluteFill}>
-                {Array.from({ length: 20 }).map((_, i) => (
-                  <View
-                    key={`sub-star-${i}`}
-                    style={{
-                      position: 'absolute',
+              {!asComponent && (
+                <View style={StyleSheet.absoluteFill}>
+                  {Array.from({ length: 20 }).map((_, i) => (
+                    <View
+                      key={`sub-star-${i}`}
+                      style={{
+                        position: 'absolute',
                       top: `${Math.random() * 85}%`,
                       left: `${Math.random() * 95}%`,
                       width: i % 2 === 0 ? 5 : 3,
@@ -2119,6 +2286,7 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
                   />
                 ))}
               </View>
+            )}
 
               {/* 3D Submarine Model SVG */}
               <Animated.View style={{ transform: [{ scale: glowPulse }, { translateY: engineVibe }], zIndex: 10, alignSelf: 'center', bottom: 30, position: 'absolute' }}>
@@ -2228,24 +2396,26 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
             </View>
           ) : isRocketLevel ? (
             /* Cyber Space Rocket Animation Modal View */
-            <View style={{ flex: 1, backgroundColor: '#020617', position: 'relative', overflow: 'hidden' }}>
+            <View style={{ flex: 1, backgroundColor: asComponent ? 'transparent' : '#020617', position: 'relative', overflow: 'hidden' }}>
               {/* Stars / Space dust in background */}
-              <View style={StyleSheet.absoluteFill}>
-                {Array.from({ length: 25 }).map((_, i) => (
-                  <View
-                    key={`rocket-star-${i}`}
-                    style={{
-                      position: 'absolute',
-                      top: `${Math.random() * 85}%`,
-                      left: `${Math.random() * 95}%`,
-                      width: i % 2 === 0 ? 3 : 1.5,
-                      height: i % 2 === 0 ? 3 : 1.5,
-                      backgroundColor: i % 3 === 0 ? '#ef4444' : i % 3 === 1 ? '#00f3ff' : '#e0f',
-                      opacity: 0.75
-                    }}
-                  />
-                ))}
-              </View>
+              {!asComponent && (
+                <View style={StyleSheet.absoluteFill}>
+                  {Array.from({ length: 25 }).map((_, i) => (
+                    <View
+                      key={`rocket-star-${i}`}
+                      style={{
+                        position: 'absolute',
+                        top: `${Math.random() * 85}%`,
+                        left: `${Math.random() * 95}%`,
+                        width: i % 2 === 0 ? 3 : 1.5,
+                        height: i % 2 === 0 ? 3 : 1.5,
+                        backgroundColor: i % 3 === 0 ? '#ef4444' : i % 3 === 1 ? '#00f3ff' : '#e0f',
+                        opacity: 0.75
+                      }}
+                    />
+                  ))}
+                </View>
+              )}
 
               {/* 3D Rocket Model SVG */}
               <Animated.View style={{ transform: [{ scale: glowPulse }, { translateY: engineVibe }], zIndex: 10, alignSelf: 'center', bottom: 30, position: 'absolute', overflow: 'visible' }}>
@@ -2609,6 +2779,24 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
               </View>
             </View>
           )}
+    </>
+  );
+
+  if (asComponent) {
+    return (
+      <View style={{ width: '100%', height: 300, backgroundColor: 'transparent', position: 'relative', overflow: 'visible' }} pointerEvents="none">
+        <View style={{ width: '100%', height: 300, backgroundColor: 'transparent', overflow: 'visible', position: 'relative' }} pointerEvents="none">
+          {innerContent}
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onComplete}>
+      <View style={styles.container}>
+        <View style={(isCarLevel || isHomeLevel || isBankLevel || isBusLevel || isTrainLevel || isShipLevel || isPlaneLevel || isSubmarineLevel || isRocketLevel) ? styles.carWrapper : styles.videoWrapper}>
+          {innerContent}
         </View>
       </View>
     </Modal>
