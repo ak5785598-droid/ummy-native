@@ -44,18 +44,18 @@ const SVIP_LEVELS_DATA = [
   { level: 1, name: 'SVIP 1', points: '1.5M', exp: 1500000, validity: '7 Days', maintPoints: '375K', maintExp: 375000, theme: 'owl' },
   { level: 2, name: 'SVIP 2', points: '3.0M', exp: 3000000, validity: '7 Days', maintPoints: '375K', maintExp: 375000, theme: 'owl' },
   { level: 3, name: 'SVIP 3', points: '6.25M', exp: 6250000, validity: '15 Days', maintPoints: '1.25M', maintExp: 1250000, theme: 'owl' },
-  { level: 4, name: 'SVIP 4', points: '12.5M', exp: 12500000, validity: '15 Days', maintPoints: '1.25M', maintExp: 1250000, theme: 'owl' },
-  { level: 5, name: 'SVIP 5', points: '25.0M', exp: 25000000, validity: '15 Days', maintPoints: '1.25M', maintExp: 1250000, theme: 'owl' },
-  { level: 6, name: 'SVIP 6', points: '50.0M', exp: 50000000, validity: '15 Days', maintPoints: '1.25M', maintExp: 1250000, theme: 'owl' },
-  { level: 7, name: 'SVIP 7', points: '75.0M', exp: 75000000, validity: '30 Days', maintPoints: '5.0M', maintExp: 5000000, theme: 'wolf' },
-  { level: 8, name: 'SVIP 8', points: '100.0M', exp: 100000000, validity: '30 Days', maintPoints: '5.0M', maintExp: 5000000, theme: 'wolf' },
-  { level: 9, name: 'SVIP 9', points: '150.0M', exp: 150000000, validity: '30 Days', maintPoints: '5.0M', maintExp: 5000000, theme: 'wolf' },
-  { level: 10, name: 'SVIP 10', points: '200.0M', exp: 200000000, validity: '30 Days', maintPoints: '5.0M', maintExp: 5000000, theme: 'wolf' },
+  { level: 4, name: 'SVIP 4', points: '12.5M', exp: 12500000, validity: '15 Days', maintPoints: '1.25M', maintExp: 1250000, theme: 'wolf' },
+  { level: 5, name: 'SVIP 5', points: '25.0M', exp: 25000000, validity: '15 Days', maintPoints: '1.25M', maintExp: 1250000, theme: 'wolf' },
+  { level: 6, name: 'SVIP 6', points: '50.0M', exp: 50000000, validity: '15 Days', maintPoints: '1.25M', maintExp: 1250000, theme: 'wolf' },
+  { level: 7, name: 'SVIP 7', points: '75.0M', exp: 75000000, validity: '30 Days', maintPoints: '5.0M', maintExp: 5000000, theme: 'scorpion' },
+  { level: 8, name: 'SVIP 8', points: '100.0M', exp: 100000000, validity: '30 Days', maintPoints: '5.0M', maintExp: 5000000, theme: 'scorpion' },
+  { level: 9, name: 'SVIP 9', points: '150.0M', exp: 150000000, validity: '30 Days', maintPoints: '5.0M', maintExp: 5000000, theme: 'scorpion' },
+  { level: 10, name: 'SVIP 10', points: '200.0M', exp: 200000000, validity: '30 Days', maintPoints: '5.0M', maintExp: 5000000, theme: 'lion' },
   { level: 11, name: 'SVIP 11', points: '275.0M', exp: 275000000, validity: '45 Days', maintPoints: '20.0M', maintExp: 20000000, theme: 'lion' },
   { level: 12, name: 'SVIP 12', points: '350.0M', exp: 350000000, validity: '45 Days', maintPoints: '20.0M', maintExp: 20000000, theme: 'lion' },
-  { level: 13, name: 'SVIP 13', points: '425.0M', exp: 425000000, validity: '45 Days', maintPoints: '20.0M', maintExp: 20000000, theme: 'lion' },
-  { level: 14, name: 'SVIP 14', points: '500.0M', exp: 500000000, validity: '45 Days', maintPoints: '20.0M', maintExp: 20000000, theme: 'lion' },
-  { level: 15, name: 'SVIP 15', points: '575.0M', exp: 575000000, validity: '45 Days', maintPoints: '20.0M', maintExp: 20000000, theme: 'lion' },
+  { level: 13, name: 'SVIP 13', points: '425.0M', exp: 425000000, validity: '45 Days', maintPoints: '20.0M', maintExp: 20000000, theme: 'tiger' },
+  { level: 14, name: 'SVIP 14', points: '500.0M', exp: 500000000, validity: '45 Days', maintPoints: '20.0M', maintExp: 20000000, theme: 'tiger' },
+  { level: 15, name: 'SVIP 15', points: '575.0M', exp: 575000000, validity: '45 Days', maintPoints: '20.0M', maintExp: 20000000, theme: 'tiger' },
   { level: 16, name: 'SVIP 16', points: '650.0M', exp: 650000000, validity: '60 Days', maintPoints: '100.0M', maintExp: 100000000, theme: 'dragon' },
   { level: 17, name: 'SVIP 17', points: '700.0M', exp: 700000000, validity: '60 Days', maintPoints: '100.0M', maintExp: 100000000, theme: 'dragon' },
   { level: 18, name: 'SVIP 18', points: '750.0M', exp: 750000000, validity: '60 Days', maintPoints: '100.0M', maintExp: 100000000, theme: 'dragon' },
@@ -463,7 +463,7 @@ export default function VipsClubScreen() {
 
     // Theme config per level group
     const getConfig = () => {
-      if (lvl >= 1 && lvl <= 6) {
+      if (lvl >= 1 && lvl <= 3) {
         // Silver Owl — Blue/Cyan
         const intensity = lvl <= 3 ? 0.7 : 1;
         return {
@@ -481,9 +481,9 @@ export default function VipsClubScreen() {
             </Svg>
           )
         };
-      } else if (lvl >= 7 && lvl <= 10) {
+      } else if (lvl >= 4 && lvl <= 6) {
         // Velvet Wolf — Purple/Pink
-        const intensity = ((lvl - 6) / 4);
+        const intensity = ((lvl - 3) / 3);
         return {
           bg1: '#1a0a2e',
           bg2: '#9333ea',
@@ -499,9 +499,28 @@ export default function VipsClubScreen() {
             </Svg>
           )
         };
-      } else if (lvl >= 11 && lvl <= 15) {
+      } else if (lvl >= 7 && lvl <= 9) {
+        // Cyber Scorpion — Cyan/Teal
+        const intensity = ((lvl - 6) / 3);
+        return {
+          bg1: '#0a1a2e',
+          bg2: '#0891b2',
+          border: '#06b6d4',
+          glow: '#22d3ee',
+          label: '#ecfeff',
+          icon: (
+            <Svg width="14" height="14" viewBox="0 0 24 24">
+              <Path d="M12 4c-2 0-3.5 1-4 3-.3 1.2 0 2.5.5 3.5C7 11.5 6 13 6 15c0 3 2.7 5 6 5s6-2 6-5c0-2-1-3.5-2.5-4.5.5-1 .8-2.3.5-3.5-.5-2-2-3-4-3z" fill={`rgba(6,182,212,${0.6 + intensity * 0.4})`}/>
+              <Circle cx="9" cy="12" r="1.2" fill="#a5f3fc"/>
+              <Circle cx="15" cy="12" r="1.2" fill="#a5f3fc"/>
+              <Path d="M10 15 Q12 16.5 14 15" stroke="#67e8f9" strokeWidth="1" fill="none"/>
+              <Path d="M12 2 L12 4 M5 8 L3 6 M19 8 L21 6" stroke="#22d3ee" strokeWidth="0.8" opacity="0.7"/>
+            </Svg>
+          )
+        };
+      } else if (lvl >= 10 && lvl <= 12) {
         // Fiery Lion — Red/Gold
-        const intensity = ((lvl - 10) / 5);
+        const intensity = ((lvl - 9) / 3);
         return {
           bg1: '#1f0a00',
           bg2: '#dc2626',
@@ -516,6 +535,26 @@ export default function VipsClubScreen() {
               <Circle cx="14.5" cy="10.5" r="1.2" fill="#1f0a00"/>
               <Path d="M10.5 13 Q12 14.5 13.5 13" stroke="#7f1d1d" strokeWidth="1" fill="none"/>
               <Path d="M12 16 L12 20 M10 17 L8 21 M14 17 L16 21" stroke="#fbbf24" strokeWidth="0.8" opacity="0.6"/>
+            </Svg>
+          )
+        };
+      } else if (lvl >= 13 && lvl <= 15) {
+        // Royal Tiger — Orange/Yellow
+        const intensity = ((lvl - 12) / 3);
+        return {
+          bg1: '#1f0f00',
+          bg2: '#d97706',
+          border: '#eab308',
+          glow: '#f59e0b',
+          label: '#fefce8',
+          icon: (
+            <Svg width="14" height="14" viewBox="0 0 24 24">
+              <Circle cx="12" cy="11" r="5" fill={`rgba(245,158,11,${0.6 + intensity * 0.4})`}/>
+              <Path d="M7 5 Q9 3 10 5 Q11 3 12 4 Q13 3 14 5 Q15 3 17 5" stroke="#eab308" strokeWidth="1.2" fill="none"/>
+              <Circle cx="9.5" cy="10.5" r="1.2" fill="#1f0f00"/>
+              <Circle cx="14.5" cy="10.5" r="1.2" fill="#1f0f00"/>
+              <Path d="M10.5 13 Q12 14.5 13.5 13" stroke="#78350f" strokeWidth="1" fill="none"/>
+              <Path d="M8 16 L7 19 M12 15 L12 19 M16 16 L17 19" stroke="#fbbf24" strokeWidth="0.8" opacity="0.6"/>
             </Svg>
           )
         };
@@ -586,6 +625,14 @@ export default function VipsClubScreen() {
           gradient: ['#a855f7', '#d946ef', '#ec4899'],
           btnBg: 'bg-purple-500'
         };
+      case 'scorpion':
+        return {
+          text: 'text-teal-400',
+          border: 'border-teal-500/20',
+          bg: '#06b6d4',
+          gradient: ['#0891b2', '#06b6d4', '#3b82f6'],
+          btnBg: 'bg-teal-500'
+        };
       case 'lion':
         return {
           text: 'text-orange-400',
@@ -593,6 +640,14 @@ export default function VipsClubScreen() {
           bg: '#f97316',
           gradient: ['#f97316', '#f59e0b', '#ef4444'],
           btnBg: 'bg-orange-500'
+        };
+      case 'tiger':
+        return {
+          text: 'text-yellow-400',
+          border: 'border-yellow-500/20',
+          bg: '#d97706',
+          gradient: ['#d97706', '#eab308', '#f59e0b'],
+          btnBg: 'bg-yellow-500'
         };
       case 'dragon':
         return {
@@ -686,8 +741,10 @@ export default function VipsClubScreen() {
                 let tabBorder = '#1e3a5f';
                 let tabGlow = '#0ea5e9';
                 let tabText = '#7dd3fc';
-                if (lvl.level >= 7 && lvl.level <= 10)  { tabBg = '#1a0a2e'; tabBorder = '#6b21a8'; tabGlow = '#a855f7'; tabText = '#d8b4fe'; }
-                if (lvl.level >= 11 && lvl.level <= 15) { tabBg = '#1f0a00'; tabBorder = '#92400e'; tabGlow = '#f97316'; tabText = '#fed7aa'; }
+                if (lvl.level >= 4 && lvl.level <= 6)  { tabBg = '#1a0a2e'; tabBorder = '#6b21a8'; tabGlow = '#a855f7'; tabText = '#d8b4fe'; }
+                if (lvl.level >= 7 && lvl.level <= 9)  { tabBg = '#0a1a2e'; tabBorder = '#0e7490'; tabGlow = '#06b6d4'; tabText = '#a5f3fc'; }
+                if (lvl.level >= 10 && lvl.level <= 12) { tabBg = '#1f0a00'; tabBorder = '#92400e'; tabGlow = '#f97316'; tabText = '#fed7aa'; }
+                if (lvl.level >= 13 && lvl.level <= 15) { tabBg = '#1f0f00'; tabBorder = '#a16207'; tabGlow = '#eab308'; tabText = '#fef08a'; }
                 if (lvl.level >= 16)                    { tabBg = '#0d0a00'; tabBorder = '#78350f'; tabGlow = '#eab308'; tabText = '#fde68a'; }
                 return (
                   <TouchableOpacity
