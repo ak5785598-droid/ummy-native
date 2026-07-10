@@ -71,7 +71,6 @@ const getSVIPColor = (level: number): string => {
 
 const SVIPBadge = ({ level }: { level: number }) => {
   const [badgeUrl, setBadgeUrl] = useState<string | null>(null);
-  const [pillColor, setPillColor] = useState<string>(getSVIPColor(level));
 
   useEffect(() => {
     if (!level || level < 1) return;
@@ -82,20 +81,54 @@ const SVIPBadge = ({ level }: { level: number }) => {
         if (snap.exists()) {
           const data = snap.data();
           const url = data?.levels?.[String(level)]?.badgeUrl;
-          const color = data?.levels?.[String(level)]?.color;
           if (url) setBadgeUrl(url);
-          if (color) setPillColor(color);
         }
       } catch (e) {}
     })();
   }, [level]);
 
-  if (!level || level < 1 || !badgeUrl) return null;
+  if (!level || level < 1) return null;
 
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: pillColor + 'D9', borderRadius: 12, paddingHorizontal: 4, paddingVertical: 2, gap: 2 }}>
-      <Image cachePolicy="memory-disk" source={{ uri: toCDN(badgeUrl) }} style={{ width: 20, height: 20 }} contentFit="contain" />
-      <Text style={{ fontSize: 8, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.3, paddingRight: 4 }}>SVIP{level}</Text>
+    <View style={{ width: 70, height: 20, justifyContent: 'center' }}>
+      <Image 
+        source={
+          level === 1 ? require('../../../assets/images/themes/svip_strip_1.png') :
+          level === 2 ? require('../../../assets/images/themes/svip_strip_2.png') :
+          level === 3 ? require('../../../assets/images/themes/svip_strip_3.png') :
+          level === 4 ? require('../../../assets/images/themes/svip_strip_4.png') :
+          level === 5 ? require('../../../assets/images/themes/svip_strip_5.png') :
+          level === 6 ? require('../../../assets/images/themes/svip_strip_6.png') :
+          level === 7 ? require('../../../assets/images/themes/svip_strip_7.png') :
+          level === 8 ? require('../../../assets/images/themes/svip_strip_8.png') :
+          level === 9 ? require('../../../assets/images/themes/svip_strip_9.png') :
+          level === 10 ? require('../../../assets/images/themes/svip_strip_10.png') :
+          level === 11 ? require('../../../assets/images/themes/svip_strip_11.png') :
+          level === 12 ? require('../../../assets/images/themes/svip_strip_12.png') :
+          level === 13 ? require('../../../assets/images/themes/svip_strip_13.png') :
+          level === 14 ? require('../../../assets/images/themes/svip_strip_14.png') :
+          level === 15 ? require('../../../assets/images/themes/svip_strip_15.png') :
+          level === 16 ? require('../../../assets/images/themes/svip_strip_16.png') :
+          level === 17 ? require('../../../assets/images/themes/svip_strip_17.png') :
+          require('../../../assets/images/themes/svip_strip_18.png')
+        }
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        contentFit="fill"
+      />
+      {badgeUrl ? (
+        <Image 
+          source={{ uri: toCDN(badgeUrl) }} 
+          style={{ 
+            position: 'absolute', 
+            left: (level >= 16 && level <= 18) ? -2 : -5, 
+            top: (level >= 16 && level <= 18) ? -2 : -5, 
+            width: (level >= 16 && level <= 18) ? 24 : 30, 
+            height: (level >= 16 && level <= 18) ? 24 : 30 
+          }}
+          contentFit="contain"
+          cachePolicy="memory-disk"
+        />
+      ) : null}
     </View>
   );
 };

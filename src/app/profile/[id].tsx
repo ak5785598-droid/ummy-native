@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { UserLevelBadge } from '@/components/user-level-badge';
 import { getLevelFromSpent } from '@/hooks/use-user-level';
+import { toCDN } from '@/lib/cdn';
 
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -203,6 +204,19 @@ export default function ProfileScreen() {
   const [fullViewOpen, setFullViewOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [medalModalOpen, setMedalModalOpen] = useState(false);
+  const [vipConfig, setVipConfig] = useState<any>(null);
+
+  useEffect(() => {
+    if (!firestore) return;
+    const docRef = doc(firestore, 'settings', 'svipConfig');
+    getDoc(docRef).then((snap) => {
+      if (snap.exists()) {
+        setVipConfig({
+          levels: snap.data().levels || {}
+        });
+      }
+    });
+  }, [firestore]);
 
   const isOwnProfile = currentUser?.uid === id;
   const userId = id || currentUser?.uid;
@@ -581,7 +595,52 @@ export default function ProfileScreen() {
 
           {/* VIP Banner */}
           <View style={{ marginHorizontal: -8 }}>
-            <SVGA_VIPBanner onPress={() => router.push('/vips')} />
+            {profile?.svip && profile.svip >= 1 && profile.svip <= 18 ? (
+              <TouchableOpacity onPress={() => router.push('/vips')} activeOpacity={0.95} style={{ marginTop: 12, width: '100%', height: 44, justifyContent: 'center', alignItems: 'center' }}>
+                <View style={{ width: 70, height: 20, justifyContent: 'center' }}>
+                  <Image 
+                    source={
+                      profile.svip === 1 ? require('../../../assets/images/themes/svip_strip_1.png') :
+                      profile.svip === 2 ? require('../../../assets/images/themes/svip_strip_2.png') :
+                      profile.svip === 3 ? require('../../../assets/images/themes/svip_strip_3.png') :
+                      profile.svip === 4 ? require('../../../assets/images/themes/svip_strip_4.png') :
+                      profile.svip === 5 ? require('../../../assets/images/themes/svip_strip_5.png') :
+                      profile.svip === 6 ? require('../../../assets/images/themes/svip_strip_6.png') :
+                      profile.svip === 7 ? require('../../../assets/images/themes/svip_strip_7.png') :
+                      profile.svip === 8 ? require('../../../assets/images/themes/svip_strip_8.png') :
+                      profile.svip === 9 ? require('../../../assets/images/themes/svip_strip_9.png') :
+                      profile.svip === 10 ? require('../../../assets/images/themes/svip_strip_10.png') :
+                      profile.svip === 11 ? require('../../../assets/images/themes/svip_strip_11.png') :
+                      profile.svip === 12 ? require('../../../assets/images/themes/svip_strip_12.png') :
+                      profile.svip === 13 ? require('../../../assets/images/themes/svip_strip_13.png') :
+                      profile.svip === 14 ? require('../../../assets/images/themes/svip_strip_14.png') :
+                      profile.svip === 15 ? require('../../../assets/images/themes/svip_strip_15.png') :
+                      profile.svip === 16 ? require('../../../assets/images/themes/svip_strip_16.png') :
+                      profile.svip === 17 ? require('../../../assets/images/themes/svip_strip_17.png') :
+                      require('../../../assets/images/themes/svip_strip_18.png')
+                    } 
+                    style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} 
+                    contentFit="fill" 
+                  />
+                  {vipConfig?.levels?.[profile.svip]?.badgeUrl ? (
+                    <Image 
+                      source={{ uri: toCDN(vipConfig.levels[profile.svip].badgeUrl) }} 
+                      style={{ 
+                        position: 'absolute', 
+                        left: (profile.svip >= 16 && profile.svip <= 18) ? -2 : -5, 
+                        top: (profile.svip >= 16 && profile.svip <= 18) ? -2 : -5, 
+                        width: (profile.svip >= 16 && profile.svip <= 18) ? 24 : 30, 
+                        height: (profile.svip >= 16 && profile.svip <= 18) ? 24 : 30 
+                      }}
+                      contentFit="contain"
+                      cachePolicy="memory-disk"
+                    />
+                  ) : null}
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <SVGA_VIPBanner onPress={() => router.push('/vips')} />
+            )}
           </View>
 
           {/* Quick Action Icons */}

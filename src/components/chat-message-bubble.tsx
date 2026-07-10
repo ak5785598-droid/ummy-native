@@ -1,7 +1,12 @@
 import React, { memo } from 'react';
-import { View, Text, Animated, StyleSheet, Easing } from 'react-native';
+import { View, Text, Animated, StyleSheet, Easing, ImageBackground } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Ellipse, Defs, LinearGradient as SvgLinearGradient, RadialGradient as SvgRadialGradient, Stop } from 'react-native-svg';
+
+const LOCAL_BUBBLE_ASSETS: Record<string, any> = {
+  'b-cosmic-star': require('../../assets/images/cosmic_star_bubble_v2.png'),
+  'b-royal-gold': require('../../assets/images/royal_gold_bubble_v2.png'),
+};
 
 const EvilBubbleLeftOrnament = () => (
   <Svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
@@ -196,6 +201,58 @@ const CandyBubbleRightOrnament = () => (
   </Svg>
 );
 
+const CosmicBubbleLeftWing = () => (
+  <Svg viewBox="0 0 40 40" style={{ width: '100%', height: '100%' }}>
+    <Defs>
+      <SvgLinearGradient id="cosmicWingGradL" x1="0%" y1="0%" x2="100%" y2="100%">
+        <Stop offset="0%" stopColor="#c084fc" />
+        <Stop offset="100%" stopColor="#818cf8" />
+      </SvgLinearGradient>
+    </Defs>
+    <Path d="M40,10 C25,5, 10,15, 2,30 C10,25, 20,25, 30,20 Q20,15, 40,10 Z" fill="url(#cosmicWingGradL)" />
+    <Circle cx="15" cy="18" r="2.5" fill="#fde047" />
+  </Svg>
+);
+
+const CosmicBubbleRightWing = () => (
+  <Svg viewBox="0 0 40 40" style={{ width: '100%', height: '100%' }}>
+    <Defs>
+      <SvgLinearGradient id="cosmicWingGradR" x1="0%" y1="0%" x2="100%" y2="100%">
+        <Stop offset="0%" stopColor="#c084fc" />
+        <Stop offset="100%" stopColor="#818cf8" />
+      </SvgLinearGradient>
+    </Defs>
+    <Path d="M0,10 C15,5, 30,15, 38,30 C30,25, 20,25, 10,20 Q20,15, 0,10 Z" fill="url(#cosmicWingGradR)" />
+    <Circle cx="25" cy="18" r="2.5" fill="#fde047" />
+  </Svg>
+);
+
+const RoyalBubbleLeftWing = () => (
+  <Svg viewBox="0 0 40 40" style={{ width: '100%', height: '100%' }}>
+    <Defs>
+      <SvgLinearGradient id="goldWingGradL" x1="0%" y1="0%" x2="100%" y2="100%">
+        <Stop offset="0%" stopColor="#fef08a" />
+        <Stop offset="100%" stopColor="#ca8a04" />
+      </SvgLinearGradient>
+    </Defs>
+    <Path d="M40,5 C30,0, 15,10, 5,22 Q15,20, 25,25 Q35,15, 40,5 Z" fill="url(#goldWingGradL)" />
+    <Path d="M35,12 C28,15, 22,25, 18,32 Q25,28, 30,30 C35,22, 35,15, 35,12 Z" fill="url(#goldWingGradL)" opacity="0.8" />
+  </Svg>
+);
+
+const RoyalBubbleRightWing = () => (
+  <Svg viewBox="0 0 40 40" style={{ width: '100%', height: '100%' }}>
+    <Defs>
+      <SvgLinearGradient id="goldWingGradR" x1="0%" y1="0%" x2="100%" y2="100%">
+        <Stop offset="0%" stopColor="#fef08a" />
+        <Stop offset="100%" stopColor="#ca8a04" />
+      </SvgLinearGradient>
+    </Defs>
+    <Path d="M0,5 C10,0, 25,10, 35,22 Q25,20, 15,25 Q5,15, 0,5 Z" fill="url(#goldWingGradR)" />
+    <Path d="M5,12 C12,15, 18,25, 22,32 Q15,28, 10,30 C5,22, 5,15, 5,12 Z" fill="url(#goldWingGradR)" opacity="0.8" />
+  </Svg>
+);
+
 const BUBBLE_DECORATORS: Record<string, Record<string, { node: React.ReactNode; style: any }>> = {
   'evil-bubble': {
     left: { node: <EvilBubbleLeftOrnament />, style: { left: -9, top: -3, width: 18, height: 18 } },
@@ -244,6 +301,14 @@ const BUBBLE_DECORATORS: Record<string, Record<string, { node: React.ReactNode; 
   'zodiac-2026': {
     topLeft: { node: <Text style={{ fontSize: 8 }}>🪐</Text>, style: { top: -5, left: -5, zIndex: 12 } },
     bottomRight: { node: <Text style={{ fontSize: 8 }}>⭐</Text>, style: { bottom: -4, right: -4, zIndex: 12 } },
+  },
+  'b-cosmic-star': {
+    left: { node: <CosmicBubbleLeftWing />, style: { left: -14, top: 4, width: 28, height: 28 } },
+    right: { node: <CosmicBubbleRightWing />, style: { right: -14, top: 4, width: 28, height: 28 } }
+  },
+  'b-royal-gold': {
+    left: { node: <RoyalBubbleLeftWing />, style: { left: -14, top: 4, width: 28, height: 28 } },
+    right: { node: <RoyalBubbleRightWing />, style: { right: -14, top: 4, width: 28, height: 28 } }
   }
 };
 
@@ -297,6 +362,8 @@ const STYLE_CONFIGS: Record<string, { colors: string[]; border: string; tailColo
   'destiny-battle-a': { colors: ['#44403c', '#292524', '#1c1917'], border: 'rgba(255,255,255,0.3)', tailColor: '#292524', decorator: '🔫', borderWidth: 2.5, borderStyle: 'solid', animation: 'shine' },
   'eid-adha-2026': { colors: ['#065f46', '#14532d', '#052e16'], border: 'rgba(255,255,255,0.45)', tailColor: '#14532d', decorator: '🐑', borderWidth: 1.5, borderStyle: 'solid' },
   'default-premium': { colors: ['#c084fc', '#818cf8', '#4f46e5'], border: 'rgba(255,255,255,0.4)', tailColor: '#818cf8', decorator: '⭐', borderWidth: 1.5, borderStyle: 'solid', animation: 'sparkles' },
+  'b-cosmic-star': { colors: ['#1e1b4b', '#260c44', '#0d041e'], border: '#c084fc', tailColor: '#260c44', decorator: '🪐', borderWidth: 2, borderStyle: 'solid', animation: 'sparkles' },
+  'b-royal-gold': { colors: ['#3b2a09', '#2e1f04', '#1f1300'], border: '#fbbf24', tailColor: '#2e1f04', decorator: '👑', borderWidth: 2.2, borderStyle: 'solid', animation: 'shine' },
 };
 
 export const ChatMessageBubble = memo(({ bubbleId, bubbleMediaUrl, isMe, children, showTail = true, style }: ChatMessageBubbleProps) => {
@@ -397,6 +464,40 @@ export const ChatMessageBubble = memo(({ bubbleId, bubbleMediaUrl, isMe, childre
   }, [floatAnim, shineAnim, rotateAnim, fadeAnim, fallAnim]);
 
   const { width: bubbleWidth, minWidth: bubbleMinWidth, ...restStyle } = style || {};
+  const bubbleBgImage = LOCAL_BUBBLE_ASSETS[bubbleId || ''];
+
+  if (bubbleBgImage) {
+    return (
+      <View style={[{ alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '85%', marginBottom: 4 }, restStyle]}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+          {!isMe && showTail && (
+            <View style={{ width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 0, borderTopWidth: 8, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: 'transparent', marginBottom: 8 }} />
+          )}
+          <ImageBackground
+            source={bubbleBgImage}
+            style={{
+              paddingLeft: bubbleId === 'b-royal-gold' ? 46 : 42,
+              paddingRight: bubbleId === 'b-royal-gold' ? 46 : 42,
+              paddingTop: bubbleId === 'b-royal-gold' ? 32 : 24,
+              paddingBottom: bubbleId === 'b-royal-gold' ? 32 : 24,
+              minWidth: bubbleMinWidth || 140,
+              width: bubbleWidth,
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+            imageStyle={{ resizeMode: 'stretch' }}
+          >
+            <View style={{ position: 'relative', width: '100%' }}>
+              {children}
+            </View>
+          </ImageBackground>
+          {isMe && showTail && (
+            <View style={{ width: 0, height: 0, borderLeftWidth: 0, borderRightWidth: 8, borderTopWidth: 8, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: 'transparent', marginBottom: 8 }} />
+          )}
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={[{ alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '100%', marginBottom: 8 }, restStyle]}>
@@ -512,6 +613,31 @@ export const ChatMessageBubble = memo(({ bubbleId, bubbleMediaUrl, isMe, childre
               </Animated.Text>
             </View>
           )}
+
+          {/* Cosmic Star Constellations & Shooting Stars background overlay */}
+          {bubbleId === 'b-cosmic-star' && (
+            <View style={{ ...StyleSheet.absoluteFillObject, overflow: 'hidden', borderRadius: 16 }}>
+              <Svg width="100%" height="100%" style={StyleSheet.absoluteFillObject} viewBox="0 0 100 100" preserveAspectRatio="none">
+                <Circle cx="15" cy="20" r="1" fill="#fff" opacity="0.85" />
+                <Circle cx="32" cy="45" r="0.8" fill="#fff" opacity="0.6" />
+                <Circle cx="82" cy="28" r="1.3" fill="#fde047" opacity="0.9" />
+                <Path d="M15,20 L32,45" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5" />
+                <Path d="M56,12 L82,24" stroke="rgba(255,255,255,0.22)" strokeWidth="0.7" strokeLinecap="round" />
+                <Path d="M68,34 L88,44" stroke="rgba(255,255,255,0.18)" strokeWidth="0.5" strokeLinecap="round" />
+              </Svg>
+            </View>
+          )}
+
+          {/* Royal Gold Inner Borders overlay */}
+          {bubbleId === 'b-royal-gold' && (
+            <View style={{ ...StyleSheet.absoluteFillObject, overflow: 'hidden', borderRadius: 16 }}>
+              <Svg width="100%" height="100%" style={StyleSheet.absoluteFillObject} viewBox="0 0 100 100" preserveAspectRatio="none">
+                <Path d="M4,4 L96,4 L96,96 L4,96 Z" fill="none" stroke="rgba(251,191,36,0.22)" strokeWidth="1.2" />
+                <Path d="M6,6 L94,6 L94,94 L6,94 Z" fill="none" stroke="rgba(251,191,36,0.08)" strokeWidth="0.6" />
+              </Svg>
+            </View>
+          )}
+
           {/* Custom illustrations/decorators for corners */}
           {(() => {
             const decors = BUBBLE_DECORATORS[bubbleId];

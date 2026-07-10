@@ -48,18 +48,10 @@ let soundsInitialized = false;
 
 async function initSounds() {
   if (soundsInitialized) return;
-  try {
-    await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true, staysActiveInBackground: false });
-    const coin = await Audio.Sound.createAsync({ uri: COIN_SOUND_URL }, { volume: 0.5 });
-    coinSound = coin.sound;
-    const box = await Audio.Sound.createAsync({ uri: BOX_SOUND_URL }, { volume: 0.6 });
-    boxSound = box.sound;
-    const skull = await Audio.Sound.createAsync({ uri: SKULL_SOUND_URL }, { volume: 0.5 });
-    skullSound = skull.sound;
-    soundsInitialized = true;
-  } catch (e) {
-    // Audio init failed — will silently skip sounds
-  }
+  soundsInitialized = true; // prevent re-entry immediately
+  try { const c = await Audio.Sound.createAsync({ uri: COIN_SOUND_URL }, { volume: 0.5 }); coinSound = c.sound; } catch (_) {}
+  try { const b = await Audio.Sound.createAsync({ uri: BOX_SOUND_URL }, { volume: 0.6 }); boxSound = b.sound; } catch (_) {}
+  try { const s = await Audio.Sound.createAsync({ uri: SKULL_SOUND_URL }, { volume: 0.5 }); skullSound = s.sound; } catch (_) {}
 }
 
 async function playAudioEffect(type: 'coin' | 'box' | 'skull') {

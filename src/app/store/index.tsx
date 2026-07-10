@@ -22,6 +22,8 @@ const LOCAL_FRAME_ASSETS: Record<string, any> = {
   'basra_frame': require('../../../assets/images/basra_frame.png'),
   'top3family_topuser': require('../../../assets/images/top3family_topuser.png'),
   'top2family_topuser': require('../../../assets/images/top2family_topuser.png'),
+  'b-cosmic-star': require('../../../assets/images/cosmic_star_bubble_v2.png'),
+  'b-royal-gold': require('../../../assets/images/royal_gold_bubble_v2.png'),
 };
 
 const cleanItemName = (name: string): string => {
@@ -40,6 +42,11 @@ const STATIC_WAVE_ITEMS = [
   { id: 'w-vox', name: 'Vox', type: 'Wave', price: 30500, durationDays: 7, description: 'Crystal blue 3D glossy voice wave.', color: '#3b82f6' },
   { id: 'w-reso', name: 'Reso', type: 'Wave', price: 20000, durationDays: 7, description: 'Neon green resonance 3D glossy wave.', color: '#22c55e' },
   { id: 'w-echo', name: 'Echo', type: 'Wave', price: 25999, durationDays: 7, description: 'Vibrant orange echo 3D glossy frequency.', color: '#f97316' },
+];
+
+const STATIC_BUBBLE_ITEMS = [
+  { id: 'b-cosmic-star', name: 'Cosmic Star Bubble', type: 'Bubble', price: 150000, durationDays: 30, description: 'Deep cosmic indigo-purple gradient with constellations and shooting stars.' },
+  { id: 'b-royal-gold', name: 'Royal Gold Bubble', type: 'Bubble', price: 250000, durationDays: 30, description: 'Rich royal golden gradient theme with detailed vector scrollwork borders.' }
 ];
 
 const STATIC_ENTRY_ITEMS: any[] = [];
@@ -218,7 +225,7 @@ export default function StoreScreen() {
       ...t,
       description: t.description || `High-fidelity ${t.name} background.`,
     }));
-    return [...dynamic, ...themes, ...STATIC_WAVE_ITEMS, ...STATIC_ENTRY_ITEMS, ...STATIC_FRAME_ITEMS, ...STATIC_ID_ITEMS];
+    return [...dynamic, ...themes, ...STATIC_WAVE_ITEMS, ...STATIC_ENTRY_ITEMS, ...STATIC_FRAME_ITEMS, ...STATIC_ID_ITEMS, ...STATIC_BUBBLE_ITEMS];
   }, [storeItems, roomThemes]);
 
   const storeNotForSale = config?.storeNotForSale || {};
