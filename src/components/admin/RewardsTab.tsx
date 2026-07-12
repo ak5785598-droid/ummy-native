@@ -1,11 +1,27 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, ScrollView, FlatList } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import { Image } from 'expo-image';
 import { useUser } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
 
 const CREATOR_ID = '901piBzTQ0VzCtAvlyyobwvAaTs1';
+
+const STATIC_FRAMES = [
+  { id: 'f-red-fire', name: 'Red Fire Frame' },
+  { id: 'f-horror-gold', name: 'Horror Gold Frame' },
+  { id: 'f-wings-gold', name: 'Wings Gold Frame' },
+  { id: 'sea_sands', name: 'Sea Sands Frame' },
+  { id: 'basra', name: 'Basra Golden Frame' },
+];
+
+const ITEM_TYPES = [
+  { label: 'Frames', value: 'Frame' },
+  { label: 'Bubbles', value: 'Bubble' },
+  { label: 'Waves', value: 'Wave' },
+  { label: 'Entry Effects', value: 'Entry' },
+  { label: 'ID Themes', value: 'ID' },
+];
 
 export function RewardsTab() {
   const { user } = useUser();
@@ -26,6 +42,34 @@ export function RewardsTab() {
   const [assetId, setAssetId] = useState('');
   const [days, setDays] = useState('7');
   const [updating, setUpdating] = useState(false);
+
+  const [allItems, setAllItems] = useState<{ id: string; name: string; category: string }[]>([]);
+  const [showFramePicker, setShowFramePicker] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState('');
+  const [pickerType, setPickerType] = useState('Frame');
+
+  useEffect(() => {
+    const loadItems = async () => {
+      try {
+        const snap = await firestore().collection('storeItems').get();
+        const firestoreItems = snap.docs.map(d => ({
+          id: d.id,
+          name: d.data().name || d.id,
+          category: d.data().category || 'Frame',
+        }));
+        setAllItems([...STATIC_FRAMES.map(f => ({ ...f, category: 'Frame' })), ...firestoreItems]);
+      } catch {
+        setAllItems(STATIC_FRAMES.map(f => ({ ...f, category: 'Frame' })));
+      }
+    };
+    loadItems();
+  }, []);
+
+  const filteredPickerItems = allItems.filter(item => {
+    const matchType = item.category === pickerType;
+    const matchSearch = !pickerSearch || item.name.toLowerCase().includes(pickerSearch.toLowerCase()) || item.id.toLowerCase().includes(pickerSearch.toLowerCase());
+    return matchType && matchSearch;
+  });
 
   const handleSearch = async () => {
     if (!userIdInput.trim()) return;
@@ -60,7 +104,7 @@ export function RewardsTab() {
     if (!foundUser || !coins.trim()) return;
     const amount = parseInt(coins);
     if (isNaN(amount) || amount <= 0) return;
-    
+
     setUpdating(true);
     try {
       const uRef = firestore().collection('users').doc(foundUser.id);
@@ -73,17 +117,16 @@ export function RewardsTab() {
         batch.update(pRef, { 'wallet.coins': firestore.FieldValue.increment(amount) });
       }
 
-      // Record logs
       const logRef = firestore().collection('coin_audit_logs').doc();
       batch.set(logRef, {
         id: logRef.id,
-        adminId: adminId,
-        adminName: adminName,
-        adminRole: adminRole,
+        adminId,
+        adminName,
+        adminRole,
         targetId: foundUser.id,
         targetName: foundUser.username || 'Unknown User',
         targetAccount: foundUser.accountNumber || 'N/A',
-        amount: amount,
+        amount,
         reason: 'Manual Admin Dispatch',
         timestamp: firestore.FieldValue.serverTimestamp(),
         type: 'manual_dispatch'
@@ -108,12 +151,14 @@ export function RewardsTab() {
       const expiry = new Date();
       expiry.setDate(expiry.getDate() + d);
 
-      await pRef.update({
+      await pRef.set({
         'inventory.ownedItems': firestore.FieldValue.arrayUnion(assetId.trim()),
         [`inventory.expiries.${assetId.trim()}`]: firestore.Timestamp.fromDate(expiry),
-      });
+        updatedAt: firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
 
-      Alert.alert('Success', `Asset ${assetId} sent for ${d} Days.`);
+      const selectedItem = allItems.find(i => i.id === assetId.trim());
+      Alert.alert('Success', `${selectedItem?.name || assetId} sent to ${foundUser.username} for ${d} Days.`);
       setAssetId('');
     } catch (err: any) {
       Alert.alert('Error', err.message);
@@ -134,7 +179,7 @@ export function RewardsTab() {
           placeholder="e.g. 100023 or UID"
           style={{ flex: 1, height: 48, borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 12, paddingHorizontal: 16, fontSize: 14 }}
         />
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={handleSearch}
           style={{ width: 80, height: 48, backgroundColor: '#7c3aed', borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}
         >
@@ -162,7 +207,7 @@ export function RewardsTab() {
               keyboardType="number-pad"
               style={{ flex: 1, height: 44, borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 10, paddingHorizontal: 14, fontSize: 13, backgroundColor: '#fff' }}
             />
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={handleSendCoins}
               disabled={updating || !coins.trim()}
               style={{ width: 100, height: 44, backgroundColor: '#22c55e', borderRadius: 10, alignItems: 'center', justifyContent: 'center' }}
@@ -172,13 +217,66 @@ export function RewardsTab() {
           </View>
 
           {/* Send Elite Asset */}
-          <Text style={{ fontSize: 11, fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6 }}>Send Elite Asset (Frames/Boutique)</Text>
-          <TextInput
-            value={assetId}
-            onChangeText={setAssetId}
-            placeholder="Asset ID (e.g. honor-2026)"
-            style={{ height: 44, borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 10, paddingHorizontal: 14, fontSize: 13, backgroundColor: '#fff', marginBottom: 10 }}
-          />
+          <Text style={{ fontSize: 11, fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6 }}>Send Asset</Text>
+
+          {/* Item Type Tabs */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              {ITEM_TYPES.map(t => (
+                <TouchableOpacity
+                  key={t.value}
+                  onPress={() => setPickerType(t.value)}
+                  style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: pickerType === t.value ? '#7c3aed' : '#e2e8f0' }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: pickerType === t.value ? '#fff' : '#64748b' }}>{t.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+
+          {/* Asset ID Input + Picker Toggle */}
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+            <TextInput
+              value={assetId}
+              onChangeText={setAssetId}
+              placeholder="Asset ID or tap Browse"
+              style={{ flex: 1, height: 44, borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 10, paddingHorizontal: 14, fontSize: 13, backgroundColor: '#fff' }}
+            />
+            <TouchableOpacity
+              onPress={() => setShowFramePicker(!showFramePicker)}
+              style={{ height: 44, paddingHorizontal: 14, backgroundColor: '#8b5cf6', borderRadius: 10, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 11 }}>Browse</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Frame Picker Dropdown */}
+          {showFramePicker && (
+            <View style={{ backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 10, maxHeight: 240 }}>
+              <TextInput
+                value={pickerSearch}
+                onChangeText={setPickerSearch}
+                placeholder="Search..."
+                style={{ height: 38, borderBottomWidth: 1, borderBottomColor: '#f1f5f9', paddingHorizontal: 12, fontSize: 13 }}
+              />
+              <FlatList
+                data={filteredPickerItems}
+                keyExtractor={item => item.id}
+                keyboardShouldPersistTaps="handled"
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    onPress={() => { setAssetId(item.id); setShowFramePicker(false); setPickerSearch(''); }}
+                    style={{ paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#f8fafc', backgroundColor: assetId === item.id ? '#f0f9ff' : '#fff' }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#1e293b' }}>{item.name}</Text>
+                    <Text style={{ fontSize: 10, color: '#94a3b8' }}>{item.id}</Text>
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={<Text style={{ padding: 16, textAlign: 'center', color: '#94a3b8', fontSize: 12 }}>No items found</Text>}
+              />
+            </View>
+          )}
+
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <TextInput
               value={days}
@@ -187,12 +285,12 @@ export function RewardsTab() {
               keyboardType="number-pad"
               style={{ flex: 1, height: 44, borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 10, paddingHorizontal: 14, fontSize: 13, backgroundColor: '#fff' }}
             />
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={handleSendAsset}
               disabled={updating || !assetId.trim()}
-              style={{ width: 100, height: 44, backgroundColor: '#3b82f6', borderRadius: 10, alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: 100, height: 44, backgroundColor: '#3b82f6', borderRadius: 10, alignItems: 'center', justifyContent: 'center', opacity: updating || !assetId.trim() ? 0.5 : 1 }}
             >
-              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 12 }}>SEND ITEM</Text>
+              {updating ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontWeight: '800', fontSize: 12 }}>SEND ITEM</Text>}
             </TouchableOpacity>
           </View>
         </View>

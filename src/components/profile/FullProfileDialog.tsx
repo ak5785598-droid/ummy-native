@@ -13,6 +13,7 @@ import { AvatarFrame } from './AvatarFrame';
 import { toCDN } from '../../lib/cdn';
 import { isInventoryItemExpired } from '../../lib/types';
 import { ActiveIDBadge, SovereignIDBadge } from '@/components/native-id-badge';
+import { getLevelFromSpent } from '../../hooks/use-user-level';
 import {
   SVGA_OfficialTag,
   SVGA_SellerTag,
@@ -457,7 +458,7 @@ export function FullProfileDialog({
                   </View>
                 )}
               </TouchableOpacity>
-              <LevelBadge level={profile.level?.rich || 0} type="rich" />
+              <LevelBadge level={getLevelFromSpent(profile.wallet?.totalSpent || 0)} type="rich" />
               <SVIPBadge level={profile.svip || 0} />
             </View>
 

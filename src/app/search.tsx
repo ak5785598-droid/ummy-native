@@ -9,6 +9,7 @@ import { collection, query, where, getDocs, limit } from '@/firebase/firestore-c
 import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
 import { getLevelFromSpent } from '../hooks/use-user-level';
+import { UserLevelBadge } from '@/components/user-level-badge';
 
 interface SearchResult {
   type: 'user' | 'room';
@@ -17,6 +18,7 @@ interface SearchResult {
   avatarUrl?: string;
   subtitle?: string;
   badge?: string;
+  levelValue?: number;
 }
 
 export default function SearchScreen() {
@@ -83,6 +85,7 @@ export default function SearchScreen() {
                 avatarUrl: d.avatarUrl,
                 subtitle: d.accountNumber ? `ID: ${d.accountNumber}` : 'No ID',
                 badge: `Lv.${getLevelFromSpent(d.wallet?.totalSpent || 0)}`,
+                levelValue: getLevelFromSpent(d.wallet?.totalSpent || 0),
               });
             }
           });
@@ -202,9 +205,9 @@ export default function SearchScreen() {
                 <View className="flex-1">
                   <Text className="text-base font-bold text-slate-800">{result.title}</Text>
                   <Text className="text-xs text-slate-500 mt-0.5">{result.subtitle}</Text>
-                  {result.badge && (
-                    <View className="bg-purple-50 self-start rounded-full px-2 py-0.5 mt-1">
-                      <Text className="text-[10px] font-bold text-purple-600">{result.badge}</Text>
+                  {result.levelValue !== undefined && (
+                    <View className="mt-1">
+                      <UserLevelBadge level={result.levelValue} scale={0.6} />
                     </View>
                   )}
                 </View>

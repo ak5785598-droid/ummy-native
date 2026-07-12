@@ -13,6 +13,7 @@ import { Moment } from '../../lib/types';
 import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
 import { toCDN } from '../../lib/cdn';
+import { UserLevelBadge } from '@/components/user-level-badge';
 
 const { width, height } = Dimensions.get('window');
 
@@ -361,8 +362,8 @@ export function FullscreenMomentOverlay({
                 />
                 <Text className="text-white font-bold text-sm">{currentMoment.username}</Text>
                 {currentMoment.userLevel ? (
-                  <View className="bg-yellow-500 rounded px-1.5 py-0.5">
-                    <Text className="text-[9px] font-black text-white">Lv.{currentMoment.userLevel}</Text>
+                  <View>
+                    <UserLevelBadge level={currentMoment.userLevel} scale={0.6} />
                   </View>
                 ) : null}
               </View>

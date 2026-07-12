@@ -4,6 +4,7 @@ import { X, Star, Users, MessageSquare, Gamepad2, Music, PartyPopper, MoreVertic
 import { LinearGradient } from 'expo-linear-gradient';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { useUserLevel } from '../../hooks/use-user-level';
+import { UserLevelBadge } from '@/components/user-level-badge';
 import { useFirestore } from '../../firebase/provider';
 import { collection, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove, getDocs } from '@/firebase/firestore-compat';
 import { Room } from '../../lib/types';
@@ -278,10 +279,7 @@ function UserRow({ uid, role, isOwnerUser, onToggleAdmin, onPress }: { uid: stri
                   <Text className="text-white text-[9px] font-bold leading-none">{profile.gender === 'Female' ? String.fromCodePoint(0x2640) : String.fromCodePoint(0x2642)}</Text>
                 </View>
               )}
-              <LinearGradient colors={['#fbbf24', '#f59e0b']} className="flex-row items-center gap-0.5 px-2 py-0.5 rounded-full">
-                <Star size={6} color="white" />
-                <Text className="text-[7.5px] font-black text-white leading-none">LV.{userLevel}</Text>
-              </LinearGradient>
+              <UserLevelBadge level={userLevel} scale={0.9} />
             </View>
           </View>
         </View>

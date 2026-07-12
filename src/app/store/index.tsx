@@ -52,11 +52,15 @@ const STATIC_BUBBLE_ITEMS = [
 const STATIC_ENTRY_ITEMS: any[] = [];
 
 const STATIC_FRAME_ITEMS = [
-  { id: 'f-fire-ring', name: 'Fire Ring Frame', type: 'Frame', price: 500000, durationDays: 30, description: 'Animated fire ring avatar frame with blazing flames.', videoUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/store%2Fframes%2Ffire_ring_optimized.gif?alt=media' },
+  { id: 'f-red-fire', name: 'Red Fire Frame', type: 'Frame', price: 500000, durationDays: 30, description: 'Intense red fire avatar frame with blazing flames.', imageUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/store%2Fframes%2Fred_fire.png?alt=media' },
+  { id: 'f-horror-gold', name: 'Horror Gold Frame', type: 'Frame', price: 500000, durationDays: 30, description: 'Premium horror gold avatar frame with dark elegance.', imageUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/store%2Fframes%2Fhorror_gold.png?alt=media' },
+  { id: 'f-wings-gold', name: 'Wings Gold Frame', type: 'Frame', price: 500000, durationDays: 30, description: 'Majestic golden wings avatar frame.', imageUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/store%2Fframes%2Fwings_gold.png?alt=media' },
   { id: 'sea_sands', name: 'Sea Sands Frame', type: 'Frame', price: 300000, durationDays: 30, description: 'Beautiful summer sea beach sand style frame with rising bubbles.', imageUrl: 'sea_sands' },
   { id: 'basra', name: 'Basra Golden Frame', type: 'Frame', price: 320000, durationDays: 30, description: 'Exclusive tea cup and branches gold frame with star glimmers.', imageUrl: 'basra' },
-  { id: 'top3family_topuser', name: 'Top 3 Family User Frame', type: 'Frame', price: 0, durationDays: 30, description: 'Exclusive Top 3 Family User Reward Frame.', imageUrl: 'top3family_topuser', notForSale: true },
-  { id: 'top2family_topuser', name: 'Top 2 Family User Frame', type: 'Frame', price: 0, durationDays: 30, description: 'Exclusive Top 2 Family User Reward Frame.', imageUrl: 'top2family_topuser', notForSale: true }
+  { id: 'top3family_topuser', name: 'Top 3 Family User Frame', type: 'Frame', price: 0, durationDays: 30, description: 'Exclusive Top 3 Family User Reward Frame.', imageUrl: 'top3family_topuser', notForSale: true, requiredTag: 'Top 3 Family' },
+  { id: 'top2family_topuser', name: 'Top 2 Family User Frame', type: 'Frame', price: 0, durationDays: 30, description: 'Exclusive Top 2 Family User Reward Frame.', imageUrl: 'top2family_topuser', notForSale: true, requiredTag: 'Top 2 Family' },
+  { id: 'official-frame-1', name: 'Official Frame 1', type: 'Frame', price: 0, durationDays: 9999, description: 'Exclusive Official Frame — Only for verified official accounts.', videoUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Fofficial%2Fofficial_1_video.gif?alt=media', imageUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Fofficial%2Fofficial_1_image.png?alt=media', notForSale: true, requiredTag: 'Official' },
+  { id: 'official-frame-2', name: 'Official Frame 2', type: 'Frame', price: 0, durationDays: 9999, description: 'Exclusive Official Frame — Only for verified official accounts.', videoUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Fofficial%2Fofficial_2_video.gif?alt=media', imageUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Fofficial%2Fofficial_2_image.png?alt=media', notForSale: true, requiredTag: 'Official' },
 ];
 
 const STATIC_ID_ITEMS = [
@@ -235,8 +239,7 @@ export default function StoreScreen() {
       .map(item => ({ 
         ...item, 
         notForSale: !!storeNotForSale[item.id] || !!item.notForSale 
-      }))
-      .filter(item => !item.notForSale);
+      }));
   }, [allItems, storeNotForSale]);
 
   const TYPE_FILTERS = useMemo(() => {
@@ -245,7 +248,10 @@ export default function StoreScreen() {
   }, [allItemsWithFlags]);
 
   const filteredItems = useMemo(() => {
-    return allItemsWithFlags.filter(i => i.type === activeType);
+    const items = allItemsWithFlags.filter(i => i.type === activeType);
+    const regularItems = items.filter(i => !i.notForSale);
+    const notForSaleItems = items.filter(i => i.notForSale);
+    return [...regularItems, ...notForSaleItems];
   }, [allItemsWithFlags, activeType]);
 
   // My Items: owned + valid
@@ -287,6 +293,14 @@ export default function StoreScreen() {
 
   const handlePurchase = async () => {
     if (!previewItem || !user || !firestore || isProcessing) return;
+    // Required tag check — only authorized users can purchase
+    if (previewItem.requiredTag) {
+      const hasTag = userProfile?.tags?.some((t: string) => t.includes(previewItem.requiredTag));
+      if (!hasTag) {
+        Alert.alert('Restricted', `This frame is exclusive to ${previewItem.requiredTag} members only.`);
+        return;
+      }
+    }
     if (previewItem.type === 'ID' && (!checkedId || idAvailability !== 'available')) {
       Alert.alert('Search ID First', 'Please enter a custom ID and check its availability first.');
       return;
@@ -401,7 +415,7 @@ export default function StoreScreen() {
 
   const handleSendAsGift = async () => {
     if (!previewItem || !user || !firestore || !selectedRecipient || isProcessing) return;
-    const finalPrice = getPrice(previewItem.price, selectedDuration);
+    const finalPrice = getPrice(previewItem, selectedDuration);
     const coins = userProfile?.wallet?.coins || 0;
     if (coins < finalPrice) {
       Alert.alert('Insufficient Coins', `You need ${finalPrice.toLocaleString()} coins but have ${coins.toLocaleString()}.`);
@@ -426,6 +440,14 @@ export default function StoreScreen() {
         [`inventory.expiries.${previewItem.id}`]: expiryDate.toISOString(),
         updatedAt: serverTimestamp(),
       }, { merge: true });
+      const recipientNotifRef = doc(collection(firestore, 'users', selectedRecipient.uid, 'notifications'));
+      batch.set(recipientNotifRef, {
+        title: 'Gift Received!',
+        content: `${userProfile?.username || 'Someone'} sent you "${previewItem.name}" as a gift!`,
+        type: 'gift',
+        timestamp: serverTimestamp(),
+        isRead: false,
+      });
       await batch.commit();
       Alert.alert('✅ Gift Sent!', `${previewItem.name} sent to ${selectedRecipient.username || 'user'}.`);
       setSelectedRecipient(null);
@@ -466,6 +488,14 @@ export default function StoreScreen() {
 
   const handleUseItem = async (item: any) => {
     if (!user || !firestore || activatingItem) return;
+    // Required tag check — only authorized users can activate
+    if (item.requiredTag) {
+      const hasTag = userProfile?.tags?.some((t: string) => t.includes(item.requiredTag));
+      if (!hasTag) {
+        Alert.alert('Restricted', `This frame is exclusive to ${item.requiredTag} members only.`);
+        return;
+      }
+    }
     setActivatingItem(item.id);
     try {
       const profileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
@@ -530,7 +560,7 @@ export default function StoreScreen() {
     ]);
   };
 
-  const renderItem = ({ item }: { item: any }) => {
+  const renderItem = ({ item, index }: { item: any; index: number }) => {
     const owned = isItemOwned(item.id);
     const rawMediaUrl = item.imageUrl || item.url || item.videoUrl || null;
     const mediaUrl = (typeof rawMediaUrl === 'string' && rawMediaUrl.startsWith('http')) ? rawMediaUrl : null;
@@ -554,11 +584,12 @@ export default function StoreScreen() {
     const localAsset = LOCAL_FRAME_ASSETS[item.id];
 
     return (
-      <TouchableOpacity
-        style={[styles.itemCard, owned && styles.itemCardOwned, isAnyActive && { borderColor: '#fbbf24', borderWidth: 2 }]}
-        onPress={() => { setPreviewItem(item); setSelectedDuration(7); }}
-        activeOpacity={0.8}
-      >
+      <>
+        <TouchableOpacity
+          style={[styles.itemCard, owned && styles.itemCardOwned, isAnyActive && { borderColor: '#fbbf24', borderWidth: 2 }]}
+          onPress={() => { setPreviewItem(item); setSelectedDuration(7); }}
+          activeOpacity={0.8}
+        >
         {/* Media Preview */}
         <View style={styles.itemMedia}>
           {isFrameItem ? (
@@ -649,6 +680,7 @@ export default function StoreScreen() {
           )}
         </View>
       </TouchableOpacity>
+      </>
     );
   };
 
@@ -1002,7 +1034,7 @@ export default function StoreScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                     <Text style={styles.sendBtnText}>Send to {selectedRecipient.username}</Text>
                     <GoldenCoin size={24} />
-                    <Text style={styles.sendBtnText}>{getPrice(previewItem?.price || 0, selectedDuration).toLocaleString()}</Text>
+                    <Text style={styles.sendBtnText}>{getPrice(previewItem, selectedDuration).toLocaleString()}</Text>
                   </View>
                 )}
               </TouchableOpacity>

@@ -7,6 +7,8 @@ import { doc, collection, query, where, deleteDoc, updateDoc, increment, arrayUn
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
 import { toCDN } from '@/lib/cdn';
+import { getLevelFromSpent } from '../../hooks/use-user-level';
+import { UserLevelBadge } from '@/components/user-level-badge';
 
 const LEVEL_THRESHOLDS = [0, 10000, 50000, 200000, 1000000, 5000000, 20000000, 100000000, 500000000, 2000000000];
 
@@ -262,7 +264,10 @@ export default function FamilyDetail() {
                   <Text style={{ color: '#1a1a2e', fontSize: 13, fontWeight: '800', textTransform: 'uppercase' }} numberOfLines={1}>{member.username}</Text>
                   {member.uid === family.ownerId && <Crown size={12} color="#F59E0B" />}
                 </View>
-                <Text style={{ color: '#9CA3AF', fontSize: 10, fontWeight: '700', marginTop: 2 }}>Lv.{member.level?.rich || 1} Warrior</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                  <UserLevelBadge level={getLevelFromSpent(member.wallet?.totalSpent || 0)} scale={0.55} />
+                  <Text style={{ color: '#9CA3AF', fontSize: 10, fontWeight: '700' }}>Warrior</Text>
+                </View>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                 <Flame size={12} color="#F97316" />

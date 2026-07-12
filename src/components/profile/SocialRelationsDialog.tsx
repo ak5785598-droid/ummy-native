@@ -5,6 +5,7 @@ import firestore from '@react-native-firebase/firestore';
 import { useRouter } from 'expo-router';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { useUserLevel } from '../../hooks/use-user-level';
+import { UserLevelBadge } from '@/components/user-level-badge';
 import { Image } from 'expo-image';
 import { toCDN } from '../../lib/cdn';
 
@@ -67,15 +68,8 @@ const UserListItem = ({ userId, onPress }: { userId: string; onPress: () => void
             <Text style={{ fontSize: 8, fontWeight: '900', color: '#fff' }}>{isFemale ? String.fromCodePoint(0x2640) : String.fromCodePoint(0x2642)}</Text>
           </View>
 
-          {/* Rich level badge (cyan) */}
-          <View style={{
-            flexDirection: 'row', alignItems: 'center', gap: 2,
-            paddingHorizontal: 7, paddingVertical: 2, borderRadius: 99,
-            backgroundColor: '#06b6d4',
-          }}>
-            <Star size={8} color="#fff" fill="#fff" />
-            <Text style={{ fontSize: 9, fontWeight: '800', color: '#fff' }}>{richLevel}</Text>
-          </View>
+          {/* Rich level badge */}
+          <UserLevelBadge level={richLevel} scale={0.7} />
 
           {/* Charm level badge (pink-purple) */}
           <View style={{
