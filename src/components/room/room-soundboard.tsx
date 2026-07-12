@@ -33,12 +33,13 @@ export function RoomSoundboard({ visible, onClose, roomId }: RoomSoundboardProps
     if (!database || !roomId || !user?.uid || !userProfile) return;
     try {
       const msgRef = databasePush(databaseRef(database, `roomMessages/${roomId}`));
+      const cleanAvatar = (userProfile.avatarUrl && userProfile.avatarUrl.length < 2000) ? userProfile.avatarUrl : null;
       await databaseSet(msgRef, {
         id: msgRef.key,
         text: `triggered ${sfxId}`,
         senderId: user.uid,
         senderName: userProfile.username,
-        senderAvatar: userProfile.avatarUrl,
+        senderAvatar: cleanAvatar,
         type: 'emoji',
         isSfx: true,
         sfxId: sfxId,

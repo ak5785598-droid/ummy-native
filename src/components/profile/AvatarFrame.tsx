@@ -4,8 +4,10 @@ import { Image } from 'expo-image';
 import { Video, ResizeMode } from 'expo-av';
 import LottieView from 'lottie-react-native';
 import { getCachedFile } from '../../lib/cache-manager';
-import { Sparkles } from 'lucide-react-native';
+import { Sparkles, Crown, Shield } from 'lucide-react-native';
 import { toCDN } from '../../lib/cdn';
+import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Path, G, Circle as SvgCircle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 
 interface AvatarFrameProps {
   frameMediaUrl?: string | null;
@@ -21,6 +23,10 @@ const LOCAL_FRAME_ASSETS: Record<string, any> = {
   'basra_frame': require('../../../assets/images/basra_frame.png'),
   'top3family_topuser': require('../../../assets/images/top3family_topuser.png'),
   'top2family_topuser': require('../../../assets/images/top2family_topuser.png'),
+  'aristocracy_knight_frame': require('../../../assets/images/aristocracy_knight_frame.png'),
+  'aristocracy_duke_frame': require('../../../assets/images/aristocracy_duke_frame.png'),
+  'aristocracy_king_frame': require('../../../assets/images/aristocracy_king_frame.png'),
+  'aristocracy_emperor_frame': require('../../../assets/images/aristocracy_emperor_frame.png'),
 };
 
 function FrameDecorationAnimation({ type, frameSize }: { type: string; frameSize: number }) {
@@ -264,7 +270,7 @@ export const AvatarFrame = memo(function AvatarFrame({
       </View>
 
       {/* Frame overlay (rendered on top with zIndex: 2) */}
-      {hasFrame && resolvedSource && (
+      {hasFrame && (
         <View
           pointerEvents="none"
           style={{
@@ -279,34 +285,36 @@ export const AvatarFrame = memo(function AvatarFrame({
             backgroundColor: 'transparent',
           }}
         >
-          {isLottie ? (
-            <LottieView
-              key={resolvedSource}
-              ref={lottieRef}
-              source={typeof resolvedSource === 'string' && resolvedSource.startsWith('http') ? { uri: resolvedSource } : resolvedSource}
-              style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}
-              loop
-              autoPlay
-            />
-          ) : isVideo ? (
-            <Video
-              ref={videoRef}
-              source={typeof resolvedSource === 'string' ? { uri: resolvedSource } : resolvedSource}
-              style={{ width: '100%', height: '100%' }}
-              resizeMode={ResizeMode.COVER}
-              shouldPlay
-              isLooping
-              isMuted
-              useNativeControls={false}
-            />
-          ) : (
-            <Image
-              cachePolicy="memory-disk"
-              source={typeof resolvedSource === 'string' ? { uri: resolvedSource } : resolvedSource}
-              style={{ width: '100%', height: '100%' }}
-              contentFit="cover"
-              transition={200}
-            />
+          {resolvedSource && (
+            isLottie ? (
+              <LottieView
+                key={resolvedSource}
+                ref={lottieRef}
+                source={typeof resolvedSource === 'string' && resolvedSource.startsWith('http') ? { uri: resolvedSource } : resolvedSource}
+                style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}
+                loop
+                autoPlay
+              />
+            ) : isVideo ? (
+              <Video
+                ref={videoRef}
+                source={typeof resolvedSource === 'string' ? { uri: resolvedSource } : resolvedSource}
+                style={{ width: '100%', height: '100%' }}
+                resizeMode={ResizeMode.COVER}
+                shouldPlay
+                isLooping
+                isMuted
+                useNativeControls={false}
+              />
+            ) : (
+              <Image
+                cachePolicy="memory-disk"
+                source={typeof resolvedSource === 'string' ? { uri: resolvedSource } : resolvedSource}
+                style={{ width: '100%', height: '100%' }}
+                contentFit="cover"
+                transition={200}
+              />
+            )
           )}
           {<FrameDecorationAnimation type={frameMediaUrl!} frameSize={frameSize} />}
         </View>

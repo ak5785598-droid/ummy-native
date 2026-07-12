@@ -435,11 +435,11 @@ export default function StoreScreen() {
       const batch = writeBatch(firestore);
       batch.update(senderProfileRef, deductData);
       batch.update(senderUserRef, deductData);
-      batch.set(recipientProfileRef, {
+      batch.update(recipientProfileRef, {
         'inventory.ownedItems': arrayUnion(previewItem.id),
         [`inventory.expiries.${previewItem.id}`]: expiryDate.toISOString(),
         updatedAt: serverTimestamp(),
-      }, { merge: true });
+      });
       const recipientNotifRef = doc(collection(firestore, 'users', selectedRecipient.uid, 'notifications'));
       batch.set(recipientNotifRef, {
         title: 'Gift Received!',

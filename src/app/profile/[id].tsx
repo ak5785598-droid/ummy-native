@@ -741,6 +741,19 @@ export default function ProfileScreen() {
         displayId={displayID} 
         onReport={() => setReportOpen(true)}
         onViewProfile={(uid: string) => { setFullViewOpen(false); router.push(`/profile/${uid}`); }}
+        onChangeFrame={async (frameId: string, frameUrl: string | null) => {
+          if (!firestore || !userId) return;
+          try {
+            await setDocumentNonBlocking(doc(firestore, 'users', userId, 'profile', userId), { 'inventory.activeFrame': frameId, 'inventory.activeFrameMediaUrl': frameUrl || null }, { merge: true });
+          } catch {}
+          setFullViewOpen(false);
+        }}
+        onRemoveFrame={async () => {
+          if (!firestore || !userId) return;
+          try {
+            await setDocumentNonBlocking(doc(firestore, 'users', userId, 'profile', userId), { 'inventory.activeFrame': 'None', 'inventory.activeFrameMediaUrl': null }, { merge: true });
+          } catch {}
+        }}
         onChat={(p: any) => {
           setFullViewOpen(false);
           router.push({

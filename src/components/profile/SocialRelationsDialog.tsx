@@ -69,7 +69,7 @@ const UserListItem = ({ userId, onPress }: { userId: string; onPress: () => void
           </View>
 
           {/* Rich level badge */}
-          <UserLevelBadge level={richLevel} scale={0.7} />
+          <UserLevelBadge level={richLevel} scale={1.1} />
 
           {/* Charm level badge (pink-purple) */}
           <View style={{

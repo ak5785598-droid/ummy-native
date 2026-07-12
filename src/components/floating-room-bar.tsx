@@ -46,6 +46,18 @@ export function FloatingRoomBar() {
       onPanResponderRelease: (_, gesture) => {
         pan.flattenOffset();
 
+        // Standard tap threshold check: if movement is tiny, treat as instant click
+        const dragDist = Math.sqrt(gesture.dx * gesture.dx + gesture.dy * gesture.dy);
+        if (dragDist < 10) {
+          setActiveRoom(room);
+          setMinimizedRoom(null);
+          setIsMinimized(false);
+          router.push(`/rooms/${room.id}`);
+          isDragging.current = false;
+          hasMoved.current = false;
+          return;
+        }
+
         const currentX = (pan.x as any)._value;
         const currentY = (pan.y as any)._value;
 
@@ -70,24 +82,11 @@ export function FloatingRoomBar() {
 
   if (!room || !isMinimized) return null;
 
-  const handleExitRoom = async () => {
+  // Let useRoomPresence hook's cleanup handler manage Firestore deletes
+  // to avoid double decrement race conditions
+  const handleExitRoom = () => {
     destroyAgoraEngine();
     destroyMusicSound();
-
-    if (firestore && user?.uid && room?.id) {
-      try {
-        const participantRef = doc(firestore, 'chatRooms', room.id, 'participants', user.uid);
-        const participantSnap = await getDoc(participantRef);
-        if (participantSnap.exists()) {
-          await deleteDoc(participantRef);
-          const roomRef = doc(firestore, 'chatRooms', room.id);
-          await import('@/firebase/firestore-compat').then(m =>
-            m.updateDoc(roomRef, { participantCount: increment(-1) })
-          );
-        }
-      } catch {}
-    }
-
     setActiveRoom(null);
     setMinimizedRoom(null);
   };
@@ -140,7 +139,7 @@ export function FloatingRoomBar() {
           <Text style={styles.infoText} numberOfLines={1}>
             {room.title || 'Room'}
           </Text>
-          <Text style={styles.listenerCount}>{room.participantCount || 0}</Text>
+          <Text style={styles.listenerCount}>{Math.max(0, room.participantCount || 0)}</Text>
         </View>
       </Animated.View>
     </View>

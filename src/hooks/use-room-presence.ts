@@ -1,12 +1,18 @@
 import { useEffect, useRef } from 'react';
 import { useFirestore, useUser, useDatabase } from '../firebase/provider';
 import { doc, getDoc, setDoc, deleteDoc, serverTimestamp, writeBatch, increment, collection, getDocs, query, where } from '@/firebase/firestore-compat';
-import { ref, set, onDisconnect, onValue, remove, push, serverTimestamp as dbServerTimestamp } from 'firebase/database';
+import { ref, set, onDisconnect, onValue, remove, push, serverTimestamp as dbServerTimestamp, query as dbQuery, orderByChild, limitToFirst, get, update } from 'firebase/database';
 import { AppState, AppStateStatus } from 'react-native';
 import { setDocumentNonBlocking, updateDocumentNonBlocking, addDocumentNonBlocking } from '../lib/non-blocking-writes';
 import { Room, User, isInventoryItemExpired } from '../lib/types';
 
 const enteredRooms = new Set<string>();
+
+const filterBase64 = (url: string | null | undefined): string | null => {
+  if (!url) return null;
+  if (url.startsWith('data:') || url.length > 2000) return null;
+  return url;
+};
 
 interface UseRoomPresenceProps {
   activeRoom: Room | null;
@@ -105,8 +111,11 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
 
         // Skip entrance message if roomInvisible is enabled
         if (!userProfile?.roomInvisible) {
-          const entryType = userProfile?.inventory?.activeEntryEffect || null;
-          const entryVideoUrl = userProfile?.inventory?.activeEntryVideoUrl || null;
+          const inventoryEntryType = userProfile?.inventory?.activeEntryEffect || null;
+          const inventoryEntryVideoUrl = userProfile?.inventory?.activeEntryVideoUrl || null;
+          // SVIP entrance takes priority over inventory entrance
+          const entryType = userProfile?.svipPrivileges?.entranceType || inventoryEntryType;
+          const entryVideoUrl = userProfile?.svipPrivileges?.entranceUrl || inventoryEntryVideoUrl;
           
           const newMsgRef = push(ref(database, `roomMessages/${roomId}`));
           set(newMsgRef, {
@@ -114,12 +123,26 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
             type: 'entrance', 
             senderId: uid, 
             senderName: userProfile?.username || user.displayName || 'Anonymous',
-            senderAvatar: userProfile?.avatarUrl || user.photoURL || null,
-            mediaUrl: userProfile?.inventory?.activeEntryMediaUrl || null,
+            senderAvatar: filterBase64(userProfile?.avatarUrl) || user.photoURL || null,
+            mediaUrl: filterBase64(userProfile?.svipPrivileges?.entranceUrl || userProfile?.inventory?.activeEntryMediaUrl) || null,
             entryEffectType: entryType,
-            entryVideoUrl: entryVideoUrl,
+            entryVideoUrl: filterBase64(entryVideoUrl),
             content: 'entered the room', 
             timestamp: Date.now(),
+          }).catch(() => {});
+
+          const roomMsgsRef = ref(database, `roomMessages/${roomId}`);
+          const limitQuery = dbQuery(roomMsgsRef, orderByChild('timestamp'), limitToFirst(200));
+          get(limitQuery).then((snap: any) => {
+            const data = snap.val();
+            if (!data) return;
+            const keys = Object.keys(data);
+            if (keys.length > 150) {
+              const toRemove = keys.slice(0, keys.length - 150);
+              const updates: Record<string, null> = {};
+              toRemove.forEach((k: string) => { updates[k] = null; });
+              update(roomMsgsRef, updates).catch(() => {});
+            }
           }).catch(() => {});
         }
       } else {
@@ -215,7 +238,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
       set(presenceRef.current, {
         uid,
         name: userProfile?.username || user.displayName || 'Anonymous',
-        avatarUrl: userProfile?.avatarUrl || user.photoURL || '',
+        avatarUrl: filterBase64(userProfile?.avatarUrl) || user.photoURL || '',
         joinedAt: dbServerTimestamp(),
         lastSeen: dbServerTimestamp(),
         isOnline: true,
@@ -234,7 +257,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
           set(presenceRef.current, {
             uid,
             name: userProfile?.username || user.displayName || 'Anonymous',
-            avatarUrl: userProfile?.avatarUrl || user.photoURL || '',
+            avatarUrl: filterBase64(userProfile?.avatarUrl) || user.photoURL || '',
             joinedAt: dbServerTimestamp(),
             lastSeen: dbServerTimestamp(),
             isOnline: true,

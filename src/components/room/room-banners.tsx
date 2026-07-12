@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, TouchableOpacity, Animated, StyleSheet, Text } from 'react-native';
+import { View, TouchableOpacity, Animated, StyleSheet, Text, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Sparkles, Trophy, Rocket, Crown, Gift } from 'lucide-react-native';
 import { SvgXml } from 'react-native-svg';
@@ -52,6 +52,7 @@ interface RoomBannersProps {
   onOpenSupport?: () => void;
   onOpenSpin?: () => void;
   onOpenChest?: () => void;
+  onOpenAristocracy?: () => void;
 }
 
 const STATIC_BANNERS = [
@@ -80,9 +81,11 @@ const getBannerName = (id: string) => {
   }
 };
 
-export function RoomBanners({ onOpenSupport, onOpenSpin, onOpenChest }: RoomBannersProps) {
+export function RoomBanners({ onOpenSupport, onOpenSpin, onOpenChest, onOpenAristocracy }: RoomBannersProps) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const slideAnim = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef<ScrollView>(null);
+  const isManualRef = useRef(false);
+  const timerRef = useRef<any>(null);
 
   const firestore = useFirestore();
   const bannerRef = useMemoFirebase(() => !firestore ? null : doc(firestore, 'appConfig', 'roomBanners'), [firestore]);
@@ -99,60 +102,74 @@ export function RoomBanners({ onOpenSupport, onOpenSpin, onOpenChest }: RoomBann
     });
   }, [bannerConfig]);
 
-  // Create loop array by appending first item to the end
   const loopedBanners = React.useMemo(() => {
     if (displayBanners.length <= 1) return displayBanners;
     return [...displayBanners, displayBanners[0]];
   }, [displayBanners]);
 
-  useEffect(() => {
-    if (displayBanners.length <= 1) return;
-    const timer = setInterval(() => {
-      setActiveIndex(prev => prev + 1);
+  const startAutoScroll = () => {
+    stopAutoScroll();
+    timerRef.current = setInterval(() => {
+      if (displayBanners.length <= 1 || isManualRef.current) return;
+      setActiveIndex((prev) => {
+        const next = prev + 1;
+        scrollViewRef.current?.scrollTo({ x: next * 75, animated: true });
+        return next;
+      });
     }, 4000);
-    return () => clearInterval(timer);
+  };
+
+  const stopAutoScroll = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    startAutoScroll();
+    return () => stopAutoScroll();
   }, [displayBanners.length]);
 
-  useEffect(() => {
-    if (displayBanners.length <= 1) return;
-
-    if (activeIndex === displayBanners.length) {
-      // Smoothly slide to the duplicated first item
-      Animated.spring(slideAnim, {
-        toValue: activeIndex * -75,
-        friction: 8,
-        tension: 40,
-        useNativeDriver: true,
-      }).start(() => {
-        // Immediately snap back to the actual first item (index 0) without transition
-        slideAnim.setValue(0);
-        setActiveIndex(0);
-      });
-    } else {
-      Animated.spring(slideAnim, {
-        toValue: activeIndex * -75,
-        friction: 8,
-        tension: 40,
-        useNativeDriver: true,
-      }).start();
+  const handleMomentumScrollEnd = (e: any) => {
+    const offsetX = e.nativeEvent.contentOffset.x;
+    let index = Math.round(offsetX / 75);
+    
+    if (index >= displayBanners.length) {
+      scrollViewRef.current?.scrollTo({ x: 0, animated: false });
+      index = 0;
     }
-  }, [activeIndex, displayBanners.length]);
+    
+    setActiveIndex(index);
+    isManualRef.current = false;
+    startAutoScroll();
+  };
 
   const handlePress = (banner: any) => {
     if (banner.id === 'room-support') onOpenSupport?.();
     else if (banner.id === 'lucky-spin') onOpenSpin?.();
     else if (banner.id === 'golden-chest') onOpenChest?.();
+    else if (banner.id === 'merge-aristocracy') onOpenAristocracy?.();
   };
 
   return (
     <View style={styles.container}>
-      {/* Outer clipped viewport */}
       <View style={styles.bannerViewport}>
-        {/* Sliding inner row containing all banners */}
-        <Animated.View style={[styles.slidingRow, { transform: [{ translateX: slideAnim }] }]}>
+        <ScrollView
+          ref={scrollViewRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScrollBeginDrag={() => {
+            isManualRef.current = true;
+            stopAutoScroll();
+          }}
+          onMomentumScrollEnd={handleMomentumScrollEnd}
+          scrollEventThrottle={16}
+          style={{ width: 75, height: '100%' }}
+        >
           {loopedBanners.map((banner, index) => {
             const IconComponent = banner.icon;
-            // Compound key to prevent duplicate React keys warning for the looped element
             const itemKey = `${banner.id}-${index}`;
             return (
               <TouchableOpacity
@@ -183,7 +200,6 @@ export function RoomBanners({ onOpenSupport, onOpenSpin, onOpenChest }: RoomBann
                   </LinearGradient>
                 )}
 
-                {/* Centered Name Overlay on top of all banners */}
                 {getBannerName(banner.id) !== '' && (
                   <View style={styles.textOverlay} pointerEvents="none">
                     <Text style={[styles.bannerText, banner.id === 'merge-aristocracy' && { fontSize: 7 }]}>
@@ -194,7 +210,7 @@ export function RoomBanners({ onOpenSupport, onOpenSpin, onOpenChest }: RoomBann
               </TouchableOpacity>
             );
           })}
-        </Animated.View>
+        </ScrollView>
       </View>
 
       <View style={styles.dotContainer}>

@@ -8,6 +8,7 @@ import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { FirebaseStorage } from 'firebase/storage';
 import { Database } from 'firebase/database';
+import { isCurrentDeviceActive } from '../lib/device-session';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -85,7 +86,17 @@ export function FirebaseProvider({ children, firebaseApp, firestore, auth, stora
 
     try {
       const unsubscribe = (auth as any).onAuthStateChanged(
-        (firebaseUser: any) => setUserAuthState({ user: firebaseUser, isLoading: false, userError: null }),
+        async (firebaseUser: any) => {
+          if (firebaseUser && firestore) {
+            const isActive = await isCurrentDeviceActive(firestore, firebaseUser.uid);
+            if (!isActive) {
+              try { await (auth as any).signOut(); } catch {}
+              setUserAuthState({ user: null, isLoading: false, userError: null });
+              return;
+            }
+          }
+          setUserAuthState({ user: firebaseUser, isLoading: false, userError: null });
+        },
         (err: any) => setUserAuthState({ user: null, isLoading: false, userError: err })
       );
       return () => unsubscribe();

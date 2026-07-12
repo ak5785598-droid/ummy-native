@@ -79,6 +79,9 @@ const DEFAULT_LEVELS: LootLevel[] = [
 
 export function LootBoxDisplay({ onOpenGate, onGateReady, roomId, topSupporters = [], isOwner = false }: LootBoxDisplayProps) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const isManualRef = useRef(false);
+  const timerRef = useRef<any>(null);
   const [showPath, setShowPath] = useState(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -294,18 +297,56 @@ export function LootBoxDisplay({ onOpenGate, onGateReady, roomId, topSupporters 
     }
   }, [shouldFireGate, currentLevelIndex, curLevel.name]);
 
+  const loopedLevels = React.useMemo(() => {
+    if (levels.length <= 1) return levels;
+    return [...levels, levels[0]];
+  }, [levels]);
+
   // Auto scrolling
-  useEffect(() => {
-    if (canOpenGate && !isGateCompleted) { setActiveIndex(currentLevelIndex); return; }
-    if (showPath) return;
-    const timer = setInterval(() => {
-      Animated.timing(fadeAnim, { toValue: 0, duration: 250, useNativeDriver: true }).start(() => {
-        setActiveIndex(p => (p + 1) % levels.length);
-        Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+  const startAutoScroll = () => {
+    stopAutoScroll();
+    timerRef.current = setInterval(() => {
+      if (levels.length <= 1 || isManualRef.current || showPath || (canOpenGate && !isGateCompleted)) return;
+      setActiveIndex((prev) => {
+        const next = prev + 1;
+        scrollViewRef.current?.scrollTo({ x: next * 60, animated: true });
+        return next;
       });
     }, 4000);
-    return () => clearInterval(timer);
-  }, [levels.length, canOpenGate, isGateCompleted, currentLevelIndex, showPath, fadeAnim]);
+  };
+
+  const stopAutoScroll = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    startAutoScroll();
+    return () => stopAutoScroll();
+  }, [levels.length, showPath, canOpenGate, isGateCompleted]);
+
+  useEffect(() => {
+    if (canOpenGate && !isGateCompleted) {
+      setActiveIndex(currentLevelIndex);
+      scrollViewRef.current?.scrollTo({ x: currentLevelIndex * 60, animated: true });
+    }
+  }, [canOpenGate, isGateCompleted, currentLevelIndex]);
+
+  const handleMomentumScrollEnd = (e: any) => {
+    const offsetX = e.nativeEvent.contentOffset.x;
+    let index = Math.round(offsetX / 60);
+    
+    if (index >= levels.length) {
+      scrollViewRef.current?.scrollTo({ x: 0, animated: false });
+      index = 0;
+    }
+    
+    setActiveIndex(index);
+    isManualRef.current = false;
+    startAutoScroll();
+  };
 
   // Pulse on unlock
   useEffect(() => {
@@ -2417,59 +2458,85 @@ export function LootBoxDisplay({ onOpenGate, onGateReady, roomId, topSupporters 
   return (
     <View>
       <Animated.View style={{ transform: [{ scale: isGateLocked ? pulseAnim : 1 }] }}>
-        <TouchableOpacity
-          onPress={() => { if (isGateLocked) handleOpenGateClick(); else setShowPath(!showPath); }}
-          activeOpacity={0.8}
-          style={[
-            styles.boxContainer,
-            {
-              borderColor: isGateLocked ? '#fbbf24' : 'rgba(168,85,247,0.3)',
-              borderWidth: isGateLocked ? 2 : 1,
-            }
-          ]}
-        >
-          {(() => {
-              const localImage = LEVEL_IMAGES[activeLevel?.id];
-              if (localImage) {
-                return (
-                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-                    <Image source={localImage} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" />
-                  </View>
-                );
-              } else {
+        <View style={{ width: 60, height: 60, borderRadius: 16, overflow: 'hidden' }}>
+          <ScrollView
+            ref={scrollViewRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScrollBeginDrag={() => {
+              isManualRef.current = true;
+              stopAutoScroll();
+            }}
+            onMomentumScrollEnd={handleMomentumScrollEnd}
+            scrollEventThrottle={16}
+            style={{ width: 60, height: 60 }}
+          >
+            {loopedLevels.map((level, idx) => {
+              const localImage = LEVEL_IMAGES[level.id];
+              const activeIdx = idx % levels.length;
+              const isLvlCurrentActive = activeIdx === currentLevelIndex;
+              const isLvlGateLocked = isLvlCurrentActive && canOpenGate && !isGateCompleted;
+              
+              let lvlDisplayPct = 0;
+              if (activeIdx < currentLevelIndex) lvlDisplayPct = 100;
+              else if (activeIdx === currentLevelIndex) lvlDisplayPct = Math.round(progressPct);
+              else lvlDisplayPct = 0;
+
+              const lvlShouldFireGate = (level.id === 'home' || activeIdx === 0) ? false : (activeIdx === currentLevelIndex && isLvlGateLocked && !isGateCompleted);
+
               return (
-                <Animated.View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', opacity: fadeAnim }}>
-                  <Text style={styles.emojiText}>{LEVEL_ICONS[activeLevel?.id] || '🏠'}</Text>
-                </Animated.View>
+                <TouchableOpacity
+                  key={`${level.id}-${idx}`}
+                  onPress={() => { if (isLvlGateLocked) handleOpenGateClick(); else setShowPath(!showPath); }}
+                  activeOpacity={0.8}
+                  style={[
+                    styles.boxContainer,
+                    {
+                      borderColor: isLvlGateLocked ? '#fbbf24' : 'rgba(168,85,247,0.3)',
+                      borderWidth: isLvlGateLocked ? 2 : 1,
+                    }
+                  ]}
+                >
+                  {localImage ? (
+                    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+                      <Image source={localImage} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" />
+                    </View>
+                  ) : (
+                    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={styles.emojiText}>{LEVEL_ICONS[level.id] || '🏠'}</Text>
+                    </View>
+                  )}
+
+                  <View style={styles.bottomInfo}>
+                    <Text numberOfLines={1} style={styles.levelNameText}>{level.name || 'Home'}</Text>
+                    <View style={styles.progressBarWrapper}>
+                      <View style={[styles.progressBarFill, { width: `${lvlDisplayPct}%` }]} />
+                    </View>
+                    <Text style={styles.percentageText}>{lvlDisplayPct}%</Text>
+                  </View>
+
+                  {isLvlGateLocked && (
+                    <View style={styles.lockOverlay}>
+                      <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+                        <LinearGradient colors={['#fbbf24', '#f59e0b', '#f97316']} style={styles.unlockCircle}>
+                          <Unlock size={14} color="black" />
+                        </LinearGradient>
+                      </Animated.View>
+                    </View>
+                  )}
+
+                  {lvlShouldFireGate && (
+                    <View style={styles.readyBadge}>
+                      <Zap size={8} color="#fbbf24" />
+                      <Animated.Text style={[styles.readyText, { opacity: readyAnim }]}>LIVE</Animated.Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
               );
-            }
-          })()}
-
-          <Animated.View style={[styles.bottomInfo, { opacity: fadeAnim }]}>
-            <Text numberOfLines={1} style={styles.levelNameText}>{activeLevel?.name || 'Home'}</Text>
-            <View style={styles.progressBarWrapper}>
-              <View style={[styles.progressBarFill, { width: `${displayPct}%` }]} />
-            </View>
-            <Text style={styles.percentageText}>{displayPct}%</Text>
-          </Animated.View>
-
-          {isGateLocked && (
-            <View style={styles.lockOverlay}>
-              <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-                <LinearGradient colors={['#fbbf24', '#f59e0b', '#f97316']} style={styles.unlockCircle}>
-                  <Unlock size={14} color="black" />
-                </LinearGradient>
-              </Animated.View>
-            </View>
-          )}
-
-          {shouldFireGate && (
-            <View style={styles.readyBadge}>
-              <Zap size={8} color="#fbbf24" />
-              <Animated.Text style={[styles.readyText, { opacity: readyAnim }]}>LIVE</Animated.Text>
-            </View>
-          )}
-        </TouchableOpacity>
+            })}
+          </ScrollView>
+        </View>
       </Animated.View>
 
       <Modal visible={showPath} transparent animationType="fade" onRequestClose={() => setShowPath(false)}>

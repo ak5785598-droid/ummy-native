@@ -5,6 +5,7 @@ import { useCollection, useFirebase } from '../../firebase/provider';
 import { collection, query, orderBy, limit, where } from '@/firebase/firestore-compat';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { GoldenCoin } from '../GoldenCoin';
 
 interface RankingCardProps {
   onPress: () => void;
@@ -239,7 +240,10 @@ export function RankingCard({ onPress }: RankingCardProps) {
                   />
                 </View>
                 <Text numberOfLines={1} style={styles.nameText}>{currentUser.username || 'User'}</Text>
-                <Text style={styles.spentText}>🪙 {currentUser.wallet?.dailySpent?.toLocaleString() || 0}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 1, gap: 2 }}>
+                  <GoldenCoin size={10} />
+                  <Text style={[styles.spentText, { marginTop: 0 }]}>{currentUser.wallet?.dailySpent?.toLocaleString() || 0}</Text>
+                </View>
               </View>
             ) : (
               <View style={styles.userContainer}>

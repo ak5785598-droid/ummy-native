@@ -35,6 +35,7 @@ import { RoomMicInvite } from '../../components/room/room-mic-invite';
 import { RoomTrophyBadge } from '../../components/room/room-trophy-badge';
 import { RoomBanners } from '../../components/room/room-banners';
 import { LootBoxDisplay } from '../../components/room/loot-box-display';
+import { AristocracyDialog } from '../../components/room/aristocracy-dialog';
 import { RoomTasksDialog } from '../../components/room/room-tasks-dialog';
 import { UserPlus, X, Disc3, Lock } from 'lucide-react-native';
 import { GiftPicker } from '../../components/gift/gift-picker';
@@ -116,6 +117,7 @@ export default function RoomScreen() {
   const [showTopSupporters, setShowTopSupporters] = useState(false);
   const [showLuckySpin, setShowLuckySpin] = useState(false);
   const [showGoldenChest, setShowGoldenChest] = useState(false);
+  const [showAristocracyDialog, setShowAristocracyDialog] = useState(false);
   const [showImagePreview, setShowImagePreview] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [showSoundboard, setShowSoundboard] = useState(false);
@@ -841,7 +843,10 @@ export default function RoomScreen() {
     muteOverrideRef.current = isSeatMuted;
     const activeFrame = userProfile.inventory?.activeFrame || null;
     const isFrameExpired = isInventoryItemExpired(userProfile.inventory || {}, activeFrame);
-    const frameUrlToSend = isFrameExpired ? null : (userProfile.inventory?.activeFrameMediaUrl || null);
+    const inventoryFrameUrl = isFrameExpired ? null : (userProfile.inventory?.activeFrameMediaUrl || null);
+    const frameUrlToSend = activeFrame === '__svip_frame__'
+      ? (userProfile?.svipPrivileges?.frameUrl || null)
+      : inventoryFrameUrl;
 
     await setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', user.uid), { seatIndex: seatIdx, isMuted: isSeatMuted, name: userProfile.username, avatarUrl: userProfile.avatarUrl, activeFrameMediaUrl: frameUrlToSend, lastSeen: serverTimestamp() }, { merge: true });
     const takeSeatTid = setTimeout(() => { muteOverrideRef.current = null; forceUpdate(n => n + 1); }, 2000);
@@ -881,7 +886,9 @@ export default function RoomScreen() {
     if (!firestore || !id || !user?.uid || !userProfile || (!text && !imageUrl)) return;
     const activeBubble = userProfile.inventory?.activeBubble || null;
     const isExpired = isInventoryItemExpired(userProfile.inventory, activeBubble);
-    const bubbleToSend = isExpired ? null : activeBubble;
+    const inventoryBubble = isExpired ? null : activeBubble;
+    // SVIP bubble takes priority over inventory bubble
+    const bubbleToSend = userProfile?.svipPrivileges?.bubbleId || inventoryBubble;
     await addDocumentNonBlocking(collection(firestore, 'chatRooms', id, 'messages'), { content: text, imageUrl: imageUrl || null, senderId: user.uid, senderName: userProfile.username, senderAvatar: userProfile.avatarUrl || null, senderBubble: bubbleToSend, chatRoomId: id, timestamp: serverTimestamp(), type: 'text' });
   };
 
@@ -1152,7 +1159,12 @@ export default function RoomScreen() {
 
         {/* Floating Banners (Mid-Bottom Right) */}
         <View className="absolute right-2 z-50 items-end gap-2" pointerEvents="box-none" style={{ bottom: maxSeats >= 13 ? 224 : 256 }}>
-          <RoomBanners onOpenSupport={() => setShowSupportDialog(true)} onOpenSpin={() => setShowLuckySpin(true)} onOpenChest={() => setShowGoldenChest(true)} />
+          <RoomBanners 
+            onOpenSupport={() => setShowSupportDialog(true)} 
+            onOpenSpin={() => setShowLuckySpin(true)} 
+            onOpenChest={() => setShowGoldenChest(true)} 
+            onOpenAristocracy={() => setShowAristocracyDialog(true)}
+          />
         </View>
 
         {/* Floating Loot Box (Bottom Right, just above footer actions) */}
@@ -1277,6 +1289,7 @@ export default function RoomScreen() {
       <RoomTopSupportersDialog visible={showTopSupporters} onClose={() => setShowTopSupporters(false)} supporters={safeTopSupporters} />
       <RoomLuckySpinDialog visible={showLuckySpin} onClose={() => setShowLuckySpin(false)} roomId={id} />
       <RoomGoldenChestDialog visible={showGoldenChest} onClose={() => setShowGoldenChest(false)} roomId={id} />
+      <AristocracyDialog visible={showAristocracyDialog} onClose={() => setShowAristocracyDialog(false)} />
       <ImagePreviewDialog visible={showImagePreview} onClose={() => setShowImagePreview(false)} imageUrl={previewImageUrl} />
       <RoomSoundboard visible={showSoundboard} onClose={() => setShowSoundboard(false)} roomId={id} />
       <RoomMessagesDialog visible={isMessagesOpen} onClose={() => { setIsMessagesOpen(false); setMessageRecipient(null); }} roomId={id} initialRecipient={messageRecipient} />
@@ -1479,12 +1492,24 @@ export default function RoomScreen() {
           setGiftRecipient(recipient);
           setIsGiftPickerOpen(true);
         }}
-        onChangeFrame={() => {
+        onChangeFrame={async (frameId: string, frameUrl: string | null) => {
+          if (!firestore || !fullProfileUid) return;
+          try {
+            await setDocumentNonBlocking(doc(firestore, 'users', fullProfileUid, 'profile', fullProfileUid), {
+              'inventory.activeFrame': frameId,
+              'inventory.activeFrameMediaUrl': frameUrl || null,
+            }, { merge: true });
+          } catch {}
           setShowFullProfile(false);
         }}
         onRemoveFrame={async () => {
           if (!firestore || !fullProfileUid) return;
-          try { await setDocumentNonBlocking(doc(firestore, 'users', fullProfileUid, 'profile', fullProfileUid), { 'inventory.activeFrame': 'None' }, { merge: true }); } catch {}
+          try {
+            await setDocumentNonBlocking(doc(firestore, 'users', fullProfileUid, 'profile', fullProfileUid), {
+              'inventory.activeFrame': 'None',
+              'inventory.activeFrameMediaUrl': null,
+            }, { merge: true });
+          } catch {}
         }}
         onViewProfile={(uid: string) => { setShowFullProfile(false); setTimeout(() => { setFullProfileUid(uid); setShowFullProfile(true); }, 100); }}
       />

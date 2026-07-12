@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Modal, TextInput, FlatList, RefreshControl, Keyboard, Platform, LayoutAnimation, UIManager, Alert, BackHandler } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Modal, TextInput, FlatList, RefreshControl, Keyboard, Platform, LayoutAnimation, UIManager, Alert, BackHandler, Dimensions, Vibration } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Search, Shield, Heart, ChevronRight, Send, X, Image as ImageIcon, MoreHorizontal, Loader, Check, CheckCheck, Gift, Mic, Smile, Plus, Play, Pause } from 'lucide-react-native';
+import { Search, Shield, Heart, ChevronRight, Send, X, Image as ImageIcon, MoreHorizontal, Loader, Check, CheckCheck, Gift, Mic, Smile, Plus, Play, Pause, ChevronDown } from 'lucide-react-native';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc, useStorage } from '../../firebase/provider';
-import { collection, query, where, orderBy, limit, doc, setDoc, serverTimestamp, deleteDoc, updateDoc, arrayUnion, arrayRemove, runTransaction, onSnapshot, getDoc } from '@/firebase/firestore-compat';
+import { collection, query, where, orderBy, limit, doc, setDoc, serverTimestamp, deleteDoc, updateDoc, arrayUnion, arrayRemove, runTransaction, onSnapshot, getDoc, increment, writeBatch } from '@/firebase/firestore-compat';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useRouter, useNavigation, useLocalSearchParams } from 'expo-router';
 import { useUserProfile } from '../../hooks/use-user-profile';
@@ -16,6 +16,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
 import { FullProfileDialog } from '../../components/profile/FullProfileDialog';
 import { toCDN } from '@/lib/cdn';
+import { GoldenCoin } from '../../components/GoldenCoin';
 
 export default function MessagesScreen() {
   const { user } = useUser();
@@ -351,6 +352,19 @@ export default function MessagesScreen() {
           setActiveChatId(chatPartId);
           setSelectedRecipient({ uid: profileDialogUid, username: p.username || p.name, avatarUrl: p.avatarUrl });
         }}
+        onChangeFrame={async (frameId: string, frameUrl: string | null) => {
+          if (!firestore || !profileDialogUid) return;
+          try {
+            await setDocumentNonBlocking(doc(firestore, 'users', profileDialogUid, 'profile', profileDialogUid), { 'inventory.activeFrame': frameId, 'inventory.activeFrameMediaUrl': frameUrl || null }, { merge: true });
+          } catch {}
+          setProfileDialogUid(null);
+        }}
+        onRemoveFrame={async () => {
+          if (!firestore || !profileDialogUid) return;
+          try {
+            await setDocumentNonBlocking(doc(firestore, 'users', profileDialogUid, 'profile', profileDialogUid), { 'inventory.activeFrame': 'None', 'inventory.activeFrameMediaUrl': null }, { merge: true });
+          } catch {}
+        }}
       />
     </SafeAreaView>
   );
@@ -589,6 +603,14 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
   const { profile: otherUser } = useUserProfile(recipientUid);
   const { profile: myProfile } = useUserProfile(user?.uid);
   
+  useEffect(() => {
+    if (!firestore) return;
+    const unsub = onSnapshot(collection(firestore, 'gifts'), (snap: any) => {
+      setGifts(snap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
+    }, () => {});
+    return () => unsub();
+  }, [firestore]);
+  
   const [text, setText] = useState('');
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -600,6 +622,28 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
   const [selectedMsg, setSelectedMsg] = useState<PrivateMessage | null>(null);
   const [editingMsg, setEditingMsg] = useState<PrivateMessage | null>(null);
   const [editText, setEditText] = useState('');
+  const [showGiftPicker, setShowGiftPicker] = useState(false);
+  const [gifts, setGifts] = useState<any[]>([]);
+  const [activeGiftCategory, setActiveGiftCategory] = useState('Hot');
+  const [selectedGift, setSelectedGift] = useState<any>(null);
+  const [selectedGiftQty, setSelectedGiftQty] = useState('1');
+  const [showQtyPopup, setShowQtyPopup] = useState(false);
+
+  const GIFT_CATEGORIES = ['Hot', 'Lucky', 'Luxury', 'Event', 'Customized'];
+  const QUANTITIES = ['1', '10', '99', '520', '1314'];
+
+  const groupedGifts = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    GIFT_CATEGORIES.forEach(c => { groups[c] = []; });
+    gifts.forEach((g: any) => {
+      const cat = g.category || 'Hot';
+      if (groups[cat]) groups[cat].push(g);
+      else groups['Event'].push(g);
+    });
+    return groups;
+  }, [gifts]);
+
+  const currentGifts = groupedGifts[activeGiftCategory] || [];
   
   const scrollViewRef = useRef<ScrollView>(null);
   const recordingInstanceRef = useRef<any>(null);
@@ -676,6 +720,7 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
     });
 
     await setDocumentNonBlocking(chatDocRef, {
+      participantIds: [user.uid, recipientUid].sort(),
       lastMessage: msgText?.trim() || (imageUrl ? '📷 Photo' : (audioUrl ? '🎤 Voice message' : '')),
       lastSenderId: user.uid,
       lastMessageReadBy: [user.uid],
@@ -835,16 +880,89 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
   };
 
   const handleGiftPress = () => {
-    Alert.alert(
-      'Send Gift',
-      'Choose a gift to send',
-      [
-        { text: '🌹 Flower', onPress: () => handleSend('🌹') },
-        { text: '💎 Diamond', onPress: () => handleSend('💎') },
-        { text: '🎂 Cake', onPress: () => handleSend('🎂') },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+    setShowGiftPicker(true);
+  };
+
+  const handleSendGift = async () => {
+    if (!firestore || !user?.uid || !selectedGift || !myProfile) return;
+    const qty = parseInt(selectedGiftQty) || 1;
+    const totalCost = selectedGift.price * qty;
+    const userCoins = myProfile.wallet?.coins || 0;
+    if (userCoins < totalCost) {
+      Alert.alert('Insufficient Coins', `You need ${totalCost.toLocaleString()} coins but have ${userCoins.toLocaleString()}.`);
+      return;
+    }
+    try {
+      const batch = writeBatch(firestore);
+      const senderProfileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
+      const senderUserRef = doc(firestore, 'users', user.uid);
+      const newTotalSpent = (myProfile.wallet?.totalSpent || 0) + totalCost;
+      batch.update(senderProfileRef, {
+        'wallet.coins': increment(-totalCost),
+        'wallet.totalSpent': increment(totalCost),
+        'wallet.dailySpent': increment(totalCost),
+        'wallet.weeklySpent': increment(totalCost),
+        'wallet.monthlySpent': increment(totalCost),
+      });
+      batch.update(senderUserRef, {
+        'wallet.coins': increment(-totalCost),
+        'wallet.totalSpent': increment(totalCost),
+        'wallet.dailySpent': increment(totalCost),
+        'wallet.weeklySpent': increment(totalCost),
+        'wallet.monthlySpent': increment(totalCost),
+      });
+
+      const recipientProfileRef = doc(firestore, 'users', recipientUid, 'profile', recipientUid);
+      const recipientUserRef = doc(firestore, 'users', recipientUid);
+      const diamondReward = Math.floor(totalCost * 0.4);
+      batch.update(recipientProfileRef, {
+        'wallet.diamonds': increment(diamondReward),
+        'activityPoints': increment(totalCost),
+        'dailyActivityPoints': increment(totalCost),
+        [`stats.receivedGifts.${selectedGift.id || selectedGift.name}`]: increment(qty),
+        [`stats.giftDetails.${selectedGift.id || selectedGift.name}_name`]: selectedGift.name || 'Gift',
+        [`stats.giftDetails.${selectedGift.id || selectedGift.name}_imageUrl`]: selectedGift.imageUrl || null,
+        'stats.dailyGiftsReceived': increment(diamondReward),
+        'stats.weeklyGiftsReceived': increment(diamondReward),
+        'stats.monthlyGiftsReceived': increment(diamondReward),
+      });
+      batch.update(recipientUserRef, {
+        'stats.dailyGiftsReceived': increment(diamondReward),
+        'stats.weeklyGiftsReceived': increment(diamondReward),
+        'stats.monthlyGiftsReceived': increment(diamondReward),
+      });
+
+      const messagesRef = collection(firestore, 'privateChats', chatId, 'messages');
+      const msgRef = doc(messagesRef);
+      batch.set(msgRef, {
+        text: '',
+        senderId: user.uid,
+        timestamp: serverTimestamp(),
+        type: 'gift',
+        giftId: selectedGift.id,
+        giftName: selectedGift.name,
+        giftValue: totalCost,
+        quantity: qty,
+        animationUrl: selectedGift.animationUrl || selectedGift.imageUrl || null,
+        imageUrl: selectedGift.imageUrl || null,
+      });
+
+      const chatDocRef = doc(firestore, 'privateChats', chatId);
+      batch.update(chatDocRef, {
+        participantIds: [user.uid, recipientUid].sort(),
+        lastMessage: `🎁 ${selectedGift.name} x${qty}`,
+        lastSenderId: user.uid,
+        lastMessageReadBy: [user.uid],
+        updatedAt: serverTimestamp(),
+      });
+
+      await batch.commit();
+      Vibration.vibrate(100);
+      setSelectedGift(null);
+      setSelectedGiftQty('1');
+      setShowGiftPicker(false);
+      setShowQtyPopup(false);
+    } catch (e) {}
   };
 
   const handleDeleteMsg = async (msg: PrivateMessage) => {
@@ -1035,8 +1153,20 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
                 />
               )}
               <View className={`max-w-[75%] rounded-2xl px-4 py-2 ${
-                isMe ? 'bg-cyan-500 rounded-br-none' : 'bg-slate-100 rounded-bl-none'
+                (msg as any).type === 'gift' ? 'bg-gradient-to-br from-pink-500 to-purple-600' : isMe ? 'bg-cyan-500 rounded-br-none' : 'bg-slate-100 rounded-bl-none'
               }`}>
+                {(msg as any).type === 'gift' ? (
+                  <View style={{ alignItems: 'center', paddingVertical: 4 }}>
+                    {(msg as any).imageUrl ? (
+                      <Image cachePolicy="memory-disk" source={{ uri: toCDN((msg as any).imageUrl) }} style={{ width: 80, height: 80 }} contentFit="contain" />
+                    ) : (
+                      <Text style={{ fontSize: 40 }}>🎁</Text>
+                    )}
+                    <Text style={{ color: 'white', fontSize: 11, fontWeight: '800', marginTop: 4 }}>{(msg as any).giftName || 'Gift'}</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 9, marginTop: 2 }}>Tap to view</Text>
+                  </View>
+                ) : (
+                  <>
                 {msg.imageUrl && (
                   <TouchableOpacity onPress={() => setPreviewImage(msg.imageUrl || null)}>
                     <Image cachePolicy="memory-disk" source={{ uri: toCDN(msg.imageUrl) }} className="w-48 h-48 rounded-lg mb-1" contentFit="cover" />
@@ -1050,6 +1180,8 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
                 )}
                 {(msg as any).edited && (
                   <Text className={`text-[9px] mt-0.5 ${isMe ? 'text-white/60' : 'text-slate-400'}`}>edited</Text>
+                )}
+                  </>
                 )}
               </View>
               {isMe && (
@@ -1231,6 +1363,92 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* Gift Picker Modal */}
+      <Modal visible={showGiftPicker} transparent animationType="slide" onRequestClose={() => { setShowGiftPicker(false); setSelectedGift(null); setShowQtyPopup(false); }}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: '#1a0b2e', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '75%', paddingBottom: 34 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)' }}>
+              <Text style={{ color: 'white', fontSize: 16, fontWeight: '800' }}>Send Gift</Text>
+              <TouchableOpacity onPress={() => { setShowGiftPicker(false); setSelectedGift(null); setShowQtyPopup(false); }}>
+                <X size={22} color="#94a3b8" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12, gap: 10 }}>
+              {GIFT_CATEGORIES.map((cat) => (
+                <TouchableOpacity key={cat} onPress={() => { setActiveGiftCategory(cat); setSelectedGift(null); }}
+                  style={{ paddingHorizontal: 22, paddingVertical: 11, borderRadius: 24, backgroundColor: activeGiftCategory === cat ? '#ec4899' : 'rgba(255,255,255,0.12)', minWidth: 90, alignItems: 'center' }}>
+                  <Text style={{ color: 'white', fontSize: 15, fontWeight: '800', textAlign: 'center' }}>{cat}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <FlatList
+              data={currentGifts}
+              keyExtractor={(item: any) => item.id}
+              numColumns={4}
+              style={{ maxHeight: 280 }}
+              contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 8 }}
+              columnWrapperStyle={{ justifyContent: 'flex-start', gap: 8 }}
+              renderItem={({ item }: any) => (
+                <TouchableOpacity onPress={() => setSelectedGift(item)}
+                  style={{ width: (Dimensions.get('window').width - 64) / 4, alignItems: 'center', padding: 8, borderRadius: 12, borderWidth: 1.5, borderColor: selectedGift?.id === item.id ? '#22d3ee' : 'rgba(255,255,255,0.08)', backgroundColor: selectedGift?.id === item.id ? 'rgba(34,211,238,0.1)' : 'rgba(255,255,255,0.05)' }}>
+                  {item.imageUrl ? (
+                    <Image cachePolicy="memory-disk" source={{ uri: toCDN(item.imageUrl) }} style={{ width: 52, height: 52 }} contentFit="contain" />
+                  ) : (
+                    <Text style={{ fontSize: 32 }}>🎁</Text>
+                  )}
+                  <Text style={{ color: 'white', fontSize: 10, fontWeight: '700', marginTop: 4 }} numberOfLines={1}>{item.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 }}>
+                    <GoldenCoin size={12} />
+                    <Text style={{ color: '#fbbf24', fontSize: 10, fontWeight: '800' }}>{(item.price || 0).toLocaleString()}</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <GoldenCoin size={26} />
+                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 15, fontWeight: '700' }}>{(myProfile?.wallet?.coins || 0).toLocaleString()}</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowQtyPopup(!showQtyPopup)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 }}
+              >
+                <Text style={{ color: 'white', fontSize: 14, fontWeight: '700' }}>x{selectedGiftQty}</Text>
+                <ChevronDown size={14} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleSendGift}
+                disabled={!selectedGift || ((myProfile?.wallet?.coins || 0) < (selectedGift?.price || 0) * (parseInt(selectedGiftQty) || 1))}
+                style={{ opacity: (!selectedGift || ((myProfile?.wallet?.coins || 0) < (selectedGift?.price || 0) * (parseInt(selectedGiftQty) || 1))) ? 0.5 : 1 }}
+              >
+                <LinearGradient
+                  colors={selectedGift && ((myProfile?.wallet?.coins || 0) >= (selectedGift?.price || 0) * (parseInt(selectedGiftQty) || 1)) ? ['#ec4899', '#db2777'] : ['#374151', '#4b5563']}
+                  style={{ paddingHorizontal: 20, paddingVertical: 10, borderRadius: 999, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                >
+                  <Send size={14} color="white" />
+                  <Text style={{ color: 'white', fontWeight: '700', fontSize: 14 }}>
+                    {((selectedGift?.price || 0) * (parseInt(selectedGiftQty) || 1)).toLocaleString()}
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+            {showQtyPopup && (
+              <>
+                <TouchableOpacity style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onPress={() => setShowQtyPopup(false)} activeOpacity={1} />
+                <View style={{ position: 'absolute', bottom: 64, right: 16, zIndex: 100, backgroundColor: '#1e293b', borderRadius: 12, padding: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+                  {QUANTITIES.map((q) => (
+                    <TouchableOpacity key={q} onPress={() => { setSelectedGiftQty(q); setShowQtyPopup(false); }}
+                      style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, backgroundColor: selectedGiftQty === q ? '#ec4899' : 'transparent' }}>
+                      <Text style={{ color: 'white', fontSize: 14, fontWeight: selectedGiftQty === q ? '800' : '600', textAlign: 'center' }}>x{q}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
     </View>

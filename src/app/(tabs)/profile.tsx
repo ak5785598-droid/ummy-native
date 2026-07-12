@@ -519,7 +519,17 @@ export default function ProfileScreen() {
       {/* Render Modals */}
       <MedalModal open={medalModalOpen} onClose={() => setMedalModalOpen(false)} profile={profile} />
       <SocialRelationsDialog open={socialOpen} onOpenChange={setSocialOpen} userId={profileId} initialTab={socialTab} username={profile.username} />
-      <FullProfileDialog open={fullViewOpen} onOpenChange={setFullViewOpen} profile={profile} stats={stats} isOwnProfile={true} displayId={displayID} onViewProfile={(uid: string) => { setFullViewOpen(false); router.push(`/profile/${uid}`); }} />
+      <FullProfileDialog open={fullViewOpen} onOpenChange={setFullViewOpen} profile={profile} stats={stats} isOwnProfile={true} displayId={displayID} onViewProfile={(uid: string) => { setFullViewOpen(false); router.push(`/profile/${uid}`); }} onChangeFrame={async (frameId: string, frameUrl: string | null) => {
+        if (!firestoreDb || !profileId) return;
+        try {
+          await setDoc(doc(firestoreDb, 'users', profileId, 'profile', profileId), { 'inventory.activeFrame': frameId, 'inventory.activeFrameMediaUrl': frameUrl || null }, { merge: true });
+        } catch {}
+      }} onRemoveFrame={async () => {
+        if (!firestoreDb || !profileId) return;
+        try {
+          await setDoc(doc(firestoreDb, 'users', profileId, 'profile', profileId), { 'inventory.activeFrame': 'None', 'inventory.activeFrameMediaUrl': null }, { merge: true });
+        } catch {}
+      }} />
       <ReportUserDialog open={reportOpen} onOpenChange={setReportOpen} targetUser={profile} />
       <OfficialCenterDialog open={officialCenterOpen} onOpenChange={setOfficialCenterOpen} isAuthorized={isAuthorizedAdmin} />
 

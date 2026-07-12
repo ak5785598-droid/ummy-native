@@ -23,6 +23,7 @@ export function BoutiqueHubTab() {
 
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Search NFS
@@ -162,16 +163,49 @@ export function BoutiqueHubTab() {
   };
 
   const handleDeleteItem = async (id: string) => {
-    Alert.alert('Delete Item', 'Are you sure you want to remove this boutique asset?', [
+    Alert.alert('Delete Item', `Remove "${id}" from store? It will also be removed from all users' inventories.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
+          setUpdating(true);
           try {
             await firestore().collection('storeItems').doc(id).delete();
+
+            const usersSnap = await firestore().collection('users').get();
+            let cleaned = 0;
+            const batchSize = 400;
+            let batch = firestore().batch();
+            let ops = 0;
+
+            for (const userDoc of usersSnap.docs) {
+              const profileRef = firestore().collection('users').doc(userDoc.id).collection('profile').doc(userDoc.id);
+              try {
+                const profileSnap = await profileRef.get();
+                if (!profileSnap.exists) continue;
+                const data = profileSnap.data();
+                const owned: string[] = data?.inventory?.ownedItems || [];
+                if (owned.includes(id)) {
+                  batch.update(profileRef, {
+                    'inventory.ownedItems': firestore.FieldValue.arrayRemove(id),
+                  });
+                  ops++;
+                  cleaned++;
+                  if (ops >= batchSize) {
+                    await batch.commit();
+                    batch = firestore().batch();
+                    ops = 0;
+                  }
+                }
+              } catch {}
+            }
+            if (ops > 0) await batch.commit();
+            Alert.alert('Done', `Item deleted. Cleaned from ${cleaned} user(s).`);
           } catch (err: any) {
             Alert.alert('Error', err.message);
+          } finally {
+            setUpdating(false);
           }
         }
       }

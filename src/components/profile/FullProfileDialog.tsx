@@ -253,6 +253,8 @@ export function FullProfileDialog({
 
   // Medals list from Firestore
   const [allMedals, setAllMedals] = useState<any[]>([]);
+  // Store items for frame images
+  const [storeItemsMap, setStoreItemsMap] = useState<Record<string, any>>({});
 
   const heartScale = React.useRef(new Animated.Value(1)).current;
 
@@ -266,6 +268,31 @@ export function FullProfileDialog({
       const unsub = db().collection('medalsList').onSnapshot((snap: any) => {
         if (snap) {
           setAllMedals(snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
+        }
+      }, (error: any) => {});
+      return () => unsub();
+    } catch (e) {}
+  }, [open]);
+
+  // Fetch storeItems for frame/bubble/entry images
+  useEffect(() => {
+    if (!open) return;
+    try {
+      const db = require('@react-native-firebase/firestore').default;
+      const unsub = db().collection('storeItems').onSnapshot((snap: any) => {
+        if (snap) {
+          const map: Record<string, any> = {};
+          snap.docs.forEach((d: any) => { map[d.id] = d.data(); });
+          map['f-red-fire'] = map['f-red-fire'] || { name: 'Red Fire Frame', category: 'Frame', imageUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/store%2Fframes%2Fred_fire.png?alt=media' };
+          map['f-horror-gold'] = map['f-horror-gold'] || { name: 'Horror Gold Frame', category: 'Frame', imageUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/store%2Fframes%2Fhorror_gold.png?alt=media' };
+          map['f-wings-gold'] = map['f-wings-gold'] || { name: 'Wings Gold Frame', category: 'Frame', imageUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/store%2Fframes%2Fwings_gold.png?alt=media' };
+          map['sea_sands'] = map['sea_sands'] || { name: 'Sea Sands Frame', category: 'Frame' };
+          map['basra'] = map['basra'] || { name: 'Basra Golden Frame', category: 'Frame' };
+          map['top3family_topuser'] = map['top3family_topuser'] || { name: 'Top 3 Family Frame', category: 'Frame' };
+          map['top2family_topuser'] = map['top2family_topuser'] || { name: 'Top 2 Family Frame', category: 'Frame' };
+          map['official-frame-1'] = map['official-frame-1'] || { name: 'Official Frame 1', category: 'Frame' };
+          map['official-frame-2'] = map['official-frame-2'] || { name: 'Official Frame 2', category: 'Frame' };
+          setStoreItemsMap(map);
         }
       }, (error: any) => {});
       return () => unsub();
@@ -385,7 +412,18 @@ export function FullProfileDialog({
   }, [firestore, user, profile?.relationship, onOpenChange]);
 
   const ownedVehicles = useMemo(() => profile?.inventory?.ownedItems?.filter((id: string) => id.includes('vehicle') || id.includes('car')) || [], [profile?.inventory?.ownedItems]);
-  const ownedFrames = useMemo(() => profile?.inventory?.ownedItems?.filter((id: string) => id.includes('frame') || id.includes('ring')) || [], [profile?.inventory?.ownedItems]);
+  const ownedFrames = useMemo(() => {
+    const owned = profile?.inventory?.ownedItems || [];
+    const frames = owned.filter((id: string) => {
+      const item = storeItemsMap[id];
+      if (item && (item.category === 'Frame' || item.type === 'Frame')) return true;
+      return id.includes('frame') || id.includes('ring');
+    });
+    if ((profile as any)?.svipPrivileges?.frameUrl && !frames.includes('__svip_frame__')) {
+      frames.unshift('__svip_frame__');
+    }
+    return frames;
+  }, [profile?.inventory?.ownedItems, storeItemsMap, (profile as any)?.svipPrivileges?.frameUrl]);
 
   if (!profile) return null;
 
@@ -415,7 +453,12 @@ export function FullProfileDialog({
             {/* Avatar â€” straddles cover and card */}
             <View style={{ alignItems: 'center', marginTop: -40, marginBottom: 10, zIndex: 30 }}>
               <View>
-                <AvatarFrame frameMediaUrl={isInventoryItemExpired(profile.inventory || {}, profile.inventory?.activeFrame) ? null : profile.inventory?.activeFrameMediaUrl} size={88}>
+                <AvatarFrame frameMediaUrl={(() => {
+                  const af = profile.inventory?.activeFrame;
+                  if (af === '__svip_frame__') return (profile as any)?.svipPrivileges?.frameUrl || null;
+                  if (isInventoryItemExpired(profile.inventory || {}, af)) return null;
+                  return profile.inventory?.activeFrameMediaUrl || null;
+                })()} size={88}>
                   <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile.avatarUrl) || 'https://picsum.photos/200' }} style={{ width: '100%', height: '100%' }} />
                 </AvatarFrame>
               </View>
@@ -747,12 +790,20 @@ export function FullProfileDialog({
               {activeTab === 'vehicle' && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
                   {ownedVehicles.length > 0 ? (
-                    ownedVehicles.map((id: string, idx: number) => (
-                      <View key={idx} style={{ padding: 8, backgroundColor: '#F8FAFC', borderRadius: 12, alignItems: 'center', width: (SCREEN_WIDTH - 64) / 4 }}>
-                        <Text style={{ fontSize: 22 }}>🚗</Text>
-                        <Text style={{ fontSize: 8, fontWeight: '800', color: '#64748B', marginTop: 4, textAlign: 'center' }} numberOfLines={1}>{id}</Text>
-                      </View>
-                    ))
+                    ownedVehicles.map((id: string, idx: number) => {
+                      const itemData = storeItemsMap[id];
+                      const img = itemData?.imageUrl || itemData?.videoUrl || null;
+                      return (
+                        <View key={idx} style={{ padding: 8, backgroundColor: '#F8FAFC', borderRadius: 12, alignItems: 'center', width: (SCREEN_WIDTH - 64) / 4 }}>
+                          {img ? (
+                            <Image cachePolicy="memory-disk" source={{ uri: toCDN(img) }} style={{ width: 48, height: 48, borderRadius: 8 }} contentFit="contain" />
+                          ) : (
+                            <Text style={{ fontSize: 22 }}>🚗</Text>
+                          )}
+                          <Text style={{ fontSize: 8, fontWeight: '800', color: '#64748B', marginTop: 4, textAlign: 'center' }} numberOfLines={1}>{itemData?.name || id}</Text>
+                        </View>
+                      );
+                    })
                   ) : (
                     <Text style={{ fontSize: 12, color: '#94A3B8', fontStyle: 'italic', textAlign: 'center', width: '100%', marginTop: 20 }}>No Vehicle Owned</Text>
                   )}
@@ -760,13 +811,40 @@ export function FullProfileDialog({
               )}
               {activeTab === 'frame' && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                  {isOwnProfile && (profile.inventory?.activeFrame && profile.inventory.activeFrame !== 'None') && (
+                    <TouchableOpacity
+                      onPress={onRemoveFrame}
+                      style={{ padding: 8, backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 12, alignItems: 'center', width: (SCREEN_WIDTH - 64) / 4, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)' }}
+                    >
+                      <Text style={{ fontSize: 22 }}>❌</Text>
+                      <Text style={{ fontSize: 8, fontWeight: '800', color: '#EF4444', marginTop: 4, textAlign: 'center' }}>Remove Frame</Text>
+                    </TouchableOpacity>
+                  )}
                   {ownedFrames.length > 0 ? (
-                    ownedFrames.map((id: string, idx: number) => (
-                      <View key={idx} style={{ padding: 8, backgroundColor: '#F8FAFC', borderRadius: 12, alignItems: 'center', width: (SCREEN_WIDTH - 64) / 4 }}>
-                        <Text style={{ fontSize: 22 }}>🖼️</Text>
-                        <Text style={{ fontSize: 8, fontWeight: '800', color: '#64748B', marginTop: 4, textAlign: 'center' }} numberOfLines={1}>{id}</Text>
-                      </View>
-                    ))
+                    ownedFrames.map((id: string, idx: number) => {
+                      const isSvip = id === '__svip_frame__';
+                      const itemData = isSvip ? null : storeItemsMap[id];
+                      const img = isSvip ? ((profile as any)?.svipPrivileges?.frameUrl || null) : (itemData?.imageUrl || itemData?.videoUrl || null);
+                      const name = isSvip ? `SVIP Frame` : (itemData?.name || id);
+                      const isActive = isSvip
+                        ? (profile.inventory?.activeFrame === '__svip_frame__' || (!profile.inventory?.activeFrame || profile.inventory.activeFrame === 'None') && profile.inventory?.activeFrameMediaUrl === (profile as any)?.svipPrivileges?.frameUrl)
+                        : profile.inventory?.activeFrame === id;
+                      return (
+                        <TouchableOpacity
+                          key={idx}
+                          disabled={!isOwnProfile}
+                          onPress={() => { if (isOwnProfile && !isActive) onChangeFrame?.(id, img); }}
+                          style={{ padding: 8, backgroundColor: isActive ? 'rgba(16,185,129,0.1)' : '#F8FAFC', borderRadius: 12, alignItems: 'center', width: (SCREEN_WIDTH - 64) / 4, borderWidth: isActive ? 2 : 1, borderColor: isActive ? '#10B981' : 'transparent' }}
+                        >
+                          {img ? (
+                            <Image cachePolicy="memory-disk" source={{ uri: toCDN(img) }} style={{ width: 48, height: 48, borderRadius: 8 }} contentFit="contain" />
+                          ) : (
+                            <Text style={{ fontSize: 22 }}>🖼️</Text>
+                          )}
+                          <Text style={{ fontSize: 8, fontWeight: '800', color: isActive ? '#10B981' : '#64748B', marginTop: 4, textAlign: 'center' }} numberOfLines={1}>{isActive ? '✓ Active' : name}</Text>
+                        </TouchableOpacity>
+                      );
+                    })
                   ) : (
                     <Text style={{ fontSize: 12, color: '#94A3B8', fontStyle: 'italic', textAlign: 'center', width: '100%', marginTop: 20 }}>No Frame Owned</Text>
                   )}

@@ -8,6 +8,7 @@ import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { LoginManager, AccessToken } from 'react-native-fbsdk-next';
 import { useUser, useFirestore, useDoc } from '../../firebase/provider';
+import { registerDeviceSession } from '../../lib/device-session';
 import { doc, getDoc, setDoc, serverTimestamp, runTransaction } from '@/firebase/firestore-compat';
 import { Image } from 'expo-image';
 
@@ -220,6 +221,7 @@ export default function LoginScreen() {
             return;
           }
         }
+        await registerDeviceSession(firestore, user.uid);
         if (data.onboardingComplete || data.username) {
           router.replace('/(tabs)');
         } else {
@@ -227,6 +229,7 @@ export default function LoginScreen() {
         }
       } else {
         await syncUserIdentity(user.uid, user.email, user.displayName);
+        await registerDeviceSession(firestore, user.uid);
         router.replace('/(auth)/onboarding');
       }
     } catch {
