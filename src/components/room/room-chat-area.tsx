@@ -141,7 +141,11 @@ const ChatMessageRow = React.memo(function ChatMessageRow({ message, onPress, on
           <Text style={styles.giftSenderName}>{message.senderName}</Text>
           <View style={styles.giftMessageBubble}>
             <View style={styles.giftInnerRow}>
-              <Text style={styles.giftEmoji}>🎁</Text>
+              {message.imageUrl ? (
+                <Image cachePolicy="memory-disk" source={{ uri: toCDN(message.imageUrl) }} style={{ width: 36, height: 36, borderRadius: 6 }} contentFit="contain" />
+              ) : (
+                <Text style={styles.giftEmoji}>🎁</Text>
+              )}
               <Text style={styles.giftText}>{message.text || `sent ${message.giftName}`}</Text>
             </View>
           </View>

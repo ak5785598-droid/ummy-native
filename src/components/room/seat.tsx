@@ -28,6 +28,7 @@ interface SeatProps {
   activeEmoji?: string | null;
   customEmojiMap?: Record<string, { imageUrl?: string; animationUrl?: string } | string>;
   avatarFrameUrl?: string | null;
+  connectRight?: 'CP' | 'BFF' | null;
 }
 
 function VoiceWaveRing({ isSpeaking, intensity, accentColor = '#22c55e' }: { isSpeaking: boolean; intensity: number; accentColor?: string }) {
@@ -81,6 +82,7 @@ export const Seat = memo(function Seat({
   activeEmoji,
   customEmojiMap,
   avatarFrameUrl,
+  connectRight = null,
 }: SeatProps) {
 
   const displayName = occupant
@@ -99,6 +101,47 @@ export const Seat = memo(function Seat({
   return (
     <View style={styles.wrapper}>
       <TouchableOpacity onPress={onClick} activeOpacity={0.75} style={styles.touchable}>
+        {/* Connection line extending to the right seat */}
+        {connectRight && (
+          <View
+            style={{
+              position: 'absolute',
+              left: 42,
+              width: 58,
+              height: 4,
+              top: 28,
+              zIndex: -10,
+              backgroundColor: connectRight === 'CP' ? '#ec4899' : '#8b5cf6',
+              borderRadius: 2,
+              alignItems: 'center',
+              justifyContent: 'center',
+              shadowColor: connectRight === 'CP' ? '#f472b6' : '#a78bfa',
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.85,
+              shadowRadius: 6,
+              elevation: 4,
+            }}
+          >
+            {/* Heart or Handshake Badge */}
+            <View style={{
+              width: 14,
+              height: 14,
+              borderRadius: 7,
+              backgroundColor: connectRight === 'CP' ? '#ec4899' : '#8b5cf6',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: 'white',
+              position: 'absolute',
+              top: -5,
+            }}>
+              <Text style={{ fontSize: 7, color: 'white', fontWeight: 'bold' }}>
+                {connectRight === 'CP' ? '❤️' : '🤝'}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Voice wave ring */}
         <VoiceWaveRing isSpeaking={!!occupant && isSpeaking} intensity={speakingIntensity} accentColor="#22c55e" />
 

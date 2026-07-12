@@ -272,7 +272,7 @@ export default function CpHouseScreen() {
                   relationship: { type: 'None', partnerUid: '', partnerName: '', partnerAvatar: '', level: 0, startDate: '' }
                 });
               }
-              try { await deleteDoc(doc(firestore, 'cpPairs', activeCp.id)); } catch {}
+              try { await updateDoc(doc(firestore, 'cpPairs', activeCp.id), { status: 'broken', brokenAt: serverTimestamp(), updatedAt: serverTimestamp() }); } catch {}
               Alert.alert('Done', `Your ${cpType} with ${partnerName} has ended.`);
             } catch (e: any) {
               Alert.alert('Error', e.message || 'Failed to break relationship.');
@@ -426,6 +426,25 @@ export default function CpHouseScreen() {
                     <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginTop: 2 }}>{stat.label}</Text>
                   </View>
                 ))}
+              </View>
+            )}
+
+            {/* CP Contribution Breakdown */}
+            {activeCp && (
+              <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', paddingVertical: 10, paddingHorizontal: 12, gap: 8 }}>
+                <View style={{ flex: 1, alignItems: 'center', backgroundColor: 'rgba(244,63,94,0.1)', borderRadius: 10, paddingVertical: 8 }}>
+                  <Image cachePolicy="memory-disk" source={{ uri: (activeCp.user1Avatar || partnerProfile?.avatarUrl || 'https://picsum.photos/100') }} style={{ width: 28, height: 28, borderRadius: 14, marginBottom: 4 }} />
+                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 8, fontWeight: '700' }} numberOfLines={1}>{activeCp.user1Name || 'User 1'}</Text>
+                  <Text style={{ color: '#fbbf24', fontSize: 11, fontWeight: '900', marginTop: 2 }}>{(activeCp.user1Sent || 0).toLocaleString()}</Text>
+                </View>
+                <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 16, fontWeight: '900' }}>❤️</Text>
+                </View>
+                <View style={{ flex: 1, alignItems: 'center', backgroundColor: 'rgba(14,165,233,0.1)', borderRadius: 10, paddingVertical: 8 }}>
+                  <Image cachePolicy="memory-disk" source={{ uri: (activeCp.user2Avatar || partnerProfile?.avatarUrl || 'https://picsum.photos/100') }} style={{ width: 28, height: 28, borderRadius: 14, marginBottom: 4 }} />
+                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 8, fontWeight: '700' }} numberOfLines={1}>{activeCp.user2Name || 'User 2'}</Text>
+                  <Text style={{ color: '#fbbf24', fontSize: 11, fontWeight: '900', marginTop: 2 }}>{(activeCp.user2Sent || 0).toLocaleString()}</Text>
+                </View>
               </View>
             )}
 

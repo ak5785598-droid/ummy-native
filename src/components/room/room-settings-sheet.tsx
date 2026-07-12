@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { View, Text, Modal, TouchableOpacity, Switch, ScrollView, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, Switch, ScrollView, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, FlatList } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { X, ChevronLeft, ChevronRight, Camera, Mic, Shield, Palette, Lock, UserCheck, Tag, Sun, Sparkles, Volume2, MessageSquare, Loader, Crown, Trash2, Sparkle } from 'lucide-react-native';
+import { X, ChevronLeft, ChevronRight, Camera, Mic, Shield, Palette, Lock, UserCheck, Tag, Sun, Sparkles, Volume2, MessageSquare, Loader, Crown, Trash2, Sparkle, FileText } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useFirestore, useUser, useCollection, useMemoFirebase, useDoc } from '../../firebase/provider';
 import { doc, serverTimestamp, arrayUnion, arrayRemove, collection, query, orderBy, updateDoc, deleteDoc, writeBatch } from '@/firebase/firestore-compat';
@@ -71,7 +71,7 @@ export function RoomSettingsSheet({ visible, onClose, room, participants }: Room
   const firestore = useFirestore();
   const { user } = useUser();
   const { profile: userProfile } = useUserProfile(user?.uid);
-  const { isBrightMode, setIsBrightMode, isAIVoiceEnabled, toggleAIVoice, isAIListening, setIsAIListening, isCaptionsEnabled, setIsCaptionsEnabled, isSpeakerMuted, setIsSpeakerMuted } = useRoomContext();
+  const { isBrightMode, setIsBrightMode, isAIVoiceEnabled, toggleAIVoice, isAIListening, setIsAIListening, toggleAIListening, isCaptionsEnabled, setIsCaptionsEnabled, toggleCaptions, isSpeakerMuted, setIsSpeakerMuted } = useRoomContext();
 
   const [page, setPage] = useState<string>('main');
   const [editingName, setEditingName] = useState('');
@@ -88,6 +88,7 @@ export function RoomSettingsSheet({ visible, onClose, room, participants }: Room
   const [micEditOpen, setMicEditOpen] = useState(false);
   const [micTestOpen, setMicTestOpen] = useState(false);
   const [showThemeArchitect, setShowThemeArchitect] = useState(false);
+  const [logsOpen, setLogsOpen] = useState(false);
 
   const [themePrompt, setThemePrompt] = useState('');
   const [generatingTheme, setGeneratingTheme] = useState(false);
@@ -311,9 +312,9 @@ export function RoomSettingsSheet({ visible, onClose, room, participants }: Room
               <MainMenu
                 room={room} isOwner={isOwner} canManage={canManage} isUploading={isUploading}
                 isBrightMode={isBrightMode} onToggleBrightMode={() => { setIsBrightMode(!isBrightMode); handleUpdate('isBrightMode', !isBrightMode); }}
-                isAIVoiceEnabled={isAIVoiceEnabled} onToggleAIVoice={() => toggleAIVoice(!isAIVoiceEnabled)}
-                isAIListening={isAIListening} onToggleAIListening={() => setIsAIListening(!isAIListening)}
-                isCaptionsEnabled={isCaptionsEnabled} onToggleCaptions={() => setIsCaptionsEnabled(!isCaptionsEnabled)}
+                isAIVoiceEnabled={isAIVoiceEnabled} onToggleAIVoice={() => { toggleAIVoice(!isAIVoiceEnabled); handleUpdate('isAIVoiceEnabled', !isAIVoiceEnabled); }}
+                isAIListening={isAIListening} onToggleAIListening={() => { toggleAIListening(!isAIListening); handleUpdate('isAIListening', !isAIListening); }}
+                isCaptionsEnabled={isCaptionsEnabled} onToggleCaptions={() => { toggleCaptions(!isCaptionsEnabled); handleUpdate('isCaptionsEnabled', !isCaptionsEnabled); }}
                 onOpenNameEdit={() => setNameEditOpen(true)}
                 onOpenAnnouncementEdit={() => setAnnouncementEditOpen(true)}
                 onOpenPasswordEdit={() => setPasswordEditOpen(true)}
@@ -324,6 +325,7 @@ export function RoomSettingsSheet({ visible, onClose, room, participants }: Room
                 onOpenMicTest={() => setMicTestOpen(true)}
                 onAvatarUpload={handleAvatarUpload}
                 onOpenThemeArchitect={() => setShowThemeArchitect(true)}
+                onOpenLogs={() => setLogsOpen(true)}
               />
             )}
           </ScrollView>
@@ -359,7 +361,11 @@ export function RoomSettingsSheet({ visible, onClose, room, participants }: Room
         </PopupDialog>
 
         <PopupDialog visible={adminEditOpen} onClose={() => setAdminEditOpen(false)}>
-          <AdminPage room={room} participants={participants} onClose={() => setAdminEditOpen(false)} />
+          <AdminPage room={room} participants={participants} userProfile={userProfile} onClose={() => setAdminEditOpen(false)} />
+        </PopupDialog>
+
+        <PopupDialog visible={logsOpen} onClose={() => setLogsOpen(false)}>
+          <LogsPage roomId={room?.id} onClose={() => setLogsOpen(false)} />
         </PopupDialog>
 
 
@@ -378,6 +384,7 @@ function MainMenu({
   onOpenThemeEdit, onOpenAdminEdit, onOpenTagEdit, onOpenMicEdit,
   onOpenMicTest,
   onAvatarUpload, onOpenThemeArchitect,
+  onOpenLogs,
 }: any) {
   const iconColor = 'rgba(0,0,0,0.4)';
   return (
@@ -431,6 +438,7 @@ function MainMenu({
 
       <MenuItem label="Room Tag" value={room?.category || 'Chat'} onPress={onOpenTagEdit} icon={<Tag size={16} color={iconColor} />} />
       <MenuItem label="Administrators" onPress={onOpenAdminEdit} icon={<UserCheck size={16} color={iconColor} />} />
+      <MenuItem label="Room Entry & Kick Logs" onPress={onOpenLogs} icon={<FileText size={16} color={iconColor} />} />
 
 
       <View style={{ height: 32 }} />
@@ -547,12 +555,38 @@ function ThemePage({ room, themes, onSelect, onClose }: any) {
   );
 }
 
-function AdminPage({ room, participants, onClose }: any) {
+function getRoomAdminLimit(roomLevel: number, svipLevel: number) {
+  let limit = 3; // Base
+  limit += Math.floor((roomLevel || 0) / 5); // Room level bonus
+  if (svipLevel >= 10) {
+    limit += 10;
+  } else if (svipLevel >= 7) {
+    limit += 6;
+  } else if (svipLevel >= 4) {
+    limit += 4;
+  } else if (svipLevel >= 1) {
+    limit += 2;
+  }
+  return limit;
+}
+
+function AdminPage({ room, participants, userProfile, onClose }: any) {
   const firestore = useFirestore();
+  const roomLevel = room?.level || 1;
+  const hostSvip = userProfile?.svip || 0;
+  const limitValue = getRoomAdminLimit(roomLevel, hostSvip);
+  const currentMods = room?.moderatorIds || [];
 
   const handleToggleMod = async (uid: string) => {
     if (!firestore || !room?.id) return;
     const isMod = room.moderatorIds?.includes(uid);
+    if (!isMod && currentMods.length >= limitValue) {
+      Alert.alert(
+        'Limit Reached',
+        `Your room admin limit is ${limitValue} based on Room Level ${roomLevel} and Host SVIP level ${hostSvip}.\n\nUpgrade Room Level or SVIP to unlock more admin slots!`
+      );
+      return;
+    }
     await updateDoc(doc(firestore, 'chatRooms', room.id), {
       moderatorIds: isMod ? arrayRemove(uid) : arrayUnion(uid),
       updatedAt: serverTimestamp(),
@@ -561,6 +595,14 @@ function AdminPage({ room, participants, onClose }: any) {
 
   return (
     <View style={{ padding: 8 }}>
+      <View style={{ paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#f1f5f9', marginBottom: 8 }}>
+        <Text style={{ fontSize: 12, fontWeight: '800', color: '#6b7280', textAlign: 'center' }}>
+          Room Level: {roomLevel} | Host SVIP: {hostSvip}
+        </Text>
+        <Text style={{ fontSize: 13, fontWeight: '900', color: '#9333ea', textAlign: 'center', marginTop: 4 }}>
+          Admin Limit: {currentMods.length} / {limitValue} slots
+        </Text>
+      </View>
       {(participants || []).map((p: RoomParticipant) => (
         <View key={p.uid} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -704,6 +746,80 @@ function MicTestPage({ onClose }: { onClose: () => void }) {
             <Text className="text-white font-bold text-sm">{isTesting ? 'Stop Test' : 'Start Test'}</Text>
           </TouchableOpacity>
         </View>
+      )}
+    </View>
+  );
+}
+
+function LogsPage({ roomId, onClose }: { roomId: string; onClose: () => void }) {
+  const firestore = useFirestore();
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!firestore || !roomId) return;
+    const q = query(
+      collection(firestore, 'chatRooms', roomId, 'entryLogs'),
+      orderBy('timestamp', 'desc'),
+      limit(50)
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    }, () => setLoading(false));
+    return unsub;
+  }, [firestore, roomId]);
+
+  const formatLogTime = (ts: any) => {
+    if (!ts) return '';
+    const date = ts.toDate ? ts.toDate() : new Date(ts);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const getDurationText = (ms: number) => {
+    if (ms >= 99 * 365 * 24 * 60 * 60 * 1000) return 'Permanent';
+    if (ms >= 30 * 24 * 60 * 60 * 1000) return '30 Days';
+    if (ms >= 24 * 60 * 60 * 1000) return '1 Day';
+    return '2 Hours';
+  };
+
+  return (
+    <View style={{ padding: 12, minHeight: 300, maxHeight: 450 }}>
+      <Text style={{ fontSize: 13, fontWeight: '950', color: '#111827', textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 12 }}>
+        Room Entry & Kick Logs
+      </Text>
+
+      {loading ? (
+        <ActivityIndicator color="#7c3aed" style={{ marginTop: 40 }} />
+      ) : logs.length === 0 ? (
+        <Text style={{ textAlign: 'center', color: '#9ca3af', fontSize: 12, paddingVertical: 40 }}>
+          No entries or actions logged yet.
+        </Text>
+      ) : (
+        <FlatList
+          data={logs}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderColor: '#f3f4f6' }}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                {item.type === 'entry' ? (
+                  <Text style={{ fontSize: 13, color: '#374151', fontWeight: '600' }}>
+                    📥 <Text style={{ fontWeight: '800', color: '#111827' }}>{item.username}</Text> entered the room
+                  </Text>
+                ) : (
+                  <Text style={{ fontSize: 13, color: '#dc2626', fontWeight: '600' }}>
+                    🚷 <Text style={{ fontWeight: '800', color: '#111827' }}>{item.adminName}</Text> kicked user (ID: {item.userId.substring(0, 6)}) for <Text style={{ fontWeight: '800' }}>{getDurationText(item.durationMs)}</Text>
+                  </Text>
+                )}
+              </View>
+              <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: '700' }}>
+                {formatLogTime(item.timestamp)}
+              </Text>
+            </View>
+          )}
+          style={{ flexGrow: 0 }}
+          showsVerticalScrollIndicator={false}
+        />
       )}
     </View>
   );

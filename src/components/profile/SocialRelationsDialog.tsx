@@ -1,6 +1,6 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, View, Text, TouchableOpacity, FlatList, ActivityIndicator,  } from 'react-native';
-import { ChevronLeft, Star, Sparkles, Eye } from 'lucide-react-native';
+import { ChevronLeft, Star, Sparkles, Eye, EyeOff } from 'lucide-react-native';
 import firestore from '@react-native-firebase/firestore';
 import { useRouter } from 'expo-router';
 import { useUserProfile } from '../../hooks/use-user-profile';
@@ -8,6 +8,7 @@ import { useUserLevel } from '../../hooks/use-user-level';
 import { UserLevelBadge } from '@/components/user-level-badge';
 import { Image } from 'expo-image';
 import { toCDN } from '../../lib/cdn';
+import { useUser } from '../../firebase/provider';
 
 // â”€â”€â”€ UserListItem â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Mirrors web app's UserListItem: Avatar Â· Username Â· Flag Â· Gender Â· Level badges
@@ -117,6 +118,26 @@ const EmptyState = ({ label }: { label: string }) => (
   </View>
 );
 
+function formatTimeAgo(timestamp: any) {
+  if (!timestamp) return 'Just now';
+  let date;
+  if (timestamp.toDate) {
+    date = timestamp.toDate();
+  } else if (timestamp.seconds) {
+    date = new Date(timestamp.seconds * 1000);
+  } else {
+    date = new Date(timestamp);
+  }
+  const diffMs = Date.now() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
+}
+
 // â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const SocialRelationsDialog = ({
   open, onOpenChange, userId, initialTab = 'followers', username,
@@ -128,6 +149,9 @@ export const SocialRelationsDialog = ({
   username?: string;
 }) => {
   const router = useRouter();
+  const { user } = useUser();
+  const { profile: currentUserProfile } = useUserProfile(user?.uid);
+  const isSvip = (currentUserProfile?.svip || 0) >= 1;
   const [activeTab, setActiveTab] = useState<'followers' | 'following' | 'friends' | 'visitors'>(initialTab);
 
   // Sync tab when dialog opens with a different initialTab
@@ -214,6 +238,27 @@ export const SocialRelationsDialog = ({
               Syncing...
             </Text>
           </View>
+        ) : activeTab === 'visitors' && !isSvip ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#0a0314' }}>
+            <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(168,85,247,0.1)', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+              <EyeOff size={40} color="#a855f7" />
+            </View>
+            <Text style={{ fontSize: 18, fontWeight: '900', color: 'white', marginBottom: 8, textAlign: 'center' }}>
+              Visitors History Locked
+            </Text>
+            <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center', paddingHorizontal: 20, marginBottom: 24, lineHeight: 18 }}>
+              Only SVIP members can view their profile visitors log. Upgrade to SVIP now!
+            </Text>
+            <TouchableOpacity 
+              onPress={() => {
+                onOpenChange(false);
+                router.push('/vips');
+              }}
+              style={{ backgroundColor: '#a855f7', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20 }}
+            >
+              <Text style={{ color: 'white', fontWeight: '900', fontSize: 13 }}>Upgrade to SVIP</Text>
+            </TouchableOpacity>
+          </View>
         ) : current.data.length === 0 ? (
           <EmptyState label={current.label} />
         ) : (
@@ -222,6 +267,27 @@ export const SocialRelationsDialog = ({
             keyExtractor={item => item.id}
             renderItem={({ item }) => {
               const uid = item[current.idKey] || item.id;
+              if (activeTab === 'visitors') {
+                return (
+                  <View style={{ position: 'relative' }}>
+                    <UserListItem
+                      userId={uid}
+                      onPress={() => {
+                        onOpenChange(false);
+                        router.push(`/profile/${uid}`);
+                      }}
+                    />
+                    <View style={{ position: 'absolute', right: 85, top: 18, alignItems: 'flex-end', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 10, color: '#7c3aed', fontWeight: '800' }}>
+                        Visited {item.count || 1} {(item.count || 1) === 1 ? 'time' : 'times'}
+                      </Text>
+                      <Text style={{ fontSize: 9, color: '#64748b', fontWeight: '700', marginTop: 2 }}>
+                        {formatTimeAgo(item.timestamp)}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              }
               return (
                 <UserListItem
                   userId={uid}

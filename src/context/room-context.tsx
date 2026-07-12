@@ -19,8 +19,10 @@ interface RoomContextType {
   toggleAIVoice: (val: boolean) => void;
   isAIListening: boolean;
   setIsAIListening: (val: boolean) => void;
+  toggleAIListening: (val: boolean) => void;
   isCaptionsEnabled: boolean;
   setIsCaptionsEnabled: (val: boolean) => void;
+  toggleCaptions: (val: boolean) => void;
   isBrightMode: boolean;
   setIsBrightMode: (val: boolean) => void;
   isGiftEffects: boolean;
@@ -42,10 +44,16 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   const [isBrightMode, setIsBrightMode] = useState(true);
   const [isGiftEffects, setIsGiftEffects] = useState(true);
 
-  // Load persisted AI Voice toggle from AsyncStorage (like web uses localStorage)
+  // Load persisted AI Voice, Listening & Captions toggles from AsyncStorage
   useEffect(() => {
     AsyncStorage.getItem('ummy_ai_voice_enabled').then(v => {
       if (v === 'true') setIsAIVoiceEnabled(true);
+    }).catch(() => {});
+    AsyncStorage.getItem('ummy_ai_listening_enabled').then(v => {
+      if (v === 'true') setIsAIListening(true);
+    }).catch(() => {});
+    AsyncStorage.getItem('ummy_captions_enabled').then(v => {
+      if (v === 'true') setIsCaptionsEnabled(true);
     }).catch(() => {});
   }, []);
 
@@ -54,12 +62,24 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     AsyncStorage.setItem('ummy_ai_voice_enabled', String(val)).catch(() => {});
   };
 
+  const toggleAIListening = (val: boolean) => {
+    setIsAIListening(val);
+    AsyncStorage.setItem('ummy_ai_listening_enabled', String(val)).catch(() => {});
+  };
+
+  const toggleCaptions = (val: boolean) => {
+    setIsCaptionsEnabled(val);
+    AsyncStorage.setItem('ummy_captions_enabled', String(val)).catch(() => {});
+  };
+
   const value = useMemo(() => ({
     activeRoom, setActiveRoom, isMinimized, setIsMinimized, minimizedRoom, setMinimizedRoom,
     roomPlaylist, setRoomPlaylist, isMusicEnabled, setIsMusicEnabled,
     isSpeakerMuted, setIsSpeakerMuted,
-    isAIVoiceEnabled, toggleAIVoice, isAIListening, setIsAIListening,
-    isCaptionsEnabled, setIsCaptionsEnabled, isBrightMode, setIsBrightMode,
+    isAIVoiceEnabled, toggleAIVoice, 
+    isAIListening, setIsAIListening, toggleAIListening,
+    isCaptionsEnabled, setIsCaptionsEnabled, toggleCaptions,
+    isBrightMode, setIsBrightMode,
     isGiftEffects, setIsGiftEffects,
   }), [activeRoom, isMinimized, minimizedRoom, roomPlaylist, isMusicEnabled, isSpeakerMuted,
       isAIVoiceEnabled, isAIListening, isCaptionsEnabled, isBrightMode, isGiftEffects]);

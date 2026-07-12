@@ -56,6 +56,10 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
 
     const performJoin = async () => {
       try {
+        const partSnap = await getDoc(participantRef);
+        if (partSnap.exists() && partSnap.data()?.kickedUntil && partSnap.data()?.kickedUntil > Date.now()) {
+          return;
+        }
         const batch = writeBatch(firestore);
 
         const inventory = userProfile?.inventory;
@@ -80,6 +84,8 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
           isMuted: false,
           accountNumber: userProfile?.accountNumber || '',
           gender: userProfile?.gender || null,
+          relationship: userProfile?.relationship || null,
+          bestFriend: userProfile?.bestFriend || null,
         }, { merge: true });
 
         batch.set(roomDocRef, {
@@ -98,6 +104,14 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
           isOnline: true,
           updatedAt: serverTimestamp(),
         }, { merge: true });
+
+        const logRef = doc(collection(firestore, 'chatRooms', roomId, 'entryLogs'));
+        batch.set(logRef, {
+          type: 'entry',
+          userId: uid,
+          username: userProfile?.username || user.displayName || 'Anonymous',
+          timestamp: serverTimestamp(),
+        });
 
         await batch.commit();
       } catch (error) {

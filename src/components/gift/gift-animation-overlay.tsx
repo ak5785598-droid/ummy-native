@@ -10,6 +10,7 @@ interface GiftAnimationEvent {
   id: string;
   giftName: string;
   senderName: string;
+  senderAvatar?: string | null;
   recipientName: string;
   imageUrl?: string | null;
   animationUrl?: string | null;
@@ -153,7 +154,10 @@ export function GiftAnimationOverlay({ events }: GiftAnimationOverlayProps) {
           </View>
         )}
 
-        <View style={{ position: 'absolute', bottom: 160, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16, paddingHorizontal: 24, paddingVertical: 12, alignItems: 'center' }}>
+        <View style={{ position: 'absolute', bottom: 160, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16, paddingHorizontal: 24, paddingVertical: 12, alignItems: 'center', flexDirection: 'row', gap: 10 }}>
+          {latestEvent.senderAvatar ? (
+            <Image source={{ uri: latestEvent.senderAvatar }} style={{ width: 32, height: 32, borderRadius: 16 }} cachePolicy="memory-disk" />
+          ) : null}
           <Text style={{ color: 'white', fontSize: 14, fontWeight: 'bold' }}>
             {latestEvent.senderName} sent {latestEvent.giftName} {latestEvent.quantity > 1 ? `x${latestEvent.quantity}` : ''}
           </Text>

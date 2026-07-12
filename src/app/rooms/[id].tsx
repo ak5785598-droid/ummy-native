@@ -585,6 +585,13 @@ export default function RoomScreen() {
   useRoomPresence({ activeRoom: room, minimizedRoom: minimizedRoom, userProfile: userProfile || null });
 
   const currentUserParticipant = useMemo(() => participants?.find(p => p.uid === user?.uid) || null, [participants, user?.uid]);
+
+  useEffect(() => {
+    if (currentUserParticipant && currentUserParticipant.kickedUntil && currentUserParticipant.kickedUntil > Date.now()) {
+      Alert.alert('Kicked Out 🚷', 'You have been kicked and banned from this room by the host/admin.');
+      handleExit();
+    }
+  }, [currentUserParticipant]);
   // isInSeat derived directly — no useState delay
   const isInSeat = (currentUserParticipant?.seatIndex ?? 0) > 0;
 
@@ -979,7 +986,43 @@ export default function RoomScreen() {
       type: 'mic_invite', targetUid, targetSeatIndex: seatIdx, inviterId: user.uid, inviterName: userProfile.username, inviterAvatar: userProfile.avatarUrl || null,
       content: `${userProfile.username} invited you to join mic on seat #${seatIdx}`, senderId: 'SYSTEM_BOT', senderName: 'Ummy Chat', timestamp: serverTimestamp(), processed: false,
     });
+    
+    // Reward the inviter with 500 coins!
+    try {
+      const userRef = doc(firestore, 'users', user.uid);
+      const profileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
+      await updateDocumentNonBlocking(userRef, { 'wallet.coins': increment(500) });
+      await updateDocumentNonBlocking(profileRef, { 'wallet.coins': increment(500) });
+      Alert.alert('Invitation Reward! 🪙', 'You earned 500 coins for inviting a friend to the mic seat!');
+    } catch (e) {}
+
     setShowAudienceInvite(false);
+  };
+
+  const executeRoomKick = async (targetUid: string, durationMs: number) => {
+    if (!firestore || !id || !userProfile) return;
+    const expiryTime = Date.now() + durationMs;
+    
+    try {
+      // 1. Log the kick in room entry log history
+      await addDocumentNonBlocking(collection(firestore, 'chatRooms', id, 'entryLogs'), {
+        type: 'kick',
+        userId: targetUid,
+        adminId: user?.uid || '',
+        adminName: userProfile?.username || 'Admin',
+        timestamp: serverTimestamp(),
+        durationMs
+      });
+
+      // 2. Set kickedUntil, clear seat and mute status on participant document
+      await setDoc(doc(firestore, 'chatRooms', id, 'participants', targetUid), {
+        seatIndex: 0,
+        isMuted: true,
+        kickedUntil: expiryTime
+      }, { merge: true });
+
+      Alert.alert('Success', 'User has been kicked and banned from the room.');
+    } catch (e) {}
   };
 
   const handlePlayMovie = (tmdbId: string, title: string, posterPath: string) => {
@@ -1002,6 +1045,25 @@ export default function RoomScreen() {
   const renderSeat = useCallback((idx: number) => {
     const occupant = getOccupant(idx);
     const isMe = occupant?.uid === user?.uid;
+
+    let connectRight: 'CP' | 'BFF' | null = null;
+    if (occupant && [2, 3, 4, 6, 7, 8].includes(idx)) {
+      const neighbor = getOccupant(idx + 1);
+      if (neighbor) {
+        if (
+          (occupant.relationship?.type === 'CP' && occupant.relationship?.uid === neighbor.uid) ||
+          (neighbor.relationship?.type === 'CP' && neighbor.relationship?.uid === occupant.uid)
+        ) {
+          connectRight = 'CP';
+        } else if (
+          occupant.bestFriend?.uid === neighbor.uid ||
+          neighbor.bestFriend?.uid === occupant.uid
+        ) {
+          connectRight = 'BFF';
+        }
+      }
+    }
+
     // If user just left seat (seatIndex: 0 written but not yet propagated), treat as empty
     if (isMe && !isInSeat && occupant) {
       return (
@@ -1018,6 +1080,7 @@ export default function RoomScreen() {
           activeEmoji={null}
           customEmojiMap={customEmojiMap}
           avatarFrameUrl={null}
+          connectRight={null}
         />
       );
     }
@@ -1037,6 +1100,7 @@ export default function RoomScreen() {
         activeEmoji={occupant?.activeEmoji}
         customEmojiMap={customEmojiMap}
         avatarFrameUrl={occupant?.activeFrameMediaUrl}
+        connectRight={connectRight}
       />
     );
   }, [getOccupant, user?.uid, isMuted, isInSeat, displayRoom?.mutedSeats, displayRoom?.ownerId, isSeatLocked, handleSeatClick, getSeatSpeaking, customEmojiMap]);
@@ -1404,7 +1468,19 @@ export default function RoomScreen() {
               return;
             }
           } catch (e) {}
-          setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', uid), { seatIndex: 0, isMuted: true }, { merge: true }); 
+
+          // Show kick duration choices
+          Alert.alert(
+            'Kick User',
+            'Select ban duration for this user:',
+            [
+              { text: '2 Hours', onPress: () => executeRoomKick(uid, 2 * 60 * 60 * 1000) },
+              { text: '1 Day', onPress: () => executeRoomKick(uid, 24 * 60 * 60 * 1000) },
+              { text: '30 Days', onPress: () => executeRoomKick(uid, 30 * 24 * 60 * 60 * 1000) },
+              { text: 'Permanent', onPress: () => executeRoomKick(uid, 99 * 365 * 24 * 60 * 60 * 1000) },
+              { text: 'Cancel', style: 'cancel' }
+            ]
+          );
         }}
         onLeaveSeat={(uid) => {
           if (!firestore || !id) return;

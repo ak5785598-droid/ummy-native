@@ -17,6 +17,7 @@ import { Image } from 'expo-image';
 import { FullProfileDialog } from '../../components/profile/FullProfileDialog';
 import { toCDN } from '@/lib/cdn';
 import { GoldenCoin } from '../../components/GoldenCoin';
+import { getCpLevelFromValue } from '../../lib/level-utils';
 
 export default function MessagesScreen() {
   const { user } = useUser();
@@ -932,6 +933,24 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
         'stats.monthlyGiftsReceived': increment(diamondReward),
       });
 
+      const senderPartnerUid = myProfile?.relationship?.partnerUid;
+      const senderCpType = myProfile?.relationship?.type;
+      if (senderPartnerUid && senderCpType && senderCpType !== 'None' && recipientUid === senderPartnerUid) {
+        const sortedIds = [user.uid, senderPartnerUid].sort();
+        const pairId = sortedIds.join('_');
+        const cpRef = doc(firestore, 'cpPairs', pairId);
+        const cpSnap = await getDoc(cpRef);
+        const oldCpValue = cpSnap.exists() ? (cpSnap.data()?.cpValue || 0) : 0;
+        const newCpLevel = getCpLevelFromValue(oldCpValue + totalCost);
+        const isUser1 = sortedIds[0] === user.uid;
+        batch.set(cpRef, {
+          cpValue: increment(totalCost),
+          [isUser1 ? 'user1Sent' : 'user2Sent']: increment(totalCost),
+          level: newCpLevel,
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+      }
+
       const messagesRef = collection(firestore, 'privateChats', chatId, 'messages');
       const msgRef = doc(messagesRef);
       batch.set(msgRef, {
@@ -1135,65 +1154,93 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
         contentContainerStyle={{ paddingBottom: 70 }}
         onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: false })}
       >
-        {messages?.map((msg) => {
-          const isMe = msg.senderId === user?.uid;
-          if (isMe && (msg as any).deletedBySender) return null;
-          return (
-            <TouchableOpacity 
-              key={msg.id} 
-              activeOpacity={0.8}
-              onLongPress={() => isMe && setSelectedMsg(msg)}
-              className={`flex-row mb-3 ${isMe ? 'justify-end' : 'justify-start'}`}
-            >
-              {!isMe && (
-                <Image
-                  cachePolicy="memory-disk"
-                  source={{ uri: toCDN(otherUser?.avatarUrl) || 'https://picsum.photos/100' }}
-                  style={{ width: 28, height: 28, borderRadius: 14, marginRight: 6, marginTop: 2 }}
-                />
-              )}
-              <View className={`max-w-[75%] rounded-2xl px-4 py-2 ${
-                (msg as any).type === 'gift' ? 'bg-gradient-to-br from-pink-500 to-purple-600' : isMe ? 'bg-cyan-500 rounded-br-none' : 'bg-slate-100 rounded-bl-none'
-              }`}>
-                {(msg as any).type === 'gift' ? (
-                  <View style={{ alignItems: 'center', paddingVertical: 4 }}>
-                    {(msg as any).imageUrl ? (
-                      <Image cachePolicy="memory-disk" source={{ uri: toCDN((msg as any).imageUrl) }} style={{ width: 80, height: 80 }} contentFit="contain" />
-                    ) : (
-                      <Text style={{ fontSize: 40 }}>🎁</Text>
-                    )}
-                    <Text style={{ color: 'white', fontSize: 11, fontWeight: '800', marginTop: 4 }}>{(msg as any).giftName || 'Gift'}</Text>
-                    <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 9, marginTop: 2 }}>Tap to view</Text>
+        {(() => {
+          let lastDateStr = '';
+          return messages?.map((msg) => {
+            const isMe = msg.senderId === user?.uid;
+            if (isMe && (msg as any).deletedBySender) return null;
+
+            const msgDate = msg.timestamp?.toDate ? msg.timestamp.toDate() : (msg.timestamp?.seconds ? new Date(msg.timestamp.seconds * 1000) : (msg.timestamp ? new Date(msg.timestamp) : null));
+            const msgDateStr = msgDate ? msgDate.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+            const showDateSeparator = msgDateStr && msgDateStr !== lastDateStr;
+            if (showDateSeparator) {
+              lastDateStr = msgDateStr;
+            }
+            const timeStr = msgDate ? msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
+            return (
+              <React.Fragment key={msg.id}>
+                {showDateSeparator && (
+                  <View style={{ alignItems: 'center', marginVertical: 12 }}>
+                    <View style={{ backgroundColor: 'rgba(0,0,0,0.04)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
+                      <Text style={{ fontSize: 10, fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>{msgDateStr}</Text>
+                    </View>
                   </View>
-                ) : (
-                  <>
-                {msg.imageUrl && (
-                  <TouchableOpacity onPress={() => setPreviewImage(msg.imageUrl || null)}>
-                    <Image cachePolicy="memory-disk" source={{ uri: toCDN(msg.imageUrl) }} className="w-48 h-48 rounded-lg mb-1" contentFit="cover" />
-                  </TouchableOpacity>
                 )}
-                {(msg as any).audioUrl && (
-                  <AudioPlayer audioUrl={(msg as any).audioUrl} isMe={isMe} />
-                )}
-                {msg.text && (
-                  <Text className={`text-sm ${isMe ? 'text-white' : 'text-slate-800'}`}>{msg.text}</Text>
-                )}
-                {(msg as any).edited && (
-                  <Text className={`text-[9px] mt-0.5 ${isMe ? 'text-white/60' : 'text-slate-400'}`}>edited</Text>
-                )}
-                  </>
-                )}
-              </View>
-              {isMe && (
-                <Image
-                  cachePolicy="memory-disk"
-                  source={{ uri: toCDN(myProfile?.avatarUrl) || 'https://picsum.photos/100' }}
-                  style={{ width: 28, height: 28, borderRadius: 14, marginLeft: 6, marginTop: 2 }}
-                />
-              )}
-            </TouchableOpacity>
-          );
-        })}
+                <TouchableOpacity 
+                  activeOpacity={0.8}
+                  onLongPress={() => isMe && setSelectedMsg(msg)}
+                  className={`flex-row mb-3 ${isMe ? 'justify-end' : 'justify-start'}`}
+                >
+                  {!isMe && (
+                    <Image
+                      cachePolicy="memory-disk"
+                      source={{ uri: toCDN(otherUser?.avatarUrl) || 'https://picsum.photos/100' }}
+                      style={{ width: 28, height: 28, borderRadius: 14, marginRight: 6, marginTop: 2 }}
+                    />
+                  )}
+                  <View className={`max-w-[75%] rounded-2xl px-4 py-2 ${
+                    (msg as any).type === 'gift' ? 'bg-gradient-to-br from-pink-500 to-purple-600' : isMe ? 'bg-cyan-500 rounded-br-none' : 'bg-slate-100 rounded-bl-none'
+                  }`}>
+                    {(msg as any).type === 'gift' ? (
+                      <View style={{ alignItems: 'center', paddingVertical: 4 }}>
+                        {(msg as any).imageUrl ? (
+                          <Image cachePolicy="memory-disk" source={{ uri: toCDN((msg as any).imageUrl) }} style={{ width: 80, height: 80 }} contentFit="contain" />
+                        ) : (
+                          <Text style={{ fontSize: 40 }}>🎁</Text>
+                        )}
+                        <Text style={{ color: 'white', fontSize: 11, fontWeight: '800', marginTop: 4 }}>{(msg as any).giftName || 'Gift'}</Text>
+                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 9, marginTop: 2 }}>Tap to view</Text>
+                        <Text style={{ fontSize: 8, color: 'rgba(255,255,255,0.6)', fontWeight: 'bold', marginTop: 4 }}>
+                          {timeStr}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View>
+                        {msg.imageUrl && (
+                          <TouchableOpacity onPress={() => setPreviewImage(msg.imageUrl || null)}>
+                            <Image cachePolicy="memory-disk" source={{ uri: toCDN(msg.imageUrl) }} className="w-48 h-48 rounded-lg mb-1" contentFit="cover" />
+                          </TouchableOpacity>
+                        )}
+                        {(msg as any).audioUrl && (
+                          <AudioPlayer audioUrl={(msg as any).audioUrl} isMe={isMe} />
+                        )}
+                        {msg.text && (
+                          <Text className={`text-sm ${isMe ? 'text-white' : 'text-slate-800'}`}>{msg.text}</Text>
+                        )}
+                        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 4, marginTop: 3 }}>
+                          {(msg as any).edited && (
+                            <Text className={`text-[8px] ${isMe ? 'text-white/60' : 'text-slate-400'}`}>edited</Text>
+                          )}
+                          <Text style={{ fontSize: 8, fontWeight: '700', color: isMe ? 'rgba(255,255,255,0.6)' : '#94a3b8' }}>
+                            {timeStr}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                  {isMe && (
+                    <Image
+                      cachePolicy="memory-disk"
+                      source={{ uri: toCDN(myProfile?.avatarUrl) || 'https://picsum.photos/100' }}
+                      style={{ width: 28, height: 28, borderRadius: 14, marginLeft: 6, marginTop: 2 }}
+                    />
+                  )}
+                </TouchableOpacity>
+              </React.Fragment>
+            );
+          });
+        })()}
       </ScrollView>
 
       {/* Edit Message Bar */}
@@ -1574,6 +1621,8 @@ function RequestsPage({ visible, onClose, proposals }: { visible: boolean; onClo
       participantIds: sortedIds,
       type: cpType,
       cpValue: 0,
+      user1Sent: 0,
+      user2Sent: 0,
       level: 1,
       user1Name: isSenderUser1 ? senderName : receiverName,
       user1Avatar: isSenderUser1 ? senderAvatar : receiverAvatar,

@@ -10,7 +10,7 @@ import { ArrowLeft, Heart, MessageCircle, MoreHorizontal, Crown, Gift, Activity,
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFirebase, useUser, useCollection, useMemoFirebase } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
-import { collection, query, where, orderBy, limit, doc, serverTimestamp, runTransaction, onSnapshot, getDoc, setDoc } from '../../firebase/firestore-compat';
+import { collection, query, where, orderBy, limit, doc, serverTimestamp, runTransaction, onSnapshot, getDoc, setDoc, increment } from '../../firebase/firestore-compat';
 import { setDocumentNonBlocking, deleteDocumentNonBlocking } from '../../lib/non-blocking-writes';
 import { autoAssignMedals } from '../../lib/auto-assign-medals';
 import * as Clipboard from 'expo-clipboard';
@@ -248,7 +248,7 @@ export default function ProfileScreen() {
         const visitorData = visitorSnap.exists() ? visitorSnap.data() : null;
         if (visitorData?.mysteriousVisitor) return;
         const visitRef = doc(firestore, 'users', id, 'profileVisitors', currentUser.uid);
-        setDoc(visitRef, { visitorId: currentUser.uid, timestamp: serverTimestamp() }, { merge: true });
+        setDoc(visitRef, { visitorId: currentUser.uid, timestamp: serverTimestamp(), count: increment(1) }, { merge: true });
       } catch (e) {}
     })();
   }, [firestore, currentUser, id, isOwnProfile]);

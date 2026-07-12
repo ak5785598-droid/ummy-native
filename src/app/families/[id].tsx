@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Alert, Share } from 'react-na
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Users, Trophy, Flame, ShieldCheck, Crown, Share2, Trash2, UserPlus, UserMinus } from 'lucide-react-native';
 import { useFirebase, useUser, useDoc, useCollection } from '../../firebase/provider';
+import { useUserProfile } from '../../hooks/use-user-profile';
 import { doc, collection, query, where, deleteDoc, updateDoc, increment, arrayUnion, arrayRemove, serverTimestamp, writeBatch } from '../../firebase/firestore-compat';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
@@ -33,6 +34,7 @@ export default function FamilyDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { firestore, isHydrated } = useFirebase();
   const { user } = useUser();
+  const { profile: userProfile } = useUserProfile(user?.uid);
 
   const familyRef = useMemo(() => {
     if (!firestore || !isHydrated || !id) return null;
@@ -112,6 +114,26 @@ export default function FamilyDetail() {
 
   const handleShare = () => {
     Share.share({ message: `Join my family "${family.name}" on Ummy! Family ID: ${id}` });
+  };
+
+  const handleToggleAdmin = async (memberUid: string) => {
+    if (!firestore || !familyRef || !family || !isOwner) return;
+    const currentAdmins = family.admins || [];
+    const isAlreadyAdmin = currentAdmins.includes(memberUid);
+    
+    if (!isAlreadyAdmin && currentAdmins.length >= 3) {
+      Alert.alert('Limit Reached', 'You can designate up to 3 admins in a family.');
+      return;
+    }
+
+    try {
+      await updateDoc(familyRef, {
+        admins: isAlreadyAdmin ? arrayRemove(memberUid) : arrayUnion(memberUid)
+      });
+      Alert.alert('Success', isAlreadyAdmin ? 'Admin role removed.' : 'Admin role assigned!');
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Could not update admin role.');
+    }
   };
 
   if (isFamilyLoading || !family) {
@@ -243,38 +265,95 @@ export default function FamilyDetail() {
             <Text style={{ color: '#9CA3AF', fontSize: 10, fontWeight: '700', marginLeft: 'auto' }}>Showing Top 10</Text>
           </View>
 
-          {memberProfiles?.map((member: any) => (
-            <TouchableOpacity
-              key={member.uid}
-              onPress={() => router.push(`/profile/${member.uid}`)}
-              activeOpacity={0.8}
-              style={{
-                flexDirection: 'row', alignItems: 'center', padding: 12, marginBottom: 8,
-                backgroundColor: 'white', borderRadius: 16,
-                shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1
-              }}
-            >
-              <Image
-                cachePolicy="memory-disk"
-                source={{ uri: toCDN(member.avatarUrl) || 'https://picsum.photos/200' }}
-                style={{ width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: '#E5E7EB' }}
-              />
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Text style={{ color: '#1a1a2e', fontSize: 13, fontWeight: '800', textTransform: 'uppercase' }} numberOfLines={1}>{member.username}</Text>
-                  {member.uid === family.ownerId && <Crown size={12} color="#F59E0B" />}
+          {/* Task 1: My Card Self ID Banner at the top of Roster */}
+          {isMember && (
+            <View style={{ padding: 14, backgroundColor: '#efe6f7', borderRadius: 20, marginBottom: 16, borderWidth: 1.5, borderColor: '#7c3aed', shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 }}>
+              <Text style={{ fontSize: 9, fontWeight: '900', color: '#7c3aed', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>My Family Card</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Image
+                  cachePolicy="memory-disk"
+                  source={{ uri: toCDN(userProfile?.avatarUrl) || 'https://picsum.photos/100' }}
+                  style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: '#7c3aed' }}
+                />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={{ color: '#1a1a2e', fontSize: 14, fontWeight: '900', textTransform: 'uppercase' }}>{userProfile?.username || 'You'}</Text>
+                  <Text style={{ color: '#7c3aed', fontSize: 10, fontWeight: '800', marginTop: 2 }}>
+                    {isOwner ? '👑 Founder / Leader' : (family?.admins?.includes(user?.uid) ? '🛡️ Family Admin' : '👤 Active Member')}
+                  </Text>
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                  <UserLevelBadge level={getLevelFromSpent(member.wallet?.totalSpent || 0)} scale={0.55} />
-                  <Text style={{ color: '#9CA3AF', fontSize: 10, fontWeight: '700' }}>Warrior</Text>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={{ color: '#7c3aed', fontSize: 9, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 }}>Sending Contributed</Text>
+                  <Text style={{ color: '#1a1a2e', fontSize: 13, fontWeight: '900', marginTop: 2 }}>
+                    {(family?.contributions?.[user?.uid || ''] || 0).toLocaleString()} coins
+                  </Text>
                 </View>
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                <Flame size={12} color="#F97316" />
-                <Text style={{ color: '#1a1a2e', fontSize: 13, fontWeight: '900' }}>{(member.wealthValue || 0).toLocaleString()}</Text>
+            </View>
+          )}
+
+          {memberProfiles?.map((member: any) => {
+            const isMemberAdmin = family.admins?.includes(member.uid);
+            return (
+              <View
+                key={member.uid}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', padding: 12, marginBottom: 8,
+                  backgroundColor: 'white', borderRadius: 16,
+                  shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1
+                }}
+              >
+                <TouchableOpacity onPress={() => router.push(`/profile/${member.uid}`)} activeOpacity={0.8} style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+                  <Image
+                    cachePolicy="memory-disk"
+                    source={{ uri: toCDN(member.avatarUrl) || 'https://picsum.photos/200' }}
+                    style={{ width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: '#E5E7EB' }}
+                  />
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Text style={{ color: '#1a1a2e', fontSize: 13, fontWeight: '800', textTransform: 'uppercase' }} numberOfLines={1}>{member.username}</Text>
+                      {member.uid === family.ownerId && <Crown size={12} color="#F59E0B" />}
+                      {isMemberAdmin && <ShieldCheck size={12} color="#9333ea" />}
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                      <UserLevelBadge level={getLevelFromSpent(member.wallet?.totalSpent || 0)} scale={0.55} />
+                      <Text style={{ color: '#9CA3AF', fontSize: 10, fontWeight: '700' }}>
+                        {member.uid === family.ownerId ? 'Founder' : (isMemberAdmin ? 'Admin' : 'Member')}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+
+                {/* Task 2: Owner Toggle Admin Role Button */}
+                {isOwner && member.uid !== user?.uid && (
+                  <TouchableOpacity 
+                    onPress={() => handleToggleAdmin(member.uid)}
+                    style={{ 
+                      paddingHorizontal: 8, 
+                      paddingVertical: 4, 
+                      borderRadius: 8, 
+                      backgroundColor: isMemberAdmin ? '#fee2e2' : '#f3e8ff',
+                      marginRight: 10
+                    }}
+                  >
+                    <Text style={{ fontSize: 9, fontWeight: '900', color: isMemberAdmin ? '#ef4444' : '#7c3aed', textTransform: 'uppercase' }}>
+                      {isMemberAdmin ? '- Admin' : '+ Admin'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Task 3: Contribution values display */}
+                <View style={{ alignItems: 'flex-end' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                    <Flame size={12} color="#F97316" />
+                    <Text style={{ color: '#1a1a2e', fontSize: 13, fontWeight: '900' }}>
+                      {(family?.contributions?.[member.uid] || 0).toLocaleString()}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 8, color: '#9ca3af', fontWeight: '700', marginTop: 1 }}>Coins Sent</Text>
+                </View>
               </View>
-            </TouchableOpacity>
-          ))}
+            );
+          })}
 
           {!memberProfiles?.length && (
             <View style={{ alignItems: 'center', paddingVertical: 20 }}>

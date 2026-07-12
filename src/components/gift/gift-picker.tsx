@@ -347,10 +347,11 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
           const cpRef = doc(firestore, 'cpPairs', pairId);
           const cpSnap = await getDoc(cpRef);
           const oldCpValue = cpSnap.exists() ? (cpSnap.data()?.cpValue || 0) : 0;
-          const newCpValue = oldCpValue + totalCost;
-          const newCpLevel = getCpLevelFromValue(newCpValue);
+          const newCpLevel = getCpLevelFromValue(oldCpValue + totalCost);
+          const isUser1 = sortedIds[0] === user.uid;
           batch.set(cpRef, {
             cpValue: increment(totalCost),
+            [isUser1 ? 'user1Sent' : 'user2Sent']: increment(totalCost),
             level: newCpLevel,
             updatedAt: serverTimestamp(),
           }, { merge: true });
@@ -365,6 +366,7 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
         type: 'gift',
         senderId: user.uid,
         senderName: userProfile?.username || user?.displayName || 'User',
+        senderAvatar: userProfile?.avatarUrl || user?.photoURL || null,
         giftId: gift.id || null,
         giftName: gift.name || null,
         giftValue: totalCost,
@@ -438,6 +440,7 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
           type: 'gift',
           senderId: user.uid,
           senderName: userProfile?.username || user?.displayName || 'User',
+          senderAvatar: userProfile?.avatarUrl || user?.photoURL || null,
           giftName: gift.name,
           giftId: gift.id,
           animationId: gift.animationId || null,

@@ -67,13 +67,27 @@ export default function OnboardingScreen() {
         gender,
         country,
         onboardingComplete: true,
+        wallet: {
+          coins: 5000,
+          dailySpent: 0,
+          totalSpent: 0
+        },
+        inventory: {
+          activeFrame: 'aristocracy_knight_frame',
+          activeFrameMediaUrl: 'aristocracy_knight_frame',
+          frameExpiry: Date.now() + 3 * 24 * 60 * 60 * 1000 // 3 days welcome frame
+        },
         updatedAt: serverTimestamp(),
       };
 
       await setDoc(userRef, updates, { merge: true });
       await setDoc(profileRef, updates, { merge: true });
 
-      router.replace('/(tabs)');
+      Alert.alert(
+        'Welcome Gift! 🎉',
+        'We have added 5,000 coins and a 3-day Knight avatar frame to your account as a welcome bonus!',
+        [{ text: 'Great!', onPress: () => router.replace('/(tabs)') }]
+      );
     } catch (error: any) {
       Alert.alert('Error', error?.message || 'Failed to save profile');
     } finally {
