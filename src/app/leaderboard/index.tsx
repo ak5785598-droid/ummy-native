@@ -429,7 +429,14 @@ export default function LeaderboardScreen() {
                       <Text className="text-white text-xs font-bold">{getLabel(item)[0]}</Text>
                     </View>
                   )}
-                  <Text className="text-white text-sm font-bold flex-1" numberOfLines={1}>{getLabel(item)}</Text>
+                  <View className="flex-1 mr-2">
+                    <Text className="text-white text-sm font-bold" numberOfLines={1}>{getLabel(item)}</Text>
+                    {rank <= 10 && (
+                      <Text style={{ color: '#fbbf24', fontSize: 9, fontWeight: '700', marginTop: 2 }}>
+                        🎁 Reward: Viscount Frame + 1,000 Coins
+                      </Text>
+                    )}
+                  </View>
                   <View className="flex-row items-center gap-1">
                     <Text className="text-amber-400 text-xs font-bold">{formatValue(getValue(item))}</Text>
                     <GoldenCoin size={10} />
@@ -694,6 +701,23 @@ const PodiumCard = React.memo(function PodiumCard({ rank, value, label, avatar, 
       className="items-center mx-1 relative"
       style={{ width, height, marginTop: isFirst ? 0 : 32 }}
     >
+      {/* Floating Reward Badge for Top 3 */}
+      <View
+        style={{
+          position: 'absolute',
+          top: isFirst ? -8 : 16,
+          alignSelf: 'center',
+          backgroundColor: isFirst ? '#fbbf24' : rank === 2 ? '#cbd5e1' : '#ea580c',
+          paddingHorizontal: 6,
+          paddingVertical: 2,
+          borderRadius: 8,
+          zIndex: 40,
+        }}
+      >
+        <Text style={{ color: '#000', fontSize: 7, fontWeight: '900', textTransform: 'uppercase' }}>
+          {isFirst ? 'Duke' : rank === 2 ? 'Marquis' : 'Earl'} Reward
+        </Text>
+      </View>
       <View 
         className="absolute z-10"
         style={{ 

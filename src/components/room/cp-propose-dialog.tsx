@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, Vibration } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, Vibration, Alert } from 'react-native';
 import { X, Heart, Sparkles, Star, Zap, CheckCircle } from 'lucide-react-native';
 import { useFirestore, useUser } from '../../firebase/provider';
 import { doc, setDoc, serverTimestamp } from '@/firebase/firestore-compat';
@@ -35,6 +35,12 @@ export function CPProposeDialog({ visible, onClose, targetUser }: CPProposeDialo
 
   const handleSend = async () => {
     if (!firestore || !user?.uid || !targetUser || !userProfile || sending) return;
+
+    if (userProfile?.relationship && userProfile.relationship.type && userProfile.relationship.type !== 'None') {
+      Alert.alert('Error 💔', 'You already have an active relationship. Please dissolve it first.');
+      return;
+    }
+
     setSending(true);
     try {
       const proposeRef = doc(firestore, 'proposals', `${user.uid}_${targetUser.uid}`);

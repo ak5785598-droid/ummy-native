@@ -291,16 +291,18 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
   const currentThreshold = levelIndex !== undefined ? THRESHOLD_MAP[levelIndex] || 10000000 : 10000000;
   const rewardPool = currentThreshold * 2;
 
-  // Listen directly to Firestore Profile Document to fetch latest updated user nickname/name
+  // Listen directly to Firestore User Document to fetch latest updated user username
   useEffect(() => {
     if (!visible || !firestore || !user?.uid) {
       setProfileName('');
       return;
     }
-    const profileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
-    const unsub = onSnapshot(profileRef, (snap) => {
+    const userRef = doc(firestore, 'users', user.uid);
+    const unsub = onSnapshot(userRef, (snap) => {
       const data = snap.data();
-      if (data && data.name) {
+      if (data && data.username) {
+        setProfileName(data.username);
+      } else if (data && data.name) {
         setProfileName(data.name);
       } else {
         setProfileName(user.displayName || 'Looter');
@@ -586,7 +588,7 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
     onClose();
   }, [onClose, firestore, user, isAuthorized, getProportionalShare]);
 
-  // Sync final score to RTDB and trigger exactly ONE 5-second close timer (resolves dependencies cleanup bug)
+  // Sync final score to RTDB and trigger exactly ONE 5-second close timer
   useEffect(() => {
     if (visible && isAuthorized === true && timeLeft === 0 && !showResultPopup) {
       // Record user score to Realtime Database so other room participants can see it
@@ -602,19 +604,18 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
 
       // Display the multiplayer leaderboard popup
       setShowResultPopup(true);
+    }
+  }, [timeLeft, visible, isAuthorized, database, roomId, levelIndex, user, profileName, showResultPopup]);
 
-      // Trigger the 5-second closing timeout exactly once
-      autoCloseTimerRef.current = setTimeout(() => {
+  // Separate robust timer listener that won't get cleared by other rendering state changes
+  useEffect(() => {
+    if (showResultPopup) {
+      const timer = setTimeout(() => {
         handleAutoClose();
       }, 5000);
+      return () => clearTimeout(timer);
     }
-
-    return () => {
-      if (autoCloseTimerRef.current) {
-        clearTimeout(autoCloseTimerRef.current);
-      }
-    };
-  }, [timeLeft, visible, isAuthorized, database, roomId, levelIndex, user, profileName, showResultPopup, handleAutoClose]);
+  }, [showResultPopup, handleAutoClose]);
 
   const isEnding = timeLeft === 0;
 

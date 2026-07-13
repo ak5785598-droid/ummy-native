@@ -152,8 +152,12 @@ export function RewardsTab() {
       expiry.setDate(expiry.getDate() + d);
 
       await pRef.set({
-        'inventory.ownedItems': firestore.FieldValue.arrayUnion(assetId.trim()),
-        [`inventory.expiries.${assetId.trim()}`]: firestore.Timestamp.fromDate(expiry),
+        inventory: {
+          ownedItems: firestore.FieldValue.arrayUnion(assetId.trim()),
+          expiries: {
+            [assetId.trim()]: firestore.Timestamp.fromDate(expiry)
+          }
+        },
         updatedAt: firestore.FieldValue.serverTimestamp(),
       }, { merge: true });
 

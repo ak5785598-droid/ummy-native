@@ -542,11 +542,11 @@ export default function CpRankingScreen() {
             <View style={styles.dividerLine} />
           </View>
 
-          {/* ── RANKS 4+ LIST ── */}
+          {/* ── RANKS 8+ LIST ── */}
           <View style={styles.listContainer}>
             {rest.length > 0 ? (
               rest.map((cp: any, i: number) => {
-                const rank = i + 4;
+                const rank = i + 8;
                 const isMe = cp.participantIds?.includes(user?.uid);
                 return <RankRow key={cp.id || i} cp={cp} rank={rank} isMe={isMe} onPress={() => setSelectedCp(cp)} />;
               })
@@ -737,6 +737,27 @@ export default function CpRankingScreen() {
                 CP Relationship Level: <Text style={{ color: '#f43f5e' }}>Lv.{selectedCp?.level || 1}</Text>
               </Text>
             </View>
+
+            {/* Top 10 Couple Rewards Card */}
+            {(() => {
+              const selectedCpRank = topCp?.findIndex((c: any) => c.id === selectedCp?.id) ?? -1;
+              if (selectedCpRank >= 0 && selectedCpRank < 10) {
+                return (
+                  <View style={{ width: '100%', marginTop: 12, padding: 12, backgroundColor: 'rgba(251,191,36,0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(251,191,36,0.25)', alignItems: 'center' }}>
+                    <Text style={{ color: '#fbbf24', fontSize: 11, fontWeight: '900', textTransform: 'uppercase', marginBottom: 4 }}>
+                      🏆 Top {selectedCpRank + 1} Couple Reward
+                    </Text>
+                    <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: '800', textAlign: 'center', lineHeight: 14 }}>
+                      {selectedCpRank === 0 ? 'Duke Frame + 10,000 Coins' :
+                       selectedCpRank === 1 ? 'Marquis Frame + 5,000 Coins' :
+                       selectedCpRank === 2 ? 'Earl Frame + 2,000 Coins' :
+                       'Viscount Frame + 1,000 Coins'}
+                    </Text>
+                  </View>
+                );
+              }
+              return null;
+            })()}
           </Pressable>
         </Pressable>
       </Modal>

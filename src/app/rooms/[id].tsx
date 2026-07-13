@@ -309,6 +309,55 @@ export default function RoomScreen() {
   const [cpProposeTarget, setCpProposeTarget] = useState<{ uid: string; name: string; avatarUrl: string } | null>(null);
   const [aiVoiceAnnouncements, setAiVoiceAnnouncements] = useState<any[]>([]);
 
+  // Global Broadcast Patti ("Patti") state
+  const [activeBroadcast, setActiveBroadcast] = useState<any>(null);
+  const pattiTranslateY = useRef(new Animated.Value(-120)).current;
+
+  useEffect(() => {
+    if (!firestore) return;
+
+    // Listen to globalBroadcasts expiresAt > now
+    const q = query(
+      collection(firestore, 'globalBroadcasts'),
+      where('expiresAt', '>', Timestamp.fromDate(new Date())),
+      orderBy('expiresAt', 'desc'),
+      limit(1)
+    );
+
+    const unsubscribe = onSnapshot(q, (snap: any) => {
+      if (snap && snap.docs.length > 0) {
+        const data = snap.docs[0].data();
+        // Prevent showing broadcast from our own room
+        if (data.roomId === id) return;
+
+        setActiveBroadcast(data);
+
+        // Slide in
+        Animated.spring(pattiTranslateY, {
+          toValue: 0,
+          tension: 80,
+          friction: 12,
+          useNativeDriver: true,
+        }).start();
+
+        // Slide out after 7 seconds
+        const timer = setTimeout(() => {
+          Animated.timing(pattiTranslateY, {
+            toValue: -120,
+            duration: 400,
+            useNativeDriver: true,
+          }).start(() => {
+            setActiveBroadcast(null);
+          });
+        }, 7000);
+
+        return () => clearTimeout(timer);
+      }
+    }, () => {});
+
+    return () => unsubscribe();
+  }, [firestore, id]);
+
   const roomDocRef = useMemo(() => {
     if (!firestore || !id) return null;
     return doc(firestore, 'chatRooms', id);
@@ -586,10 +635,28 @@ export default function RoomScreen() {
 
   const currentUserParticipant = useMemo(() => participants?.find(p => p.uid === user?.uid) || null, [participants, user?.uid]);
 
+  const banDocRef = useMemo(() => (firestore && id && user?.uid) ? doc(firestore, 'chatRooms', id, 'bans', user.uid) : null, [firestore, id, user?.uid]);
+  const { data: banData } = useDoc(banDocRef);
+
   useEffect(() => {
-    if (currentUserParticipant && currentUserParticipant.kickedUntil && currentUserParticipant.kickedUntil > Date.now()) {
-      Alert.alert('Kicked Out 🚷', 'You have been kicked and banned from this room by the host/admin.');
-      handleExit();
+    if (banData) {
+      const bannedUntil = banData.bannedUntil;
+      const bannedUntilMs = bannedUntil?.toDate ? bannedUntil.toDate().getTime() : (typeof bannedUntil === 'string' ? new Date(bannedUntil).getTime() : bannedUntil);
+      if (bannedUntilMs && bannedUntilMs > Date.now()) {
+        Alert.alert('Kicked Out 🚷', 'You have been kicked and banned from this room by the host/admin.');
+        handleExit();
+      }
+    }
+  }, [banData]);
+
+  useEffect(() => {
+    if (currentUserParticipant && currentUserParticipant.kickedUntil) {
+      const exp = currentUserParticipant.kickedUntil;
+      const expMs = exp?.toDate ? exp.toDate().getTime() : (typeof exp === 'string' ? new Date(exp).getTime() : exp);
+      if (expMs > Date.now()) {
+        Alert.alert('Kicked Out 🚷', 'You have been kicked and banned from this room by the host/admin.');
+        handleExit();
+      }
     }
   }, [currentUserParticipant]);
   // isInSeat derived directly — no useState delay
@@ -1014,7 +1081,15 @@ export default function RoomScreen() {
         durationMs
       });
 
-      // 2. Set kickedUntil, clear seat and mute status on participant document
+      // 2. Write persistent ban document
+      await setDoc(doc(firestore, 'chatRooms', id, 'bans', targetUid), {
+        bannedUid: targetUid,
+        bannedUntil: expiryTime,
+        bannedBy: user?.uid || '',
+        timestamp: serverTimestamp()
+      });
+
+      // 3. Set kickedUntil, clear seat and mute status on participant document
       await setDoc(doc(firestore, 'chatRooms', id, 'participants', targetUid), {
         seatIndex: 0,
         isMuted: true,
@@ -1166,6 +1241,89 @@ export default function RoomScreen() {
 
         <RoomHeader roomTitle={displayRoom.name || displayRoom.title || 'Room'} roomId={displayRoom.id} roomNumber={displayRoom.roomNumber} onlineCount={participants.length} coverUrl={displayRoom.coverUrl} isOwner={isOwner} isFollowing={isFollowing} onOpenInfo={() => setIsInfoOpen(true)} onFollow={handleFollow} onOpenSettings={() => setIsSettingsOpen(true)} onOpenShare={() => setIsShareOpen(true)} onExit={() => setShowExitDialog(true)} onOpenUserList={() => setIsUserListOpen(true)} />
 
+        {/* Global Gift Patti Banner */}
+        {activeBroadcast && (
+          <Animated.View
+            style={{
+              position: 'absolute',
+              top: 100, // Just below room header
+              left: 16,
+              right: 16,
+              zIndex: 999,
+              transform: [{ translateY: pattiTranslateY }],
+            }}
+          >
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => {
+                router.push(`/rooms/${activeBroadcast.roomId}`);
+              }}
+            >
+              <LinearGradient
+                colors={['#db2777', '#7c3aed', '#db2777']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{
+                  borderRadius: 20,
+                  padding: 1.5,
+                  shadowColor: '#d946ef',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.4,
+                  shadowRadius: 8,
+                  elevation: 6,
+                }}
+              >
+                <View
+                  style={{
+                    backgroundColor: 'rgba(0,0,0,0.85)',
+                    borderRadius: 18.5,
+                    paddingHorizontal: 14,
+                    paddingVertical: 10,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 }}>
+                    <View
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 16,
+                        backgroundColor: '#fbbf24',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 16 }}>🎁</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 8, color: '#facc15', fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        ✨ Global Broadcast
+                      </Text>
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#ffffff' }} numberOfLines={1}>
+                        {activeBroadcast.senderName} sent {activeBroadcast.qty}x {activeBroadcast.giftName} in Room #{activeBroadcast.roomNumber}
+                      </Text>
+                    </View>
+                  </View>
+                  <View
+                    style={{
+                      backgroundColor: '#facc15',
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 12,
+                    }}
+                  >
+                    <Text style={{ fontSize: 9, fontWeight: '900', color: '#000', textTransform: 'uppercase' }}>
+                      Enter
+                    </Text>
+                  </View>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
         <RoomTrophyBadge dailyGifts={displayRoom?.stats?.dailyGifts || 0} supporters={safeTopSupporters} onPress={() => setShowTopSupporters(true)} />
 
         <View className="flex-1 z-10">
@@ -1195,6 +1353,21 @@ export default function RoomScreen() {
                   <Text className="text-white/90 text-[11px] font-medium">{displayRoom.announcement}</Text>
                 )}
               </View>
+            )}
+            {displayRoom?.chatClearedBy && displayRoom?.chatClearedAt && (
+              (() => {
+                const clearedAt = displayRoom.chatClearedAt?.toDate?.() || (displayRoom.chatClearedAt?.seconds ? new Date(displayRoom.chatClearedAt.seconds * 1000) : null);
+                if (!clearedAt || clearedAt.getTime() < sessionJoinTime.getTime() - 3000) return null;
+                return (
+                  <View className="items-center my-2">
+                    <View className="bg-black/35 rounded-full px-4 py-1.5 border border-white/5">
+                      <Text className="text-white/90 text-[10px] font-bold text-center">
+                        {displayRoom.chatClearedBy.toUpperCase()} HAS CLEARED THE CHAT MSG
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })()
             )}
             <View className="mt-2" style={{ flex: 1 }}>
               <RoomChatArea 

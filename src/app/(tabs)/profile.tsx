@@ -427,7 +427,7 @@ export default function ProfileScreen() {
             style={{ 
               flexDirection: 'row', 
               justifyContent: 'flex-start', 
-              gap: 32, 
+              gap: 20, 
               borderBottomWidth: 1, 
               borderBottomColor: '#f1f5f9', 
               marginTop: 0, 
@@ -438,6 +438,7 @@ export default function ProfileScreen() {
             <StatItem label="Following" value={stats.following} onPress={() => { setSocialTab('following'); setSocialOpen(true); }} />
             <StatItem label="Friends" value={stats.friends} onPress={() => { setSocialTab('friends'); setSocialOpen(true); }} />
             <StatItem label="Visitors" value={stats.visitors} onPress={() => { setSocialTab('visitors'); setSocialOpen(true); }} />
+            <StatItem label="Sending" value={profile.wallet?.totalSpent || 0} onPress={() => {}} />
           </View>
 
           {/* Wallets */}

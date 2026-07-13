@@ -293,6 +293,16 @@ export default function StoreScreen() {
 
   const handlePurchase = async () => {
     if (!previewItem || !user || !firestore || isProcessing) return;
+    // Not for Sale check — only official/admin users can purchase
+    if (previewItem.notForSale || !!previewItem.isNotForSale) {
+      const isOfficial = userProfile?.tags?.some((t: string) => 
+        ['Official', 'Admin', 'Creator', 'Seller', 'Seller center', 'Coin Seller'].includes(t)
+      ) || user?.uid === '901piBzTQ0VzCtAvlyyobwvAaTs1';
+      if (!isOfficial) {
+        Alert.alert('Not for Sale', 'This item is exclusive and not for sale to general members.');
+        return;
+      }
+    }
     // Required tag check — only authorized users can purchase
     if (previewItem.requiredTag) {
       const hasTag = userProfile?.tags?.some((t: string) => t.includes(previewItem.requiredTag));
@@ -415,6 +425,16 @@ export default function StoreScreen() {
 
   const handleSendAsGift = async () => {
     if (!previewItem || !user || !firestore || !selectedRecipient || isProcessing) return;
+    // Not for Sale check — only official/admin users can purchase/gift
+    if (previewItem.notForSale || !!previewItem.isNotForSale) {
+      const isOfficial = userProfile?.tags?.some((t: string) => 
+        ['Official', 'Admin', 'Creator', 'Seller', 'Seller center', 'Coin Seller'].includes(t)
+      ) || user?.uid === '901piBzTQ0VzCtAvlyyobwvAaTs1';
+      if (!isOfficial) {
+        Alert.alert('Not for Sale', 'This item is exclusive and not for sale to general members.');
+        return;
+      }
+    }
     const finalPrice = getPrice(previewItem, selectedDuration);
     const coins = userProfile?.wallet?.coins || 0;
     if (coins < finalPrice) {
@@ -428,6 +448,7 @@ export default function StoreScreen() {
       const senderProfileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
       const senderUserRef = doc(firestore, 'users', user.uid);
       const recipientProfileRef = doc(firestore, 'users', selectedRecipient.uid, 'profile', selectedRecipient.uid);
+      const recipientUserRef = doc(firestore, 'users', selectedRecipient.uid);
       const deductData = {
         'wallet.coins': increment(-finalPrice),
         updatedAt: serverTimestamp(),
@@ -435,11 +456,14 @@ export default function StoreScreen() {
       const batch = writeBatch(firestore);
       batch.update(senderProfileRef, deductData);
       batch.update(senderUserRef, deductData);
-      batch.update(recipientProfileRef, {
+      
+      const recipientInventoryUpdate = {
         'inventory.ownedItems': arrayUnion(previewItem.id),
         [`inventory.expiries.${previewItem.id}`]: expiryDate.toISOString(),
         updatedAt: serverTimestamp(),
-      });
+      };
+      batch.update(recipientProfileRef, recipientInventoryUpdate);
+      batch.update(recipientUserRef, recipientInventoryUpdate);
       const recipientNotifRef = doc(collection(firestore, 'users', selectedRecipient.uid, 'notifications'));
       batch.set(recipientNotifRef, {
         title: 'Gift Received!',

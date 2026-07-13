@@ -24,7 +24,7 @@ interface GiftAnimationOverlayProps {
   events: GiftAnimationEvent[];
 }
 
-const NON_VIDEO_DELAY = 4000;
+const NON_VIDEO_DELAY = 1500;
 
 export function GiftAnimationOverlay({ events }: GiftAnimationOverlayProps) {
   const latestEvent = events[events.length - 1];
@@ -40,10 +40,10 @@ export function GiftAnimationOverlay({ events }: GiftAnimationOverlayProps) {
     fadeTriggered.current = true;
 
     Animated.sequence([
-      Animated.delay(500),
+      Animated.delay(100),
       Animated.timing(opacityAnim, {
         toValue: 0,
-        duration: 400,
+        duration: 200,
         easing: Easing.ease,
         useNativeDriver: true,
       }),
@@ -81,8 +81,8 @@ export function GiftAnimationOverlay({ events }: GiftAnimationOverlayProps) {
 
     Animated.spring(scaleAnim, {
       toValue: 1,
-      friction: 4,
-      tension: 40,
+      friction: 6,
+      tension: 100,
       useNativeDriver: true,
     }).start();
 

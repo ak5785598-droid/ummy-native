@@ -1,14 +1,14 @@
 'use client';
 
 import React, { createContext, useContext, ReactNode, useState, useEffect, useMemo, DependencyList } from 'react';
-import { onSnapshot } from '@/firebase/firestore-compat';
+import { onSnapshot, doc } from '@/firebase/firestore-compat';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore } from '@/firebase/firestore-compat';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { FirebaseStorage } from 'firebase/storage';
 import { Database } from 'firebase/database';
-import { isCurrentDeviceActive } from '../lib/device-session';
+import { isCurrentDeviceActive, getOrCreateDeviceId } from '../lib/device-session';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -103,6 +103,32 @@ export function FirebaseProvider({ children, firebaseApp, firestore, auth, stora
     } catch (e) {
     }
   }, [mounted, auth]);
+
+  // Real-time single-session activeDeviceId enforcement listener
+  useEffect(() => {
+    if (!mounted || !auth || !firestore || !userAuthState.user) return;
+
+    const uid = userAuthState.user.uid;
+    const userRef = doc(firestore, 'users', uid);
+
+    const unsubscribeDoc = onSnapshot(userRef, async (snap: any) => {
+      const exists = typeof snap.exists === 'function' ? snap.exists() : snap.exists;
+      if (exists) {
+        const data = snap.data();
+        const activeId = data?.activeDeviceId;
+        const currentId = await getOrCreateDeviceId();
+        if (activeId && currentId && activeId !== currentId) {
+          // Another device logged in! Force sign out instantly
+          try {
+            await (auth as any).signOut();
+          } catch {}
+          setUserAuthState({ user: null, isLoading: false, userError: null });
+        }
+      }
+    }, () => {});
+
+    return () => unsubscribeDoc();
+  }, [mounted, auth, firestore, userAuthState.user]);
 
   const contextValue = useMemo(() => ({
     areServicesAvailable: !!(firebaseApp || typeof window === 'undefined'),

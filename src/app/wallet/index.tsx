@@ -30,6 +30,26 @@ const DIAMOND_EXCHANGE_PACKAGES = [
 
 const CONVERSION_RATE = 0.33;
 
+function formatTimeAgo(timestamp: any) {
+  if (!timestamp) return 'Just now';
+  let date;
+  if (timestamp.toDate) {
+    date = timestamp.toDate();
+  } else if (timestamp.seconds) {
+    date = new Date(timestamp.seconds * 1000);
+  } else {
+    date = new Date(timestamp);
+  }
+  const diffMs = Date.now() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
+}
+
 export default function WalletScreen() {
   const router = useRouter();
   const { user } = useUser();
@@ -47,6 +67,29 @@ export default function WalletScreen() {
   const [selectedDiamondId, setSelectedDiamondId] = useState('d1');
   const [customDiamonds, setCustomDiamonds] = useState('');
   const [exchanging, setExchanging] = useState(false);
+
+  // Transaction history state
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loadingTx, setLoadingTx] = useState(true);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    const unsub = firestore()
+      .collection('users')
+      .doc(user.uid)
+      .collection('transactions')
+      .orderBy('timestamp', 'desc')
+      .limit(30)
+      .onSnapshot(snap => {
+        if (snap) {
+          setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        }
+        setLoadingTx(false);
+      }, () => {
+        setLoadingTx(false);
+      });
+    return () => unsub();
+  }, [user?.uid]);
 
   // Listen to Global Payment Config
   useEffect(() => {
@@ -128,6 +171,16 @@ export default function WalletScreen() {
         createdAt: firestore.FieldValue.serverTimestamp()
       });
 
+      // Write Central Ledger Pending Transaction
+      const txRef = firestore().collection('users').doc(user.uid).collection('transactions').doc();
+      await txRef.set({
+        amount: coinsAmount + bonusAmount,
+        currency: 'coins',
+        type: 'recharge',
+        description: `Coins Recharge (Pending: UTR ${utrNumber.trim()})`,
+        timestamp: firestore.FieldValue.serverTimestamp()
+      });
+
       Alert.alert('Request Submitted', 'Your payment verification request has been queued for admin check.');
       setUtrNumber('');
     } catch (err: any) {
@@ -180,6 +233,25 @@ export default function WalletScreen() {
         timestamp: firestore.FieldValue.serverTimestamp()
       });
 
+      // Write Central Ledger Transactions
+      const txCoinsRef = firestore().collection('users').doc(user.uid).collection('transactions').doc();
+      await txCoinsRef.set({
+        amount: resCoins,
+        currency: 'coins',
+        type: 'exchange',
+        description: `Exchanged ${reqDiamonds.toLocaleString()} Diamonds for Coins`,
+        timestamp: firestore.FieldValue.serverTimestamp()
+      });
+
+      const txDiamondsRef = firestore().collection('users').doc(user.uid).collection('transactions').doc();
+      await txDiamondsRef.set({
+        amount: -reqDiamonds,
+        currency: 'diamonds',
+        type: 'exchange',
+        description: `Exchanged Diamonds for ${resCoins.toLocaleString()} Coins`,
+        timestamp: firestore.FieldValue.serverTimestamp()
+      });
+
       Alert.alert('Success', `Exchanged ${reqDiamonds.toLocaleString()} Diamonds for ${resCoins.toLocaleString()} Coins!`);
     } catch (err: any) {
       Alert.alert('Exchange Failed', `${err.message || 'Unknown error'}\n\nCode: ${err.code || 'N/A'}`);
@@ -229,6 +301,25 @@ export default function WalletScreen() {
         type: 'exchange',
         diamondAmount: reqDiamonds,
         coinAmount: resCoins,
+        timestamp: firestore.FieldValue.serverTimestamp()
+      });
+
+      // Write Central Ledger Transactions
+      const txCoinsRef = firestore().collection('users').doc(user.uid).collection('transactions').doc();
+      await txCoinsRef.set({
+        amount: resCoins,
+        currency: 'coins',
+        type: 'exchange',
+        description: `Exchanged ${reqDiamonds.toLocaleString()} Diamonds for Coins`,
+        timestamp: firestore.FieldValue.serverTimestamp()
+      });
+
+      const txDiamondsRef = firestore().collection('users').doc(user.uid).collection('transactions').doc();
+      await txDiamondsRef.set({
+        amount: -reqDiamonds,
+        currency: 'diamonds',
+        type: 'exchange',
+        description: `Exchanged Diamonds for ${resCoins.toLocaleString()} Coins`,
         timestamp: firestore.FieldValue.serverTimestamp()
       });
 
@@ -453,6 +544,59 @@ export default function WalletScreen() {
             </View>
           </View>
         )}
+
+        {/* Transaction History Section */}
+        <View style={{ marginTop: 28, borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 20 }}>
+          <Text style={[styles.sectionTitle, { fontSize: 14, color: '#1e293b' }]}>Transaction History</Text>
+          {loadingTx ? (
+            <ActivityIndicator size="small" color="#7c3aed" style={{ marginVertical: 20 }} />
+          ) : transactions.length === 0 ? (
+            <View style={{ padding: 24, alignItems: 'center' }}>
+              <Text style={{ color: '#94a3b8', fontSize: 12, fontWeight: '700' }}>No transactions recorded yet</Text>
+            </View>
+          ) : (
+            <View style={{ gap: 10 }}>
+              {transactions.map(tx => {
+                const isPositive = tx.amount > 0;
+                const isCoins = tx.currency === 'coins';
+                return (
+                  <View
+                    key={tx.id}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: 14,
+                      backgroundColor: '#f8fafc',
+                      borderRadius: 16,
+                      borderWidth: 1.5,
+                      borderColor: '#e2e8f0'
+                    }}
+                  >
+                    <View style={{ flex: 1, marginRight: 12 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '800', color: '#1e293b' }}>{tx.description || 'Transaction'}</Text>
+                      <Text style={{ fontSize: 9, color: '#94a3b8', fontWeight: '800', marginTop: 4, textTransform: 'uppercase' }}>
+                        {tx.type} • {tx.timestamp ? formatTimeAgo(tx.timestamp) : 'Just now'}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      {isCoins ? <GoldenCoin size={18} /> : <PremiumDiamond size={18} />}
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontWeight: '900',
+                          color: isPositive ? '#10b981' : '#ef4444'
+                        }}
+                      >
+                        {isPositive ? '+' : ''}{tx.amount.toLocaleString()}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

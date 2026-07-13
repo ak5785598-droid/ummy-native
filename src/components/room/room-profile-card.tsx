@@ -235,7 +235,7 @@ export function RoomProfileCard({
           </View>
 
           {/* Name & Badges */}
-          <View className={`flex-row items-center gap-1.5 ${hasTags || hasMedals ? 'mb-3' : 'mb-1.5'}`}>
+          <View className={`flex-row items-center gap-1.5 flex-wrap justify-center ${hasTags || hasMedals ? 'mb-3' : 'mb-1.5'}`}>
             <Text className="text-[#1E293B] text-2xl font-black">{profile?.username || user.name}</Text>
             {(profile?.gender || user.gender) !== 'female' ? (
               <View className="bg-blue-100 w-5 h-5 rounded-full items-center justify-center">
@@ -250,6 +250,16 @@ export function RoomProfileCard({
               <View className="bg-slate-100 px-2 py-0.5 rounded-full flex-row items-center gap-1">
                 <Text style={{ fontSize: 12 }}>{COUNTRY_FLAGS[profile.country] || String.fromCodePoint(0x1F30D)}</Text>
                 <Text className="text-slate-500 text-[10px] font-bold uppercase">{COUNTRY_NAMES[profile.country] || profile.country}</Text>
+              </View>
+            ) : null}
+            {profile?.level?.rich ? (
+              <View style={{ backgroundColor: '#FEF3C7', borderColor: '#F59E0B', borderWidth: 1, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6 }}>
+                <Text style={{ color: '#D97706', fontSize: 9, fontWeight: '900' }}>R.{profile.level.rich}</Text>
+              </View>
+            ) : null}
+            {profile?.level?.charm ? (
+              <View style={{ backgroundColor: '#FCE7F3', borderColor: '#EC4899', borderWidth: 1, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6 }}>
+                <Text style={{ color: '#DB2777', fontSize: 9, fontWeight: '900' }}>C.{profile.level.charm}</Text>
               </View>
             ) : null}
           </View>
@@ -309,7 +319,7 @@ export function RoomProfileCard({
               <Copy size={10} color="#64748b" />
             </TouchableOpacity>
             <View className="h-4 w-[1px] bg-slate-200" />
-            <Text className="text-slate-400 text-[11px] font-black uppercase">0 FANS</Text>
+            <Text className="text-slate-400 text-[11px] font-black uppercase">{(profile?.stats?.fans || 0).toLocaleString()} FANS</Text>
             <View className="h-4 w-[1px] bg-slate-200" />
             {onSendGift && (
               <TouchableOpacity onPress={() => { onClose(); onSendGift(user.uid); }}

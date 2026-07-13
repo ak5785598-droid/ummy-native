@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, Share } from 'react-native';
+import React, { useMemo, useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Alert, Share, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Users, Trophy, Flame, ShieldCheck, Crown, Share2, Trash2, UserPlus, UserMinus } from 'lucide-react-native';
+import { ChevronLeft, Users, Trophy, Flame, ShieldCheck, Crown, Share2, Trash2, UserPlus, UserMinus, Edit, X } from 'lucide-react-native';
 import { useFirebase, useUser, useDoc, useCollection } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { doc, collection, query, where, deleteDoc, updateDoc, increment, arrayUnion, arrayRemove, serverTimestamp, writeBatch } from '../../firebase/firestore-compat';
@@ -52,6 +52,41 @@ export default function FamilyDetail() {
 
   const isMember = user && family?.members?.includes(user.uid);
   const isOwner = user && family?.ownerId === user.uid;
+
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editBannerUrl, setEditBannerUrl] = useState('');
+  const [editBio, setEditBio] = useState('');
+  const [editAnnouncement, setEditAnnouncement] = useState('');
+
+  useEffect(() => {
+    if (family) {
+      setEditName(family.name || '');
+      setEditBannerUrl(family.bannerUrl || '');
+      setEditBio(family.bio || '');
+      setEditAnnouncement(family.announcement || '');
+    }
+  }, [family]);
+
+  const handleUpdateFamily = async () => {
+    if (!firestore || !familyRef || !editName.trim()) {
+      Alert.alert('Error', 'Family Name is required.');
+      return;
+    }
+    try {
+      await updateDoc(familyRef, {
+        name: editName.trim(),
+        bannerUrl: editBannerUrl.trim(),
+        bio: editBio.trim(),
+        announcement: editAnnouncement.trim(),
+        updatedAt: serverTimestamp()
+      });
+      setShowEditModal(false);
+      Alert.alert('Success', 'Family details updated successfully!');
+    } catch (e: any) {
+      Alert.alert('Update Failed', e.message || 'Could not update family details.');
+    }
+  };
 
   const familyLevel = getFamilyLevel(family?.totalWealth || 0);
   const expPercent = getExpProgress(family?.totalWealth || 0, familyLevel);
@@ -187,6 +222,11 @@ export default function FamilyDetail() {
               <TouchableOpacity onPress={handleShare} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 }}>
                 <Share2 size={18} color="#6B7280" />
               </TouchableOpacity>
+              {isOwner && (
+                <TouchableOpacity onPress={() => setShowEditModal(true)} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#E0F2FE', alignItems: 'center', justifyContent: 'center' }}>
+                  <Edit size={18} color="#0284C7" />
+                </TouchableOpacity>
+              )}
               {isOwner ? (
                 <TouchableOpacity onPress={handleDelete} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center' }}>
                   <Trash2 size={18} color="#EF4444" />
@@ -362,6 +402,75 @@ export default function FamilyDetail() {
           )}
         </View>
       </ScrollView>
+
+      {/* Edit Family Details Modal */}
+      <Modal visible={showEditModal} animationType="slide" transparent>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ backgroundColor: 'white', borderRadius: 24, width: '100%', maxWidth: 400, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 5 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <Text style={{ fontSize: 18, fontWeight: '900', color: '#1a1a2e', textTransform: 'uppercase', letterSpacing: 0.5 }}>Edit Family Details</Text>
+              <TouchableOpacity onPress={() => setShowEditModal(false)} style={{ padding: 4, backgroundColor: '#F3F4F6', borderRadius: 12 }}>
+                <X size={18} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={{ gap: 16 }}>
+              <View>
+                <Text style={{ fontSize: 10, fontWeight: '800', color: '#6B7280', textTransform: 'uppercase', marginBottom: 6 }}>Family Name</Text>
+                <TextInput
+                  value={editName}
+                  onChangeText={setEditName}
+                  placeholder="Enter Family Name"
+                  style={{ borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#1a1a2e', backgroundColor: '#F9FAFB' }}
+                />
+              </View>
+
+              <View>
+                <Text style={{ fontSize: 10, fontWeight: '800', color: '#6B7280', textTransform: 'uppercase', marginBottom: 6 }}>Banner Image URL</Text>
+                <TextInput
+                  value={editBannerUrl}
+                  onChangeText={setEditBannerUrl}
+                  placeholder="Paste banner image URL"
+                  style={{ borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#1a1a2e', backgroundColor: '#F9FAFB' }}
+                />
+              </View>
+
+              <View>
+                <Text style={{ fontSize: 10, fontWeight: '800', color: '#6B7280', textTransform: 'uppercase', marginBottom: 6 }}>Family Bio</Text>
+                <TextInput
+                  value={editBio}
+                  onChangeText={setEditBio}
+                  placeholder="Enter family introduction"
+                  multiline
+                  numberOfLines={3}
+                  style={{ borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#1a1a2e', backgroundColor: '#F9FAFB', height: 80, textAlignVertical: 'top' }}
+                />
+              </View>
+
+              <View>
+                <Text style={{ fontSize: 10, fontWeight: '800', color: '#6B7280', textTransform: 'uppercase', marginBottom: 6 }}>Announcement</Text>
+                <TextInput
+                  value={editAnnouncement}
+                  onChangeText={setEditAnnouncement}
+                  placeholder="Enter family announcement"
+                  multiline
+                  numberOfLines={2}
+                  style={{ borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#1a1a2e', backgroundColor: '#F9FAFB', height: 60, textAlignVertical: 'top' }}
+                />
+              </View>
+            </ScrollView>
+
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 24 }}>
+              <TouchableOpacity onPress={() => setShowEditModal(false)} style={{ flex: 1, height: 44, borderRadius: 14, borderWidth: 1.5, borderColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: '#4B5563', fontSize: 13, fontWeight: '800', textTransform: 'uppercase' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleUpdateFamily} style={{ flex: 1, height: 44, borderRadius: 14, backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: 'white', fontSize: 13, fontWeight: '900', textTransform: 'uppercase' }}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

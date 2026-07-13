@@ -56,9 +56,24 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
 
     const performJoin = async () => {
       try {
+        // Check persistent bans subcollection
+        const banSnap = await getDoc(doc(firestore, 'chatRooms', roomId, 'bans', uid));
+        if (banSnap.exists()) {
+          const banData = banSnap.data();
+          const bannedUntil = banData?.bannedUntil;
+          const bannedUntilMs = bannedUntil?.toDate ? bannedUntil.toDate().getTime() : (typeof bannedUntil === 'string' ? new Date(bannedUntil).getTime() : bannedUntil);
+          if (bannedUntilMs && bannedUntilMs > Date.now()) {
+            return; // Banned! Disallow joining
+          }
+        }
+
         const partSnap = await getDoc(participantRef);
-        if (partSnap.exists() && partSnap.data()?.kickedUntil && partSnap.data()?.kickedUntil > Date.now()) {
-          return;
+        if (partSnap.exists()) {
+          const exp = partSnap.data()?.kickedUntil;
+          const expMs = exp?.toDate ? exp.toDate().getTime() : (typeof exp === 'string' ? new Date(exp).getTime() : exp);
+          if (expMs && expMs > Date.now()) {
+            return;
+          }
         }
         const batch = writeBatch(firestore);
 

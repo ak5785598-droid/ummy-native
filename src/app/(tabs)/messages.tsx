@@ -1580,33 +1580,49 @@ function RequestsPage({ visible, onClose, proposals }: { visible: boolean; onClo
     let receiverAvatar = '';
     
     try {
-      const senderProfileDoc = await getDoc(doc(firestore, 'users', proposal.fromUid, 'profile', proposal.fromUid));
-      if (senderProfileDoc.exists()) {
-        const sd = senderProfileDoc.data();
-        senderName = sd?.username || sd?.displayName || 'User';
-        senderAvatar = sd?.avatarUrl || '';
-      } else {
-        const senderDoc = await getDoc(doc(firestore, 'users', proposal.fromUid));
-        if (senderDoc.exists()) {
-          const sd = senderDoc.data();
-          senderName = sd?.username || sd?.displayName || 'User';
-          senderAvatar = sd?.avatarUrl || '';
-        }
-      }
-    } catch {}
-    
-    try {
       const receiverProfileDoc = await getDoc(doc(firestore, 'users', user.uid, 'profile', user.uid));
       if (receiverProfileDoc.exists()) {
         const rd = receiverProfileDoc.data();
+        if (rd?.relationship && rd.relationship.type && rd.relationship.type !== 'None') {
+          Alert.alert('Error 💔', 'You already have an active relationship. You cannot accept another proposal.');
+          return;
+        }
         receiverName = rd?.username || rd?.displayName || 'User';
         receiverAvatar = rd?.avatarUrl || '';
       } else {
         const receiverDoc = await getDoc(doc(firestore, 'users', user.uid));
         if (receiverDoc.exists()) {
           const rd = receiverDoc.data();
+          if (rd?.relationship && rd.relationship.type && rd.relationship.type !== 'None') {
+            Alert.alert('Error 💔', 'You already have an active relationship. You cannot accept another proposal.');
+            return;
+          }
           receiverName = rd?.username || rd?.displayName || 'User';
           receiverAvatar = rd?.avatarUrl || '';
+        }
+      }
+    } catch {}
+
+    try {
+      const senderProfileDoc = await getDoc(doc(firestore, 'users', proposal.fromUid, 'profile', proposal.fromUid));
+      if (senderProfileDoc.exists()) {
+        const sd = senderProfileDoc.data();
+        if (sd?.relationship && sd.relationship.type && sd.relationship.type !== 'None') {
+          Alert.alert('Error 💔', 'The sender already has an active relationship.');
+          return;
+        }
+        senderName = sd?.username || sd?.displayName || 'User';
+        senderAvatar = sd?.avatarUrl || '';
+      } else {
+        const senderDoc = await getDoc(doc(firestore, 'users', proposal.fromUid));
+        if (senderDoc.exists()) {
+          const sd = senderDoc.data();
+          if (sd?.relationship && sd.relationship.type && sd.relationship.type !== 'None') {
+            Alert.alert('Error 💔', 'The sender already has an active relationship.');
+            return;
+          }
+          senderName = sd?.username || sd?.displayName || 'User';
+          senderAvatar = sd?.avatarUrl || '';
         }
       }
     } catch {}

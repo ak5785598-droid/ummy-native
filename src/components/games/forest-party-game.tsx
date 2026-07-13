@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Dimensions, ScrollView, Animated, Easing, Image } from 'react-native';
 import { HelpCircle, Volume2, VolumeX, BarChart3, ChevronDown, X, RotateCcw, Plus } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { useUser } from '../../firebase/provider';
+import { useUser, useFirestore, useDatabase } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
-import { useFirestore } from '../../firebase/provider';
 import { doc, updateDoc, increment, addDoc, collection, getDoc, writeBatch } from '@/firebase/firestore-compat';
+import { ref as databaseRef, set as databaseSet, update as databaseUpdate, onValue, runTransaction as databaseTransaction } from 'firebase/database';
 import Svg, { Path, Circle, Line, G } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Audio } from 'expo-av';
@@ -60,6 +60,7 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
   const { user: currentUser } = useUser();
   const { profile: userProfile } = useUserProfile(currentUser?.uid);
   const firestore = useFirestore();
+  const database = useDatabase();
   const router = useRouter();
 
   const handleGoToWallet = () => {
@@ -69,6 +70,8 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
 
   const [gameState, setGameState] = useState<'launching' | 'betting' | 'spinning' | 'result'>('launching');
   const [timeLeft, setTimeLeft] = useState(30);
+  const [roundStartTime, setRoundStartTime] = useState<number | null>(null);
+  const spinInitiatedRef = useRef(false);
   const [selectedChip, setSelectedChip] = useState(1000);
   const [myBets, setMyBets] = useState<Record<string, number>>({});
   const [lastBets, setLastBets] = useState<Record<string, number>>({});
@@ -124,15 +127,156 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
     if (userProfile?.wallet?.coins !== undefined) setLocalCoins(userProfile.wallet.coins);
   }, [userProfile?.wallet?.coins]);
 
+  // Real-time ticking countdown timer based on synced roundStartTime
   useEffect(() => {
-    if (gameState !== 'betting') return;
-    if (timeLeft <= 0) { startSpin(); return; }
-    if (timeLeft <= 5 && timeLeft > 0) {
-      playSoundEffect('tick');
-    }
-    const iv = setInterval(() => setTimeLeft(p => p - 1), 1000);
+    if (gameState !== 'betting' || !roundStartTime) return;
+
+    const updateTimer = () => {
+      const elapsed = Math.floor((Date.now() - roundStartTime) / 1000);
+      const remaining = Math.max(0, 30 - elapsed);
+      setTimeLeft(remaining);
+      if (remaining <= 5 && remaining > 0) {
+        playSoundEffect('tick');
+      }
+    };
+
+    updateTimer();
+    const iv = setInterval(updateTimer, 1000);
     return () => clearInterval(iv);
-  }, [gameState, timeLeft]);
+  }, [gameState, roundStartTime]);
+
+  // Handle local state transitions based on timer ending
+  useEffect(() => {
+    if (!database || gameState !== 'betting' || timeLeft > 0 || spinInitiatedRef.current) return;
+    spinInitiatedRef.current = true;
+
+    (async () => {
+      let winningId = ANIMALS[Math.floor(Math.random() * ANIMALS.length)].id;
+      let groupType: 'none' | 'left' | 'right' = 'none';
+      const chance = Math.random();
+      if (chance < 0.025) groupType = 'left';
+      else if (chance < 0.05) groupType = 'right';
+
+      if (firestore) {
+        try {
+          const oracleSnap = await getDoc(doc(firestore, 'gameOracle', 'forest-party'));
+          if (oracleSnap.exists() && (oracleSnap.data() as any).isActive) {
+            const forced = (oracleSnap.data() as any).forcedResult;
+            if (ANIMALS.some(a => a.id === forced)) winningId = forced;
+            updateDoc(doc(firestore, 'gameOracle', 'forest-party'), { isActive: false }).catch(() => {});
+            groupType = 'none';
+          }
+        } catch {}
+      }
+
+      if (groupType === 'left') {
+        const leftIds = ['panda', 'bear', 'tiger', 'lion'];
+        winningId = leftIds[Math.floor(Math.random() * leftIds.length)];
+      } else if (groupType === 'right') {
+        const rightIds = ['rabbit', 'cat', 'dog', 'sheep'];
+        winningId = rightIds[Math.floor(Math.random() * rightIds.length)];
+      }
+
+      const gamePath = `games/forest_party_${roomId || 'global'}`;
+
+      databaseTransaction(databaseRef(database, gamePath), (currentData) => {
+        if (currentData && currentData.status !== 'betting') return;
+        if (!currentData) {
+          return {
+            status: 'spinning',
+            winningId,
+            groupType,
+            updatedAt: Date.now(),
+            history: ['rabbit', 'dog', 'panda', 'rabbit', 'sheep', 'cat', 'rabbit', 'tiger'],
+            roundStartTime: Date.now()
+          };
+        }
+        currentData.status = 'spinning';
+        currentData.winningId = winningId;
+        currentData.groupType = groupType;
+        currentData.updatedAt = Date.now();
+        return currentData;
+      }).catch(() => { spinInitiatedRef.current = false; });
+
+      // After 6s spin duration, trigger result state
+      setTimeout(() => {
+        databaseTransaction(databaseRef(database, gamePath), (currentData) => {
+          if (!currentData || currentData.status !== 'spinning') return;
+          currentData.status = 'result';
+          currentData.updatedAt = Date.now();
+          return currentData;
+        }).catch(() => {});
+      }, 6000);
+
+      // After 12s total, reset to betting
+      setTimeout(() => {
+        databaseTransaction(databaseRef(database, gamePath), (currentData) => {
+          if (!currentData || currentData.status !== 'result') return;
+          currentData.status = 'betting';
+          currentData.winningId = null;
+          currentData.groupType = 'none';
+          currentData.history = [winningId, ...(currentData.history || [])].slice(0, 15);
+          currentData.roundStartTime = Date.now();
+          currentData.updatedAt = Date.now();
+          return currentData;
+        }).catch(() => {});
+        spinInitiatedRef.current = false;
+      }, 12000);
+
+    })();
+  }, [gameState, timeLeft, firestore, database, roomId]);
+
+  // Real-time RTD Sync (Locks state globally with room players)
+  useEffect(() => {
+    if (!database) return;
+    const gamePath = `games/forest_party_${roomId || 'global'}`;
+
+    const unsub = onValue(databaseRef(database, gamePath), (snap: any) => {
+      const exists = snap.exists();
+      if (!exists) {
+        databaseSet(databaseRef(database, gamePath), {
+          status: 'betting',
+          winningId: null,
+          groupType: 'none',
+          history: ['rabbit', 'dog', 'panda', 'rabbit', 'sheep', 'cat', 'rabbit', 'tiger'],
+          roundStartTime: Date.now(),
+          updatedAt: Date.now()
+        }).catch(() => {});
+        return;
+      }
+
+      const data = snap.val() as any;
+      const status = data.status || 'betting';
+
+      // Self-heal
+      if (data.status === undefined || data.roundStartTime === undefined) {
+        databaseUpdate(databaseRef(database, gamePath), {
+          status: data.status || 'betting',
+          winningId: data.winningId || null,
+          groupType: data.groupType || 'none',
+          history: data.history || ['rabbit', 'dog', 'panda', 'rabbit', 'sheep', 'cat', 'rabbit', 'tiger'],
+          roundStartTime: data.roundStartTime || Date.now(),
+          updatedAt: Date.now()
+        }).catch(() => {});
+        return;
+      }
+
+      if (data.history) setHistory(data.history);
+      if (data.roundStartTime) setRoundStartTime(data.roundStartTime);
+
+      if (status === 'spinning' && gameState !== 'spinning' && data.winningId) {
+        startSpin(data.winningId, data.groupType || 'none');
+      } else if (status === 'betting' && gameState === 'result') {
+        setMyBets({});
+        setWinnerData(null);
+        setGameState('betting');
+      } else if (status !== 'spinning') {
+        setGameState(status);
+      }
+    });
+
+    return () => unsub();
+  }, [database, roomId, gameState]);
 
   useEffect(() => {
     let spinLoop: Animated.CompositeAnimation | null = null;
@@ -208,38 +352,9 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
     });
   };
 
-  const startSpin = async () => {
+  const startSpin = async (winningId: string, groupType: 'none' | 'left' | 'right') => {
     playSoundEffect('spin');
     setGameState('spinning');
-
-    // 5% chance of a group (Mix) win
-    let groupType: 'none' | 'left' | 'right' = 'none';
-    const chance = Math.random();
-    if (chance < 0.025) groupType = 'left';
-    else if (chance < 0.05) groupType = 'right';
-
-    let winningId = ANIMALS[Math.floor(Math.random() * ANIMALS.length)].id;
-    if (firestore) {
-      try {
-        const oracleSnap = await getDoc(doc(firestore, 'gameOracle', 'forest-party'));
-        if (oracleSnap.exists() && (oracleSnap.data() as any).isActive) {
-          const forced = (oracleSnap.data() as any).forcedResult;
-          if (ANIMALS.some(a => a.id === forced)) winningId = forced;
-          updateDoc(doc(firestore, 'gameOracle', 'forest-party'), { isActive: false }).catch(() => {});
-          groupType = 'none';
-        }
-      } catch {}
-    }
-
-    if (groupType === 'left') {
-      // Wild animals (Left)
-      const leftIds = ['panda', 'bear', 'tiger', 'lion'];
-      winningId = leftIds[Math.floor(Math.random() * leftIds.length)];
-    } else if (groupType === 'right') {
-      // Cute animals (Right)
-      const rightIds = ['rabbit', 'cat', 'dog', 'sheep'];
-      winningId = rightIds[Math.floor(Math.random() * rightIds.length)];
-    }
 
     const targetIdx = ANIMALS.findIndex(a => a.id === winningId);
     const totalSteps = (SEQUENCE.length * 6) + targetIdx;

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, Switch, TextInput, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronLeft, Music, Play, Upload, Search, Trash2, Power } from 'lucide-react-native';
@@ -82,10 +82,10 @@ export function RoomPlaySheet({ visible, onClose, roomId, room, participants, on
           onPress: async () => {
             setIsClearingChat(true);
             try {
+              const currentName = userProfile?.username || user.displayName || 'Admin';
               if (database) {
                 await databaseSet(databaseRef(database, `roomMessages/${roomId}`), null);
                 const sysMsgRef = databasePush(databaseRef(database, `roomMessages/${roomId}`));
-                const currentName = userProfile?.username || user.displayName || 'Admin';
                 await databaseSet(sysMsgRef, {
                   id: sysMsgRef.key,
                   content: `${currentName} cleared the chat`,
@@ -93,7 +93,7 @@ export function RoomPlaySheet({ visible, onClose, roomId, room, participants, on
                   timestamp: Date.now()
                 });
               }
-              await updateDoc(doc(firestore, 'chatRooms', roomId), { chatClearedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+              await updateDoc(doc(firestore, 'chatRooms', roomId), { chatClearedAt: serverTimestamp(), chatClearedBy: currentName, updatedAt: serverTimestamp() });
               Alert.alert('Success', 'Chat history cleared.');
               onClose();
             } catch (e: any) {

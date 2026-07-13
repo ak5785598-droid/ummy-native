@@ -4,7 +4,7 @@ import { X, ChevronDown, Zap, Send } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '../../firebase/provider';
 import { CosmicExplosion } from './gift-cosmic-explosion';
-import { collection, query, orderBy, doc, serverTimestamp, writeBatch, increment, getDoc, setDoc } from '@/firebase/firestore-compat';
+import { collection, query, orderBy, doc, serverTimestamp, writeBatch, increment, getDoc, setDoc, Timestamp } from '@/firebase/firestore-compat';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { getLevelFromSpent } from '../../hooks/use-user-level';
 import { getCpLevelFromValue } from '../../lib/level-utils';
@@ -222,6 +222,18 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
     }
 
     try {
+      // Fetch room details for global broadcast
+      let roomName = 'Room';
+      let roomNumber = '0000';
+      try {
+        const roomSnap = await getDoc(doc(firestore, 'chatRooms', roomId));
+        if (roomSnap.exists()) {
+          const roomData = roomSnap.data();
+          roomName = roomData.name || roomData.title || 'Room';
+          roomNumber = roomData.roomNumber || '0000';
+        }
+      } catch (e) {}
+
       // Fetch recipient profiles to check hideGiftRecord before batch
       const recipientProfiles: Record<string, any> = {};
       for (const uid of validUids) {
@@ -235,13 +247,59 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
 
       const batch = writeBatch(firestore);
 
+      // Write to globalBroadcasts for room patti/marquee
+      const expiresAtDate = new Date(Date.now() + 10000); // 10 seconds display duration
+      const broadcastRef = doc(collection(firestore, 'globalBroadcasts'));
+      const recipientNames = validUids.map(uid => recipientProfiles[uid]?.username || 'User');
+      batch.set(broadcastRef, {
+        id: broadcastRef.id,
+        roomId: roomId,
+        roomName: roomName,
+        roomNumber: roomNumber,
+        senderName: userProfile?.username || 'User',
+        receiverNames: recipientNames,
+        giftName: gift.name,
+        qty: qty,
+        expiresAt: Timestamp.fromDate(expiresAtDate),
+        timestamp: serverTimestamp(),
+        type: 'gift'
+      });
+
       const senderProfileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
       const senderUserRef = doc(firestore, 'users', user.uid);
+      const currentLevel = getLevelFromSpent(userProfile?.wallet?.totalSpent || 0);
       const newTotalSpent = (userProfile?.wallet?.totalSpent || 0) + totalCost;
       const newLevel = getLevelFromSpent(newTotalSpent);
       
+      let finalCoinDiff = winAmount - totalCost;
+      
+      if (newLevel > currentLevel) {
+        const levelUpCoinsReward = (newLevel - currentLevel) * 1000;
+        finalCoinDiff += levelUpCoinsReward;
+
+        // Log Level Up coins reward transaction
+        const levelUpTxRef = doc(collection(firestore, 'users', user.uid, 'transactions'));
+        batch.set(levelUpTxRef, {
+          amount: levelUpCoinsReward,
+          currency: 'coins',
+          type: 'level_up_reward',
+          description: `Automatic Level Up Reward to Rich Level ${newLevel}`,
+          timestamp: serverTimestamp()
+        });
+      }
+
+      // Log Gift Send transaction
+      const giftSendTxRef = doc(collection(firestore, 'users', user.uid, 'transactions'));
+      batch.set(giftSendTxRef, {
+        amount: -totalCost,
+        currency: 'coins',
+        type: 'gift_send',
+        description: `Sent ${qty}x ${gift.name} to ${validUids.length} user(s)`,
+        timestamp: serverTimestamp()
+      });
+
       const coinUpdate = {
-        'wallet.coins': increment(winAmount - totalCost),
+        'wallet.coins': increment(finalCoinDiff),
         'wallet.totalSpent': increment(totalCost),
         'wallet.dailySpent': increment(totalCost),
         'wallet.weeklySpent': increment(totalCost),
@@ -257,6 +315,16 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
         const recipientUserRef = doc(firestore, 'users', uid);
         const diamondReward = Math.floor((gift.price * qty) * 0.4);
         const isHidden = recipientProfiles[uid]?.hideGiftRecord;
+
+        // Log Gift Receive transaction for recipient
+        const giftRecTxRef = doc(collection(firestore, 'users', uid, 'transactions'));
+        batch.set(giftRecTxRef, {
+          amount: diamondReward,
+          currency: 'diamonds',
+          type: 'gift_receive',
+          description: `Received ${qty}x ${gift.name} from ${userProfile?.username || 'User'}`,
+          timestamp: serverTimestamp()
+        });
         
         batch.update(recipientProfileRef, {
           'wallet.diamonds': increment(diamondReward),
