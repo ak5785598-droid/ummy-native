@@ -117,7 +117,7 @@ export function LootBoxDisplay({ onOpenGate, onGateReady, roomId, topSupporters 
     const flameLoop = Animated.loop(
       Animated.timing(rocketFlameAnim, {
         toValue: 1,
-        duration: 400,
+        duration: 800,
         useNativeDriver: false,
       })
     );

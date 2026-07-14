@@ -92,7 +92,7 @@ const sizeMap = {
 
 
 const StatItem = ({ label, value, onPress }: { label: string, value: number, onPress: () => void }) => (
-  <TouchableOpacity onPress={onPress} style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 4, minWidth: 60 }}>
+  <TouchableOpacity onPress={onPress} style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 4, flex: 1 }}>
     <Text style={{ fontSize: 20, fontWeight: '600', color: '#1f2937', marginBottom: 2 }}>{value || 0}</Text>
     <Text style={{ fontSize: 9, fontWeight: '900', color: '#94a3b8', letterSpacing: 0.5 }}>{label.toUpperCase()}</Text>
   </TouchableOpacity>
@@ -423,22 +423,20 @@ export default function ProfileScreen() {
 
           {/* Stats Bar */}
           <View 
-            className="py-2 px-1 mb-4 pl-1" 
+            className="py-2 mb-4" 
             style={{ 
               flexDirection: 'row', 
-              justifyContent: 'flex-start', 
-              gap: 20, 
+              justifyContent: 'space-evenly', 
               borderBottomWidth: 1, 
               borderBottomColor: '#f1f5f9', 
               marginTop: 0, 
-              marginLeft: 4 
+              marginHorizontal: -20,
             }}
           >
             <StatItem label="Fans" value={stats.fans} onPress={() => { setSocialTab('followers'); setSocialOpen(true); }} />
             <StatItem label="Following" value={stats.following} onPress={() => { setSocialTab('following'); setSocialOpen(true); }} />
             <StatItem label="Friends" value={stats.friends} onPress={() => { setSocialTab('friends'); setSocialOpen(true); }} />
             <StatItem label="Visitors" value={stats.visitors} onPress={() => { setSocialTab('visitors'); setSocialOpen(true); }} />
-            <StatItem label="Sending" value={profile.wallet?.totalSpent || 0} onPress={() => {}} />
           </View>
 
           {/* Wallets */}

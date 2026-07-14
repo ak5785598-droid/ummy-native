@@ -52,6 +52,7 @@ export default function FamilyDetail() {
 
   const isMember = user && family?.members?.includes(user.uid);
   const isOwner = user && family?.ownerId === user.uid;
+  const isAdmin = user && (family?.admins?.includes(user.uid) || false);
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [editName, setEditName] = useState('');
@@ -171,6 +172,37 @@ export default function FamilyDetail() {
     }
   };
 
+  const handleKickMember = async (memberUid: string) => {
+    if (!firestore || !familyRef || !family) return;
+    if (memberUid === family.ownerId) return;
+    if (family.admins?.includes(memberUid) && !isOwner) {
+      Alert.alert('Cannot Kick', 'Only the founder can kick an admin.');
+      return;
+    }
+    if (memberUid === user?.uid) return;
+
+    Alert.alert('Remove Member', `Remove this member from the family?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove', style: 'destructive', onPress: async () => {
+          try {
+            const batch = writeBatch(firestore);
+            batch.update(doc(firestore, 'users', memberUid), { familyId: null, updatedAt: serverTimestamp() });
+            batch.update(familyRef, {
+              members: arrayRemove(memberUid),
+              memberCount: increment(-1),
+              ...(family.admins?.includes(memberUid) ? { admins: arrayRemove(memberUid) } : {}),
+              updatedAt: serverTimestamp()
+            });
+            await batch.commit();
+          } catch (e: any) {
+            Alert.alert('Error', e.message || 'Could not remove member.');
+          }
+        }
+      }
+    ]);
+  };
+
   if (isFamilyLoading || !family) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#1a0533' }}>
@@ -222,7 +254,7 @@ export default function FamilyDetail() {
               <TouchableOpacity onPress={handleShare} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 }}>
                 <Share2 size={18} color="#6B7280" />
               </TouchableOpacity>
-              {isOwner && (
+              {(isOwner || isAdmin) && (
                 <TouchableOpacity onPress={() => setShowEditModal(true)} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#E0F2FE', alignItems: 'center', justifyContent: 'center' }}>
                   <Edit size={18} color="#0284C7" />
                 </TouchableOpacity>
@@ -363,7 +395,7 @@ export default function FamilyDetail() {
                   </View>
                 </TouchableOpacity>
 
-                {/* Task 2: Owner Toggle Admin Role Button */}
+                {/* Owner Toggle Admin Role Button */}
                 {isOwner && member.uid !== user?.uid && (
                   <TouchableOpacity 
                     onPress={() => handleToggleAdmin(member.uid)}
@@ -372,12 +404,28 @@ export default function FamilyDetail() {
                       paddingVertical: 4, 
                       borderRadius: 8, 
                       backgroundColor: isMemberAdmin ? '#fee2e2' : '#f3e8ff',
-                      marginRight: 10
+                      marginRight: 6
                     }}
                   >
                     <Text style={{ fontSize: 9, fontWeight: '900', color: isMemberAdmin ? '#ef4444' : '#7c3aed', textTransform: 'uppercase' }}>
                       {isMemberAdmin ? '- Admin' : '+ Admin'}
                     </Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Kick Button — Owner and Admin can kick (not owner, not other admins unless owner) */}
+                {(isOwner || isAdmin) && member.uid !== user?.uid && member.uid !== family.ownerId && (
+                  <TouchableOpacity 
+                    onPress={() => handleKickMember(member.uid)}
+                    style={{ 
+                      paddingHorizontal: 8, 
+                      paddingVertical: 4, 
+                      borderRadius: 8, 
+                      backgroundColor: '#fef2f2',
+                      marginRight: 10
+                    }}
+                  >
+                    <Text style={{ fontSize: 9, fontWeight: '900', color: '#ef4444', textTransform: 'uppercase' }}>Kick</Text>
                   </TouchableOpacity>
                 )}
 

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, StyleSheet, StatusBar } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, StyleSheet, StatusBar, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Search, Users, Trophy, Flame, ShieldCheck, ChevronRight, Plus, Crown, Swords } from 'lucide-react-native';
+import { ChevronLeft, Search, Users, Trophy, Flame, ShieldCheck, ChevronRight, Plus, Crown, Swords, Info, X } from 'lucide-react-native';
 import { useCollection, useFirebase, useUser } from '../../firebase/provider';
 import { collection, query, orderBy, limit } from '../../firebase/firestore-compat';
 import { useRouter } from 'expo-router';
@@ -15,6 +15,7 @@ export default function FamiliesIndex() {
   const { firestore, isHydrated } = useFirebase();
   const { user } = useUser();
   const [searchQuery, setSearchQuery] = useState('');
+  const [showInfo, setShowInfo] = useState(false);
 
   const familiesQuery = useMemo(() => {
     if (!firestore || !isHydrated) return null;
@@ -61,6 +62,10 @@ export default function FamiliesIndex() {
               </View>
               <Text style={styles.headerSub}>Conquer the leaderboard with your clan</Text>
             </View>
+
+            <TouchableOpacity onPress={() => setShowInfo(true)} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(251,191,36,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+              <Info size={16} color="#fbbf24" />
+            </TouchableOpacity>
 
             <TouchableOpacity onPress={() => router.push('/families/create')} style={styles.createBtn}>
               <LinearGradient
@@ -212,6 +217,34 @@ export default function FamiliesIndex() {
 
         </ScrollView>
       </SafeAreaView>
+
+      {/* Info Modal */}
+      <Modal visible={showInfo} transparent animationType="fade" onRequestClose={() => setShowInfo(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ backgroundColor: 'white', borderRadius: 24, width: '90%', maxWidth: 400, padding: 24, position: 'relative' }}>
+            <TouchableOpacity onPress={() => setShowInfo(false)} style={{ position: 'absolute', top: 12, right: 12, width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: '#f1f5f9' }}>
+              <X size={16} color="#64748b" />
+            </TouchableOpacity>
+            <Text style={{ fontSize: 18, fontWeight: '900', color: '#1e293b', textAlign: 'center', marginBottom: 16 }}>Family Ranking Info</Text>
+            <View style={{ backgroundColor: '#fef3c7', borderRadius: 16, padding: 14, marginBottom: 12 }}>
+              <Text style={{ fontWeight: '700', color: '#d97706', marginBottom: 4 }}>👨‍👩‍👧‍👦 Family Ranking</Text>
+              <Text style={{ fontSize: 12, color: '#64748b', lineHeight: 18 }}>Ranking is determined by the total <Text style={{ fontWeight: '700', color: '#d97706' }}>Family Wealth</Text> of all members.</Text>
+            </View>
+            <View style={{ backgroundColor: '#fffbeb', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#fbbf24' }}>
+              <Text style={{ fontWeight: '700', color: '#b45309', marginBottom: 6 }}>🎁 Ranking Rewards</Text>
+              <Text style={{ fontSize: 11, color: '#64748b', lineHeight: 18 }}>
+                <Text style={{ fontWeight: '700' }}>Top 3:</Text> Exclusive Frames + Coins{'\n'}
+                <Text style={{ fontWeight: '700' }}>Rank 4 - 7:</Text> Coins{'\n'}
+                <Text style={{ fontWeight: '700' }}>Rank 8 - 10:</Text> Coins{'\n\n'}
+                Weekly and Monthly rewards are 3x of Daily.
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => setShowInfo(false)} style={{ marginTop: 20, paddingVertical: 12, backgroundColor: '#0f172a', borderRadius: 12, alignItems: 'center' }}>
+              <Text style={{ color: 'white', fontWeight: '700', fontSize: 14 }}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

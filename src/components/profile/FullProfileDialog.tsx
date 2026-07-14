@@ -541,6 +541,49 @@ export function FullProfileDialog({
               ))}
             </View>
 
+            {/* Rich & Charm Level Cards */}
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+              {/* Rich Level Card */}
+              <View style={{ flex: 1, borderRadius: 16, overflow: 'hidden' }}>
+                <LinearGradient colors={['#4338CA', '#6366F1', '#818CF8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ padding: 14, minHeight: 90 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 14 }}>💎</Text>
+                    </View>
+                    <View>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Rich</Text>
+                      <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }}>Lv {getLevelFromSpent(profile.wallet?.totalSpent || 0)}</Text>
+                    </View>
+                  </View>
+                  <View style={{ backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.8)' }}>
+                      Monthly sent: {((profile.wallet?.monthlySpent || 0) >= 1000000 ? `${((profile.wallet?.monthlySpent || 0) / 1000000).toFixed(1)}M` : (profile.wallet?.monthlySpent || 0).toLocaleString())}
+                    </Text>
+                  </View>
+                </LinearGradient>
+              </View>
+
+              {/* Charm Level Card */}
+              <View style={{ flex: 1, borderRadius: 16, overflow: 'hidden' }}>
+                <LinearGradient colors={['#BE185D', '#DB2777', '#EC4899']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ padding: 14, minHeight: 90 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 14 }}>💖</Text>
+                    </View>
+                    <View>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Charm</Text>
+                      <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }}>Lv {getLevelFromSpent(profile.wallet?.totalReceived || 0)}</Text>
+                    </View>
+                  </View>
+                  <View style={{ backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.8)' }}>
+                      Monthly received: {((profile.wallet?.monthlyReceived || 0) >= 1000000 ? `${((profile.wallet?.monthlyReceived || 0) / 1000000).toFixed(1)}M` : (profile.wallet?.monthlyReceived || 0).toLocaleString())}
+                    </Text>
+                  </View>
+                </LinearGradient>
+              </View>
+            </View>
+
             {/* CP Card */}
             <View style={{ marginTop: 16 }}>
               <Text style={{ fontSize: 9, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', marginBottom: 8, letterSpacing: 1 }}>CP Card</Text>

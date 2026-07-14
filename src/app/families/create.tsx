@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Plus, Camera, ShieldCheck, Trophy } from 'lucide-react-native';
 import { useFirebase, useUser } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
-import { doc, setDoc, serverTimestamp, increment } from '../../firebase/firestore-compat';
+import { doc, setDoc, getDoc, serverTimestamp, increment } from '../../firebase/firestore-compat';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
@@ -51,6 +51,11 @@ export default function CreateFamilyPage() {
   const handleCreate = async () => {
     if (!user || !userProfile || !firestore) return;
 
+    if (userProfile.familyId) {
+      Alert.alert('Already in a Family', 'You are already a member of a family. Leave your current family first before creating a new one.');
+      return;
+    }
+
     if (name.length < 3) {
       Alert.alert('Name too short', 'Family name must be at least 3 characters.');
       return;
@@ -65,6 +70,13 @@ export default function CreateFamilyPage() {
     const familyId = `FAM_${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
 
     try {
+      const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+      if (userDoc.exists() && userDoc.data()?.familyId) {
+        Alert.alert('Already in a Family', 'You are already a member of a family. Leave your current family first.');
+        setIsSubmitting(false);
+        return;
+      }
+
       let finalBannerUrl = bannerUrl || `https://picsum.photos/seed/${familyId}/400`;
       if (bannerLocalUri) {
         setIsUploading(true);

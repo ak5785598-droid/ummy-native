@@ -1,14 +1,82 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, TouchableOpacity, Clipboard, Alert } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, Clipboard, Alert, Animated, Easing } from 'react-native';
 import { X, Heart, MessageCircle, Shield, Crown, Mic, MicOff, Gift, AtSign, UserX, Star, Zap, Sparkles, UserPlus, MoreVertical, Copy } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SVGA_OfficialTag, SVGA_SellerTag, SVGA_CSLeaderTag, SVGA_CustomerServiceTag, SVGA_ServiceTag, SVGA_HostTag } from '../profile/NativeSVGs';
+import { SVGA_OfficialTag, SVGA_SellerTag, SVGA_CSLeaderTag, SVGA_CustomerServiceTag, SVGA_ServiceTag, SVGA_HostTag, SVGA_GlossyID } from '../profile/NativeSVGs';
+import { ActiveIDBadge, SovereignIDBadge } from '@/components/native-id-badge';
 import { Image } from 'expo-image';
 import { useUserProfile } from '../../hooks/use-user-profile';
+import { useCollection, useFirestore } from '../../firebase/provider';
+import { collection, query, where, limit } from '@/firebase/firestore-compat';
 import { AvatarFrame } from '../profile/AvatarFrame';
 import { toCDN } from '../../lib/cdn';
 import { isInventoryItemExpired } from '../../lib/types';
+import { getLevelFromSpent } from '../../hooks/use-user-level';
+import { UserLevelBadge } from '../user-level-badge';
 
+function CpHeartBadge({ level }: { level: number }) {
+  const pulseAnim = React.useRef(new Animated.Value(1)).current;
+  const animRight = React.useRef(new Animated.Value(0)).current;
+  const animLeft = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    const pulse = Animated.loop(Animated.sequence([
+      Animated.timing(pulseAnim, { toValue: 1.15, duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      Animated.timing(pulseAnim, { toValue: 1, duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+    ]));
+    pulse.start();
+    return () => pulse.stop();
+  }, []);
+
+  React.useEffect(() => {
+    const r = Animated.loop(Animated.sequence([Animated.delay(1500), Animated.timing(animRight, { toValue: 1, duration: 800, easing: Easing.in(Easing.ease), useNativeDriver: true }), Animated.timing(animRight, { toValue: 0, duration: 10, useNativeDriver: true })]));
+    const l = Animated.loop(Animated.sequence([Animated.delay(2200), Animated.timing(animLeft, { toValue: 1, duration: 800, easing: Easing.in(Easing.ease), useNativeDriver: true }), Animated.timing(animLeft, { toValue: 0, duration: 10, useNativeDriver: true })]));
+    r.start(); l.start();
+    return () => { r.stop(); l.stop(); };
+  }, []);
+
+  return (
+    <View style={{ alignItems: 'center' }}>
+      <View style={{ position: 'relative', width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
+        {[{ ty: -14, s: 11 }, { ty: -4, s: 13 }, { ty: 4, s: 10 }, { ty: 12, s: 12 }].map((p, i) => {
+          const tx = animRight.interpolate({ inputRange: [0, 1], outputRange: [0, 52] });
+          const ty = animRight.interpolate({ inputRange: [0, 1], outputRange: [0, p.ty] });
+          const op = animRight.interpolate({ inputRange: [0, 0.1, 0.6, 1], outputRange: [0, 1, 1, 0] });
+          const sc = animRight.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0.3, 1, 0.4] });
+          return (<Animated.Text key={`r${i}`} style={{ position: 'absolute', fontSize: p.s, opacity: op, zIndex: 10, color: i % 2 === 0 ? '#EC4899' : '#F43F5E', fontWeight: '900', transform: [{ translateX: tx }, { translateY: ty }, { scale: sc }] }}>{'\u2665'}</Animated.Text>);
+        })}
+        {[{ ty: -12, s: 8 }, { ty: -2, s: 10 }, { ty: 6, s: 7 }, { ty: 14, s: 9 }].map((p, i) => {
+          const tx = animLeft.interpolate({ inputRange: [0, 1], outputRange: [0, -52] });
+          const ty = animLeft.interpolate({ inputRange: [0, 1], outputRange: [0, p.ty] });
+          const op = animLeft.interpolate({ inputRange: [0, 0.1, 0.6, 1], outputRange: [0, 1, 1, 0] });
+          const sc = animLeft.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0.3, 1, 0.4] });
+          return (<Animated.View key={`l${i}`} style={{ position: 'absolute', width: p.s, height: p.s, borderRadius: p.s / 2, backgroundColor: i % 2 === 0 ? '#60A5FA' : '#3B82F6', opacity: op, zIndex: 10, transform: [{ translateX: tx }, { translateY: ty }, { scale: sc }] }} />);
+        })}
+        <Animated.View style={{ transform: [{ scale: pulseAnim }], alignItems: 'center' }}>
+          <View style={{ alignItems: 'center', justifyContent: 'center', width: 36, height: 36, backgroundColor: 'rgba(244,63,94,0.12)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(244,63,94,0.25)' }}>
+            <Text style={{ fontSize: 14, color: '#F43F5E', fontWeight: '900' }}>{String.fromCodePoint(0x2764)}</Text>
+          </View>
+          {level > 0 && (<Text style={{ fontSize: 11, color: '#F43F5E', fontWeight: '900', marginTop: 2, letterSpacing: 0.3 }}>Lv.{level}</Text>)}
+        </Animated.View>
+      </View>
+    </View>
+  );
+}
+
+function PartnerAvatar({ partnerUid }: { partnerUid: string }) {
+  const { profile: partnerProfile } = useUserProfile(partnerUid);
+  return (
+    <AvatarFrame
+      frameMediaUrl={isInventoryItemExpired(partnerProfile?.inventory || {}, partnerProfile?.inventory?.activeFrame) ? null : ((partnerProfile as any)?.activeFrameMediaUrl || (partnerProfile as any)?.inventory?.activeFrameMediaUrl || null)}
+      size={62}
+    >
+      <Image cachePolicy="memory-disk" source={{ uri: toCDN(partnerProfile?.avatarUrl) || 'https://picsum.photos/200' }}
+        style={{ width: 62, height: 62 }}
+        contentFit="cover"
+      />
+    </AvatarFrame>
+  );
+}
 const COUNTRY_FLAGS: Record<string, string> = {
   india: String.fromCodePoint(0x1F1EE, 0x1F1F3), pakistan: String.fromCodePoint(0x1F1F5, 0x1F1F0), bangladesh: String.fromCodePoint(0x1F1E7, 0x1F1E9), nepal: String.fromCodePoint(0x1F1F3, 0x1F1F5), sri_lanka: String.fromCodePoint(0x1F1F1, 0x1F1F0),
   usa: String.fromCodePoint(0x1F1FA, 0x1F1F8), uk: String.fromCodePoint(0x1F1EC, 0x1F1E7), canada: String.fromCodePoint(0x1F1E8, 0x1F1E6), australia: String.fromCodePoint(0x1F1E6, 0x1F1FA), germany: String.fromCodePoint(0x1F1E9, 0x1F1EA),
@@ -142,6 +210,7 @@ export function RoomProfileCard({
   const { profile } = useUserProfile(user?.uid);
   const [firestoreMedals, setFirestoreMedals] = useState<any[]>([]);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const cpLevel = profile?.relationship?.level || 0;
 
   const handleCopyId = () => {
     const displayId = String(user?.accountNumber || profile?.accountNumber || '');
@@ -170,8 +239,7 @@ export function RoomProfileCard({
                   profile?.tags?.includes('CS Leader') || 
                   profile?.tags?.includes('Customer Service') || 
                   profile?.tags?.includes('Service') || 
-                  profile?.tags?.includes('Host') || 
-                  (profile?.relationship && profile.relationship.type !== 'None');
+                  profile?.tags?.includes('Host');
 
   const hasMedals = profile?.medals && profile.medals.length > 0;
 
@@ -184,19 +252,44 @@ export function RoomProfileCard({
         <TouchableOpacity className="absolute inset-0" onPress={onClose} activeOpacity={1} />
 
         <View className="bg-white rounded-t-[3rem] w-full pb-8 items-center relative" style={{ overflow: 'visible', paddingTop: 52 }}>
-          {/* Overlapping Avatar */}
-          <View className="absolute top-[-48] left-0 right-0 items-center z-50">
-            <TouchableOpacity onPress={() => { onClose(); onViewProfile?.(user.uid); }} className="shadow-lg" activeOpacity={0.8}>
-              <AvatarFrame
-                frameMediaUrl={isInventoryItemExpired(profile?.inventory || {}, profile?.inventory?.activeFrame) ? null : ((profile as any)?.activeFrameMediaUrl || (profile as any)?.inventory?.activeFrameMediaUrl || null)}
-                size={96}
-              >
-                <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile?.avatarUrl || user.avatarUrl) || 'https://picsum.photos/200' }}
-                  style={{ width: 96, height: 96 }}
-                  contentFit="cover"
-                />
-              </AvatarFrame>
-            </TouchableOpacity>
+          {/* Overlapping Avatar — Dual for CP, Single otherwise */}
+          <View className="absolute top-[-48] left-0 right-0 z-50" style={{ alignItems: 'center' }}>
+            {profile?.relationship && profile.relationship.type !== 'None' && profile.relationship.partnerUid ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', width: 180 }}>
+                {/* User Avatar — Center */}
+                <TouchableOpacity style={{ zIndex: 2, marginLeft: 30 }} onPress={() => { onClose(); onViewProfile?.(user.uid); }} activeOpacity={0.8}>
+                  <AvatarFrame
+                    frameMediaUrl={isInventoryItemExpired(profile?.inventory || {}, profile?.inventory?.activeFrame) ? null : ((profile as any)?.activeFrameMediaUrl || (profile as any)?.inventory?.activeFrameMediaUrl || null)}
+                    size={80}
+                  >
+                    <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile?.avatarUrl || user.avatarUrl) || 'https://picsum.photos/200' }}
+                      style={{ width: 80, height: 80 }}
+                      contentFit="cover"
+                    />
+                  </AvatarFrame>
+                </TouchableOpacity>
+                {/* Animated Heart with CP Level */}
+                <View style={{ zIndex: 3, marginLeft: -10, marginRight: -10, marginTop: 12 }}>
+                  <CpHeartBadge level={cpLevel} />
+                </View>
+                {/* Partner Avatar — Right */}
+                <TouchableOpacity style={{ zIndex: 1, marginLeft: 2 }} onPress={() => { onClose(); onViewProfile?.(profile.relationship.partnerUid); }} activeOpacity={0.8}>
+                  <PartnerAvatar partnerUid={profile.relationship.partnerUid} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity onPress={() => { onClose(); onViewProfile?.(user.uid); }} className="shadow-lg" activeOpacity={0.8}>
+                <AvatarFrame
+                  frameMediaUrl={isInventoryItemExpired(profile?.inventory || {}, profile?.inventory?.activeFrame) ? null : ((profile as any)?.activeFrameMediaUrl || (profile as any)?.inventory?.activeFrameMediaUrl || null)}
+                  size={96}
+                >
+                  <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile?.avatarUrl || user.avatarUrl) || 'https://picsum.photos/200' }}
+                    style={{ width: 96, height: 96 }}
+                    contentFit="cover"
+                  />
+                </AvatarFrame>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Close Button (right) + More Menu (left) */}
@@ -252,37 +345,39 @@ export function RoomProfileCard({
                 <Text className="text-slate-500 text-[10px] font-bold uppercase">{COUNTRY_NAMES[profile.country] || profile.country}</Text>
               </View>
             ) : null}
-            {profile?.level?.rich ? (
-              <View style={{ backgroundColor: '#FEF3C7', borderColor: '#F59E0B', borderWidth: 1, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6 }}>
-                <Text style={{ color: '#D97706', fontSize: 9, fontWeight: '900' }}>R.{profile.level.rich}</Text>
-              </View>
-            ) : null}
-            {profile?.level?.charm ? (
-              <View style={{ backgroundColor: '#FCE7F3', borderColor: '#EC4899', borderWidth: 1, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6 }}>
-                <Text style={{ color: '#DB2777', fontSize: 9, fontWeight: '900' }}>C.{profile.level.charm}</Text>
-              </View>
-            ) : null}
+            {(() => {
+              const richLevel = getLevelFromSpent(profile?.wallet?.totalSpent || 0);
+              return richLevel > 0 ? <UserLevelBadge level={richLevel} scale={1.1} /> : null;
+            })()}
           </View>
 
-          {/* Tags */}
-          {(profile?.tags?.includes('Official') || profile?.tags?.some((t: string) => ['Seller', 'Seller center', 'Coin Seller'].includes(t)) || profile?.tags?.includes('CS Leader') || profile?.tags?.includes('Customer Service') || profile?.tags?.includes('Service') || profile?.tags?.includes('Host') || (profile?.relationship && profile.relationship.type !== 'None')) && (
-            <View className="mt-1.5 flex-row flex-wrap gap-1 justify-center px-6">
-              {profile?.tags?.includes('Official') && <SVGA_OfficialTag />}
-              {profile?.tags?.some((t: string) => ['Seller', 'Seller center', 'Coin Seller'].includes(t)) && <SVGA_SellerTag />}
-              {profile?.tags?.includes('CS Leader') && <SVGA_CSLeaderTag />}
-              {profile?.tags?.includes('Customer Service') && <SVGA_CustomerServiceTag />}
-              {profile?.tags?.includes('Service') && <SVGA_ServiceTag />}
-              {profile?.tags?.includes('Host') && <SVGA_HostTag />}
-              {profile?.relationship && profile.relationship.type !== 'None' && (
-                <View className="flex-row items-center gap-1 px-2.5 py-0.5 bg-rose-500/10 border border-rose-500/20 rounded-full h-[18px]">
-                  <Heart size={9} color="#F43F5E" fill="#F43F5E" />
-                  <Text className="text-[9px] font-black uppercase text-rose-500 tracking-tight">
-                    {profile?.relationship?.type}: {profile?.relationship?.partnerName}
-                  </Text>
-                </View>
-              )}
-            </View>
-          )}
+          {/* Tags + ID Badge */}
+          <View className="mt-0.5 flex-row flex-wrap items-center justify-center gap-3 px-6">
+            {profile?.tags?.includes('Official') && <SVGA_OfficialTag />}
+            {profile?.tags?.some((t: string) => ['Seller', 'Seller center', 'Coin Seller'].includes(t)) && <SVGA_SellerTag />}
+            {profile?.tags?.includes('CS Leader') && <SVGA_CSLeaderTag />}
+            {profile?.tags?.includes('Customer Service') && <SVGA_CustomerServiceTag />}
+            {profile?.tags?.includes('Service') && <SVGA_ServiceTag />}
+            {profile?.tags?.includes('Host') && <SVGA_HostTag />}
+            {profile?.tags?.some((t: string) => t.includes('Official') || t.includes('official')) ? (
+              <TouchableOpacity onPress={handleCopyId}>
+                <SVGA_GlossyID label={`ID: ${user?.accountNumber || profile?.accountNumber || '0000'}`} />
+              </TouchableOpacity>
+            ) : profile?.activeIdBadge ? (
+              <TouchableOpacity onPress={handleCopyId}>
+                <ActiveIDBadge badgeData={profile.activeIdBadge} fallbackNumber={user?.accountNumber || profile?.accountNumber || '0000'} />
+              </TouchableOpacity>
+            ) : (profile?.isAdmin || (profile?.isBudgetId && profile?.idColor && profile?.idColor !== 'none')) ? (
+              <TouchableOpacity onPress={handleCopyId}>
+                <SovereignIDBadge color={profile.isAdmin ? 'gold' : profile.idColor} number={user?.accountNumber || profile?.accountNumber || '0000'} />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={handleCopyId} style={{ backgroundColor: '#f1f5f9', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4.5, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#475569' }}>ID: {user?.accountNumber || profile?.accountNumber || '0000'}</Text>
+                <Copy size={10} color="#94a3b8" />
+              </TouchableOpacity>
+            )}
+          </View>
 
           {/* Medals Row */}
           <View className="flex-row flex-wrap justify-center gap-2 -mt-1 px-6">
@@ -312,15 +407,9 @@ export function RoomProfileCard({
             })}
           </View>
 
-          {/* User ID, Fans & Gift */}
+          {/* Fans & Gift */}
           <View className={`flex-row items-center gap-3 mb-1 ${hasMedals ? '-mt-2.5' : (hasTags ? 'mt-1.5' : '-mt-2')}`}>
-            <TouchableOpacity onPress={handleCopyId} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} className="bg-slate-100/80 px-3 py-1 rounded-full border border-slate-200/50">
-              <Text className="text-slate-600 text-[11px] font-black uppercase">ID: {user?.accountNumber || profile?.accountNumber || '0000'}</Text>
-              <Copy size={10} color="#64748b" />
-            </TouchableOpacity>
-            <View className="h-4 w-[1px] bg-slate-200" />
             <Text className="text-slate-400 text-[11px] font-black uppercase">{(profile?.stats?.fans || 0).toLocaleString()} FANS</Text>
-            <View className="h-4 w-[1px] bg-slate-200" />
             {onSendGift && (
               <TouchableOpacity onPress={() => { onClose(); onSendGift(user.uid); }}
                 style={{ width: 30, height: 30, borderRadius: 15, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>

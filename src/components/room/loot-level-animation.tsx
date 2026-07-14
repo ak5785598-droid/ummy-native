@@ -103,7 +103,7 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
   // Gate open translation and gold coin blast animation states
   const gateOpenAnim = useRef(new Animated.Value(0)).current;
   const coinBurstParticles = useRef(
-    Array.from({ length: 30 }, () => ({
+    Array.from({ length: 12 }, () => ({
       x: new Animated.Value(0),
       y: new Animated.Value(0),
       scale: new Animated.Value(0),
@@ -119,8 +119,8 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
       animLoop = Animated.loop(
         Animated.timing(rocketFlameAnim, {
           toValue: 1,
-          duration: 400,
-          useNativeDriver: false, // SVG paths coordinates interpolation requires false
+          duration: 800,
+          useNativeDriver: false,
         })
       );
       animLoop.start();
@@ -158,6 +158,9 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
     outputRange: [20, 0, -20, 0, 20],
   });
 
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
   useEffect(() => {
     if (!visible) {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -166,7 +169,7 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
     if (asComponent) return; // Do not auto-close if rendered as component inside looting game
     // Auto-complete after 1.5 seconds for lag-free instant play transition
     timerRef.current = setTimeout(() => {
-      onComplete();
+      onCompleteRef.current();
     }, 1500);
 
     // If it is the car level, trigger engine vibration, glow loop, and lightning bolt loops
@@ -524,7 +527,7 @@ export function LootLevelAnimation({ visible, videoUrl, levelName, topSupporters
       if (timerRef.current) clearTimeout(timerRef.current);
       cleanupFuncs.forEach((cb) => cb());
     };
-  }, [visible, onComplete, levelName]);
+  }, [visible, levelName]);
 
   const handlePlaybackStatusUpdate = (playbackStatus: any) => {
     if (playbackStatus.isLoaded) {

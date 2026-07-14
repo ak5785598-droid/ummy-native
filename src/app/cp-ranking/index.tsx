@@ -25,6 +25,7 @@ import {
   Flame,
   X,
   Castle,
+  Info,
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useUser, useCollection, useFirebase } from '../../firebase/provider';
@@ -160,6 +161,7 @@ export default function CpRankingScreen() {
   const { firestore, isHydrated } = useFirebase();
   const { user } = useUser();
   const [selectedCp, setSelectedCp] = useState<any>(null);
+  const [showInfo, setShowInfo] = useState(false);
 
   const handleUserPress = (userId?: string) => {
     if (!userId) return;
@@ -377,7 +379,7 @@ export default function CpRankingScreen() {
         })}
       </View>
 
-      <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={{ flex: 1, zIndex: 10, elevation: 5 }} edges={['top', 'left', 'right']}>
         {/* ── HEADER ── */}
         <Animated.View style={[styles.header, { transform: [{ translateY: headerSlide }], opacity: headerOpacity }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -392,6 +394,10 @@ export default function CpRankingScreen() {
             <LinearGradient colors={['#f43f5e', '#8b5cf6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.houseBtnGrad}>
               <Text style={styles.houseBtnText}>My House</Text>
             </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => setShowInfo(true)} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(244,63,94,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+            <Info size={16} color="#f43f5e" />
           </TouchableOpacity>
         </Animated.View>
 
@@ -748,10 +754,7 @@ export default function CpRankingScreen() {
                       🏆 Top {selectedCpRank + 1} Couple Reward
                     </Text>
                     <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: '800', textAlign: 'center', lineHeight: 14 }}>
-                      {selectedCpRank === 0 ? 'Duke Frame + 10,000 Coins' :
-                       selectedCpRank === 1 ? 'Marquis Frame + 5,000 Coins' :
-                       selectedCpRank === 2 ? 'Earl Frame + 2,000 Coins' :
-                       'Viscount Frame + 1,000 Coins'}
+                      {selectedCpRank < 3 ? 'Exclusive Frame + Coins' : 'Coins'}
                     </Text>
                   </View>
                 );
@@ -760,6 +763,34 @@ export default function CpRankingScreen() {
             })()}
           </Pressable>
         </Pressable>
+      </Modal>
+
+      {/* Info Modal */}
+      <Modal visible={showInfo} transparent animationType="fade" onRequestClose={() => setShowInfo(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ backgroundColor: 'white', borderRadius: 24, width: '90%', maxWidth: 400, padding: 24, position: 'relative' }}>
+            <TouchableOpacity onPress={() => setShowInfo(false)} style={{ position: 'absolute', top: 12, right: 12, width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: '#f1f5f9' }}>
+              <X size={16} color="#64748b" />
+            </TouchableOpacity>
+            <Text style={{ fontSize: 18, fontWeight: '900', color: '#1e293b', textAlign: 'center', marginBottom: 16 }}>CP Ranking Info</Text>
+            <View style={{ backgroundColor: '#fef2f2', borderRadius: 16, padding: 14, marginBottom: 12 }}>
+              <Text style={{ fontWeight: '700', color: '#e11d48', marginBottom: 4 }}>💖 CP Ranking</Text>
+              <Text style={{ fontSize: 12, color: '#64748b', lineHeight: 18 }}>Ranking is determined by your <Text style={{ fontWeight: '700', color: '#e11d48' }}>CP Value</Text> — the total gifts exchanged between partners.</Text>
+            </View>
+            <View style={{ backgroundColor: '#fff1f2', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#fda4af' }}>
+              <Text style={{ fontWeight: '700', color: '#be123c', marginBottom: 6 }}>🎁 Ranking Rewards</Text>
+              <Text style={{ fontSize: 11, color: '#64748b', lineHeight: 18 }}>
+                <Text style={{ fontWeight: '700' }}>Top 3:</Text> Exclusive Frames + Coins{'\n'}
+                <Text style={{ fontWeight: '700' }}>Rank 4 - 7:</Text> Coins{'\n'}
+                <Text style={{ fontWeight: '700' }}>Rank 8 - 10:</Text> Coins{'\n\n'}
+                Weekly and Monthly rewards are 3x of Daily.
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => setShowInfo(false)} style={{ marginTop: 20, paddingVertical: 12, backgroundColor: '#0f172a', borderRadius: 12, alignItems: 'center' }}>
+              <Text style={{ color: 'white', fontWeight: '700', fontSize: 14 }}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -830,6 +861,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingTop: 0,
     marginTop: -8,
+    zIndex: 100,
+    elevation: 10,
   },
   backBtn: {
     width: 28,

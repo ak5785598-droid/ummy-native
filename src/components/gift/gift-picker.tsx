@@ -4,10 +4,11 @@ import { X, ChevronDown, Zap, Send } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '../../firebase/provider';
 import { CosmicExplosion } from './gift-cosmic-explosion';
-import { collection, query, orderBy, doc, serverTimestamp, writeBatch, increment, getDoc, setDoc, Timestamp } from '@/firebase/firestore-compat';
+import { collection, query, orderBy, doc, serverTimestamp, writeBatch, increment, getDoc, setDoc, Timestamp, arrayUnion } from '@/firebase/firestore-compat';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { getLevelFromSpent } from '../../hooks/use-user-level';
 import { getCpLevelFromValue } from '../../lib/level-utils';
+import { calculateLevelUpRewards } from '../../lib/level-rewards';
 import { Gift, RoomParticipant } from '../../lib/types';
 import { Image } from 'expo-image';
 import { GoldenCoin } from '../GoldenCoin';
@@ -273,19 +274,41 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
       
       let finalCoinDiff = winAmount - totalCost;
       
+      // Level-up rewards using new system
       if (newLevel > currentLevel) {
-        const levelUpCoinsReward = (newLevel - currentLevel) * 1000;
-        finalCoinDiff += levelUpCoinsReward;
+        const { totalCoins: levelUpCoins, frames } = calculateLevelUpRewards(currentLevel, newLevel);
+        finalCoinDiff += levelUpCoins;
 
         // Log Level Up coins reward transaction
-        const levelUpTxRef = doc(collection(firestore, 'users', user.uid, 'transactions'));
-        batch.set(levelUpTxRef, {
-          amount: levelUpCoinsReward,
-          currency: 'coins',
-          type: 'level_up_reward',
-          description: `Automatic Level Up Reward to Rich Level ${newLevel}`,
-          timestamp: serverTimestamp()
-        });
+        if (levelUpCoins > 0) {
+          const levelUpTxRef = doc(collection(firestore, 'users', user.uid, 'transactions'));
+          batch.set(levelUpTxRef, {
+            amount: levelUpCoins,
+            currency: 'coins',
+            type: 'level_up_reward',
+            description: `Level Up! Reached Level ${newLevel}. Earned ${levelUpCoins.toLocaleString()} coins.`,
+            timestamp: serverTimestamp()
+          });
+        }
+
+        // Add frames to inventory
+        if (frames.length > 0) {
+          const frameIds = frames.map(f => f.frameId).filter(Boolean);
+          batch.update(senderUserRef, { 'inventory.ownedItems': arrayUnion(...frameIds) });
+          batch.update(senderProfileRef, { 'inventory.ownedItems': arrayUnion(...frameIds) });
+
+          // Log frame rewards
+          for (const frame of frames) {
+            const frameTxRef = doc(collection(firestore, 'users', user.uid, 'transactions'));
+            batch.set(frameTxRef, {
+              amount: 0,
+              currency: 'coins',
+              type: 'level_up_frame',
+              description: `Level Up Reward: ${frame.frameName} at Level ${frame.level}`,
+              timestamp: serverTimestamp()
+            });
+          }
+        }
       }
 
       // Log Gift Send transaction
@@ -328,6 +351,10 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
         
         batch.update(recipientProfileRef, {
           'wallet.diamonds': increment(diamondReward),
+          'wallet.totalReceived': increment(gift.price * qty),
+          'wallet.dailyReceived': increment(gift.price * qty),
+          'wallet.weeklyReceived': increment(gift.price * qty),
+          'wallet.monthlyReceived': increment(gift.price * qty),
           'activityPoints': increment(gift.price * qty),
           'dailyActivityPoints': increment(gift.price * qty),
           [`stats.receivedGifts.${gift.id || gift.name}`]: increment(qty),
@@ -343,6 +370,10 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
 
         if (!isHidden) {
           batch.update(recipientUserRef, {
+            'wallet.totalReceived': increment(gift.price * qty),
+            'wallet.dailyReceived': increment(gift.price * qty),
+            'wallet.weeklyReceived': increment(gift.price * qty),
+            'wallet.monthlyReceived': increment(gift.price * qty),
             'stats.dailyGiftsReceived': increment(diamondReward),
             'stats.weeklyGiftsReceived': increment(diamondReward),
             'stats.monthlyGiftsReceived': increment(diamondReward),

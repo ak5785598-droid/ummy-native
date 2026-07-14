@@ -431,11 +431,6 @@ export default function LeaderboardScreen() {
                   )}
                   <View className="flex-1 mr-2">
                     <Text className="text-white text-sm font-bold" numberOfLines={1}>{getLabel(item)}</Text>
-                    {rank <= 10 && (
-                      <Text style={{ color: '#fbbf24', fontSize: 9, fontWeight: '700', marginTop: 2 }}>
-                        🎁 Reward: Viscount Frame + 1,000 Coins
-                      </Text>
-                    )}
                   </View>
                   <View className="flex-row items-center gap-1">
                     <Text className="text-amber-400 text-xs font-bold">{formatValue(getValue(item))}</Text>
@@ -491,9 +486,6 @@ function InfoModal({ visible, onClose }: InfoModalProps) {
               <Text className="text-xs text-slate-600 leading-relaxed">
                 Honor Ranking is determined by the number of <Text className="font-bold text-amber-500">Coins you Spend</Text> in Gifts.
               </Text>
-              <Text className="text-[10px] text-slate-500 mt-1 leading-normal">
-                Daily Rewards: Sending Coins value × <Text className="font-bold">1.4%</Text> You will receive, Frame
-              </Text>
             </View>
 
             {/* Charm */}
@@ -502,19 +494,24 @@ function InfoModal({ visible, onClose }: InfoModalProps) {
               <Text className="text-xs text-slate-600 leading-relaxed">
                 Charm Ranking is determined by the number of <Text className="font-bold text-pink-500">Coins you Received</Text> in Gifts.
               </Text>
-              <Text className="text-[10px] text-slate-500 mt-1 leading-normal">
-                Daily Rewards: Receiving Coins value × <Text className="font-bold">1.4%</Text> You will receive, Frame
-              </Text>
             </View>
 
             {/* Room */}
-            <View className="bg-purple-50 rounded-2xl p-4 border border-purple-100">
+            <View className="bg-purple-50 rounded-2xl p-4 border border-purple-100 mb-3">
               <Text className="font-bold text-purple-600 mb-1">🏠 Room Ranking</Text>
               <Text className="text-xs text-slate-600 leading-relaxed">
                 Room Ranking is determined by the number of <Text className="font-bold text-purple-500">Coins you Spend</Text> in Room.
               </Text>
-              <Text className="text-[10px] text-slate-500 mt-1 leading-normal">
-                Daily Rewards: Sending Coins value × <Text className="font-bold">1.3%</Text> You will receive, Frame
+            </View>
+
+            {/* Rewards Rules */}
+            <View className="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-2xl p-4 border border-amber-200">
+              <Text className="font-bold text-amber-700 mb-2">🎁 Ranking Rewards</Text>
+              <Text className="text-[11px] text-slate-600 leading-relaxed">
+                <Text className="font-bold">Top 3:</Text> Exclusive Frames + Coins{'\n'}
+                <Text className="font-bold">Rank 4 - 7:</Text> Coins{'\n'}
+                <Text className="font-bold">Rank 8 - 10:</Text> Coins{'\n\n'}
+                Weekly and Monthly rewards are 3x of Daily.
               </Text>
             </View>
           </View>
@@ -700,24 +697,7 @@ const PodiumCard = React.memo(function PodiumCard({ rank, value, label, avatar, 
       onPress={onPress} 
       className="items-center mx-1 relative"
       style={{ width, height, marginTop: isFirst ? 0 : 32 }}
-    >
-      {/* Floating Reward Badge for Top 3 */}
-      <View
-        style={{
-          position: 'absolute',
-          top: isFirst ? -8 : 16,
-          alignSelf: 'center',
-          backgroundColor: isFirst ? '#fbbf24' : rank === 2 ? '#cbd5e1' : '#ea580c',
-          paddingHorizontal: 6,
-          paddingVertical: 2,
-          borderRadius: 8,
-          zIndex: 40,
-        }}
       >
-        <Text style={{ color: '#000', fontSize: 7, fontWeight: '900', textTransform: 'uppercase' }}>
-          {isFirst ? 'Duke' : rank === 2 ? 'Marquis' : 'Earl'} Reward
-        </Text>
-      </View>
       <View 
         className="absolute z-10"
         style={{ 

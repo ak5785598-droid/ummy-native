@@ -607,15 +607,18 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
     }
   }, [timeLeft, visible, isAuthorized, database, roomId, levelIndex, user, profileName, showResultPopup]);
 
-  // Separate robust timer listener that won't get cleared by other rendering state changes
+  // Separate robust timer that auto-closes result popup after 5 seconds
+  const handleAutoCloseRef = useRef(handleAutoClose);
+  handleAutoCloseRef.current = handleAutoClose;
+
   useEffect(() => {
     if (showResultPopup) {
       const timer = setTimeout(() => {
-        handleAutoClose();
+        handleAutoCloseRef.current();
       }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [showResultPopup, handleAutoClose]);
+  }, [showResultPopup]);
 
   const isEnding = timeLeft === 0;
 

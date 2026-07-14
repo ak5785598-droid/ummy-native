@@ -18,6 +18,8 @@ import { FullProfileDialog } from '../../components/profile/FullProfileDialog';
 import { toCDN } from '@/lib/cdn';
 import { GoldenCoin } from '../../components/GoldenCoin';
 import { getCpLevelFromValue } from '../../lib/level-utils';
+import { getLevelFromSpent } from '../../hooks/use-user-level';
+import { calculateLevelUpRewards } from '../../lib/level-rewards';
 
 export default function MessagesScreen() {
   const { user } = useUser();
@@ -897,16 +899,60 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
       const batch = writeBatch(firestore);
       const senderProfileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
       const senderUserRef = doc(firestore, 'users', user.uid);
+      const currentLevel = getLevelFromSpent(myProfile?.wallet?.totalSpent || 0);
       const newTotalSpent = (myProfile.wallet?.totalSpent || 0) + totalCost;
+      const newLevel = getLevelFromSpent(newTotalSpent);
+
+      let levelUpCoins = 0;
+      let levelUpFrames: any[] = [];
+
+      // Level-up rewards using new system
+      if (newLevel > currentLevel) {
+        const rewards = calculateLevelUpRewards(currentLevel, newLevel);
+        levelUpCoins = rewards.totalCoins;
+        levelUpFrames = rewards.frames;
+
+        // Log Level Up coins reward transaction
+        if (levelUpCoins > 0) {
+          const levelUpTxRef = doc(collection(firestore, 'users', user.uid, 'transactions'));
+          batch.set(levelUpTxRef, {
+            amount: levelUpCoins,
+            currency: 'coins',
+            type: 'level_up_reward',
+            description: `Level Up! Reached Level ${newLevel}. Earned ${levelUpCoins.toLocaleString()} coins.`,
+            timestamp: serverTimestamp()
+          });
+        }
+
+        // Add frames to inventory
+        if (levelUpFrames.length > 0) {
+          const frameIds = levelUpFrames.map(f => f.frameId).filter(Boolean);
+          batch.update(senderUserRef, { 'inventory.ownedItems': arrayUnion(...frameIds) });
+          batch.update(senderProfileRef, { 'inventory.ownedItems': arrayUnion(...frameIds) });
+
+          // Log frame rewards
+          for (const frame of levelUpFrames) {
+            const frameTxRef = doc(collection(firestore, 'users', user.uid, 'transactions'));
+            batch.set(frameTxRef, {
+              amount: 0,
+              currency: 'coins',
+              type: 'level_up_frame',
+              description: `Level Up Reward: ${frame.frameName} at Level ${frame.level}`,
+              timestamp: serverTimestamp()
+            });
+          }
+        }
+      }
+
       batch.update(senderProfileRef, {
-        'wallet.coins': increment(-totalCost),
+        'wallet.coins': increment(-totalCost + levelUpCoins),
         'wallet.totalSpent': increment(totalCost),
         'wallet.dailySpent': increment(totalCost),
         'wallet.weeklySpent': increment(totalCost),
         'wallet.monthlySpent': increment(totalCost),
       });
       batch.update(senderUserRef, {
-        'wallet.coins': increment(-totalCost),
+        'wallet.coins': increment(-totalCost + levelUpCoins),
         'wallet.totalSpent': increment(totalCost),
         'wallet.dailySpent': increment(totalCost),
         'wallet.weeklySpent': increment(totalCost),
@@ -918,6 +964,10 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
       const diamondReward = Math.floor(totalCost * 0.4);
       batch.update(recipientProfileRef, {
         'wallet.diamonds': increment(diamondReward),
+        'wallet.totalReceived': increment(totalCost),
+        'wallet.dailyReceived': increment(totalCost),
+        'wallet.weeklyReceived': increment(totalCost),
+        'wallet.monthlyReceived': increment(totalCost),
         'activityPoints': increment(totalCost),
         'dailyActivityPoints': increment(totalCost),
         [`stats.receivedGifts.${selectedGift.id || selectedGift.name}`]: increment(qty),
@@ -928,6 +978,10 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
         'stats.monthlyGiftsReceived': increment(diamondReward),
       });
       batch.update(recipientUserRef, {
+        'wallet.totalReceived': increment(totalCost),
+        'wallet.dailyReceived': increment(totalCost),
+        'wallet.weeklyReceived': increment(totalCost),
+        'wallet.monthlyReceived': increment(totalCost),
         'stats.dailyGiftsReceived': increment(diamondReward),
         'stats.weeklyGiftsReceived': increment(diamondReward),
         'stats.monthlyGiftsReceived': increment(diamondReward),

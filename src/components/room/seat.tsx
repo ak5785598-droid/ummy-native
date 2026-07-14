@@ -1,5 +1,5 @@
 import React, { memo, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Animated, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Animated, StyleSheet, Easing } from 'react-native';
 import { MicOff, Armchair, Lock } from 'lucide-react-native';
 import { RoomParticipant } from '../../lib/types';
 import { EmojiReactionOverlay } from './emoji-reaction-overlay';
@@ -16,6 +16,78 @@ import { Image } from 'expo-image';
 import { toCDN } from '../../lib/cdn';
 import { Video } from 'expo-av';
 import { AvatarFrame } from '../profile/AvatarFrame';
+function CpSeatParticles() {
+  const animRight = useRef(new Animated.Value(0)).current;
+  const animLeft = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const rightLoop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(1500),
+        Animated.timing(animRight, { toValue: 1, duration: 700, easing: Easing.in(Easing.ease), useNativeDriver: true }),
+        Animated.timing(animRight, { toValue: 0, duration: 10, useNativeDriver: true }),
+      ])
+    );
+    const leftLoop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(2200),
+        Animated.timing(animLeft, { toValue: 1, duration: 700, easing: Easing.in(Easing.ease), useNativeDriver: true }),
+        Animated.timing(animLeft, { toValue: 0, duration: 10, useNativeDriver: true }),
+      ])
+    );
+    rightLoop.start();
+    leftLoop.start();
+    return () => { rightLoop.stop(); leftLoop.stop(); };
+  }, []);
+
+  // Right particles: red hearts & roses flying toward partner
+  const rightParticles = [
+    { emoji: '♥', ty: -10, size: 8, color: '#F43F5E' },
+    { emoji: '♥', ty: -2, size: 9, color: '#F43F5E' },
+    { emoji: '♥', ty: 5, size: 7, color: '#EC4899' },
+  ];
+
+  // Left particles: blue hearts coming from partner
+  const leftParticles = [
+    { emoji: '♥', ty: -8, size: 8, color: '#3B82F6' },
+    { emoji: '♥', ty: 0, size: 9, color: '#3B82F6' },
+    { emoji: '♥', ty: 8, size: 7, color: '#60A5FA' },
+  ];
+
+  return (
+    <>
+      {rightParticles.map((p, i) => {
+        const tx = animRight.interpolate({ inputRange: [0, 1], outputRange: [0, 48] });
+        const ty = animRight.interpolate({ inputRange: [0, 1], outputRange: [0, p.ty] });
+        const op = animRight.interpolate({ inputRange: [0, 0.1, 0.6, 1], outputRange: [0, 1, 1, 0] });
+        const sc = animRight.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0.2, 1, 0.3] });
+        return (
+          <Animated.Text key={`r${i}`} style={{
+            position: 'absolute', fontSize: p.size, opacity: op, zIndex: 20,
+            color: p.color, fontWeight: '900',
+            transform: [{ translateX: tx }, { translateY: ty }, { scale: sc }],
+          }}>
+            {'\u2665'}
+          </Animated.Text>
+        );
+      })}
+      {leftParticles.map((p, i) => {
+        const tx = animLeft.interpolate({ inputRange: [0, 1], outputRange: [48, 0] });
+        const ty = animLeft.interpolate({ inputRange: [0, 1], outputRange: [p.ty, 0] });
+        const op = animLeft.interpolate({ inputRange: [0, 0.1, 0.6, 1], outputRange: [0, 1, 1, 0] });
+        const sc = animLeft.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0.2, 1, 0.3] });
+        return (
+          <Animated.View key={`l${i}`} style={{
+            position: 'absolute', width: p.size, height: p.size, borderRadius: p.size / 2,
+            backgroundColor: p.color, opacity: op, zIndex: 20,
+            transform: [{ translateX: tx }, { translateY: ty }, { scale: sc }],
+          }} />
+        );
+      })}
+    </>
+  );
+}
+
 interface SeatProps {
   index: number;
   occupant: RoomParticipant | null;
@@ -139,6 +211,8 @@ export const Seat = memo(function Seat({
                 {connectRight === 'CP' ? '❤️' : '🤝'}
               </Text>
             </View>
+            {/* CP Particles flying along connection line */}
+            {connectRight === 'CP' && <CpSeatParticles />}
           </View>
         )}
 
