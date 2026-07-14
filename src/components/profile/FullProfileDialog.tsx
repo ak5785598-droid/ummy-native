@@ -242,6 +242,8 @@ export function FullProfileDialog({
 
   const [copiedId, setCopiedId] = useState(false);
   const [activeTab, setActiveTab] = useState<'gift' | 'medal' | 'vehicle' | 'frame'>('gift');
+  const [activeRelationTab, setActiveRelationTab] = useState(0);
+  const relationFlatListRef = useRef<FlatList>(null);
   const [showCpSearch, setShowCpSearch] = useState(false);
   const [cpSearchQuery, setCpSearchQuery] = useState('');
   const [cpSearchResults, setCpSearchResults] = useState<any[]>([]);
@@ -584,196 +586,169 @@ export function FullProfileDialog({
               </View>
             </View>
 
-            {/* CP Card */}
+                        {/* Relationship Card - Swipeable CP / Best Friend / Besties */}
             <View style={{ marginTop: 16 }}>
-              <Text style={{ fontSize: 9, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', marginBottom: 8, letterSpacing: 1 }}>CP Card</Text>
-              <LinearGradient colors={['#F7C49F', '#E99B8E']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ borderRadius: 24, height: 146, width: '100%', overflow: 'hidden', position: 'relative' }}>
-                <LinearGradient colors={['#8A153E', '#B02352']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={{ position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, borderRadius: 42, paddingHorizontal: 16, paddingTop: 28, paddingBottom: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24, overflow: 'hidden' }}>
-                  {/* Top Golden Ribbon */}
-                  <View style={{ position: 'absolute', top: 0, alignSelf: 'center', zIndex: 10 }}>
-                    <LinearGradient
-                      colors={['#FDE6A8', '#D68A32']}
-                      start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-                      style={{ paddingHorizontal: 20, paddingVertical: 2, borderBottomLeftRadius: 10, borderBottomRightRadius: 10, borderWidth: 1, borderColor: '#FFF3D1', borderTopWidth: 0 }}
-                    >
-                      <Text style={{ fontSize: 9, fontWeight: '900', color: '#5A2105', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                        {profile?.relationship?.type && profile?.relationship?.type !== 'None' ? profile.relationship.type : 'CP'}
-                      </Text>
-                    </LinearGradient>
-                  </View>
+              <FlatList
+                ref={relationFlatListRef}
+                data={[
+                  { type: 'CP' as const, bgColors: ['#8A153E', '#B02352'] as string[], icon: '\u2764\uFE0F', label: 'CP' },
+                  { type: 'Best Friend' as const, bgColors: ['#166534', '#16A34A'] as string[], icon: '\uD83E\uDD1D', label: 'Best Friend' },
+                  { type: 'Besties' as const, bgColors: ['#9A3412', '#EA580C'] as string[], icon: '\uD83D\uDC65', label: 'Besties' },
+                ]}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(item) => item.type}
+                onMomentumScrollEnd={(e) => {
+                  const idx = Math.round(e.nativeEvent.contentOffset.x / (SCREEN_WIDTH - 40));
+                  setActiveRelationTab(idx);
+                }}
+                renderItem={({ item }) => {
+                  const isCP = item.type === 'CP';
+                  const isBF = item.type === 'Best Friend';
+                  const relData = isCP ? profile?.relationship : isBF ? profile?.bestFriend : profile?.besties;
+                  const hasData = relData && (isCP ? (relData.type && relData.type !== 'None') : relData.name);
+                  const partnerName = isCP ? relData?.partnerName : relData?.name;
+                  const partnerAvatar = isCP ? relData?.partnerAvatar : relData?.avatarUrl;
 
-                  {/* Left User */}
-                  <View style={{ alignItems: 'center', marginTop: 4 }}>
-                    <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile.avatarUrl) || 'https://picsum.photos/200' }}
-                      style={{ width: 60, height: 60, borderRadius: 30, borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.95)' }} />
-                    <Text style={{ fontSize: 10, fontWeight: '800', color: '#FFFFFF', marginTop: 8, textAlign: 'center' }} numberOfLines={1}>{profile.username}</Text>
-                  </View>
-                  <TouchableOpacity
-                    activeOpacity={0.9}
-                    onPressIn={handleHeartPressIn}
-                    onPressOut={handleHeartPressOut}
-                    onPress={() => {
-                      if (isOwnProfile && hasRelationship) {
-                        setShowCpInfo(true);
-                      }
-                    }}
-                    style={{ alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-                      <Svg width={60} height={55} viewBox="0 0 600 550" style={{ overflow: 'visible' }}>
-                        <Defs>
-                          <RadialGradient id="rimGold" cx="0.28" cy="0.22" r="0.85">
-                            <Stop offset="0%" stopColor="#fde1d2"/>
-                            <Stop offset="25%" stopColor="#f8c7b5"/>
-                            <Stop offset="55%" stopColor="#d48a78"/>
-                            <Stop offset="85%" stopColor="#a05a4a"/>
-                            <Stop offset="100%" stopColor="#7a3c2e"/>
-                          </RadialGradient>
-                          <SvgLinearGradient id="bevelLight" x1="0" y1="0" x2="0.8" y2="0.8">
-                            <Stop offset="0%" stopColor="#ffffff" stopOpacity={0.85}/>
-                            <Stop offset="100%" stopColor="#ffffff" stopOpacity={0}/>
-                          </SvgLinearGradient>
-                          <SvgLinearGradient id="bevelDark" x1="1" y1="1" x2="0" y2="0">
-                            <Stop offset="0%" stopColor="#000000" stopOpacity={0.4}/>
-                            <Stop offset="100%" stopColor="#000000" stopOpacity={0}/>
-                          </SvgLinearGradient>
-                          <SvgLinearGradient id="f1" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#ffffff"/><Stop offset="35%" stopColor="#fde8ee"/><Stop offset="100%" stopColor="#f5c2d0"/></SvgLinearGradient>
-                          <SvgLinearGradient id="f2" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#fff5f8"/><Stop offset="100%" stopColor="#e9a6b8"/></SvgLinearGradient>
-                          <SvgLinearGradient id="f3" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#fbe0e7"/><Stop offset="100%" stopColor="#d98ca2"/></SvgLinearGradient>
-                          <SvgLinearGradient id="f4" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#f0c1ce"/><Stop offset="100%" stopColor="#b96b81"/></SvgLinearGradient>
-                          <SvgLinearGradient id="f5" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#e2a9b9"/><Stop offset="100%" stopColor="#9d4f66"/></SvgLinearGradient>
-                          <SvgLinearGradient id="f6" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#d18fa3"/><Stop offset="100%" stopColor="#7c2e48"/></SvgLinearGradient>
-                          <SvgLinearGradient id="f7" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#bc738a"/><Stop offset="100%" stopColor="#672139"/></SvgLinearGradient>
-                          <SvgLinearGradient id="f8" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#a4576f"/><Stop offset="54%" stopColor="#54162a"/></SvgLinearGradient>
-                          <SvgLinearGradient id="f9" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#8a2a44"/><Stop offset="100%" stopColor="#3d0a18"/></SvgLinearGradient>
-                          <SvgLinearGradient id="f10" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#ffedf2"/><Stop offset="100%" stopColor="#e2a0b2"/></SvgLinearGradient>
-                          <SvgLinearGradient id="f11" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#f3cbd6"/><Stop offset="100%" stopColor="#c27a8e"/></SvgLinearGradient>
-                          <SvgLinearGradient id="f12" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#e4b0bf"/><Stop offset="100%" stopColor="#9f5a70"/></SvgLinearGradient>
-                          <SvgLinearGradient id="f13" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#cc8ca2"/><Stop offset="100%" stopColor="#7e3450"/></SvgLinearGradient>
-                          <SvgLinearGradient id="f14" x1="1" y1="1" x2="0" y2="0"><Stop offset="0%" stopColor="#7a2540"/><Stop offset="100%" stopColor="#4b0f24"/></SvgLinearGradient>
-                          <SvgLinearGradient id="f15" x1="1" y1="1" x2="0" y2="0"><Stop offset="0%" stopColor="#5c142a"/><Stop offset="100%" stopColor="#2a0712"/></SvgLinearGradient>
-                          <RadialGradient id="centerGlow" cx="0.5" cy="0.38" r="0.65">
-                            <Stop offset="0%" stopColor="#ffe4ec" stopOpacity={0.9}/>
-                            <Stop offset="40%" stopColor="#e291a8" stopOpacity={0.4}/>
-                            <Stop offset="100%" stopColor="#7a1e3e" stopOpacity={0}/>
-                          </RadialGradient>
-                          <ClipPath id="clipHeart"><Path d="M300 457 C160 363 52 258 90 162 C117 93 207 73 280 121 C291 129 297 139 300 150 C303 139 309 129 320 121 C393 73 483 93 510 162 C548 258 440 363 300 457 Z"/></ClipPath>
-                        </Defs>
+                  return (
+                    <View style={{ width: SCREEN_WIDTH - 40 }}>
+                      <LinearGradient colors={item.bgColors as any} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ borderRadius: 24, height: 146, overflow: 'hidden' }}>
+                        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 42, paddingHorizontal: 16, paddingTop: 28, paddingBottom: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24, overflow: 'hidden' }}>
+                          {/* Top Ribbon */}
+                          <View style={{ position: 'absolute', top: 0, alignSelf: 'center', zIndex: 10 }}>
+                            <LinearGradient colors={['#FDE6A8', '#D68A32']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+                              style={{ paddingHorizontal: 20, paddingVertical: 2, borderBottomLeftRadius: 10, borderBottomRightRadius: 10, borderWidth: 1, borderColor: '#FFF3D1', borderTopWidth: 0 }}>
+                              <Text style={{ fontSize: 9, fontWeight: '900', color: '#5A2105', textTransform: 'uppercase', letterSpacing: 0.5 }}>{item.label}</Text>
+                            </LinearGradient>
+                          </View>
 
-                        <G clipPath="url(#clipHeart)">
-                          <Polygon points="185,115 280,121 300,150 220,180" fill="url(#f1)"/>
-                          <Polygon points="185,115 120,135 140,210 220,180" fill="url(#f2)"/>
-                          <Polygon points="120,135 95,160 140,210" fill="url(#f3)"/>
-                          <Polygon points="95,160 86,245 140,210" fill="url(#f4)"/>
-                          <Polygon points="86,245 160,280 140,210" fill="url(#f5)"/>
-                          <Polygon points="86,245 128,328 160,280" fill="url(#f6)"/>
-                          <Polygon points="128,328 198,398 210,330 160,280" fill="url(#f7)"/>
-                          <Polygon points="128,328 198,398 300,457 210,330" fill="url(#f8)"/>
-                          <Polygon points="198,398 300,457 270,360" fill="url(#f9)"/>
-                          <Polygon points="415,115 320,121 300,150 380,180" fill="url(#f10)"/>
-                          <Polygon points="415,115 480,135 460,210 380,180" fill="url(#f11)"/>
-                          <Polygon points="480,135 505,160 460,210" fill="url(#f12)"/>
-                          <Polygon points="505,160 514,245 460,210" fill="url(#f13)"/>
-                          <Polygon points="514,245 440,280 460,210" fill="url(#f5)"/>
-                          <Polygon points="514,245 472,328 440,280" fill="url(#f6)"/>
-                          <Polygon points="472,328 402,398 390,330 440,280" fill="url(#f7)"/>
-                          <Polygon points="472,328 402,398 300,457 390,330" fill="url(#f14)"/>
-                          <Polygon points="402,398 300,457 330,360" fill="url(#f15)"/>
-                          <Polygon points="220,180 300,200 300,150" fill="url(#f2)" opacity={0.95}/>
-                          <Polygon points="380,180 300,200 300,150" fill="url(#f10)" opacity={0.9}/>
-                          <Polygon points="220,180 240,250 300,200" fill="url(#f3)"/>
-                          <Polygon points="380,180 360,250 300,200" fill="url(#f11)"/>
-                          <Polygon points="240,250 300,270 300,200" fill="url(#f4)"/>
-                          <Polygon points="360,250 300,270 300,200" fill="url(#f12)"/>
-                          <Polygon points="220,180 160,280 240,250" fill="url(#f4)"/>
-                          <Polygon points="380,180 440,280 360,250" fill="url(#f13)"/>
-                          <Polygon points="160,280 210,330 240,250" fill="url(#f6)"/>
-                          <Polygon points="440,280 390,330 360,250" fill="url(#f13)"/>
-                          <Polygon points="240,250 270,360 300,270" fill="url(#f7)"/>
-                          <Polygon points="360,250 330,360 300,270" fill="url(#f14)"/>
-                          <Polygon points="210,330 270,360 240,250" fill="url(#f7)"/>
-                          <Polygon points="390,330 330,360 360,250" fill="url(#f14)"/>
-                          <Polygon points="210,330 270,360 300,457" fill="url(#f8)"/>
-                          <Polygon points="390,330 330,360 300,457" fill="url(#f15)"/>
-                        </G>
+                          {/* Left: Self */}
+                          <View style={{ alignItems: 'center', marginTop: 4 }}>
+                            <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile.avatarUrl) || 'https://picsum.photos/200' }}
+                              style={{ width: 60, height: 60, borderRadius: 30, borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.95)' }} />
+                            <Text style={{ fontSize: 10, fontWeight: '800', color: '#FFFFFF', marginTop: 8, textAlign: 'center' }} numberOfLines={1}>{profile.username}</Text>
+                          </View>
 
-                        <G clipPath="url(#clipHeart)">
-                          <Polygon points="185,115 280,121 220,180" fill="#ffffff" opacity={0.58}/>
-                          <Polygon points="185,115 120,135 140,210 220,180" fill="#ffffff" opacity={0.35}/>
-                          <Polygon points="280,121 300,150 300,200 220,180" fill="#ffffff" opacity={0.22}/>
-                          <Polygon points="402,398 472,328 514,245 440,280" fill="#000000" opacity={0.18}/>
-                          <Polygon points="330,360 390,330 300,457" fill="#000000" opacity={0.22}/>
-                        </G>
+                          {/* Center: Heart or Icon */}
+                          {isCP ? (
+                            <TouchableOpacity activeOpacity={0.9} onPressIn={handleHeartPressIn} onPressOut={handleHeartPressOut}
+                              onPress={() => { if (isOwnProfile && hasData) setShowCpInfo(true); }}
+                              style={{ alignItems: 'center', justifyContent: 'center' }}>
+                              <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+                                <Svg width={60} height={55} viewBox="0 0 600 550" style={{ overflow: 'visible' }}>
+                                  <Defs>
+                                    <RadialGradient id="cp_rimGold" cx="0.28" cy="0.22" r="0.85">
+                                      <Stop offset="0%" stopColor="#fde1d2"/><Stop offset="25%" stopColor="#f8c7b5"/><Stop offset="55%" stopColor="#d48a78"/><Stop offset="85%" stopColor="#a05a4a"/><Stop offset="100%" stopColor="#7a3c2e"/>
+                                    </RadialGradient>
+                                    <SvgLinearGradient id="cp_bevelLight" x1="0" y1="0" x2="0.8" y2="0.8"><Stop offset="0%" stopColor="#ffffff" stopOpacity={0.85}/><Stop offset="100%" stopColor="#ffffff" stopOpacity={0}/></SvgLinearGradient>
+                                    <SvgLinearGradient id="cp_f1" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#ffffff"/><Stop offset="35%" stopColor="#fde8ee"/><Stop offset="100%" stopColor="#f5c2d0"/></SvgLinearGradient>
+                                    <SvgLinearGradient id="cp_f2" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#fff5f8"/><Stop offset="100%" stopColor="#e9a6b8"/></SvgLinearGradient>
+                                    <SvgLinearGradient id="cp_f3" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#fbe0e7"/><Stop offset="100%" stopColor="#d98ca2"/></SvgLinearGradient>
+                                    <SvgLinearGradient id="cp_f4" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#f0c1ce"/><Stop offset="100%" stopColor="#b96b81"/></SvgLinearGradient>
+                                    <SvgLinearGradient id="cp_f5" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#e2a9b9"/><Stop offset="100%" stopColor="#9d4f66"/></SvgLinearGradient>
+                                    <SvgLinearGradient id="cp_f6" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#d18fa3"/><Stop offset="100%" stopColor="#7c2e48"/></SvgLinearGradient>
+                                    <SvgLinearGradient id="cp_f7" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#bc738a"/><Stop offset="100%" stopColor="#672139"/></SvgLinearGradient>
+                                    <SvgLinearGradient id="cp_f8" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#a4576f"/><Stop offset="54%" stopColor="#54162a"/></SvgLinearGradient>
+                                    <SvgLinearGradient id="cp_f9" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#8a2a44"/><Stop offset="100%" stopColor="#3d0a18"/></SvgLinearGradient>
+                                    <SvgLinearGradient id="cp_f10" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#ffedf2"/><Stop offset="100%" stopColor="#e2a0b2"/></SvgLinearGradient>
+                                    <SvgLinearGradient id="cp_f11" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#f3cbd6"/><Stop offset="100%" stopColor="#c27a8e"/></SvgLinearGradient>
+                                    <SvgLinearGradient id="cp_f12" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#e4b0bf"/><Stop offset="100%" stopColor="#9f5a70"/></SvgLinearGradient>
+                                    <SvgLinearGradient id="cp_f13" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#cc8ca2"/><Stop offset="100%" stopColor="#7e3450"/></SvgLinearGradient>
+                                    <SvgLinearGradient id="cp_f14" x1="1" y1="1" x2="0" y2="0"><Stop offset="0%" stopColor="#7a2540"/><Stop offset="100%" stopColor="#4b0f24"/></SvgLinearGradient>
+                                    <SvgLinearGradient id="cp_f15" x1="1" y1="1" x2="0" y2="0"><Stop offset="0%" stopColor="#5c142a"/><Stop offset="100%" stopColor="#2a0712"/></SvgLinearGradient>
+                                    <RadialGradient id="cp_centerGlow" cx="0.5" cy="0.38" r="0.65"><Stop offset="0%" stopColor="#ffe4ec" stopOpacity={0.9}/><Stop offset="40%" stopColor="#e291a8" stopOpacity={0.4}/><Stop offset="100%" stopColor="#7a1e3e" stopOpacity={0}/></RadialGradient>
+                                    <ClipPath id="cp_clipHeart"><Path d="M300 457 C160 363 52 258 90 162 C117 93 207 73 280 121 C291 129 297 139 300 150 C303 139 309 129 320 121 C393 73 483 93 510 162 C548 258 440 363 300 457 Z"/></ClipPath>
+                                  </Defs>
+                                  <G clipPath="url(#cp_clipHeart)">
+                                    <Polygon points="185,115 280,121 300,150 220,180" fill="url(#cp_f1)"/>
+                                    <Polygon points="185,115 120,135 140,210 220,180" fill="url(#cp_f2)"/>
+                                    <Polygon points="120,135 95,160 140,210" fill="url(#cp_f3)"/>
+                                    <Polygon points="95,160 86,245 140,210" fill="url(#cp_f4)"/>
+                                    <Polygon points="86,245 160,280 140,210" fill="url(#cp_f5)"/>
+                                    <Polygon points="86,245 128,328 160,280" fill="url(#cp_f6)"/>
+                                    <Polygon points="128,328 198,398 210,330 160,280" fill="url(#cp_f7)"/>
+                                    <Polygon points="128,328 198,398 300,457 210,330" fill="url(#cp_f8)"/>
+                                    <Polygon points="198,398 300,457 270,360" fill="url(#cp_f9)"/>
+                                    <Polygon points="415,115 320,121 300,150 380,180" fill="url(#cp_f10)"/>
+                                    <Polygon points="415,115 480,135 460,210 380,180" fill="url(#cp_f11)"/>
+                                    <Polygon points="480,135 505,160 460,210" fill="url(#cp_f12)"/>
+                                    <Polygon points="505,160 514,245 460,210" fill="url(#cp_f13)"/>
+                                    <Polygon points="514,245 440,280 460,210" fill="url(#cp_f5)"/>
+                                    <Polygon points="514,245 472,328 440,280" fill="url(#cp_f6)"/>
+                                    <Polygon points="472,328 402,398 390,330 440,280" fill="url(#cp_f7)"/>
+                                    <Polygon points="472,328 402,398 300,457 390,330" fill="url(#cp_f8)"/>
+                                    <Polygon points="402,398 300,457 330,360" fill="url(#cp_f9)"/>
+                                    <Polygon points="220,180 300,200 300,150" fill="url(#cp_f2)" opacity={0.95}/>
+                                    <Polygon points="380,180 300,200 300,150" fill="url(#cp_f10)" opacity={0.9}/>
+                                    <Polygon points="220,180 240,250 300,200" fill="url(#cp_f3)"/>
+                                    <Polygon points="380,180 360,250 300,200" fill="url(#cp_f11)"/>
+                                    <Polygon points="240,250 300,270 300,200" fill="url(#cp_f4)"/>
+                                    <Polygon points="360,250 300,270 300,200" fill="url(#cp_f12)"/>
+                                    <Polygon points="220,180 160,280 240,250" fill="url(#cp_f4)"/>
+                                    <Polygon points="380,180 440,280 360,250" fill="url(#cp_f13)"/>
+                                    <Polygon points="160,280 210,330 240,250" fill="url(#cp_f6)"/>
+                                    <Polygon points="440,280 390,330 360,250" fill="url(#cp_f13)"/>
+                                    <Polygon points="240,250 270,360 300,270" fill="url(#cp_f7)"/>
+                                    <Polygon points="360,250 330,360 300,270" fill="url(#cp_f8)"/>
+                                    <Polygon points="210,330 270,360 240,250" fill="url(#cp_f7)"/>
+                                    <Polygon points="390,330 330,360 360,250" fill="url(#cp_f14)"/>
+                                    <Polygon points="210,330 270,360 300,457" fill="url(#cp_f8)"/>
+                                    <Polygon points="390,330 330,360 300,457" fill="url(#cp_f15)"/>
+                                  </G>
+                                  <G clipPath="url(#cp_clipHeart)">
+                                    <Polygon points="185,115 280,121 220,180" fill="#ffffff" opacity={0.58}/>
+                                    <Polygon points="185,115 120,135 140,210 220,180" fill="#ffffff" opacity={0.35}/>
+                                    <Polygon points="280,121 300,150 300,200 220,180" fill="#ffffff" opacity={0.22}/>
+                                    <Polygon points="402,398 472,328 514,245 440,280" fill="#000000" opacity={0.18}/>
+                                    <Polygon points="330,360 390,330 300,457" fill="#000000" opacity={0.22}/>
+                                  </G>
+                                  <Ellipse cx="300" cy="255" rx="95" ry="75" fill="url(#cp_centerGlow)" opacity={0.7}/>
+                                  <Circle cx="196" cy="126" r="5" fill="#ffffff" opacity={0.95}/>
+                                  <Circle cx="167" cy="152" r="3" fill="#ffffff" opacity={0.85}/>
+                                  <Circle cx="132" cy="188" r="2" fill="#ffffff" opacity={0.7}/>
+                                  <Path d="M274 108 l10 -4 2 11 -12 -7z" fill="#ffffff" opacity={0.9}/>
+                                  <Circle cx="248" cy="142" r="1.8" fill="#ffffff" opacity={0.8}/>
+                                  <Path d="M300 457 C160 363 52 258 90 162 C117 93 207 73 280 121 C291 129 297 139 300 150 C303 139 309 129 320 121 C393 73 483 93 510 162 C548 258 440 363 300 457 Z" fill="url(#cp_rimGold)" fillRule="evenodd" stroke="#6e3a2e" strokeWidth={1.2}/>
+                                  <Path d="M300 457 C160 363 52 258 90 162 C117 93 207 73 280 121 C291 129 297 139 300 150 C303 139 309 129 320 121 C393 73 483 93 510 162 C548 258 440 363 300 457 Z" fill="none" stroke="url(#cp_bevelLight)" strokeWidth={9} strokeLinejoin="round" opacity={0.5}/>
+                                  <Path d="M300 488 C140 390 20 270 62 150 C92 75 195 48 272 103 C289 115 296 128 300 143 C304 128 311 115 328 103 C405 48 508 75 538 150 C580 270 460 390 300 488 Z" fill="none" stroke="#5a2a20" strokeWidth={2.5} opacity={0.55}/>
+                                  <Path d="M62 150 C92 75 195 48 272 103 C289 115 296 128 300 143" fill="none" stroke="#ffe0d1" strokeWidth={6} strokeLinecap="round" opacity={0.45}/>
+                                </Svg>
+                              </Animated.View>
+                            </TouchableOpacity>
+                          ) : (
+                            <View style={{ alignItems: 'center', justifyContent: 'center', width: 60, height: 55 }}>
+                              <Text style={{ fontSize: 28 }}>{item.icon}</Text>
+                            </View>
+                          )}
 
-                        <Ellipse cx="300" cy="255" rx="95" ry="75" fill="url(#centerGlow)" opacity={0.7} />
-
-                        <Circle cx="196" cy="126" r="5" fill="#ffffff" opacity={0.95}/>
-                        <Circle cx="167" cy="152" r="3" fill="#ffffff" opacity={0.85}/>
-                        <Circle cx="132" cy="188" r="2" fill="#ffffff" opacity={0.7}/>
-                        <Path d="M274 108 l10 -4 2 11 -12 -7z" fill="#ffffff" opacity={0.9}/>
-                        <Circle cx="248" cy="142" r="1.8" fill="#ffffff" opacity={0.8}/>
-
-                        <Path d="M300 488 C140 390 20 270 62 150 C92 75 195 48 272 103 C289 115 296 128 300 143 C304 128 311 115 328 103 C405 48 508 75 538 150 C580 270 460 390 300 488 Z M300 457 C160 363 52 258 90 162 C117 93 207 73 280 121 C291 129 297 139 300 150 C303 139 309 129 320 121 C393 73 483 93 510 162 C548 258 440 363 300 457 Z" fill="url(#rimGold)" fillRule="evenodd" stroke="#6e3a2e" strokeWidth={1.2}/>
-                        <Path d="M300 457 C160 363 52 258 90 162 C117 93 207 73 280 121 C291 129 297 139 300 150 C303 139 309 129 320 121 C393 73 483 93 510 162 C548 258 440 363 300 457 Z" fill="none" stroke="url(#bevelLight)" strokeWidth={9} strokeLinejoin="round" opacity={0.5}/>
-                        <Path d="M300 488 C140 390 20 270 62 150 C92 75 195 48 272 103 C289 115 296 128 300 143 C304 128 311 115 328 103 C405 48 508 75 538 150 C580 270 460 390 300 488 Z" fill="none" stroke="#5a2a20" strokeWidth={2.5} opacity={0.55}/>
-                        <Path d="M62 150 C92 75 195 48 272 103 C289 115 296 128 300 143" fill="none" stroke="#ffe0d1" strokeWidth={6} strokeLinecap="round" opacity={0.45} />
-                      </Svg>
-                    </Animated.View>
-                  </TouchableOpacity>
-
-                  {/* Right User or Add Partner */}
-                  {profile?.relationship && profile?.relationship?.type && profile?.relationship?.type !== 'None' ? (
-                    <View style={{ alignItems: 'center' }}>
-                      <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile?.relationship?.partnerAvatar) || 'https://picsum.photos/200' }}
-                        style={{ width: 60, height: 60, borderRadius: 30, borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.95)' }} />
-                      <Text style={{ fontSize: 10, fontWeight: '800', color: '#FFFFFF', marginTop: 8, textAlign: 'center' }} numberOfLines={1}>{profile?.relationship?.partnerName}</Text>
+                          {/* Right: Partner or + */}
+                          {hasData ? (
+                            <View style={{ alignItems: 'center' }}>
+                              <Image cachePolicy="memory-disk" source={{ uri: toCDN(partnerAvatar) || 'https://picsum.photos/200' }}
+                                style={{ width: 60, height: 60, borderRadius: 30, borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.95)' }} />
+                              <Text style={{ fontSize: 10, fontWeight: '800', color: '#FFFFFF', marginTop: 8, textAlign: 'center' }} numberOfLines={1}>{partnerName}</Text>
+                            </View>
+                          ) : (
+                            <View style={{ alignItems: 'center' }}>
+                              <TouchableOpacity onPress={() => { setSearchType(item.type); setShowCpSearch(true); }}
+                                style={{ width: 60, height: 60, borderRadius: 30, borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.95)', backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={{ fontSize: 24, color: '#FFF', fontWeight: '300', marginTop: -2 }}>+</Text>
+                              </TouchableOpacity>
+                              <Text style={{ fontSize: 10, fontWeight: '800', color: 'transparent', marginTop: 8 }}>{' '}</Text>
+                            </View>
+                          )}
+                        </View>
+                      </LinearGradient>
                     </View>
-                  ) : (
-                    <View style={{ alignItems: 'center' }}>
-                      <TouchableOpacity onPress={() => setShowCpSearch(true)} style={{ width: 60, height: 60, borderRadius: 30, borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.95)', backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ fontSize: 24, color: '#FFF', fontWeight: '300', marginTop: -2 }}>+</Text>
-                      </TouchableOpacity>
-                      <Text style={{ fontSize: 10, fontWeight: '800', color: 'transparent', marginTop: 8 }}> </Text>
-                    </View>
-                  )}
-                </LinearGradient>
-              </LinearGradient>
-            </View>
-
-            {/* Best Friend & Besties Slots */}
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-              {/* Best Friend Slot */}
-              <View style={{ flex: 1, backgroundColor: '#F0FDF4', borderRadius: 16, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#BBF7D0' }}>
-                <Text style={{ fontSize: 8, fontWeight: '800', color: '#16A34A', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>{String.fromCodePoint(0x1F91D)} Best Friend</Text>
-                {profile?.bestFriend ? (
-                  <View style={{ alignItems: 'center' }}>
-                    <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile.bestFriend.avatarUrl) || 'https://picsum.photos/200' }}
-                      style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: '#22C55E' }} />
-                    <Text style={{ fontSize: 9, fontWeight: '800', color: '#166534', marginTop: 6 }} numberOfLines={1}>{profile.bestFriend.name}</Text>
-                  </View>
-                ) : (
-                  <TouchableOpacity onPress={() => { setSearchType('Best Friend'); setShowCpSearch(true); }}
-                    style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderStyle: 'dashed', borderColor: '#86EFAC', backgroundColor: 'rgba(34,197,94,0.05)', alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 20, color: '#22C55E' }}>+</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* Besties Slot */}
-              <View style={{ flex: 1, backgroundColor: '#FFF7ED', borderRadius: 16, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#FED7AA' }}>
-                <Text style={{ fontSize: 8, fontWeight: '800', color: '#EA580C', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>👥 Besties</Text>
-                {profile?.besties ? (
-                  <View style={{ alignItems: 'center' }}>
-                    <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile.besties.avatarUrl) || 'https://picsum.photos/200' }}
-                      style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: '#F97316' }} />
-                    <Text style={{ fontSize: 9, fontWeight: '800', color: '#9A3412', marginTop: 6 }} numberOfLines={1}>{profile.besties.name}</Text>
-                  </View>
-                ) : (
-                  <TouchableOpacity onPress={() => { setSearchType('Besties'); setShowCpSearch(true); }}
-                    style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderStyle: 'dashed', borderColor: '#FDBA74', backgroundColor: 'rgba(249,115,22,0.05)', alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 20, color: '#F97316' }}>+</Text>
-                  </TouchableOpacity>
-                )}
+                  );
+                }}
+              />
+              {/* Dot Indicators */}
+              <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 }}>
+                {[0, 1, 2].map(i => (
+                  <View key={i} style={{ width: activeRelationTab === i ? 16 : 6, height: 6, borderRadius: 3, backgroundColor: activeRelationTab === i ? '#EC4899' : '#E2E8F0' }} />
+                ))}
               </View>
             </View>
 
