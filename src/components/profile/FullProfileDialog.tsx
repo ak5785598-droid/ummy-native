@@ -636,84 +636,11 @@ export function FullProfileDialog({
                               onPress={() => { if (isOwnProfile && hasData) setShowCpInfo(true); }}
                               style={{ alignItems: 'center', justifyContent: 'center' }}>
                               <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-                                <Svg width={60} height={55} viewBox="0 0 600 550" style={{ overflow: 'visible' }}>
-                                  <Defs>
-                                    <RadialGradient id="cp_rimGold" cx="0.28" cy="0.22" r="0.85">
-                                      <Stop offset="0%" stopColor="#fde1d2"/><Stop offset="25%" stopColor="#f8c7b5"/><Stop offset="55%" stopColor="#d48a78"/><Stop offset="85%" stopColor="#a05a4a"/><Stop offset="100%" stopColor="#7a3c2e"/>
-                                    </RadialGradient>
-                                    <SvgLinearGradient id="cp_bevelLight" x1="0" y1="0" x2="0.8" y2="0.8"><Stop offset="0%" stopColor="#ffffff" stopOpacity={0.85}/><Stop offset="100%" stopColor="#ffffff" stopOpacity={0}/></SvgLinearGradient>
-                                    <SvgLinearGradient id="cp_f1" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#ffffff"/><Stop offset="35%" stopColor="#fde8ee"/><Stop offset="100%" stopColor="#f5c2d0"/></SvgLinearGradient>
-                                    <SvgLinearGradient id="cp_f2" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#fff5f8"/><Stop offset="100%" stopColor="#e9a6b8"/></SvgLinearGradient>
-                                    <SvgLinearGradient id="cp_f3" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#fbe0e7"/><Stop offset="100%" stopColor="#d98ca2"/></SvgLinearGradient>
-                                    <SvgLinearGradient id="cp_f4" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#f0c1ce"/><Stop offset="100%" stopColor="#b96b81"/></SvgLinearGradient>
-                                    <SvgLinearGradient id="cp_f5" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#e2a9b9"/><Stop offset="100%" stopColor="#9d4f66"/></SvgLinearGradient>
-                                    <SvgLinearGradient id="cp_f6" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#d18fa3"/><Stop offset="100%" stopColor="#7c2e48"/></SvgLinearGradient>
-                                    <SvgLinearGradient id="cp_f7" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#bc738a"/><Stop offset="100%" stopColor="#672139"/></SvgLinearGradient>
-                                    <SvgLinearGradient id="cp_f8" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#a4576f"/><Stop offset="54%" stopColor="#54162a"/></SvgLinearGradient>
-                                    <SvgLinearGradient id="cp_f9" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#8a2a44"/><Stop offset="100%" stopColor="#3d0a18"/></SvgLinearGradient>
-                                    <SvgLinearGradient id="cp_f10" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#ffedf2"/><Stop offset="100%" stopColor="#e2a0b2"/></SvgLinearGradient>
-                                    <SvgLinearGradient id="cp_f11" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#f3cbd6"/><Stop offset="100%" stopColor="#c27a8e"/></SvgLinearGradient>
-                                    <SvgLinearGradient id="cp_f12" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#e4b0bf"/><Stop offset="100%" stopColor="#9f5a70"/></SvgLinearGradient>
-                                    <SvgLinearGradient id="cp_f13" x1="0" y1="0" x2="1" y2="1"><Stop offset="0%" stopColor="#cc8ca2"/><Stop offset="100%" stopColor="#7e3450"/></SvgLinearGradient>
-                                    <SvgLinearGradient id="cp_f14" x1="1" y1="1" x2="0" y2="0"><Stop offset="0%" stopColor="#7a2540"/><Stop offset="100%" stopColor="#4b0f24"/></SvgLinearGradient>
-                                    <SvgLinearGradient id="cp_f15" x1="1" y1="1" x2="0" y2="0"><Stop offset="0%" stopColor="#5c142a"/><Stop offset="100%" stopColor="#2a0712"/></SvgLinearGradient>
-                                    <RadialGradient id="cp_centerGlow" cx="0.5" cy="0.38" r="0.65"><Stop offset="0%" stopColor="#ffe4ec" stopOpacity={0.9}/><Stop offset="40%" stopColor="#e291a8" stopOpacity={0.4}/><Stop offset="100%" stopColor="#7a1e3e" stopOpacity={0}/></RadialGradient>
-                                    <ClipPath id="cp_clipHeart"><Path d="M300 457 C160 363 52 258 90 162 C117 93 207 73 280 121 C291 129 297 139 300 150 C303 139 309 129 320 121 C393 73 483 93 510 162 C548 258 440 363 300 457 Z"/></ClipPath>
-                                  </Defs>
-                                  <G clipPath="url(#cp_clipHeart)">
-                                    <Polygon points="185,115 280,121 300,150 220,180" fill="url(#cp_f1)"/>
-                                    <Polygon points="185,115 120,135 140,210 220,180" fill="url(#cp_f2)"/>
-                                    <Polygon points="120,135 95,160 140,210" fill="url(#cp_f3)"/>
-                                    <Polygon points="95,160 86,245 140,210" fill="url(#cp_f4)"/>
-                                    <Polygon points="86,245 160,280 140,210" fill="url(#cp_f5)"/>
-                                    <Polygon points="86,245 128,328 160,280" fill="url(#cp_f6)"/>
-                                    <Polygon points="128,328 198,398 210,330 160,280" fill="url(#cp_f7)"/>
-                                    <Polygon points="128,328 198,398 300,457 210,330" fill="url(#cp_f8)"/>
-                                    <Polygon points="198,398 300,457 270,360" fill="url(#cp_f9)"/>
-                                    <Polygon points="415,115 320,121 300,150 380,180" fill="url(#cp_f10)"/>
-                                    <Polygon points="415,115 480,135 460,210 380,180" fill="url(#cp_f11)"/>
-                                    <Polygon points="480,135 505,160 460,210" fill="url(#cp_f12)"/>
-                                    <Polygon points="505,160 514,245 460,210" fill="url(#cp_f13)"/>
-                                    <Polygon points="514,245 440,280 460,210" fill="url(#cp_f5)"/>
-                                    <Polygon points="514,245 472,328 440,280" fill="url(#cp_f6)"/>
-                                    <Polygon points="472,328 402,398 390,330 440,280" fill="url(#cp_f7)"/>
-                                    <Polygon points="472,328 402,398 300,457 390,330" fill="url(#cp_f8)"/>
-                                    <Polygon points="402,398 300,457 330,360" fill="url(#cp_f9)"/>
-                                    <Polygon points="220,180 300,200 300,150" fill="url(#cp_f2)" opacity={0.95}/>
-                                    <Polygon points="380,180 300,200 300,150" fill="url(#cp_f10)" opacity={0.9}/>
-                                    <Polygon points="220,180 240,250 300,200" fill="url(#cp_f3)"/>
-                                    <Polygon points="380,180 360,250 300,200" fill="url(#cp_f11)"/>
-                                    <Polygon points="240,250 300,270 300,200" fill="url(#cp_f4)"/>
-                                    <Polygon points="360,250 300,270 300,200" fill="url(#cp_f12)"/>
-                                    <Polygon points="220,180 160,280 240,250" fill="url(#cp_f4)"/>
-                                    <Polygon points="380,180 440,280 360,250" fill="url(#cp_f13)"/>
-                                    <Polygon points="160,280 210,330 240,250" fill="url(#cp_f6)"/>
-                                    <Polygon points="440,280 390,330 360,250" fill="url(#cp_f13)"/>
-                                    <Polygon points="240,250 270,360 300,270" fill="url(#cp_f7)"/>
-                                    <Polygon points="360,250 330,360 300,270" fill="url(#cp_f8)"/>
-                                    <Polygon points="210,330 270,360 240,250" fill="url(#cp_f7)"/>
-                                    <Polygon points="390,330 330,360 360,250" fill="url(#cp_f14)"/>
-                                    <Polygon points="210,330 270,360 300,457" fill="url(#cp_f8)"/>
-                                    <Polygon points="390,330 330,360 300,457" fill="url(#cp_f15)"/>
-                                  </G>
-                                  <G clipPath="url(#cp_clipHeart)">
-                                    <Polygon points="185,115 280,121 220,180" fill="#ffffff" opacity={0.58}/>
-                                    <Polygon points="185,115 120,135 140,210 220,180" fill="#ffffff" opacity={0.35}/>
-                                    <Polygon points="280,121 300,150 300,200 220,180" fill="#ffffff" opacity={0.22}/>
-                                    <Polygon points="402,398 472,328 514,245 440,280" fill="#000000" opacity={0.18}/>
-                                    <Polygon points="330,360 390,330 300,457" fill="#000000" opacity={0.22}/>
-                                  </G>
-                                  <Ellipse cx="300" cy="255" rx="95" ry="75" fill="url(#cp_centerGlow)" opacity={0.7}/>
-                                  <Circle cx="196" cy="126" r="5" fill="#ffffff" opacity={0.95}/>
-                                  <Circle cx="167" cy="152" r="3" fill="#ffffff" opacity={0.85}/>
-                                  <Circle cx="132" cy="188" r="2" fill="#ffffff" opacity={0.7}/>
-                                  <Path d="M274 108 l10 -4 2 11 -12 -7z" fill="#ffffff" opacity={0.9}/>
-                                  <Circle cx="248" cy="142" r="1.8" fill="#ffffff" opacity={0.8}/>
-                                  <Path d="M300 457 C160 363 52 258 90 162 C117 93 207 73 280 121 C291 129 297 139 300 150 C303 139 309 129 320 121 C393 73 483 93 510 162 C548 258 440 363 300 457 Z" fill="url(#cp_rimGold)" fillRule="evenodd" stroke="#6e3a2e" strokeWidth={1.2}/>
-                                  <Path d="M300 457 C160 363 52 258 90 162 C117 93 207 73 280 121 C291 129 297 139 300 150 C303 139 309 129 320 121 C393 73 483 93 510 162 C548 258 440 363 300 457 Z" fill="none" stroke="url(#cp_bevelLight)" strokeWidth={9} strokeLinejoin="round" opacity={0.5}/>
-                                  <Path d="M300 488 C140 390 20 270 62 150 C92 75 195 48 272 103 C289 115 296 128 300 143 C304 128 311 115 328 103 C405 48 508 75 538 150 C580 270 460 390 300 488 Z" fill="none" stroke="#5a2a20" strokeWidth={2.5} opacity={0.55}/>
-                                  <Path d="M62 150 C92 75 195 48 272 103 C289 115 296 128 300 143" fill="none" stroke="#ffe0d1" strokeWidth={6} strokeLinecap="round" opacity={0.45}/>
-                                </Svg>
+                                <Image
+                                  source={require('../../../assets/images/cp_heart.png')}
+                                  style={{ width: 60, height: 55 }}
+                                  contentFit="contain"
+                                />
                               </Animated.View>
                             </TouchableOpacity>
                           ) : (
