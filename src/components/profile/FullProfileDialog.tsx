@@ -591,9 +591,9 @@ export function FullProfileDialog({
               <FlatList
                 ref={relationFlatListRef}
                 data={[
-                  { type: 'CP' as const, bgColors: ['#8A153E', '#B02352'] as string[], icon: '\u2764\uFE0F', label: 'CP' },
-                  { type: 'Best Friend' as const, bgColors: ['#166534', '#16A34A'] as string[], icon: '\uD83E\uDD1D', label: 'Best Friend' },
-                  { type: 'Besties' as const, bgColors: ['#9A3412', '#EA580C'] as string[], icon: '\uD83D\uDC65', label: 'Besties' },
+                  { type: 'CP' as const, outerColors: ['#F7C49F', '#E99B8E'] as string[], innerColors: ['#8A153E', '#B02352'] as string[], icon: '\u2764\uFE0F', label: 'CP' },
+                  { type: 'Best Friend' as const, outerColors: ['#BBF7D0', '#86EFAC'] as string[], innerColors: ['#166534', '#16A34A'] as string[], icon: '\uD83E\uDD1D', label: 'Best Friend' },
+                  { type: 'Besties' as const, outerColors: ['#FED7AA', '#FDBA74'] as string[], innerColors: ['#9A3412', '#EA580C'] as string[], icon: '\uD83D\uDC65', label: 'Besties' },
                 ]}
                 horizontal
                 pagingEnabled
@@ -613,8 +613,8 @@ export function FullProfileDialog({
 
                   return (
                     <View style={{ width: SCREEN_WIDTH - 40 }}>
-                      <LinearGradient colors={item.bgColors as any} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ borderRadius: 24, height: 146, overflow: 'hidden' }}>
-                        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 42, paddingHorizontal: 16, paddingTop: 28, paddingBottom: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24, overflow: 'hidden' }}>
+                      <LinearGradient colors={item.outerColors as any} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ borderRadius: 24, height: 146, overflow: 'hidden', position: 'relative' }}>
+                        <LinearGradient colors={item.innerColors as any} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={{ position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, borderRadius: 42, paddingHorizontal: 16, paddingTop: 28, paddingBottom: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24, overflow: 'hidden' }}>
                           {/* Top Ribbon */}
                           <View style={{ position: 'absolute', top: 0, alignSelf: 'center', zIndex: 10 }}>
                             <LinearGradient colors={['#FDE6A8', '#D68A32']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
@@ -738,7 +738,7 @@ export function FullProfileDialog({
                               <Text style={{ fontSize: 10, fontWeight: '800', color: 'transparent', marginTop: 8 }}>{' '}</Text>
                             </View>
                           )}
-                        </View>
+                        </LinearGradient>
                       </LinearGradient>
                     </View>
                   );
