@@ -126,7 +126,9 @@ const ChatMessageRow = React.memo(function ChatMessageRow({ message, onPress, on
   if (message.type === 'entrance') {
     return (
       <View style={styles.entranceRow}>
-        <Text style={styles.entranceText}>✨ {message.senderName} entered the room</Text>
+        <View style={{ backgroundColor: 'rgba(251,191,36,0.12)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 6, borderWidth: 1, borderColor: 'rgba(251,191,36,0.2)' }}>
+          <Text style={styles.entranceText}>✨ {message.senderName} entered the room</Text>
+        </View>
       </View>
     );
   }
@@ -283,11 +285,12 @@ const styles = StyleSheet.create({
   },
   entranceRow: {
     alignItems: 'center',
-    marginVertical: 2,
+    marginVertical: 4,
   },
   entranceText: {
-    color: 'rgba(251,191,36,0.8)',
-    fontSize: 10,
+    color: '#fbbf24',
+    fontSize: 12,
+    fontWeight: '700',
   },
   msgRow: {
     flexDirection: 'row',

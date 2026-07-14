@@ -1,13 +1,15 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, Share, Modal, TextInput } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, Share, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Users, Trophy, Flame, ShieldCheck, Crown, Share2, Trash2, UserPlus, UserMinus, Edit, X } from 'lucide-react-native';
+import { ChevronLeft, Users, Trophy, Flame, ShieldCheck, Crown, Share2, Trash2, UserPlus, UserMinus, Edit, X, Camera } from 'lucide-react-native';
 import { useFirebase, useUser, useDoc, useCollection } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { doc, collection, query, where, deleteDoc, updateDoc, increment, arrayUnion, arrayRemove, serverTimestamp, writeBatch } from '../../firebase/firestore-compat';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
 import { toCDN } from '@/lib/cdn';
+import * as ImagePicker from 'expo-image-picker';
+import storage from '@react-native-firebase/storage';
 import { getLevelFromSpent } from '../../hooks/use-user-level';
 import { UserLevelBadge } from '@/components/user-level-badge';
 
@@ -203,6 +205,31 @@ export default function FamilyDetail() {
     ]);
   };
 
+  const handleBannerChange = async () => {
+    if (!isOwner && !isAdmin) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const uri = result.assets[0].uri;
+    const filename = `families/banners/${Date.now()}_${Math.random().toString(36).substr(2, 6)}.jpg`;
+    
+    try {
+      const reference = storage().ref(filename);
+      await reference.putFile(uri, { contentType: 'image/jpeg' });
+      const downloadUrl = await reference.getDownloadURL();
+      
+      await updateDoc(familyRef!, { bannerUrl: downloadUrl, updatedAt: serverTimestamp() });
+      Alert.alert('Success', 'Family banner updated!');
+    } catch (e: any) {
+      Alert.alert('Upload Failed', e.message || 'Could not update banner.');
+    }
+  };
+
   if (isFamilyLoading || !family) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#1a0533' }}>
@@ -234,6 +261,11 @@ export default function FamilyDetail() {
               <ChevronLeft size={20} color="white" />
             </TouchableOpacity>
           </View>
+          {(isOwner || isAdmin) && (
+            <TouchableOpacity onPress={handleBannerChange} style={{ position: 'absolute', top: 12, right: 12, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }}>
+              <Camera size={18} color="white" />
+            </TouchableOpacity>
+          )}
 
           {/* Family info over banner */}
           <View style={{ position: 'absolute', bottom: 16, left: 16, right: 16, flexDirection: 'row', alignItems: 'flex-end' }}>
