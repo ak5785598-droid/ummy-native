@@ -243,7 +243,7 @@ export function FullProfileDialog({
   const [copiedId, setCopiedId] = useState(false);
   const [activeTab, setActiveTab] = useState<'gift' | 'medal' | 'vehicle' | 'frame'>('gift');
   const [activeRelationTab, setActiveRelationTab] = useState(0);
-  const relationFlatListRef = useRef<FlatList>(null);
+  const relationScrollRef = useRef<ScrollView>(null);
   const [showCpSearch, setShowCpSearch] = useState(false);
   const [cpSearchQuery, setCpSearchQuery] = useState('');
   const [cpSearchResults, setCpSearchResults] = useState<any[]>([]);
@@ -586,24 +586,24 @@ export function FullProfileDialog({
               </View>
             </View>
 
-                        {/* Relationship Card - Swipeable CP / Best Friend / Besties */}
+            {/* Relationship Card - Swipeable CP / Best Friend / Besties */}
             <View style={{ marginTop: 16 }}>
-              <FlatList
-                ref={relationFlatListRef}
-                data={[
-                  { type: 'CP' as const, outerColors: ['#F7C49F', '#E99B8E'] as string[], innerColors: ['#8A153E', '#B02352'] as string[], icon: '\u2764\uFE0F', label: 'CP' },
-                  { type: 'Best Friend' as const, outerColors: ['#BBF7D0', '#86EFAC'] as string[], innerColors: ['#166534', '#16A34A'] as string[], icon: '\uD83E\uDD1D', label: 'Best Friend' },
-                  { type: 'Besties' as const, outerColors: ['#FED7AA', '#FDBA74'] as string[], innerColors: ['#9A3412', '#EA580C'] as string[], icon: '\uD83D\uDC65', label: 'Besties' },
-                ]}
+              <ScrollView
+                ref={relationScrollRef}
                 horizontal
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
-                keyExtractor={(item) => item.type}
                 onMomentumScrollEnd={(e) => {
                   const idx = Math.round(e.nativeEvent.contentOffset.x / (SCREEN_WIDTH - 40));
                   setActiveRelationTab(idx);
                 }}
-                renderItem={({ item }) => {
+                scrollEventThrottle={16}
+              >
+                {([
+                  { type: 'CP' as const, outerColors: ['#F7C49F', '#E99B8E'] as string[], innerColors: ['#8A153E', '#B02352'] as string[], icon: '\u2764\uFE0F', label: 'CP' },
+                  { type: 'Best Friend' as const, outerColors: ['#BBF7D0', '#86EFAC'] as string[], innerColors: ['#166534', '#16A34A'] as string[], icon: '\uD83E\uDD1D', label: 'Best Friend' },
+                  { type: 'Besties' as const, outerColors: ['#FED7AA', '#FDBA74'] as string[], innerColors: ['#9A3412', '#EA580C'] as string[], icon: '\uD83D\uDC65', label: 'Besties' },
+                ] as const).map((item) => {
                   const isCP = item.type === 'CP';
                   const isBF = item.type === 'Best Friend';
                   const relData = isCP ? profile?.relationship : isBF ? profile?.bestFriend : profile?.besties;
@@ -612,7 +612,7 @@ export function FullProfileDialog({
                   const partnerAvatar = isCP ? relData?.partnerAvatar : relData?.avatarUrl;
 
                   return (
-                    <View style={{ width: SCREEN_WIDTH - 40 }}>
+                    <View key={item.type} style={{ width: SCREEN_WIDTH - 40 }}>
                       <LinearGradient colors={item.outerColors as any} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ borderRadius: 24, height: 146, overflow: 'hidden', position: 'relative' }}>
                         <LinearGradient colors={item.innerColors as any} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={{ position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, borderRadius: 42, paddingHorizontal: 16, paddingTop: 28, paddingBottom: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24, overflow: 'hidden' }}>
                           {/* Top Ribbon */}
@@ -742,8 +742,8 @@ export function FullProfileDialog({
                       </LinearGradient>
                     </View>
                   );
-                }}
-              />
+                })}
+              </ScrollView>
               {/* Dot Indicators */}
               <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 }}>
                 {[0, 1, 2].map(i => (
