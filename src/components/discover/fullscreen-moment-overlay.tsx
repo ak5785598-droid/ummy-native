@@ -7,7 +7,7 @@ import {
   ChevronUp, ChevronDown, MoreVertical
 } from 'lucide-react-native';
 import { Video, ResizeMode } from 'expo-av';
-import { useFirestore, useUser } from '../../firebase/provider';
+import { useFirestore, useUser, useDoc } from '../../firebase/provider';
 import { doc, serverTimestamp, increment, runTransaction, collection, addDoc, deleteDoc } from '@/firebase/firestore-compat';
 import { Moment } from '../../lib/types';
 import * as Clipboard from 'expo-clipboard';
@@ -30,6 +30,7 @@ export function FullscreenMomentOverlay({
 }: FullscreenMomentOverlayProps) {
   const { user } = useUser();
   const firestore = useFirestore();
+  const { data: myProfile } = useDoc(user?.uid ? doc(firestore, 'users', user.uid, 'profile', user.uid) : null);
 
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isMuted, setIsMuted] = useState(true);
@@ -132,7 +133,7 @@ export function FullscreenMomentOverlay({
         targetAuthorName: currentMoment.username,
         reason: reason,
         reporterId: user.uid,
-        reporterName: user.displayName || 'User',
+        reporterName: myProfile?.username || 'User',
         status: 'pending',
         timestamp: serverTimestamp()
       });

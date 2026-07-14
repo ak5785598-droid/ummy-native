@@ -305,10 +305,10 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
       } else if (data && data.name) {
         setProfileName(data.name);
       } else {
-        setProfileName(user.displayName || 'Looter');
+        setProfileName('Looter');
       }
     }, () => {
-      setProfileName(user.displayName || 'Looter');
+      setProfileName('Looter');
     });
     return () => unsub();
   }, [visible, firestore, user?.uid]);
@@ -596,7 +596,7 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
         const userScoreRef = databaseRef(database, `rooms/${roomId}/lootGates/${levelIndex}/scores/${user.uid}`);
         rtdbSet(userScoreRef, {
           uid: user.uid,
-          name: profileName || user.displayName || 'Looter',
+          name: profileName || 'Looter',
           avatar: user.photoURL || '',
           score: accumulatedScoreRef.current
         }).catch(err => console.log('RTDB Score Sync Failed:', err));

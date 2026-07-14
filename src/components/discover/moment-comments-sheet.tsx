@@ -18,6 +18,7 @@ interface MomentCommentsSheetProps {
 export function MomentCommentsSheet({ momentId, visible, onClose }: MomentCommentsSheetProps) {
   const { user } = useUser();
   const firestore = useFirestore();
+  const { data: myProfile } = useDoc(user?.uid ? doc(firestore, 'users', user.uid, 'profile', user.uid) : null);
 
   const [text, setText] = useState('');
   const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null);
@@ -58,7 +59,7 @@ export function MomentCommentsSheet({ momentId, visible, onClose }: MomentCommen
         {
           text: text.trim(),
           userId: user.uid,
-          username: user.displayName || 'User',
+          username: (myProfile as any)?.username || 'User',
           avatarUrl: user.photoURL || '',
           parentId: replyTo?.id || null,
           likesCount: 0,

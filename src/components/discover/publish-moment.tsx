@@ -76,7 +76,7 @@ export function PublishMoment({ visible, onClose }: PublishMomentProps) {
 
       const momentData: any = {
         userId: user.uid,
-        username: profile?.username || user.displayName || 'Tribe Member',
+        username: profile?.username || 'Tribe Member',
         avatarUrl: profile?.avatarUrl || user.photoURL || '',
         userLevel: getLevelFromSpent(profile?.wallet?.totalSpent || 0),
         userCountry: profile?.country || 'IN',

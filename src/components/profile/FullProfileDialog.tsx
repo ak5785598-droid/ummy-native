@@ -364,7 +364,7 @@ export function FullProfileDialog({
       const proposalId = `${user.uid}_${cpSelectedUser.id}_${Date.now()}`;
       await setDoc(doc(firestore, 'proposals', proposalId), {
         fromUid: user.uid,
-        fromUsername: ownProfile?.username || user.displayName || 'User',
+        fromUsername: ownProfile?.username || 'User',
         fromAvatarUrl: ownProfile?.avatarUrl || user.photoURL || null,
         toUid: cpSelectedUser.id,
         toUsername: cpSelectedUser.username,
@@ -474,7 +474,7 @@ export function FullProfileDialog({
             </View>
 
             {/* Level Badges + ID Row */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 6, marginTop: 8, overflow: 'visible' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 2, marginTop: 8, overflow: 'visible' }}>
               <TouchableOpacity onPress={handleCopyId}>
                 {hasOfficialTag ? (
                   <SVGA_GlossyID label={`ID: ${displayId}`} />
@@ -1063,7 +1063,7 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user, onView
       await setDoc(supportRef, {
         receiverId: profileId,
         supporterId: user.uid,
-        supporterName: myProfile?.username || user.displayName || 'User',
+        supporterName: myProfile?.username || 'User',
         supporterAvatar: myProfile?.avatarUrl || '',
         totalPoints: increment(60),
         ...(resetWeekly ? { weeklyPoints: 60 } : { weeklyPoints: increment(60) }),

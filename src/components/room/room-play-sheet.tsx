@@ -82,7 +82,7 @@ export function RoomPlaySheet({ visible, onClose, roomId, room, participants, on
           onPress: async () => {
             setIsClearingChat(true);
             try {
-              const currentName = userProfile?.username || user.displayName || 'Admin';
+              const currentName = userProfile?.username || 'Admin';
               if (database) {
                 await databaseSet(databaseRef(database, `roomMessages/${roomId}`), null);
                 const sysMsgRef = databasePush(databaseRef(database, `roomMessages/${roomId}`));
@@ -144,7 +144,7 @@ export function RoomPlaySheet({ visible, onClose, roomId, room, participants, on
         type: 'upload',
         size: asset.size || 0,
         uploadedBy: user.uid,
-        uploaderName: userProfile?.username || user.displayName || 'User',
+        uploaderName: userProfile?.username || 'User',
         createdAt: serverTimestamp(),
       });
       Alert.alert('Success', `${filename} added to room library.`);

@@ -146,18 +146,30 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
           const entryType = userProfile?.svipPrivileges?.entranceType || inventoryEntryType;
           const entryVideoUrl = userProfile?.svipPrivileges?.entranceUrl || inventoryEntryVideoUrl;
           
-          const newMsgRef = push(ref(database, `roomMessages/${roomId}`));
+                    const newMsgRef = push(ref(database, `roomMessages/${roomId}`));
           set(newMsgRef, {
             id: newMsgRef.key,
             type: 'entrance', 
             senderId: uid, 
-            senderName: userProfile?.username || user.displayName || 'Anonymous',
+            senderName: userProfile?.username || 'Anonymous',
             senderAvatar: filterBase64(userProfile?.avatarUrl) || user.photoURL || null,
             mediaUrl: filterBase64(userProfile?.svipPrivileges?.entranceUrl || userProfile?.inventory?.activeEntryMediaUrl) || null,
             entryEffectType: entryType,
             entryVideoUrl: filterBase64(entryVideoUrl),
             content: 'entered the room', 
             timestamp: Date.now(),
+          }).catch(() => {});
+          
+          addDocumentNonBlocking(collection(firestore, 'chatRooms', roomId, 'messages'), {
+            type: 'entrance', 
+            senderId: uid, 
+            senderName: userProfile?.username || 'Anonymous',
+            senderAvatar: filterBase64(userProfile?.avatarUrl) || user.photoURL || null,
+            mediaUrl: filterBase64(userProfile?.svipPrivileges?.entranceUrl || userProfile?.inventory?.activeEntryMediaUrl) || null,
+            entryEffectType: entryType,
+            entryVideoUrl: filterBase64(entryVideoUrl),
+            content: 'entered the room', 
+            timestamp: serverTimestamp(),
           }).catch(() => {});
 
           const roomMsgsRef = ref(database, `roomMessages/${roomId}`);
@@ -308,6 +320,9 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
         set(presenceRef.current, null);
       }
 
+      // Always allow re-entry notification for this room
+      enteredRooms.delete(roomId);
+
       // Immediate cleanup - no delay to prevent ghost participants
       const currentActive = latestRoomRef.current.activeRoomId;
       const currentMinimized = latestRoomRef.current.minimizedRoomId;
@@ -332,7 +347,6 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
           }
           hasJoinedRef.current = false;
           lastRoomId.current = null;
-          enteredRooms.delete(roomId);
         })();
       }
     };
