@@ -23,10 +23,6 @@ const LOCAL_FRAME_ASSETS: Record<string, any> = {
   'basra_frame': require('../../../assets/images/basra_frame.png'),
   'top3family_topuser': require('../../../assets/images/top3family_topuser.png'),
   'top2family_topuser': require('../../../assets/images/top2family_topuser.png'),
-  'aristocracy_knight_frame': require('../../../assets/images/aristocracy_knight_frame.png'),
-  'aristocracy_duke_frame': require('../../../assets/images/aristocracy_duke_frame.png'),
-  'aristocracy_king_frame': require('../../../assets/images/aristocracy_king_frame.png'),
-  'aristocracy_emperor_frame': require('../../../assets/images/aristocracy_emperor_frame.png'),
 };
 
 function FrameDecorationAnimation({ type, frameSize }: { type: string; frameSize: number }) {

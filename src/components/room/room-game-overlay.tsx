@@ -140,6 +140,7 @@ export function RoomGameOverlay({ visible, gameId, onClose, roomId, isAdmin }: R
   const [winnerListData, setWinnerListData] = useState<any[]>([]);
   const [roundPopup, setRoundPopup] = useState<RoundPopupData | null>(null);
   const [popupCountdown, setPopupCountdown] = useState(5);
+  const [popupKey, setPopupKey] = useState(0); // used to re-trigger countdown on each new round
 
   const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
 
@@ -188,34 +189,39 @@ export function RoomGameOverlay({ visible, gameId, onClose, roomId, isAdmin }: R
     }
   }, [visible]);
 
+  // Bug fix: use popupKey (number) as dep instead of roundPopup !== null (boolean)
+  // Boolean expressions don't re-trigger useEffect properly in React
   useEffect(() => {
-    if (roundPopup) {
-      setPopupCountdown(5);
-      const countTimer = setInterval(() => {
-        setPopupCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(countTimer);
-            setRoundPopup(null);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => clearInterval(countTimer);
-    }
-  }, [roundPopup !== null]);
+    if (!roundPopup) return;
+    setPopupCountdown(5);
+    const countTimer = setInterval(() => {
+      setPopupCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(countTimer);
+          setRoundPopup(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(countTimer);
+  }, [popupKey]); // re-runs each time a new round popup appears
 
   const handleRoundEnd = useCallback(async (data: { resultText: string; resultEmoji: string; resultImage?: any; myPrize?: number; myWager?: number }) => {
+    // Set popup immediately and bump key to re-trigger countdown
     setRoundPopup({ resultText: data.resultText, resultEmoji: data.resultEmoji, resultImage: data.resultImage, myPrize: data.myPrize || 0, myWager: data.myWager || 0, winners: [] });
+    setPopupKey(k => k + 1);
 
     if (!firestore || !gameId) return;
 
+    // Bug fix: wait 3s to give Firestore writes from all users time to complete
+    // Then fetch winners with 60s window (was 20s — too tight for slow networks)
     setTimeout(async () => {
       try {
         const q = query(
           collection(firestore, 'globalGameWins'),
           orderBy('timestamp', 'desc'),
-          limit(20)
+          limit(30)
         );
         const snap = await getDocs(q);
         const all: any[] = [];
@@ -224,12 +230,14 @@ export function RoomGameOverlay({ visible, gameId, onClose, roomId, isAdmin }: R
         const now = Date.now();
         const recent = all.filter(w => {
           if (w.gameId !== gameId) return false;
+          // No roomId filter — podium shows top 3 from entire app for this round
           if (!w.timestamp) return false;
           const ts = w.timestamp?.toDate?.() ?? new Date(w.timestamp);
           const age = now - ts.getTime();
-          return age < 20000; // 20 seconds (only winners of the current round)
+          return age < 60000; // 60s window to catch all users' wins for this round
         });
 
+        // Deduplicate — keep highest win per user
         const seen = new Map<string, any>();
         recent.forEach(w => {
           const existing = seen.get(w.userId);
@@ -244,8 +252,8 @@ export function RoomGameOverlay({ visible, gameId, onClose, roomId, isAdmin }: R
 
         setRoundPopup(prev => prev ? { ...prev, winners: sorted } : null);
       } catch (e) {}
-    }, 1500);
-  }, [firestore, gameId]);
+    }, 3000); // Bug fix: increased from 1.5s to 3s to wait for all Firestore writes
+  }, [firestore, gameId, roomId]);
 
   const fetchWinnerList = useCallback(async () => {
     if (!firestore || !gameId) return;

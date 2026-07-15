@@ -478,7 +478,7 @@ export default function ProfileScreen() {
               </View>
 
               {/* ID + Special Tags */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 6, flexWrap: 'wrap' }}>
                 <TouchableOpacity onPress={handleCopyId}>
                   {profile.tags?.includes('Official') ? (
                     <SVGA_GlossyID label={`ID: ${displayID}`} />
@@ -745,15 +745,16 @@ export default function ProfileScreen() {
         onChangeFrame={async (frameId: string, frameUrl: string | null) => {
           if (!firestore || !userId) return;
           try {
-            await setDocumentNonBlocking(doc(firestore, 'users', userId, 'profile', userId), { 'inventory.activeFrame': frameId, 'inventory.activeFrameMediaUrl': frameUrl || null }, { merge: true });
-          } catch {}
+            await updateDoc(doc(firestore, 'users', userId, 'profile', userId), { 'inventory.activeFrame': frameId, 'inventory.activeFrameMediaUrl': frameUrl || null });
+          } catch (e: any) { Alert.alert('Error', e?.message || 'Failed'); }
           setFullViewOpen(false);
         }}
         onRemoveFrame={async () => {
           if (!firestore || !userId) return;
           try {
-            await setDocumentNonBlocking(doc(firestore, 'users', userId, 'profile', userId), { 'inventory.activeFrame': 'None', 'inventory.activeFrameMediaUrl': null }, { merge: true });
-          } catch {}
+            await updateDoc(doc(firestore, 'users', userId, 'profile', userId), { 'inventory.activeFrame': 'None', 'inventory.activeFrameMediaUrl': null });
+          } catch (e: any) { Alert.alert('Error', e?.message || 'Failed'); }
+          setFullViewOpen(false);
         }}
         onChat={(p: any) => {
           setFullViewOpen(false);

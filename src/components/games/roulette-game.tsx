@@ -220,7 +220,7 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
       }, 10000);
 
     })();
-  }, [gameState, timeLeft, firestore, database, roomId, syncedRotation]);
+  }, [gameState, timeLeft]); // Bug fix: removed firestore/database/roomId/syncedRotation - re-subscribing caused race conditions
 
   // Real-time RTD Sync (Locks state globally with room players)
   useEffect(() => {

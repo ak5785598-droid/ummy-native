@@ -40,25 +40,28 @@ import { toCDN } from '@/lib/cdn';
 const { width } = Dimensions.get('window');
 
 // --- DATA STRUCTURES ---
+// SVIP Levels — 10 Coins = 1 SVIP Point
+// threshold: coins to reach level (SVIP Points × 10)
+// pointsBack: coins refunded monthly (Points Back × 10)
 const SVIP_LEVELS_DATA = [
-  { level: 1, name: 'SVIP 1', points: '1.5M', exp: 1500000, validity: '7 Days', maintPoints: '375K', maintExp: 375000, theme: 'owl' },
-  { level: 2, name: 'SVIP 2', points: '3.0M', exp: 3000000, validity: '7 Days', maintPoints: '375K', maintExp: 375000, theme: 'owl' },
-  { level: 3, name: 'SVIP 3', points: '6.25M', exp: 6250000, validity: '15 Days', maintPoints: '1.25M', maintExp: 1250000, theme: 'owl' },
-  { level: 4, name: 'SVIP 4', points: '12.5M', exp: 12500000, validity: '15 Days', maintPoints: '1.25M', maintExp: 1250000, theme: 'wolf' },
-  { level: 5, name: 'SVIP 5', points: '25.0M', exp: 25000000, validity: '15 Days', maintPoints: '1.25M', maintExp: 1250000, theme: 'wolf' },
-  { level: 6, name: 'SVIP 6', points: '50.0M', exp: 50000000, validity: '15 Days', maintPoints: '1.25M', maintExp: 1250000, theme: 'wolf' },
-  { level: 7, name: 'SVIP 7', points: '75.0M', exp: 75000000, validity: '30 Days', maintPoints: '5.0M', maintExp: 5000000, theme: 'scorpion' },
-  { level: 8, name: 'SVIP 8', points: '100.0M', exp: 100000000, validity: '30 Days', maintPoints: '5.0M', maintExp: 5000000, theme: 'scorpion' },
-  { level: 9, name: 'SVIP 9', points: '150.0M', exp: 150000000, validity: '30 Days', maintPoints: '5.0M', maintExp: 5000000, theme: 'scorpion' },
-  { level: 10, name: 'SVIP 10', points: '200.0M', exp: 200000000, validity: '30 Days', maintPoints: '5.0M', maintExp: 5000000, theme: 'lion' },
-  { level: 11, name: 'SVIP 11', points: '275.0M', exp: 275000000, validity: '45 Days', maintPoints: '20.0M', maintExp: 20000000, theme: 'lion' },
-  { level: 12, name: 'SVIP 12', points: '350.0M', exp: 350000000, validity: '45 Days', maintPoints: '20.0M', maintExp: 20000000, theme: 'lion' },
-  { level: 13, name: 'SVIP 13', points: '425.0M', exp: 425000000, validity: '45 Days', maintPoints: '20.0M', maintExp: 20000000, theme: 'tiger' },
-  { level: 14, name: 'SVIP 14', points: '500.0M', exp: 500000000, validity: '45 Days', maintPoints: '20.0M', maintExp: 20000000, theme: 'tiger' },
-  { level: 15, name: 'SVIP 15', points: '575.0M', exp: 575000000, validity: '45 Days', maintPoints: '20.0M', maintExp: 20000000, theme: 'tiger' },
-  { level: 16, name: 'SVIP 16', points: '650.0M', exp: 650000000, validity: '60 Days', maintPoints: '100.0M', maintExp: 100000000, theme: 'dragon' },
-  { level: 17, name: 'SVIP 17', points: '700.0M', exp: 700000000, validity: '60 Days', maintPoints: '100.0M', maintExp: 100000000, theme: 'dragon' },
-  { level: 18, name: 'SVIP 18', points: '750.0M', exp: 750000000, validity: '60 Days', maintPoints: '100.0M', maintExp: 100000000, theme: 'dragon' },
+  { level: 1,  name: 'SVIP 1',  points: '8.0M',  exp: 80000000,       pointsBack: '2.4M',  pointsBackExp: 24000000,    theme: 'owl' },
+  { level: 2,  name: 'SVIP 2',  points: '24.0M',  exp: 240000000,     pointsBack: '8.0M',  pointsBackExp: 80000000,    theme: 'owl' },
+  { level: 3,  name: 'SVIP 3',  points: '80.0M',  exp: 800000000,     pointsBack: '32.0M', pointsBackExp: 320000000,   theme: 'owl' },
+  { level: 4,  name: 'SVIP 4',  points: '200.0M', exp: 2000000000,     pointsBack: '80.0M', pointsBackExp: 800000000,   theme: 'wolf' },
+  { level: 5,  name: 'SVIP 5',  points: '400.0M', exp: 4000000000,     pointsBack: '200.0M', pointsBackExp: 2000000000,  theme: 'wolf' },
+  { level: 6,  name: 'SVIP 6',  points: '800.0M', exp: 8000000000,     pointsBack: '400.0M', pointsBackExp: 4000000000,  theme: 'wolf' },
+  { level: 7,  name: 'SVIP 7',  points: '1.36B',  exp: 13600000000,    pointsBack: '800.0M', pointsBackExp: 8000000000,  theme: 'scorpion' },
+  { level: 8,  name: 'SVIP 8',  points: '2.16B',  exp: 21600000000,    pointsBack: '1.36B', pointsBackExp: 13600000000,  theme: 'scorpion' },
+  { level: 9,  name: 'SVIP 9',  points: '3.6B',   exp: 36000000000,    pointsBack: '2.16B', pointsBackExp: 21600000000,  theme: 'scorpion' },
+  { level: 10, name: 'SVIP 10', points: '5.6B',   exp: 56000000000,    pointsBack: '3.6B',  pointsBackExp: 36000000000,  theme: 'lion' },
+  { level: 11, name: 'SVIP 11', points: '8.4B',   exp: 84000000000,    pointsBack: '5.6B',  pointsBackExp: 56000000000,  theme: 'lion' },
+  { level: 12, name: 'SVIP 12', points: '12.0B',  exp: 120000000000,   pointsBack: '8.4B',  pointsBackExp: 84000000000,  theme: 'lion' },
+  { level: 13, name: 'SVIP 13', points: '16.8B',  exp: 168000000000,   pointsBack: '12.0B', pointsBackExp: 120000000000, theme: 'tiger' },
+  { level: 14, name: 'SVIP 14', points: '22.4B',  exp: 224000000000,   pointsBack: '16.8B', pointsBackExp: 168000000000, theme: 'tiger' },
+  { level: 15, name: 'SVIP 15', points: '30.0B',  exp: 300000000000,   pointsBack: '22.4B', pointsBackExp: 224000000000, theme: 'tiger' },
+  { level: 16, name: 'SVIP 16', points: '40.0B',  exp: 400000000000,   pointsBack: '30.0B', pointsBackExp: 300000000000, theme: 'dragon' },
+  { level: 17, name: 'SVIP 17', points: '52.0B',  exp: 520000000000,   pointsBack: '40.0B', pointsBackExp: 400000000000, theme: 'dragon' },
+  { level: 18, name: 'SVIP 18', points: '68.0B',  exp: 680000000000,   pointsBack: '52.0B', pointsBackExp: 520000000000, theme: 'dragon' },
 ];
 
 const SVIP_PRIVILEGES_DATA = [
@@ -333,16 +336,16 @@ export default function VipsClubScreen() {
     const targetLevel = SVIP_LEVELS_DATA.find(l => l.level === selectedLevel);
     if (!targetLevel) return;
 
-    const currentSpent = userProfile?.wallet?.totalSpent || 0;
+    const monthlySpent = userProfile?.wallet?.monthlySpent || 0;
     const targetExp = targetLevel.exp;
 
-    if (currentSpent >= targetExp) {
+    if (monthlySpent >= targetExp) {
       Alert.alert('Already Reached', `You are already at or above SVIP ${selectedLevel}!`);
       return;
     }
 
-    const expNeeded = targetExp - currentSpent;
-    const cost = expNeeded; // 1:1 ratio — 1 coin = 1 EXP
+    const expNeeded = targetExp - monthlySpent;
+    const cost = expNeeded; // 1 coin = 1 EXP toward monthly target
 
     const currentCoins = userProfile?.wallet?.coins || 0;
     if (currentCoins < cost) {
@@ -352,7 +355,7 @@ export default function VipsClubScreen() {
 
     Alert.alert(
       'Confirm SVIP Purchase',
-      `Upgrade to SVIP ${selectedLevel}?\n\nCost: ${cost.toLocaleString('en-IN')} coins\nCurrent EXP: ${currentSpent.toLocaleString('en-IN')}\nNew EXP: ${targetExp.toLocaleString('en-IN')}`,
+      `Upgrade to SVIP ${selectedLevel}?\n\nCost: ${cost.toLocaleString('en-IN')} coins\nMonthly Spent: ${monthlySpent.toLocaleString('en-IN')}\nTarget: ${targetExp.toLocaleString('en-IN')}`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Buy Now', onPress: () => executeSvipPurchase(targetLevel, cost) },
@@ -381,10 +384,10 @@ export default function VipsClubScreen() {
       const userRef = doc(firestore, 'users', user.uid);
       const batch = writeBatch(firestore);
 
-      // Deduct coins + increment totalSpent (triggers autoPromoteSvip CF)
+      // Deduct coins + increment monthlySpent (triggers autoPromoteSvip CF)
       const purchaseUpdate = {
         'wallet.coins': increment(-cost),
-        'wallet.totalSpent': increment(cost),
+        'wallet.monthlySpent': increment(cost),
         updatedAt: serverTimestamp(),
       };
 
@@ -805,13 +808,13 @@ export default function VipsClubScreen() {
 
             <View className="mt-3 pt-2.5 border-t border-white/5 space-y-2">
               <View className="flex-row justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                <Text style={{ textShadowColor: 'rgba(0, 0, 0, 0.95)', textShadowOffset: { width: 1.5, height: 1.5 }, textShadowRadius: 3 }} className="text-white font-black">VIP EXP PROGRESS</Text>
-                <Text style={{ textShadowColor: 'rgba(0, 0, 0, 0.95)', textShadowOffset: { width: 1.5, height: 1.5 }, textShadowRadius: 3 }} className="text-yellow-400 font-black">{(userProfile?.wallet?.totalSpent || 0).toLocaleString()} / {(activeLevelData.exp / 1000000).toFixed(1)}M EXP</Text>
+                <Text style={{ textShadowColor: 'rgba(0, 0, 0, 0.95)', textShadowOffset: { width: 1.5, height: 1.5 }, textShadowRadius: 3 }} className="text-white font-black">SVIP POINTS PROGRESS</Text>
+                <Text style={{ textShadowColor: 'rgba(0, 0, 0, 0.95)', textShadowOffset: { width: 1.5, height: 1.5 }, textShadowRadius: 3 }} className="text-yellow-400 font-black">{Math.floor((userProfile?.wallet?.monthlySpent || 0) / 10).toLocaleString()} / {(activeLevelData.exp / 10).toLocaleString()} Points</Text>
               </View>
               <View className="h-2 bg-slate-950 rounded-full overflow-hidden border border-white/5">
                 <View 
                   className="h-full bg-yellow-400 rounded-full"
-                  style={{ width: `${Math.min(100, ((userProfile?.wallet?.totalSpent || 0) / activeLevelData.exp) * 100)}%` }}
+                  style={{ width: `${Math.min(100, ((userProfile?.wallet?.monthlySpent || 0) / activeLevelData.exp) * 100)}%` }}
                 />
               </View>
             </View>
@@ -1091,7 +1094,7 @@ export default function VipsClubScreen() {
               <View className="flex-row items-center justify-between pb-3 border-b border-white/5">
                 <View>
                   <Text className="text-sm font-black text-white uppercase tracking-wider">SVIP RULES & VALIDITY</Text>
-                  <Text className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Validity, Maintenance & EXP Guidelines</Text>
+                  <Text className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Monthly Points, Points Back & Upgrade Rules</Text>
                 </View>
                 <TouchableOpacity 
                   onPress={() => setIsRulesOpen(false)}
@@ -1102,26 +1105,52 @@ export default function VipsClubScreen() {
               </View>
 
               <ScrollView className="space-y-4" showsVerticalScrollIndicator={false}>
+                {/* Rule 1: How Points Work */}
                 <View className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-4">
-                  <Text className="text-yellow-400 text-[10px] font-black uppercase tracking-widest mb-1.5">1. EXP Earning Principles</Text>
-                  <Text className="text-slate-400 text-xs font-medium leading-relaxed">• Earn exactly 1 EXP for every 1 Coin purchased.</Text>
-                  <Text className="text-slate-400 text-xs font-medium leading-relaxed">• Points are added instantly to your total spent accumulation.</Text>
-                  <Text className="text-slate-400 text-xs font-medium leading-relaxed">• EXP deductions are made in case of processed chargebacks or refunds.</Text>
+                  <Text className="text-yellow-400 text-[10px] font-black uppercase tracking-widest mb-1.5">1. How SVIP Points Work</Text>
+                  <Text className="text-slate-400 text-xs font-medium leading-relaxed">• 10 Coins Recharge = 1 SVIP Point</Text>
+                  <Text className="text-slate-400 text-xs font-medium leading-relaxed">• SVIP Points = Monthly Spent ÷ 10</Text>
+                  <Text className="text-slate-400 text-xs font-medium leading-relaxed">• Points update instantly when you recharge</Text>
                 </View>
 
+                {/* Rule 2: Instant Upgrade */}
+                <View className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-4">
+                  <Text className="text-yellow-400 text-[10px] font-black uppercase tracking-widest mb-1.5">2. Instant Upgrade</Text>
+                  <Text className="text-slate-400 text-xs font-medium leading-relaxed">• Once upgrade point requirements are met, your SVIP level updates immediately</Text>
+                  <Text className="text-slate-400 text-xs font-medium leading-relaxed">• Your current SVIP level will be retained until the end of the next month</Text>
+                </View>
+
+                {/* Rule 3: Monthly Reset + Points Back */}
+                <View className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-4">
+                  <Text className="text-yellow-400 text-[10px] font-black uppercase tracking-widest mb-1.5">3. Monthly Reset & Points Back</Text>
+                  <Text className="text-slate-400 text-xs font-medium leading-relaxed">• On the 1st of each month, your SVIP points reset</Text>
+                  <Text className="text-slate-400 text-xs font-medium leading-relaxed">• You receive Points Back based on your current level (see table below)</Text>
+                  <Text className="text-slate-400 text-xs font-medium leading-relaxed">• Points Back become your starting balance for the new month</Text>
+                  <Text className="text-slate-400 text-xs font-medium leading-relaxed">• Monthly spending limit resets to Points Back amount</Text>
+                </View>
+
+                {/* Rule 4: Monthly Maintenance */}
+                <View className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-4">
+                  <Text className="text-yellow-400 text-[10px] font-black uppercase tracking-widest mb-1.5">4. Monthly Maintenance</Text>
+                  <Text className="text-slate-400 text-xs font-medium leading-relaxed">• At the end of each month, your points are checked against your current level</Text>
+                  <Text className="text-slate-400 text-xs font-medium leading-relaxed">• If your points don't meet the requirement, you'll be downgraded to the highest qualifying level</Text>
+                  <Text className="text-slate-400 text-xs font-medium leading-relaxed">• Downgrade happens on the 1st of the next month during reset</Text>
+                </View>
+
+                {/* Level Thresholds Table */}
                 <View className="space-y-2 mb-4">
-                  <Text className="text-yellow-400 text-[10px] font-black uppercase tracking-widest ml-1">2. Level Threshold EXP Table</Text>
+                  <Text className="text-yellow-400 text-[10px] font-black uppercase tracking-widest ml-1">5. Level Thresholds & Points Back</Text>
                   <View className="border border-white/5 rounded-2xl overflow-hidden bg-slate-900/60">
                     <View className="flex-row bg-white/5 py-2 px-3 border-b border-white/5">
-                      <Text className="flex-1 text-slate-400 text-[9px] font-black uppercase">Level</Text>
-                      <Text className="flex-1 text-slate-400 text-[9px] font-black uppercase text-center">EXP Required</Text>
-                      <Text className="flex-1 text-slate-400 text-[9px] font-black uppercase text-right">Animal Theme</Text>
+                      <Text className="flex-[0.6] text-slate-400 text-[9px] font-black uppercase">Level</Text>
+                      <Text className="flex-1 text-slate-400 text-[9px] font-black uppercase text-center">Coins Required</Text>
+                      <Text className="flex-1 text-slate-400 text-[9px] font-black uppercase text-right">Points Back</Text>
                     </View>
                     {SVIP_LEVELS_DATA.map((lvl) => (
                       <View key={lvl.level} className="flex-row py-2 px-3 border-b border-white/5">
-                        <Text className="flex-1 text-white text-[10px] font-bold">SVIP {lvl.level}</Text>
-                        <Text className="flex-1 text-yellow-400 text-[10px] font-bold text-center">{lvl.points} EXP</Text>
-                        <Text className="flex-1 text-slate-400 text-[9px] font-bold text-right uppercase">{lvl.theme}</Text>
+                        <Text className="flex-[0.6] text-white text-[10px] font-bold">SVIP {lvl.level}</Text>
+                        <Text className="flex-1 text-yellow-400 text-[10px] font-bold text-center">{lvl.points}</Text>
+                        <Text className="flex-1 text-emerald-400 text-[10px] font-bold text-right">{lvl.pointsBack}</Text>
                       </View>
                     ))}
                   </View>
@@ -1160,13 +1189,13 @@ export default function VipsClubScreen() {
                   {renderSvipStrip(userSvipLevel)}
                 </View>
                 <View className="flex-row justify-between items-center">
-                  <Text className="text-[10px] font-bold text-slate-400">EXP</Text>
-                  <Text className="text-yellow-400 text-xs font-black">{(userProfile?.wallet?.totalSpent || 0).toLocaleString('en-IN')} / {(activeLevelData.exp).toLocaleString('en-IN')}</Text>
+                  <Text className="text-[10px] font-bold text-slate-400">SVIP Points</Text>
+                  <Text className="text-yellow-400 text-xs font-black">{Math.floor((userProfile?.wallet?.monthlySpent || 0) / 10).toLocaleString('en-IN')} / {(activeLevelData.exp / 10).toLocaleString('en-IN')}</Text>
                 </View>
                 <View className="h-2 bg-slate-950 rounded-full overflow-hidden border border-white/5 mt-2">
                   <View 
                     className="h-full bg-yellow-400 rounded-full"
-                    style={{ width: `${Math.min(100, ((userProfile?.wallet?.totalSpent || 0) / activeLevelData.exp) * 100)}%` }}
+                    style={{ width: `${Math.min(100, ((userProfile?.wallet?.monthlySpent || 0) / activeLevelData.exp) * 100)}%` }}
                   />
                 </View>
                 <View className="flex-row justify-between items-center mt-2">
@@ -1180,11 +1209,11 @@ export default function VipsClubScreen() {
                 <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Select Target Level</Text>
                 <View className="space-y-2">
                   {SVIP_LEVELS_DATA.map((lvl) => {
-                    const currentSpent = userProfile?.wallet?.totalSpent || 0;
-                    const isAlreadyReached = currentSpent >= lvl.exp;
+                    const monthlySpent = userProfile?.wallet?.monthlySpent || 0;
+                    const svipPoints = Math.floor(monthlySpent / 10);
+                    const isAlreadyReached = svipPoints >= (lvl.exp / 10);
                     const isSelected = selectedLevel === lvl.level;
-                    const isNextUnlocked = lvl.level === userSvipLevel + 1 || isAlreadyReached;
-                    const cost = isAlreadyReached ? 0 : Math.max(0, lvl.exp - currentSpent);
+                    const cost = isAlreadyReached ? 0 : Math.max(0, lvl.exp - monthlySpent);
 
                     return (
                       <TouchableOpacity
@@ -1227,9 +1256,9 @@ export default function VipsClubScreen() {
               <View className="pt-2">
                 <TouchableOpacity
                   onPress={handlePurchaseSvip}
-                  disabled={isPurchasing || (userProfile?.wallet?.totalSpent || 0) >= (SVIP_LEVELS_DATA.find(l => l.level === selectedLevel)?.exp || 0)}
+                  disabled={isPurchasing || (userProfile?.wallet?.monthlySpent || 0) >= (SVIP_LEVELS_DATA.find(l => l.level === selectedLevel)?.exp || 0)}
                   className={`h-14 rounded-2xl items-center justify-center flex-row gap-2 ${
-                    (userProfile?.wallet?.totalSpent || 0) >= (SVIP_LEVELS_DATA.find(l => l.level === selectedLevel)?.exp || 0)
+                    (userProfile?.wallet?.monthlySpent || 0) >= (SVIP_LEVELS_DATA.find(l => l.level === selectedLevel)?.exp || 0)
                       ? 'bg-slate-800' : themeColors.btnBg
                   }`}
                 >
@@ -1239,14 +1268,14 @@ export default function VipsClubScreen() {
                     <>
                       <Zap size={16} color="#fff" fill="#fff" />
                       <Text className="text-white font-black text-sm uppercase tracking-wider">
-                        {(userProfile?.wallet?.totalSpent || 0) >= (SVIP_LEVELS_DATA.find(l => l.level === selectedLevel)?.exp || 0)
+                        {(userProfile?.wallet?.monthlySpent || 0) >= (SVIP_LEVELS_DATA.find(l => l.level === selectedLevel)?.exp || 0)
                           ? 'Already Reached' : `Buy SVIP ${selectedLevel}`
                         }
                       </Text>
                     </>
                   )}
                 </TouchableOpacity>
-                <Text className="text-[8px] text-slate-500 text-center mt-2 font-bold">1 Coin = 1 EXP. Upgrade is instant.</Text>
+                <Text className="text-[8px] text-slate-500 text-center mt-2 font-bold">10 Coins = 1 SVIP Point. Upgrade is instant.</Text>
               </View>
             </View>
           </View>

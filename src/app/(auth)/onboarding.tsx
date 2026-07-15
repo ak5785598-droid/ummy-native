@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Check, Camera, ChevronRight, Globe, User } from 'lucide-react-native';
 import { useUser, useFirestore } from '../../firebase/provider';
-import { doc, serverTimestamp, setDoc } from '@/firebase/firestore-compat';
+import { doc, serverTimestamp, setDoc, arrayUnion } from '@/firebase/firestore-compat';
 
 const { width, height } = Dimensions.get('window');
 
@@ -74,8 +74,9 @@ export default function OnboardingScreen() {
         },
         inventory: {
           activeFrame: 'aristocracy_knight_frame',
-          activeFrameMediaUrl: 'aristocracy_knight_frame',
-          frameExpiry: Date.now() + 3 * 24 * 60 * 60 * 1000 // 3 days welcome frame
+          activeFrameMediaUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_knight_frame.png?alt=media',
+          frameExpiry: Date.now() + 3 * 24 * 60 * 60 * 1000,
+          ownedItems: ['aristocracy_knight_frame'],
         },
         updatedAt: serverTimestamp(),
       };
@@ -107,7 +108,7 @@ export default function OnboardingScreen() {
                 <TouchableOpacity
                   key={a.id}
                   onPress={() => setSelectedAvatar(a)}
-                  className={`w-16 h-16 rounded-2xl items-center justify-center ${selectedAvatar.id === a.id ? 'border-2 border-white' : 'border border-white/20'}`}
+                  className={`w-16 h-16 rounded-2xl items-center justify-center ${selectedAvatar.id === a.id ? 'border-2 border-white bg-white/25' : 'border border-white/25 bg-black/20'}`}
                   style={{ backgroundColor: a.color + '40' }}
                 >
                   <Text className="text-3xl">{a.emoji}</Text>
@@ -115,7 +116,7 @@ export default function OnboardingScreen() {
               ))}
             </View>
             <View className="items-center">
-              <View className="w-28 h-28 rounded-full items-center justify-center mb-4 border-2 border-white/30" style={{ backgroundColor: selectedAvatar.color + '60' }}>
+              <View className="w-28 h-28 rounded-full items-center justify-center mb-4 border-2 border-white/40" style={{ backgroundColor: selectedAvatar.color + '80' }}>
                 <Text className="text-6xl">{selectedAvatar.emoji}</Text>
               </View>
             </View>
@@ -127,19 +128,19 @@ export default function OnboardingScreen() {
             <Text className="text-2xl font-bold text-white text-center mb-2">Your Username</Text>
             <Text className="text-sm text-white/70 text-center mb-8">This is how others will see you</Text>
             <View className="w-full max-w-sm">
-              <View className="flex-row items-center bg-white/10 border border-white/20 rounded-2xl px-4">
-                <User size={20} color="rgba(255,255,255,0.5)" />
+              <View className="flex-row items-center bg-black/30 border border-white/30 rounded-2xl px-4">
+                <User size={20} color="rgba(255,255,255,0.7)" />
                 <TextInput
                   value={username}
                   onChangeText={setUsername}
                   maxLength={24}
                   placeholder="Enter username"
-                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  placeholderTextColor="rgba(255,255,255,0.5)"
                   className="flex-1 h-14 ml-3 text-white text-lg font-bold"
                   autoCapitalize="none"
                 />
               </View>
-              <Text className="text-xs text-white/50 mt-2 ml-1">{username.length}/24 characters</Text>
+              <Text className="text-xs text-white/70 mt-2 ml-1">{username.length}/24 characters</Text>
             </View>
           </View>
         );
@@ -153,7 +154,7 @@ export default function OnboardingScreen() {
                 <TouchableOpacity
                   key={g}
                   onPress={() => setGender(g)}
-                  className={`flex-1 h-20 rounded-2xl items-center justify-center border-2 ${gender === g ? 'border-white bg-white/20' : 'border-white/10 bg-white/5'}`}
+                  className={`flex-1 h-20 rounded-2xl items-center justify-center border-2 ${gender === g ? 'border-white bg-white/25' : 'border-white/20 bg-black/20'}`}
                 >
                   <Text className={`text-lg font-bold ${gender === g ? 'text-white' : 'text-white/60'}`}>{g}</Text>
                 </TouchableOpacity>
@@ -171,7 +172,7 @@ export default function OnboardingScreen() {
                 <TouchableOpacity
                   key={c}
                   onPress={() => setCountry(c)}
-                  className={`w-full h-14 px-4 rounded-xl flex-row items-center justify-between mb-2 ${country === c ? 'bg-white/20 border border-white/30' : 'bg-white/5 border border-white/10'}`}
+                  className={`w-full h-14 px-4 rounded-xl flex-row items-center justify-between mb-2 ${country === c ? 'bg-white/25 border border-white/40' : 'bg-black/20 border border-white/15'}`}
                 >
                   <View className="flex-row items-center">
                     <Globe size={18} color={country === c ? 'white' : 'rgba(255,255,255,0.5)'} />
@@ -192,7 +193,7 @@ export default function OnboardingScreen() {
   }
 
   return (
-    <View className="flex-1">
+    <View className="flex-1 bg-[#0a0026]">
       <LinearGradient colors={['#0a0026', '#B027FF', '#6b0643']} className="absolute inset-0" />
       <View className="absolute inset-0 bg-black/30" />
 

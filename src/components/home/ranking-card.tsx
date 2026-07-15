@@ -126,17 +126,31 @@ export function RankingCard({ onPress }: RankingCardProps) {
 
   const topUsersTotalQuery = useMemo(() => {
     if (!firestore || !isHydrated) return null;
+    // Bug fix: Added where clause so users missing wallet.totalSpent field are excluded properly
     return query(
       collection(firestore, 'users'),
+      where('wallet.totalSpent', '>', 0),
       orderBy('wallet.totalSpent', 'desc'),
       limit(3)
     );
   }, [firestore, isHydrated]);
 
-  const { data: topUsersDaily } = useCollection(topUsersDailyQuery);
-  const { data: topUsersTotal } = useCollection(topUsersTotalQuery);
-  // Use daily if has data, else fallback to all-time total spenders
-  const topUsers = (topUsersDaily && topUsersDaily.length > 0) ? topUsersDaily : (topUsersTotal || []);
+  const { data: topUsersDaily, loading: dailyLoading } = useCollection(topUsersDailyQuery);
+  const { data: topUsersTotal, loading: totalLoading } = useCollection(topUsersTotalQuery);
+
+  // Bug fix: Only switch to fallback AFTER both queries have finished loading.
+  // Previously this caused a race condition where daily returned [] during load
+  // and total wasn't ready yet, making topUsers empty and podium disappear.
+  const topUsers = useMemo(() => {
+    // While either query is still loading, keep whatever data we have
+    if (dailyLoading && totalLoading) return [];
+    // If daily has real data, use it
+    if (topUsersDaily && topUsersDaily.length > 0) return topUsersDaily;
+    // Daily is confirmed empty (dailySpent reset) — fall back to all-time total
+    if (!dailyLoading) return topUsersTotal || [];
+    // Daily still loading, use total if available
+    return topUsersTotal || [];
+  }, [topUsersDaily, topUsersTotal, dailyLoading, totalLoading]);
   const [mode, setMode] = useState<'carousel' | 'podium'>('carousel');
   const [activeIndex, setActiveIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;

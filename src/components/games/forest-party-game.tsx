@@ -224,7 +224,7 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
       }, 12000);
 
     })();
-  }, [gameState, timeLeft, firestore, database, roomId]);
+  }, [gameState, timeLeft]); // Bug fix: removed extra deps that caused re-fires
 
   // Real-time RTD Sync (Locks state globally with room players)
   useEffect(() => {
@@ -264,19 +264,20 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
       if (data.history) setHistory(data.history);
       if (data.roundStartTime) setRoundStartTime(data.roundStartTime);
 
-      if (status === 'spinning' && gameState !== 'spinning' && data.winningId) {
+      if (status === 'spinning' && data.winningId) {
         startSpin(data.winningId, data.groupType || 'none');
-      } else if (status === 'betting' && gameState === 'result') {
+      } else if (status === 'betting') {
         setMyBets({});
         setWinnerData(null);
+        spinInitiatedRef.current = false;
         setGameState('betting');
-      } else if (status !== 'spinning') {
-        setGameState(status);
+      } else if (status === 'result') {
+        setGameState('result');
       }
     });
 
     return () => unsub();
-  }, [database, roomId, gameState]);
+  }, [database, roomId]); // Bug fix: removed gameState — stable listener
 
   useEffect(() => {
     let spinLoop: Animated.CompositeAnimation | null = null;
@@ -443,6 +444,7 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
       }
     }
 
+    // Local UI cleanup only — RTD listener handles setGameState('betting') + roundStartTime reset
     setTimeout(() => {
       setWinnerData(null);
       setShiningGroup('none');
@@ -450,8 +452,6 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
       setMyBets({});
       setHighlightIdx(null);
       setDroppedChips([]);
-      setGameState('betting');
-      setTimeLeft(30);
     }, 5000);
   };
 

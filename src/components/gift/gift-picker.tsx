@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import { View, Text, Modal, TouchableOpacity, ScrollView, Vibration, Dimensions, Alert, Animated, Easing } from 'react-native';
 import { X, ChevronDown, Zap, Send } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useFirestore, useUser, useCollection, useMemoFirebase } from '../../firebase/provider';
+import { useFirestore, useUser, useCollection, useMemoFirebase, useDatabase } from '../../firebase/provider';
 import { CosmicExplosion } from './gift-cosmic-explosion';
 import { collection, query, orderBy, doc, serverTimestamp, writeBatch, increment, getDoc, setDoc, Timestamp, arrayUnion } from '@/firebase/firestore-compat';
 import { useUserProfile } from '../../hooks/use-user-profile';
@@ -89,6 +89,7 @@ const QUANTITIES = ['1', '10', '99', '520', '1314'];
 
 export function GiftPicker({ visible, onClose, roomId, participants, initialRecipient, onGiftSent, onLocalGiftEvent }: GiftPickerProps) {
   const firestore = useFirestore();
+  const database = useDatabase();
   const { user } = useUser();
   const { profile: userProfile } = useUserProfile(user?.uid);
 
@@ -260,6 +261,7 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
         senderName: userProfile?.username || 'User',
         receiverNames: recipientNames,
         giftName: gift.name,
+        giftImageUrl: gift.imageUrl || null,
         qty: qty,
         expiresAt: Timestamp.fromDate(expiresAtDate),
         timestamp: serverTimestamp(),
@@ -412,6 +414,8 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
       batch.update(roomRef, {
         'stats.totalGifts': increment(totalCost),
         'stats.dailyGifts': increment(totalCost),
+        'stats.weeklyGifts': increment(totalCost),
+        'stats.monthlyGifts': increment(totalCost),
         'rocket.progress': increment(totalCost),
         updatedAt: serverTimestamp(),
       });
@@ -483,6 +487,34 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
       });
 
       await batch.commit();
+
+      // ⚡ Write to RTD instantly — all users in room get animation with ~50ms delay
+      // This bypasses the slow Firestore listener path for receivers
+      try {
+        const { ref: dbRef, set: dbSet } = require('firebase/database');
+        if (database) {
+          const firstRecipientForAnim = participants.find(p => p.uid === validUids[0]);
+          const rtdEvt = {
+            id: msgRef.id,
+            type: 'gift',
+            senderId: user.uid,
+            senderName: userProfile?.username || user?.displayName || 'User',
+            senderAvatar: userProfile?.avatarUrl || user?.photoURL || null,
+            recipientName: firstRecipientForAnim?.name || 'User',
+            giftName: gift.name || null,
+            giftId: gift.id || null,
+            animationId: gift.animationId || null,
+            imageUrl: gift.imageUrl || null,
+            animationUrl: gift.animationUrl || null,
+            videoUrl: gift.videoUrl || null,
+            soundUrl: gift.soundUrl || null,
+            tier: gift.tier || 'normal',
+            quantity: qty,
+            timestamp: Date.now(),
+          };
+          dbSet(dbRef(database, `roomGifts/${roomId}/lastGift`), rtdEvt).catch(() => {});
+        }
+      } catch (e) {}
 
       // Track supporter points: 5 coins = 1 point for each recipient
       try {

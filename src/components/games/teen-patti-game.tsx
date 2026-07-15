@@ -3,10 +3,10 @@ import { View, Text, TouchableOpacity, ScrollView, Dimensions, Animated, Easing,
 import { X, Volume2, VolumeX, TrendingUp, Zap, Plus } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useUser } from '../../firebase/provider';
+import { useUser, useFirestore, useDatabase } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
-import { useFirestore } from '../../firebase/provider';
 import { doc, updateDoc, increment, addDoc, collection, getDoc, writeBatch } from '@/firebase/firestore-compat';
+import { ref as databaseRef, set as databaseSet, onValue, runTransaction as databaseTransaction } from 'firebase/database';
 
 import { GoldenCoin } from '../GoldenCoin';
 
@@ -41,6 +41,7 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
   const { user: currentUser } = useUser();
   const { profile: userProfile } = useUserProfile(currentUser?.uid);
   const firestore = useFirestore();
+  const database = useDatabase();
   const router = useRouter();
 
   const handleGoToWallet = () => {
@@ -49,6 +50,7 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
 
   const [gameState, setGameState] = useState<'launching' | 'betting' | 'reveal' | 'result'>('launching');
   const [timeLeft, setTimeLeft] = useState(20);
+  const [roundStartTime, setRoundStartTime] = useState<number | null>(null);
   const [selectedChip, setSelectedChip] = useState(10000);
   const [myBets, setMyBets] = useState<Record<string, number>>({ WOLF: 0, LION: 0, FISH: 0 });
   const [totalPots, setTotalPots] = useState<Record<string, number>>({ WOLF: 0, LION: 650000, FISH: 800000 });
@@ -61,13 +63,17 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
 
   const spinTimerRef = useRef<any>(null);
   const betTimerRef = useRef<any>(null);
+  const revealInitiatedRef = useRef(false); // RTD sync guard
   const pulseAnim = useRef(new Animated.Value(0.6)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const bgScaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    const t = setTimeout(() => setGameState('betting'), 1500);
+    const t = setTimeout(() => {
+      setGameState('betting');
+      setRoundStartTime(Date.now()); // set start time when betting begins
+    }, 1500);
     
     // Slow breathing / zoom animation for background image
     const bgLoop = Animated.loop(
@@ -95,12 +101,25 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
     if (userProfile?.wallet?.coins !== undefined) setLocalCoins(userProfile.wallet.coins);
   }, [userProfile?.wallet?.coins]);
 
+  // Bug fix: roundStartTime-based countdown — stable interval, not restarted every second
   useEffect(() => {
-    if (gameState !== 'betting') return;
-    if (timeLeft <= 0) { startReveal(); return; }
-    betTimerRef.current = setInterval(() => setTimeLeft(p => p - 1), 1000);
-    return () => clearInterval(betTimerRef.current);
-  }, [gameState, timeLeft]);
+    if (gameState !== 'betting' || !roundStartTime) return;
+    const updateTimer = () => {
+      const elapsed = Math.floor((Date.now() - roundStartTime) / 1000);
+      const remaining = Math.max(0, 20 - elapsed);
+      setTimeLeft(remaining);
+    };
+    updateTimer();
+    const iv = setInterval(updateTimer, 1000);
+    return () => clearInterval(iv);
+  }, [gameState, roundStartTime]); // stable — only re-runs when betting phase starts
+
+  // Trigger reveal when timer hits 0
+  useEffect(() => {
+    if (gameState === 'betting' && timeLeft === 0) {
+      startReveal();
+    }
+  }, [timeLeft, gameState]);
 
   useEffect(() => {
     let pulseLoop: Animated.CompositeAnimation | null = null;
@@ -135,9 +154,13 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
   };
 
   const startReveal = useCallback(async () => {
-    clearInterval(betTimerRef.current);
-    setGameState('reveal');
+    if (revealInitiatedRef.current) return;
+    revealInitiatedRef.current = true;
 
+    if (!database) return;
+    const gamePath = `games/teen_patti_${roomId || 'global'}`;
+
+    // Generate cards and winner
     const newCards: Record<string, { value: string; suit: string }[]> = {};
     FACTIONS.forEach(f => {
       newCards[f.id] = [
@@ -146,7 +169,6 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
         { value: CARD_VALUES[Math.floor(Math.random() * CARD_VALUES.length)], suit: CARD_SUITS[Math.floor(Math.random() * CARD_SUITS.length)] },
       ];
     });
-    setCardReveal(newCards);
 
     let winId = FACTIONS[Math.floor(Math.random() * FACTIONS.length)].id;
     if (firestore) {
@@ -160,16 +182,92 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
       } catch {}
     }
 
-    FACTIONS.forEach((f, fi) => {
-      [0, 1, 2].forEach((ci) => {
-        setTimeout(() => {
-          setFlippedCards(prev => ({ ...prev, [`${f.id}_${ci}`]: true }));
-        }, (fi * 3 + ci) * 200);
-      });
+    // Push to RTD so ALL users see same cards and winner
+    databaseTransaction(databaseRef(database, gamePath), (currentData) => {
+      if (currentData && currentData.status !== 'betting') return; // another user already triggered
+      return {
+        status: 'reveal',
+        winId,
+        cards: newCards,
+        roundStartTime: currentData?.roundStartTime || Date.now(),
+        updatedAt: Date.now(),
+      };
+    }).catch(() => { revealInitiatedRef.current = false; });
+
+    // After 3s reveal, push result to RTD
+    setTimeout(() => {
+      databaseTransaction(databaseRef(database, gamePath), (currentData) => {
+        if (!currentData || currentData.status !== 'reveal') return;
+        currentData.status = 'result';
+        currentData.updatedAt = Date.now();
+        return currentData;
+      }).catch(() => {});
+    }, 3000);
+
+    // After 8s total, reset to betting
+    setTimeout(() => {
+      databaseTransaction(databaseRef(database, gamePath), (currentData) => {
+        if (!currentData || currentData.status !== 'result') return;
+        return {
+          status: 'betting',
+          winId: null,
+          cards: null,
+          roundStartTime: Date.now(),
+          updatedAt: Date.now(),
+        };
+      }).catch(() => {});
+      revealInitiatedRef.current = false;
+    }, 8000);
+  }, [firestore, database, roomId]);
+
+  // RTD Sync — all users follow same game state
+  useEffect(() => {
+    if (!database) return;
+    const gamePath = `games/teen_patti_${roomId || 'global'}`;
+
+    const unsub = onValue(databaseRef(database, gamePath), (snap: any) => {
+      if (!snap.exists()) {
+        databaseSet(databaseRef(database, gamePath), {
+          status: 'betting',
+          winId: null,
+          cards: null,
+          roundStartTime: Date.now(),
+          updatedAt: Date.now(),
+        }).catch(() => {});
+        return;
+      }
+
+      const data = snap.val() as any;
+      const status = data.status || 'betting';
+
+      if (data.roundStartTime) setRoundStartTime(data.roundStartTime);
+
+      if (status === 'reveal' && data.cards && data.winId) {
+        // Show cards (same for all users)
+        setCardReveal(data.cards);
+        setGameState('reveal');
+        FACTIONS.forEach((f, fi) => {
+          [0, 1, 2].forEach((ci) => {
+            setTimeout(() => {
+              setFlippedCards(prev => ({ ...prev, [`${f.id}_${ci}`]: true }));
+            }, (fi * 3 + ci) * 200);
+          });
+        });
+        setTimeout(() => finalizeRound(data.winId), 2500);
+      } else if (status === 'betting') {
+        setMyBets({ WOLF: 0, LION: 0, FISH: 0 });
+        setTotalPots({ WOLF: 0, LION: 0, FISH: 0 });
+        setWinnerId(null);
+        setCardReveal({});
+        setFlippedCards({});
+        setTotalWinAmount(0);
+        revealInitiatedRef.current = false;
+        setGameState('betting');
+      }
     });
 
-    setTimeout(() => finalizeRound(winId), 2500);
-  }, [firestore, myBets, localCoins]);
+    return () => unsub();
+  }, [database, roomId]);
 
   const finalizeRound = async (winId: string) => {
     setWinnerId(winId);
@@ -205,17 +303,7 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
       setLocalCoins(p => p + winAmount);
     }
 
-    setTimeout(() => {
-      setMyBets({ WOLF: 0, LION: 0, FISH: 0 });
-      setTotalPots({ WOLF: 0, LION: 650000, FISH: 800000 });
-      setWinnerId(null);
-      setGameState('betting');
-      setTimeLeft(20);
-      setCardReveal({});
-      setFlippedCards({});
-      setTotalWinAmount(0);
-    }, 5000);
-
+    // RTD handles reset — local UI only
     const winnerEmoji = FACTIONS.find(f => f.id === winId)?.emoji || '🏆';
     const winnerLabel = FACTIONS.find(f => f.id === winId)?.label || 'Winner';
     const winnerImage = FACTIONS.find(f => f.id === winId)?.image;

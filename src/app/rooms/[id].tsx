@@ -82,6 +82,7 @@ import { useActivityTracker } from '../../hooks/use-activity-tracker';
 import { useMediaPreloader } from '../../hooks/use-media-preloader';
 import { useScreenWakeLock } from '../../hooks/use-screen-wake-lock';
 import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
 
 export default function RoomScreen() {
   const { id, name, coverUrl, backgroundUrl, roomThemeId, hasPassword } = useLocalSearchParams<{
@@ -298,6 +299,32 @@ export default function RoomScreen() {
     }
   };
   const [giftAnimEvents, setGiftAnimEvents] = useState<any[]>([]);
+  const processedRtdGiftIds = useRef<Set<string>>(new Set());
+
+  // ⚡ RTD-based INSTANT gift animation — no Firestore delay for receivers
+  useEffect(() => {
+    if (!database || !id) return;
+    const { ref: dbRef, onValue: dbOnValue } = require('firebase/database');
+    const giftRtdPath = dbRef(database, `roomGifts/${id}/lastGift`);
+
+    const unsub = dbOnValue(giftRtdPath, (snap: any) => {
+      if (!snap.exists()) return;
+      const evt = snap.val();
+      if (!evt || !evt.id) return;
+      // Deduplicate — don't fire same event twice
+      if (processedRtdGiftIds.current.has(evt.id)) return;
+      processedRtdGiftIds.current.add(evt.id);
+      // Limit set size
+      if (processedRtdGiftIds.current.size > 50) {
+        const arr = Array.from(processedRtdGiftIds.current);
+        processedRtdGiftIds.current = new Set(arr.slice(-25));
+      }
+      setGiftAnimEvents(prev => [...prev.slice(-5), evt]);
+    });
+
+    return () => unsub();
+  }, [database, id]);
+
   const [showLuckyRain, setShowLuckyRain] = useState(false);
   const [luckyRainAmount, setLuckyRainAmount] = useState(0);
   const [showEcho, setShowEcho] = useState(false);
@@ -327,8 +354,6 @@ export default function RoomScreen() {
     const unsubscribe = onSnapshot(q, (snap: any) => {
       if (snap && snap.docs.length > 0) {
         const data = snap.docs[0].data();
-        // Prevent showing broadcast from our own room
-        if (data.roomId === id) return;
 
         setActiveBroadcast(data);
 
@@ -1285,18 +1310,27 @@ export default function RoomScreen() {
                   }}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 }}>
-                    <View
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: 16,
-                        backgroundColor: '#fbbf24',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Text style={{ fontSize: 16 }}>🎁</Text>
-                    </View>
+                    {activeBroadcast.giftImageUrl ? (
+                      <Image
+                        cachePolicy="memory-disk"
+                        source={{ uri: toCDN(activeBroadcast.giftImageUrl) }}
+                        style={{ width: 32, height: 32, borderRadius: 16 }}
+                        contentFit="contain"
+                      />
+                    ) : (
+                      <View
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 16,
+                          backgroundColor: '#fbbf24',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Text style={{ fontSize: 16 }}>🎁</Text>
+                      </View>
+                    )}
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 8, color: '#facc15', fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                         ✨ Global Broadcast
@@ -1744,21 +1778,22 @@ export default function RoomScreen() {
         onChangeFrame={async (frameId: string, frameUrl: string | null) => {
           if (!firestore || !fullProfileUid) return;
           try {
-            await setDocumentNonBlocking(doc(firestore, 'users', fullProfileUid, 'profile', fullProfileUid), {
+            await updateDoc(doc(firestore, 'users', fullProfileUid, 'profile', fullProfileUid), {
               'inventory.activeFrame': frameId,
               'inventory.activeFrameMediaUrl': frameUrl || null,
-            }, { merge: true });
-          } catch {}
+            });
+          } catch (e: any) { Alert.alert('Error', e?.message || 'Failed'); }
           setShowFullProfile(false);
         }}
         onRemoveFrame={async () => {
           if (!firestore || !fullProfileUid) return;
           try {
-            await setDocumentNonBlocking(doc(firestore, 'users', fullProfileUid, 'profile', fullProfileUid), {
+            await updateDoc(doc(firestore, 'users', fullProfileUid, 'profile', fullProfileUid), {
               'inventory.activeFrame': 'None',
               'inventory.activeFrameMediaUrl': null,
-            }, { merge: true });
-          } catch {}
+            });
+          } catch (e: any) { Alert.alert('Error', e?.message || 'Failed'); }
+          setShowFullProfile(false);
         }}
         onViewProfile={(uid: string) => { setShowFullProfile(false); setTimeout(() => { setFullProfileUid(uid); setShowFullProfile(true); }, 100); }}
       />

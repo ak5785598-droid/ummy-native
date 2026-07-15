@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { X, ChevronLeft, ChevronRight, Camera, Mic, Shield, Palette, Lock, UserCheck, Tag, Sun, Sparkles, Volume2, MessageSquare, Loader, Crown, Trash2, Sparkle, FileText } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useFirestore, useUser, useCollection, useMemoFirebase, useDoc } from '../../firebase/provider';
-import { doc, serverTimestamp, arrayUnion, arrayRemove, collection, query, orderBy, updateDoc, deleteDoc, writeBatch } from '@/firebase/firestore-compat';
+import { doc, serverTimestamp, arrayUnion, arrayRemove, collection, query, orderBy, limit, updateDoc, deleteDoc, writeBatch, onSnapshot } from '@/firebase/firestore-compat';
 import rnfbStorage from '@react-native-firebase/storage';
 import { Room, RoomParticipant } from '../../lib/types';
 import { ROOM_THEMES } from '../../lib/themes';
@@ -556,18 +556,18 @@ function ThemePage({ room, themes, onSelect, onClose }: any) {
 }
 
 function getRoomAdminLimit(roomLevel: number, svipLevel: number) {
-  let limit = 3; // Base
-  limit += Math.floor((roomLevel || 0) / 5); // Room level bonus
+  let maxAdmins = 3; // Base
+  maxAdmins += Math.floor((roomLevel || 0) / 5); // Room level bonus
   if (svipLevel >= 10) {
-    limit += 10;
+    maxAdmins += 10;
   } else if (svipLevel >= 7) {
-    limit += 6;
+    maxAdmins += 6;
   } else if (svipLevel >= 4) {
-    limit += 4;
+    maxAdmins += 4;
   } else if (svipLevel >= 1) {
-    limit += 2;
+    maxAdmins += 2;
   }
-  return limit;
+  return maxAdmins;
 }
 
 function AdminPage({ room, participants, userProfile, onClose }: any) {

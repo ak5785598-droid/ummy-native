@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { UserLevelBadge } from '@/components/user-level-badge';
 import { getLevelFromSpent } from '@/hooks/use-user-level';
-import { View, Text, ScrollView, TouchableOpacity, Dimensions, Share, Animated, Easing, BackHandler } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Dimensions, Share, Animated, Easing, BackHandler, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Video, AVPlaybackStatus } from 'expo-av';
@@ -9,7 +9,7 @@ import { ChevronLeft, MoreHorizontal, Pencil, ChevronRight } from 'lucide-react-
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { useUser, useFirestore, useDoc } from '../../firebase/provider';
-import { collection, query, where, orderBy, limit, doc, serverTimestamp, setDoc, onSnapshot } from '@/firebase/firestore-compat';
+import { collection, query, where, orderBy, limit, doc, serverTimestamp, setDoc, updateDoc, onSnapshot } from '@/firebase/firestore-compat';
 import { autoAssignMedals } from '../../lib/auto-assign-medals';
 import firestore from '@react-native-firebase/firestore';
 import { PremiumDiamond } from '@/components/PremiumDiamond';
@@ -394,7 +394,7 @@ export default function ProfileScreen() {
 
               </View>
 
-              <View className="flex-row flex-wrap items-center gap-2 -mt-1.5">
+              <View className="flex-row flex-wrap items-center gap-1 -mt-1.5">
                 <TouchableOpacity onPress={handleCopyId}>
                   {profile.tags?.includes('Official') ? (
                     <SVGA_GlossyID label={`ID: ${displayID}`} />
@@ -507,7 +507,7 @@ export default function ProfileScreen() {
 
             <View className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
               <ProfileMenuItem icon={SVGA_Settings} label="Settings" iconColor="bg-slate-50" onPress={() => router.push('/settings')} />
-              <ProfileMenuItem icon={SVGA_HelpCenter} label="Help center" iconColor="bg-sky-50" onPress={() => router.push('/help-center' as any)} />
+              <ProfileMenuItem icon={SVGA_HelpCenter} label="Live Support Centre" iconColor="bg-sky-50" onPress={() => router.push('/help-center' as any)} />
               <ProfileMenuItem icon={SVGA_AboutInfo} label="About" iconColor="bg-slate-50" onPress={() => router.push('/about' as any)} />
             </View>
           </View>
@@ -521,13 +521,13 @@ export default function ProfileScreen() {
       <FullProfileDialog open={fullViewOpen} onOpenChange={setFullViewOpen} profile={profile} stats={stats} isOwnProfile={true} displayId={displayID} onViewProfile={(uid: string) => { setFullViewOpen(false); router.push(`/profile/${uid}`); }} onChangeFrame={async (frameId: string, frameUrl: string | null) => {
         if (!firestoreDb || !profileId) return;
         try {
-          await setDoc(doc(firestoreDb, 'users', profileId, 'profile', profileId), { 'inventory.activeFrame': frameId, 'inventory.activeFrameMediaUrl': frameUrl || null }, { merge: true });
-        } catch {}
+          await updateDoc(doc(firestoreDb, 'users', profileId, 'profile', profileId), { 'inventory.activeFrame': frameId, 'inventory.activeFrameMediaUrl': frameUrl || null });
+        } catch (e: any) { Alert.alert('Error', e?.message || 'Failed'); }
       }} onRemoveFrame={async () => {
         if (!firestoreDb || !profileId) return;
         try {
-          await setDoc(doc(firestoreDb, 'users', profileId, 'profile', profileId), { 'inventory.activeFrame': 'None', 'inventory.activeFrameMediaUrl': null }, { merge: true });
-        } catch {}
+          await updateDoc(doc(firestoreDb, 'users', profileId, 'profile', profileId), { 'inventory.activeFrame': 'None', 'inventory.activeFrameMediaUrl': null });
+        } catch (e: any) { Alert.alert('Error', e?.message || 'Failed'); }
       }} />
       <ReportUserDialog open={reportOpen} onOpenChange={setReportOpen} targetUser={profile} />
       <OfficialCenterDialog open={officialCenterOpen} onOpenChange={setOfficialCenterOpen} isAuthorized={isAuthorizedAdmin} />

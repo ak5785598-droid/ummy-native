@@ -409,16 +409,29 @@ export default function StoreScreen() {
     if (!firestore || q.length < 2) { setRecipientResults([]); return; }
     setIsSearchingRecipient(true);
     try {
-      const snap = await getDocs(query(
-        collection(firestore, 'users'),
-        where('username', '>=', q.toLowerCase()),
-        where('username', '<=', q.toLowerCase() + '\uf8ff'),
-        firestoreLimit(10)
-      ));
-      setRecipientResults(snap.docs
-        .map((d: any) => ({ uid: d.id, ...d.data() }))
-        .filter((u: any) => u.uid !== user?.uid)
-      );
+      const isNumeric = /^\d+$/.test(q.trim());
+      let results: any[] = [];
+
+      if (isNumeric) {
+        // accountNumber is stored as STRING in Firestore — must compare as string
+        const snap = await getDocs(query(
+          collection(firestore, 'users'),
+          where('accountNumber', '==', q.trim()),
+          firestoreLimit(10)
+        ));
+        results = snap.docs.map((d: any) => ({ uid: d.id, ...d.data() }));
+      } else {
+        // Search by username prefix match
+        const snap = await getDocs(query(
+          collection(firestore, 'users'),
+          where('username', '>=', q.toLowerCase()),
+          where('username', '<=', q.toLowerCase() + '\uf8ff'),
+          firestoreLimit(10)
+        ));
+        results = snap.docs.map((d: any) => ({ uid: d.id, ...d.data() }));
+      }
+
+      setRecipientResults(results.filter((u: any) => u.uid !== user?.uid));
     } catch {}
     setIsSearchingRecipient(false);
   };
@@ -1001,12 +1014,12 @@ export default function StoreScreen() {
               <X size={20} color="#64748b" />
             </TouchableOpacity>
             <Text style={[styles.modalItemName, { marginBottom: 12 }]}>Send as Gift</Text>
-            <Text style={[styles.modalItemDesc, { marginBottom: 12 }]}>Search username to send this frame</Text>
+            <Text style={[styles.modalItemDesc, { marginBottom: 12 }]}>Search by username or Ummy ID</Text>
 
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
               <View style={{ flex: 1, backgroundColor: '#f1f5f9', borderRadius: 12, paddingHorizontal: 14, height: 44, justifyContent: 'center' }}>
                 <TextInput
-                  placeholder="Search username..."
+                  placeholder="Search by username or ID..."
                   placeholderTextColor="#94a3b8"
                   value={recipientQuery}
                   onChangeText={(t) => { setRecipientQuery(t); searchRecipients(t); }}
@@ -1039,7 +1052,7 @@ export default function StoreScreen() {
                   )}
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 14, fontWeight: '700', color: '#0f172a' }}>{item.username || 'Unknown'}</Text>
-                    <Text style={{ fontSize: 11, color: '#94a3b8' }}>ID: {item.id || item.uid}</Text>
+                    <Text style={{ fontSize: 11, color: '#94a3b8' }}>ID: {item.accountNumber || item.uid}</Text>
                   </View>
                   {selectedRecipient?.uid === item.uid && <Check size={18} color="#10b981" />}
                 </TouchableOpacity>

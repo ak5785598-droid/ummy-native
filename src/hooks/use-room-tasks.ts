@@ -108,11 +108,15 @@ export function useRoomTasks(roomId: string, participants: RoomParticipant[], ro
   const updateTask = useCallback(async (taskId: string, incrementBy: number = 1) => {
     if (!firestore || !user?.uid) return;
     const task = ROOM_TASKS.find(t => t.id === taskId);
-    if (!task || claimedTasksRef.current.includes(taskId)) return;
-    const currentVal = (taskProgressRef.current[taskId] || 0) + incrementBy;
+    if (!task) return;
+    // Bug fix: Skip if already claimed OR already completed (prevents repeated assignment)
+    if (claimedTasksRef.current.includes(taskId)) return;
+    const currentProgress = taskProgressRef.current[taskId] || 0;
+    if (currentProgress >= task.target) return; // already complete, don't increment again
+    const currentVal = currentProgress + incrementBy;
     const isNowComplete = currentVal >= task.target;
     const taskRef = doc(firestore, 'users', user.uid, 'roomQuests', taskId);
-    await setDocumentNonBlocking(taskRef, { current: currentVal, target: task.target, isCompleted: isNowComplete, isClaimed: claimedTasksRef.current.includes(taskId), updatedAt: serverTimestamp() }, { merge: true });
+    await setDocumentNonBlocking(taskRef, { current: Math.min(currentVal, task.target), target: task.target, isCompleted: isNowComplete, isClaimed: false, updatedAt: serverTimestamp() }, { merge: true });
   }, [firestore, user?.uid]);
 
   const claimTask = useCallback(async (taskId: string) => {
@@ -137,32 +141,34 @@ export function useRoomTasks(roomId: string, participants: RoomParticipant[], ro
     if (!user?.uid || !participants) return;
     const isMeOnMic = participants.some(p => p.uid === user.uid && p.seatIndex > 0);
     if (isMeOnMic && !prevIsMeOnMic.current) {
-      if (micTimerRef.current) clearInterval(micTimerRef.current);
-      // Change timer interval to 1 minute (60000ms) to correctly track minutes
-      micTimerRef.current = setInterval(() => { updateTask('mic_10', 1); updateTask('mic_30', 1); updateTask('mic_60', 1); }, 60000);
+      // Bug fix: Only start timer if not already running — don't reset on participants change
+      if (!micTimerRef.current) {
+        micTimerRef.current = setInterval(() => { updateTask('mic_10', 1); updateTask('mic_30', 1); updateTask('mic_60', 1); }, 60000);
+      }
     } else if (!isMeOnMic && prevIsMeOnMic.current) {
       if (micTimerRef.current) { clearInterval(micTimerRef.current); micTimerRef.current = null; }
     }
     prevIsMeOnMic.current = isMeOnMic;
-    return () => { if (micTimerRef.current) clearInterval(micTimerRef.current); };
+    // Bug fix: No cleanup return here — cleanup only when user leaves mic, not on every participants render
   }, [participants, user?.uid, updateTask]);
 
   useEffect(() => {
     const usersOnMic = participants?.filter(p => p.seatIndex > 0) || [];
     const hasThreeOnMic = usersOnMic.length >= 3;
     if (hasThreeOnMic && !prevHasThreeOnMic.current) {
-      if (simMicTimerRef.current) clearInterval(simMicTimerRef.current);
-      // Change timer interval to 1 minute (60000ms) to correctly track minutes
-      simMicTimerRef.current = setInterval(() => {
-        updateTask('sim_mic_1', 1); updateTask('sim_mic_10', 1);
-        const newUsers = (participants || []).filter(p => p.seatIndex > 0 && p.joinedAt?.toDate?.() && (Date.now() - p.joinedAt.toDate().getTime()) < 86400000).length;
-        if (newUsers >= 3) updateTask('sim_mic_new_5', 1);
-      }, 60000);
+      // Bug fix: Only start timer if not already running
+      if (!simMicTimerRef.current) {
+        simMicTimerRef.current = setInterval(() => {
+          updateTask('sim_mic_1', 1); updateTask('sim_mic_10', 1);
+          const newUsers = (participants || []).filter(p => p.seatIndex > 0 && p.joinedAt?.toDate?.() && (Date.now() - p.joinedAt.toDate().getTime()) < 86400000).length;
+          if (newUsers >= 3) updateTask('sim_mic_new_5', 1);
+        }, 60000);
+      }
     } else if (!hasThreeOnMic && prevHasThreeOnMic.current) {
       if (simMicTimerRef.current) { clearInterval(simMicTimerRef.current); simMicTimerRef.current = null; }
     }
     prevHasThreeOnMic.current = hasThreeOnMic;
-    return () => { if (simMicTimerRef.current) clearInterval(simMicTimerRef.current); };
+    // Bug fix: No cleanup return — timer should persist across participants re-renders
   }, [participants, updateTask]);
 
   useEffect(() => {

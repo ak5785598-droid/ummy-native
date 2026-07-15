@@ -358,15 +358,16 @@ export default function MessagesScreen() {
         onChangeFrame={async (frameId: string, frameUrl: string | null) => {
           if (!firestore || !profileDialogUid) return;
           try {
-            await setDocumentNonBlocking(doc(firestore, 'users', profileDialogUid, 'profile', profileDialogUid), { 'inventory.activeFrame': frameId, 'inventory.activeFrameMediaUrl': frameUrl || null }, { merge: true });
-          } catch {}
+            await updateDoc(doc(firestore, 'users', profileDialogUid, 'profile', profileDialogUid), { 'inventory.activeFrame': frameId, 'inventory.activeFrameMediaUrl': frameUrl || null });
+          } catch (e: any) { Alert.alert('Error', e?.message || 'Failed'); }
           setProfileDialogUid(null);
         }}
         onRemoveFrame={async () => {
           if (!firestore || !profileDialogUid) return;
           try {
-            await setDocumentNonBlocking(doc(firestore, 'users', profileDialogUid, 'profile', profileDialogUid), { 'inventory.activeFrame': 'None', 'inventory.activeFrameMediaUrl': null }, { merge: true });
-          } catch {}
+            await updateDoc(doc(firestore, 'users', profileDialogUid, 'profile', profileDialogUid), { 'inventory.activeFrame': 'None', 'inventory.activeFrameMediaUrl': null });
+          } catch (e: any) { Alert.alert('Error', e?.message || 'Failed'); }
+          setProfileDialogUid(null);
         }}
       />
     </SafeAreaView>

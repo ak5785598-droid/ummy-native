@@ -13,6 +13,13 @@ import { AvatarFrame } from './AvatarFrame';
 import { toCDN } from '../../lib/cdn';
 import { isInventoryItemExpired } from '../../lib/types';
 import { ActiveIDBadge, SovereignIDBadge } from '@/components/native-id-badge';
+
+const ARISTOCRACY_FRAME_URLS: Record<string, string> = {
+  aristocracy_knight_frame: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_knight_frame.png?alt=media',
+  aristocracy_duke_frame: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_duke_frame.png?alt=media',
+  aristocracy_king_frame: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_king_frame.png?alt=media',
+  aristocracy_emperor_frame: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_emperor_frame.png?alt=media',
+};
 import { getLevelFromSpent } from '../../hooks/use-user-level';
 import {
   SVGA_OfficialTag,
@@ -241,7 +248,7 @@ export function FullProfileDialog({
   const { profile: ownProfile } = useUserProfile(user?.uid);
 
   const [copiedId, setCopiedId] = useState(false);
-  const [activeTab, setActiveTab] = useState<'gift' | 'medal' | 'vehicle' | 'frame'>('gift');
+  const [activeTab, setActiveTab] = useState<'gift' | 'medal' | 'entry' | 'frame'>('gift');
   const [activeRelationTab, setActiveRelationTab] = useState(0);
   const relationScrollRef = useRef<ScrollView>(null);
   const [showCpSearch, setShowCpSearch] = useState(false);
@@ -413,7 +420,14 @@ export function FullProfileDialog({
     ]);
   }, [firestore, user, profile?.relationship, onOpenChange]);
 
-  const ownedVehicles = useMemo(() => profile?.inventory?.ownedItems?.filter((id: string) => id.includes('vehicle') || id.includes('car')) || [], [profile?.inventory?.ownedItems]);
+  const ownedVehicles = useMemo(() => {
+    const owned = profile?.inventory?.ownedItems || [];
+    return owned.filter((id: string) => {
+      const item = storeItemsMap[id];
+      if (item && (item.category === 'Entry' || item.type === 'Entry')) return true;
+      return id.includes('entry') || id.includes('Entry');
+    });
+  }, [profile?.inventory?.ownedItems, storeItemsMap]);
   const ownedFrames = useMemo(() => {
     const owned = profile?.inventory?.ownedItems || [];
     const frames = owned.filter((id: string) => {
@@ -447,6 +461,21 @@ export function FullProfileDialog({
               <TouchableOpacity onPress={() => onOpenChange(false)} style={{ position: 'absolute', top: 40, left: 16, zIndex: 100, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' }}>
                 <ChevronLeft size={20} color="white" />
               </TouchableOpacity>
+              {/* 3-dot menu — Report */}
+              {!isOwnProfile && (
+                <TouchableOpacity onPress={() => {
+                  Alert.alert('Report User', `What would you like to report about ${profile.username}?`, [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Spam', onPress: () => onReport && onReport('spam') },
+                    { text: 'Inappropriate Content', onPress: () => onReport && onReport('inappropriate') },
+                    { text: 'Fake Profile', onPress: () => onReport && onReport('fake') },
+                    { text: 'Harassment', onPress: () => onReport && onReport('harassment') },
+                    { text: 'Other', onPress: () => onReport && onReport('other') },
+                  ]);
+                }} style={{ position: 'absolute', top: 40, right: 16, zIndex: 100, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' }}>
+                  <MoreHorizontal size={18} color="white" />
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* White Card â€” shifted up to overlap cover */}
@@ -544,21 +573,21 @@ export function FullProfileDialog({
             </View>
 
             {/* Rich & Charm Level Cards */}
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+            <View style={{ flexDirection: 'row', gap: 6, marginTop: 12, alignItems: 'stretch' }}>
               {/* Rich Level Card */}
-              <View style={{ flex: 1, borderRadius: 16, overflow: 'hidden' }}>
-                <LinearGradient colors={['#4338CA', '#6366F1', '#818CF8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ padding: 14, minHeight: 90 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                    <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ fontSize: 14 }}>💎</Text>
+              <View style={{ flex: 1, borderRadius: 10, overflow: 'hidden' }}>
+                <LinearGradient colors={['#4338CA', '#6366F1', '#818CF8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1, padding: 8, paddingBottom: 0, justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 9 }}>💎</Text>
                     </View>
                     <View>
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Rich</Text>
-                      <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }}>Lv {getLevelFromSpent(profile.wallet?.totalSpent || 0)}</Text>
+                      <Text style={{ fontSize: 8, fontWeight: '800', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase' }}>Rich</Text>
+                      <Text style={{ fontSize: 11, fontWeight: '900', color: '#fff' }}>Lv {getLevelFromSpent(profile.wallet?.totalSpent || 0)}</Text>
                     </View>
                   </View>
-                  <View style={{ backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10 }}>
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.8)' }}>
+                  <View style={{ backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 6, paddingVertical: 4, paddingHorizontal: 8, marginTop: 8 }}>
+                    <Text style={{ fontSize: 7, fontWeight: '800', color: 'rgba(255,255,255,0.8)' }}>
                       Monthly sent: {((profile.wallet?.monthlySpent || 0) >= 1000000 ? `${((profile.wallet?.monthlySpent || 0) / 1000000).toFixed(1)}M` : (profile.wallet?.monthlySpent || 0).toLocaleString())}
                     </Text>
                   </View>
@@ -566,19 +595,19 @@ export function FullProfileDialog({
               </View>
 
               {/* Charm Level Card */}
-              <View style={{ flex: 1, borderRadius: 16, overflow: 'hidden' }}>
-                <LinearGradient colors={['#BE185D', '#DB2777', '#EC4899']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ padding: 14, minHeight: 90 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                    <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ fontSize: 14 }}>💖</Text>
+              <View style={{ flex: 1, borderRadius: 10, overflow: 'hidden' }}>
+                <LinearGradient colors={['#BE185D', '#DB2777', '#EC4899']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1, padding: 8, paddingBottom: 0, justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 9 }}>💖</Text>
                     </View>
                     <View>
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Charm</Text>
-                      <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }}>Lv {getLevelFromSpent(profile.wallet?.totalReceived || 0)}</Text>
+                      <Text style={{ fontSize: 8, fontWeight: '800', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase' }}>Charm</Text>
+                      <Text style={{ fontSize: 11, fontWeight: '900', color: '#fff' }}>Lv {getLevelFromSpent(profile.wallet?.totalReceived || 0)}</Text>
                     </View>
                   </View>
-                  <View style={{ backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10 }}>
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.8)' }}>
+                  <View style={{ backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 6, paddingVertical: 4, paddingHorizontal: 8, marginTop: 8 }}>
+                    <Text style={{ fontSize: 7, fontWeight: '800', color: 'rgba(255,255,255,0.8)' }}>
                       Monthly received: {((profile.wallet?.monthlyReceived || 0) >= 1000000 ? `${((profile.wallet?.monthlyReceived || 0) / 1000000).toFixed(1)}M` : (profile.wallet?.monthlyReceived || 0).toLocaleString())}
                     </Text>
                   </View>
@@ -586,8 +615,8 @@ export function FullProfileDialog({
               </View>
             </View>
 
-            {/* Relationship Card - Swipeable CP / Best Friend / Besties */}
-            <View style={{ marginTop: 16 }}>
+            {/* Relationship Card - CP / Best Friend / Besties */}
+            <View style={{ marginTop: 10 }}>
               <ScrollView
                 ref={relationScrollRef}
                 horizontal
@@ -606,28 +635,40 @@ export function FullProfileDialog({
                 ] as const).map((item) => {
                   const isCP = item.type === 'CP';
                   const isBF = item.type === 'Best Friend';
-                  const relData = isCP ? profile?.relationship : isBF ? profile?.bestFriend : profile?.besties;
-                  const hasData = relData && (isCP ? (relData.type && relData.type !== 'None') : relData.name);
-                  const partnerName = isCP ? relData?.partnerName : relData?.name;
-                  const partnerAvatar = isCP ? relData?.partnerAvatar : relData?.avatarUrl;
+
+                  let partners: any[] = [];
+                  if (isCP) {
+                    const relData = profile?.relationship;
+                    if (relData && relData.type && relData.type !== 'None') {
+                      partners = [{ name: relData.partnerName, avatarUrl: relData.partnerAvatar, uid: relData.partnerUid }];
+                    }
+                  } else if (isBF) {
+                    const bfData = profile?.bestFriends || (profile?.bestFriend ? [profile.bestFriend] : []);
+                    partners = bfData.map((bf: any) => ({ name: bf.name || bf.username, avatarUrl: bf.avatarUrl || bf.avatar, uid: bf.uid }));
+                  } else {
+                    const bestiesData = profile?.bestiesList || (profile?.besties ? [profile.besties] : []);
+                    partners = bestiesData.map((b: any) => ({ name: b.name || b.username, avatarUrl: b.avatarUrl || b.avatar, uid: b.uid }));
+                  }
+
+                  const hasData = partners.length > 0;
 
                   return (
                     <View key={item.type} style={{ width: SCREEN_WIDTH - 40 }}>
-                      <LinearGradient colors={item.outerColors as any} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ borderRadius: 24, height: 146, overflow: 'hidden', position: 'relative' }}>
-                        <LinearGradient colors={item.innerColors as any} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={{ position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, borderRadius: 42, paddingHorizontal: 16, paddingTop: 28, paddingBottom: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24, overflow: 'hidden' }}>
+                      <LinearGradient colors={item.outerColors as any} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ borderRadius: 20, height: 130, overflow: 'hidden', position: 'relative' }}>
+                        <LinearGradient colors={item.innerColors as any} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={{ position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, borderRadius: 26, paddingHorizontal: 14, paddingTop: 24, paddingBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: isCP ? 20 : 10, overflow: 'hidden' }}>
                           {/* Top Ribbon */}
                           <View style={{ position: 'absolute', top: 0, alignSelf: 'center', zIndex: 10 }}>
                             <LinearGradient colors={['#FDE6A8', '#D68A32']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-                              style={{ paddingHorizontal: 20, paddingVertical: 2, borderBottomLeftRadius: 10, borderBottomRightRadius: 10, borderWidth: 1, borderColor: '#FFF3D1', borderTopWidth: 0 }}>
-                              <Text style={{ fontSize: 9, fontWeight: '900', color: '#5A2105', textTransform: 'uppercase', letterSpacing: 0.5 }}>{item.label}</Text>
+                              style={{ paddingHorizontal: 16, paddingVertical: 2, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, borderWidth: 1, borderColor: '#FFF3D1', borderTopWidth: 0 }}>
+                              <Text style={{ fontSize: 8, fontWeight: '900', color: '#5A2105', textTransform: 'uppercase', letterSpacing: 0.5 }}>{item.label} {!isCP && partners.length > 0 ? `(${partners.length})` : ''}</Text>
                             </LinearGradient>
                           </View>
 
                           {/* Left: Self */}
-                          <View style={{ alignItems: 'center', marginTop: 4 }}>
+                          <View style={{ alignItems: 'center', marginTop: 2 }}>
                             <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile.avatarUrl) || 'https://picsum.photos/200' }}
-                              style={{ width: 60, height: 60, borderRadius: 30, borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.95)' }} />
-                            <Text style={{ fontSize: 10, fontWeight: '800', color: '#FFFFFF', marginTop: 8, textAlign: 'center' }} numberOfLines={1}>{profile.username}</Text>
+                              style={{ width: 50, height: 50, borderRadius: 25, borderWidth: 2, borderColor: 'rgba(255,255,255,0.95)' }} />
+                            <Text style={{ fontSize: 9, fontWeight: '800', color: '#FFFFFF', marginTop: 6, textAlign: 'center' }} numberOfLines={1}>{profile.username}</Text>
                           </View>
 
                           {/* Center: Heart or Icon */}
@@ -636,33 +677,51 @@ export function FullProfileDialog({
                               onPress={() => { if (isOwnProfile && hasData) setShowCpInfo(true); }}
                               style={{ alignItems: 'center', justifyContent: 'center' }}>
                               <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-                                <Image
-                                  source={require('../../../assets/images/cp_heart.png')}
-                                  style={{ width: 60, height: 55 }}
-                                  contentFit="contain"
-                                />
+                                <Image source={require('../../../assets/images/cp_heart.png')} style={{ width: 48, height: 44 }} contentFit="contain" />
                               </Animated.View>
                             </TouchableOpacity>
                           ) : (
-                            <View style={{ alignItems: 'center', justifyContent: 'center', width: 60, height: 55 }}>
-                              <Text style={{ fontSize: 28 }}>{item.icon}</Text>
+                            <View style={{ alignItems: 'center', justifyContent: 'center', width: 48, height: 44 }}>
+                              <Text style={{ fontSize: 24 }}>{item.icon}</Text>
                             </View>
                           )}
 
-                          {/* Right: Partner or + */}
+                          {/* Right: Partners */}
                           {hasData ? (
-                            <View style={{ alignItems: 'center' }}>
-                              <Image cachePolicy="memory-disk" source={{ uri: toCDN(partnerAvatar) || 'https://picsum.photos/200' }}
-                                style={{ width: 60, height: 60, borderRadius: 30, borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.95)' }} />
-                              <Text style={{ fontSize: 10, fontWeight: '800', color: '#FFFFFF', marginTop: 8, textAlign: 'center' }} numberOfLines={1}>{partnerName}</Text>
-                            </View>
+                            isCP ? (
+                              <View style={{ alignItems: 'center' }}>
+                                <Image cachePolicy="memory-disk" source={{ uri: toCDN(partners[0].avatarUrl) || 'https://picsum.photos/200' }}
+                                  style={{ width: 50, height: 50, borderRadius: 25, borderWidth: 2, borderColor: 'rgba(255,255,255,0.95)' }} />
+                                <Text style={{ fontSize: 9, fontWeight: '800', color: '#FFFFFF', marginTop: 6, textAlign: 'center' }} numberOfLines={1}>{partners[0].name}</Text>
+                              </View>
+                            ) : (
+                              <View style={{ flex: 1, maxWidth: 130 }}>
+                                <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} scrollEventThrottle={16}>
+                                  {partners.map((p: any, idx: number) => (
+                                    <View key={idx} style={{ alignItems: 'center', width: 58, marginHorizontal: 2 }}>
+                                      <Image cachePolicy="memory-disk" source={{ uri: toCDN(p.avatarUrl) || 'https://picsum.photos/200' }}
+                                        style={{ width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.9)' }} />
+                                      <Text style={{ fontSize: 7, fontWeight: '700', color: '#FFFFFF', marginTop: 3, textAlign: 'center' }} numberOfLines={1}>{p.name}</Text>
+                                    </View>
+                                  ))}
+                                  {isOwnProfile && (
+                                    <TouchableOpacity onPress={() => { setSearchType(item.type); setShowCpSearch(true); }}
+                                      style={{ alignItems: 'center', width: 58, marginHorizontal: 2, justifyContent: 'center' }}>
+                                      <View style={{ width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.5)', backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' }}>
+                                        <Text style={{ fontSize: 18, color: '#FFF', fontWeight: '300' }}>+</Text>
+                                      </View>
+                                    </TouchableOpacity>
+                                  )}
+                                </ScrollView>
+                              </View>
+                            )
                           ) : (
                             <View style={{ alignItems: 'center' }}>
                               <TouchableOpacity onPress={() => { setSearchType(item.type); setShowCpSearch(true); }}
-                                style={{ width: 60, height: 60, borderRadius: 30, borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.95)', backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
-                                <Text style={{ fontSize: 24, color: '#FFF', fontWeight: '300', marginTop: -2 }}>+</Text>
+                                style={{ width: 50, height: 50, borderRadius: 25, borderWidth: 2, borderColor: 'rgba(255,255,255,0.8)', backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={{ fontSize: 20, color: '#FFF', fontWeight: '300', marginTop: -1 }}>+</Text>
                               </TouchableOpacity>
-                              <Text style={{ fontSize: 10, fontWeight: '800', color: 'transparent', marginTop: 8 }}>{' '}</Text>
+                              <Text style={{ fontSize: 9, fontWeight: '800', color: 'transparent', marginTop: 6 }}>{' '}</Text>
                             </View>
                           )}
                         </LinearGradient>
@@ -672,9 +731,9 @@ export function FullProfileDialog({
                 })}
               </ScrollView>
               {/* Dot Indicators */}
-              <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 5, marginTop: 8 }}>
                 {[0, 1, 2].map(i => (
-                  <View key={i} style={{ width: activeRelationTab === i ? 16 : 6, height: 6, borderRadius: 3, backgroundColor: activeRelationTab === i ? '#EC4899' : '#E2E8F0' }} />
+                  <View key={i} style={{ width: activeRelationTab === i ? 14 : 5, height: 5, borderRadius: 2.5, backgroundColor: activeRelationTab === i ? '#EC4899' : '#E2E8F0' }} />
                 ))}
               </View>
             </View>
@@ -698,7 +757,7 @@ export function FullProfileDialog({
 
             {/* Tab Navigation */}
             <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#F1F5F9', marginTop: 20 }}>
-              {(['gift', 'medal', 'vehicle', 'frame'] as const).map((tab) => {
+              {(['gift', 'medal', 'entry', 'frame'] as const).map((tab) => {
                 const isActive = activeTab === tab;
                 return (
                   <TouchableOpacity key={tab} onPress={() => setActiveTab(tab)}
@@ -732,7 +791,7 @@ export function FullProfileDialog({
                   )}
                 </View>
               )}
-              {activeTab === 'vehicle' && (
+              {activeTab === 'entry' && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
                   {ownedVehicles.length > 0 ? (
                     ownedVehicles.map((id: string, idx: number) => {
@@ -755,39 +814,46 @@ export function FullProfileDialog({
                 </View>
               )}
               {activeTab === 'frame' && (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-                  {isOwnProfile && (profile.inventory?.activeFrame && profile.inventory.activeFrame !== 'None') && (
-                    <TouchableOpacity
-                      onPress={onRemoveFrame}
-                      style={{ padding: 8, backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 12, alignItems: 'center', width: (SCREEN_WIDTH - 64) / 4, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)' }}
-                    >
-                      <Text style={{ fontSize: 22 }}>❌</Text>
-                      <Text style={{ fontSize: 8, fontWeight: '800', color: '#EF4444', marginTop: 4, textAlign: 'center' }}>Remove Frame</Text>
-                    </TouchableOpacity>
-                  )}
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {ownedFrames.length > 0 ? (
                     ownedFrames.map((id: string, idx: number) => {
                       const isSvip = id === '__svip_frame__';
                       const itemData = isSvip ? null : storeItemsMap[id];
-                      const img = isSvip ? ((profile as any)?.svipPrivileges?.frameUrl || null) : (itemData?.imageUrl || itemData?.videoUrl || null);
-                      const name = isSvip ? `SVIP Frame` : (itemData?.name || id);
+                      const aristocracyUrl = ARISTOCRACY_FRAME_URLS[id] || null;
+                      const img = isSvip ? ((profile as any)?.svipPrivileges?.frameUrl || null) : (aristocracyUrl || itemData?.imageUrl || itemData?.videoUrl || null);
+                      const name = isSvip ? 'SVIP Frame' : (itemData?.name || (aristocracyUrl ? id.replace('aristocracy_', '').replace('_frame', '').replace('_', ' ') : id));
                       const isActive = isSvip
                         ? (profile.inventory?.activeFrame === '__svip_frame__' || (!profile.inventory?.activeFrame || profile.inventory.activeFrame === 'None') && profile.inventory?.activeFrameMediaUrl === (profile as any)?.svipPrivileges?.frameUrl)
                         : profile.inventory?.activeFrame === id;
+                      const frameWidth = (SCREEN_WIDTH - 56) / 4;
                       return (
-                        <TouchableOpacity
-                          key={idx}
-                          disabled={!isOwnProfile}
-                          onPress={() => { if (isOwnProfile && !isActive) onChangeFrame?.(id, img); }}
-                          style={{ padding: 8, backgroundColor: isActive ? 'rgba(16,185,129,0.1)' : '#F8FAFC', borderRadius: 12, alignItems: 'center', width: (SCREEN_WIDTH - 64) / 4, borderWidth: isActive ? 2 : 1, borderColor: isActive ? '#10B981' : 'transparent' }}
-                        >
-                          {img ? (
-                            <Image cachePolicy="memory-disk" source={{ uri: toCDN(img) }} style={{ width: 48, height: 48, borderRadius: 8 }} contentFit="contain" />
-                          ) : (
-                            <Text style={{ fontSize: 22 }}>🖼️</Text>
+                        <View key={idx} style={{ width: frameWidth, alignItems: 'center' }}>
+                          {/* Frame image */}
+                          <View style={{ padding: 6, backgroundColor: isActive ? 'rgba(16,185,129,0.1)' : '#F8FAFC', borderRadius: 10, width: '100%', alignItems: 'center', borderWidth: isActive ? 1.5 : 1, borderColor: isActive ? '#10B981' : '#E2E8F0' }}>
+                            {img ? (
+                              <Image cachePolicy="memory-disk" source={{ uri: toCDN(img) }} style={{ width: 44, height: 44, borderRadius: 6 }} contentFit="contain" />
+                            ) : (
+                              <Text style={{ fontSize: 18 }}>🖼️</Text>
+                            )}
+                            <Text style={{ fontSize: 7, fontWeight: '800', color: isActive ? '#10B981' : '#64748B', marginTop: 3, textAlign: 'center' }} numberOfLines={1}>{name}</Text>
+                          </View>
+                          {/* Use / Remove toggle */}
+                          {isOwnProfile && (
+                            <View style={{ flexDirection: 'row', gap: 3, marginTop: 4 }}>
+                              {isActive ? (
+                                <TouchableOpacity onPress={() => onRemoveFrame?.()}
+                                  style={{ flex: 1, paddingVertical: 3, borderRadius: 6, backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', alignItems: 'center' }}>
+                                  <Text style={{ fontSize: 7, fontWeight: '800', color: '#EF4444' }}>Remove</Text>
+                                </TouchableOpacity>
+                              ) : (
+                                <TouchableOpacity onPress={() => onChangeFrame?.(id, img)}
+                                  style={{ flex: 1, paddingVertical: 3, borderRadius: 6, backgroundColor: 'rgba(16,185,129,0.1)', borderWidth: 1, borderColor: 'rgba(16,185,129,0.3)', alignItems: 'center' }}>
+                                  <Text style={{ fontSize: 7, fontWeight: '800', color: '#10B981' }}>Use</Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
                           )}
-                          <Text style={{ fontSize: 8, fontWeight: '800', color: isActive ? '#10B981' : '#64748B', marginTop: 4, textAlign: 'center' }} numberOfLines={1}>{isActive ? '✓ Active' : name}</Text>
-                        </TouchableOpacity>
+                        </View>
                       );
                     })
                   ) : (
@@ -913,7 +979,7 @@ export function FullProfileDialog({
                     { id: 'Best Friend', label: 'Best Friend', icon: '🤝' },
                     { id: 'CP', label: 'CP Partner', icon: '💑' },
                     { id: 'Besties', label: 'Besties', icon: '👥' }
-                  ].filter(t => t.id === searchType || t.id === 'CP').map(t => (
+                  ].filter(t => t.id === searchType).map(t => (
                     <TouchableOpacity key={t.id} onPress={() => handleSendCpProposal(t.id as any)}
                       style={{ flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
                       <Text style={{ fontSize: 20, marginBottom: 3 }}>{t.icon}</Text>

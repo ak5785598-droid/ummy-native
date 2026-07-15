@@ -1,5 +1,5 @@
 ﻿import React, { useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { X, MessageCircle, Music, Gamepad2, PartyPopper } from 'lucide-react-native';
 import { useUser, useFirestore } from '../../firebase/provider';
@@ -12,10 +12,10 @@ interface CreateRoomSheetProps {
 }
 
 const CATEGORIES = [
-  { id: 'Chat', label: 'Chat', icon: MessageCircle, emoji: 'ðŸ’¬' },
-  { id: 'Music', label: 'Music', icon: Music, emoji: 'ðŸŽµ' },
-  { id: 'Game', label: 'Game', icon: Gamepad2, emoji: 'ðŸŽ®' },
-  { id: 'Party', label: 'Party', icon: PartyPopper, emoji: 'ðŸŽ‰' },
+  { id: 'Chat', label: 'Chat', icon: MessageCircle, emoji: '\uD83D\uDCAC' },
+  { id: 'Music', label: 'Music', icon: Music, emoji: '\uD83C\uDFB5' },
+  { id: 'Game', label: 'Game', icon: Gamepad2, emoji: '\uD83C\uDFAE' },
+  { id: 'Party', label: 'Party', icon: PartyPopper, emoji: '\uD83C\uDF89' },
 ];
 
 export function CreateRoomSheet({ visible, onClose }: CreateRoomSheetProps) {
@@ -85,56 +85,67 @@ export function CreateRoomSheet({ visible, onClose }: CreateRoomSheetProps) {
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <View className="flex-1 bg-black/60 justify-end">
-        <View className="bg-white rounded-t-[2.5rem] p-6 pb-10">
-          <View className="flex-row items-center justify-between mb-6">
-            <Text className="text-xl font-bold text-slate-800">Create Room</Text>
-            <TouchableOpacity onPress={onClose} className="p-2 bg-slate-100 rounded-full">
-              <X size={20} color="#64748b" />
-            </TouchableOpacity>
-          </View>
-
-          <View className="mb-4">
-            <Text className="text-sm font-medium text-slate-600 mb-2">Room Name</Text>
-            <TextInput
-              value={roomName}
-              onChangeText={setRoomName}
-              placeholder="Enter room name..."
-              placeholderTextColor="#94a3b8"
-              className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-base text-slate-800"
-              maxLength={50}
-            />
-          </View>
-
-          <View className="mb-6">
-            <Text className="text-sm font-medium text-slate-600 mb-2">Category</Text>
-            <View className="flex-row gap-2">
-              {CATEGORIES.map((cat) => (
-                <TouchableOpacity
-                  key={cat.id}
-                  onPress={() => setSelectedCategory(cat.id)}
-                  className={`flex-1 py-3 rounded-xl items-center ${selectedCategory === cat.id ? 'bg-purple-100 border-2 border-purple-500' : 'bg-slate-50 border border-slate-200'}`}
-                >
-                  <Text className="text-xl mb-1">{cat.emoji}</Text>
-                  <Text className={`text-[10px] font-bold uppercase ${selectedCategory === cat.id ? 'text-purple-700' : 'text-slate-500'}`}>
-                    {cat.label}
-                  </Text>
+      <View className="flex-1 bg-black/60">
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1, justifyContent: 'flex-end' }}
+        >
+          <ScrollView 
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+          >
+            <View className="bg-white rounded-t-[2.5rem] p-6 pb-10">
+              <View className="flex-row items-center justify-between mb-6">
+                <Text className="text-xl font-bold text-slate-800">Create Room</Text>
+                <TouchableOpacity onPress={onClose} className="p-2 bg-slate-100 rounded-full">
+                  <X size={20} color="#64748b" />
                 </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+              </View>
 
-          <TouchableOpacity onPress={handleSubmit} disabled={isCreating || !roomName.trim()}>
-            <LinearGradient 
-              colors={roomName.trim() ? ['#8b5cf6', '#6366f1'] : ['#cbd5e1', '#94a3b8']} 
-              className="rounded-2xl py-4 items-center"
-            >
-              <Text className="text-white font-bold text-base">
-                {isCreating ? 'Creating...' : 'Create Room'}
-              </Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+              <View className="mb-4">
+                <Text className="text-sm font-medium text-slate-600 mb-2">Room Name</Text>
+                <TextInput
+                  value={roomName}
+                  onChangeText={setRoomName}
+                  placeholder="Enter room name..."
+                  placeholderTextColor="#94a3b8"
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-base text-slate-800"
+                  maxLength={50}
+                />
+              </View>
+
+              <View className="mb-6">
+                <Text className="text-sm font-medium text-slate-600 mb-2">Category</Text>
+                <View className="flex-row gap-2">
+                  {CATEGORIES.map((cat) => (
+                    <TouchableOpacity
+                      key={cat.id}
+                      onPress={() => setSelectedCategory(cat.id)}
+                      className={`flex-1 py-3 rounded-xl items-center ${selectedCategory === cat.id ? 'bg-purple-100 border-2 border-purple-500' : 'bg-slate-50 border border-slate-200'}`}
+                    >
+                      <Text className="text-xl mb-1">{cat.emoji}</Text>
+                      <Text className={`text-[10px] font-bold uppercase ${selectedCategory === cat.id ? 'text-purple-700' : 'text-slate-500'}`}>
+                        {cat.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <TouchableOpacity onPress={handleSubmit} disabled={isCreating || !roomName.trim()}>
+                <LinearGradient 
+                  colors={roomName.trim() ? ['#8b5cf6', '#6366f1'] : ['#cbd5e1', '#94a3b8']} 
+                  className="rounded-2xl py-4 items-center"
+                >
+                  <Text className="text-white font-bold text-base">
+                    {isCreating ? 'Creating...' : 'Create Room'}
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );

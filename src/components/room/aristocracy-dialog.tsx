@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, Modal, ScrollView, Act
 import { X, Award, Shield, Check, Gift } from 'lucide-react-native';
 import { useUser, useFirestore } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
-import { doc, updateDoc, increment, serverTimestamp } from '@/firebase/firestore-compat';
+import { doc, updateDoc, increment, serverTimestamp, arrayUnion } from '@/firebase/firestore-compat';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GoldenCoin } from '../GoldenCoin';
 import { AvatarFrame } from '../profile/AvatarFrame';
@@ -23,7 +23,7 @@ const RANKS = [
     dailySalary: 15000,
     frameName: 'Knight Royal Crest',
     frameId: 'aristocracy_knight_frame',
-    frameUrl: 'aristocracy_knight_frame',
+    frameUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_knight_frame.png?alt=media',
     pricing: {
       3: 30000,
       7: 60000,
@@ -39,7 +39,7 @@ const RANKS = [
     dailySalary: 30000,
     frameName: 'Royal Duke Crest',
     frameId: 'aristocracy_duke_frame',
-    frameUrl: 'aristocracy_duke_frame',
+    frameUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_duke_frame.png?alt=media',
     pricing: {
       3: 80000,
       7: 150000,
@@ -55,7 +55,7 @@ const RANKS = [
     dailySalary: 70000,
     frameName: 'Legendary Golden Crown',
     frameId: 'aristocracy_king_frame',
-    frameUrl: 'aristocracy_king_frame',
+    frameUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_king_frame.png?alt=media',
     pricing: {
       3: 200000,
       7: 380000,
@@ -71,7 +71,7 @@ const RANKS = [
     dailySalary: 100000,
     frameName: 'Imperial Emperor Crown',
     frameId: 'aristocracy_emperor_frame',
-    frameUrl: 'aristocracy_emperor_frame',
+    frameUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_emperor_frame.png?alt=media',
     pricing: {
       3: 400000,
       7: 800000,
@@ -122,7 +122,14 @@ export function AristocracyDialog({ visible, onClose }: AristocracyDialogProps) 
     setLoading(true);
     try {
       const userRef = doc(firestore, 'users', user.uid);
+      const profileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
       const expireTime = Date.now() + duration * 24 * 60 * 60 * 1000;
+
+      const frameData = {
+        'inventory.activeFrame': currentRank.frameId,
+        'inventory.activeFrameMediaUrl': currentRank.frameUrl,
+        'inventory.ownedItems': arrayUnion(currentRank.frameId),
+      };
 
       await updateDoc(userRef, {
         'wallet.coins': increment(-price),
@@ -131,9 +138,12 @@ export function AristocracyDialog({ visible, onClose }: AristocracyDialogProps) 
         'nobility.rank': currentRank.id,
         'nobility.expiresAt': expireTime,
         'nobility.purchasedAt': Date.now(),
-        // Assign and equip the exclusive frame instantly
-        'inventory.activeFrame': currentRank.frameId,
-        'inventory.activeFrameMediaUrl': currentRank.frameUrl,
+        ...frameData,
+        updatedAt: serverTimestamp()
+      });
+
+      await updateDoc(profileRef, {
+        ...frameData,
         updatedAt: serverTimestamp()
       });
 

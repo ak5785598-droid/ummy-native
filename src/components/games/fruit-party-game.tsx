@@ -139,8 +139,16 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
   }, [gameState, roundStartTime]);
 
   // Handle local state transitions based on timer ending
+  // Bug fix: Use ref to track timeLeft so this effect doesn't re-fire every second
+  const timeLeftRef = useRef(timeLeft);
+  useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
+
   useEffect(() => {
-    if (!database || gameState !== 'betting' || timeLeft > 0 || spinInitiatedRef.current) return;
+    if (!database || gameState !== 'betting') return;
+    if (spinInitiatedRef.current) return;
+
+    // Only fire when timer hits 0
+    if (timeLeft !== 0) return;
     spinInitiatedRef.current = true;
 
     (async () => {
@@ -172,8 +180,10 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
 
       const gamePath = `games/fruit_party_${roomId || 'global'}`;
 
+      // Bug fix: Use transaction with firstUser flag so ONLY ONE user triggers spin
+      // All other users are blocked by the status !== 'betting' check
       databaseTransaction(databaseRef(database, gamePath), (currentData) => {
-        if (currentData && currentData.status !== 'betting') return;
+        if (currentData && currentData.status !== 'betting') return; // another user already spun
         if (!currentData) {
           return {
             status: 'spinning',
@@ -217,9 +227,10 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
       }, 12000);
 
     })();
-  }, [gameState, timeLeft, firestore, database, roomId]);
+  }, [gameState, timeLeft]); // only re-run when gameState or timeLeft changes (not every dep)
 
   // Real-time RTD Sync (Locks state globally with room players)
+  // Bug fix: Removed gameState from deps — was causing re-subscribe loop & timer restart on every state change
   useEffect(() => {
     if (!database) return;
     const gamePath = `games/fruit_party_${roomId || 'global'}`;
@@ -257,19 +268,20 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
       if (data.history) setHistory(data.history);
       if (data.roundStartTime) setRoundStartTime(data.roundStartTime);
 
-      if (status === 'spinning' && gameState !== 'spinning' && data.winningId) {
+      if (status === 'spinning' && data.winningId) {
         startSpin(data.winningId, data.groupType || 'none');
-      } else if (status === 'betting' && gameState === 'result') {
+      } else if (status === 'betting') {
         setMyBets({});
         setWinnerData(null);
+        spinInitiatedRef.current = false; // allow next round to spin
         setGameState('betting');
-      } else if (status !== 'spinning') {
-        setGameState(status);
+      } else if (status === 'result') {
+        setGameState('result');
       }
     });
 
     return () => unsub();
-  }, [database, roomId, gameState]);
+  }, [database, roomId]); // Bug fix: removed gameState — stable listener now
 
   useEffect(() => {
     let spinLoop: Animated.CompositeAnimation | null = null;
@@ -436,6 +448,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
       }
     }
 
+    // Local UI cleanup only — RTD listener handles setGameState('betting') + roundStartTime reset
     setTimeout(() => {
       setWinnerData(null);
       setShiningGroup('none');
@@ -443,8 +456,6 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
       setMyBets({});
       setHighlightIdx(null);
       setDroppedChips([]);
-      setGameState('betting');
-      setTimeLeft(30);
     }, 5000);
   };
 

@@ -8,14 +8,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 // ==========================================
 
 export const PinkDiamondIDBadgeIcon = ({ number }: { number: string }) => (
-  <View style={{ flexDirection: 'row', alignItems: 'center', height: 40, width: 140, position: 'relative' }}>
+  <View style={{ flexDirection: 'row', alignItems: 'center', height: 34, minWidth: 50, position: 'relative', paddingRight: 4 }}>
     <LinearGradient
       colors={['#9D174D', '#DB2777']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 0 }}
       style={{
-        height: 24,
-        paddingLeft: 34,
+        height: 18,
+        paddingLeft: 28,
         paddingRight: 10,
         justifyContent: 'center',
         borderTopRightRadius: 12,
@@ -26,9 +26,9 @@ export const PinkDiamondIDBadgeIcon = ({ number }: { number: string }) => (
         zIndex: 0,
       }}
     >
-      <Text style={{ color: '#fff', fontSize: 11, fontWeight: 'bold', letterSpacing: 1.5, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1 }}>{number}</Text>
+      <Text style={{ color: '#fff', fontSize: 9.5, fontWeight: 'bold', letterSpacing: 1.5, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1 }}>{number}</Text>
     </LinearGradient>
-    <View style={{ position: 'absolute', left: 0, zIndex: 10, width: 44, height: 44 }}>
+    <View style={{ position: 'absolute', left: 0, zIndex: 10, width: 34, height: 34 }}>
       <Svg viewBox="0 0 100 100" width="100%" height="100%">
         <Defs>
           <SvgLinearGradient id="roseSilverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -57,14 +57,14 @@ export const PinkDiamondIDBadgeIcon = ({ number }: { number: string }) => (
 );
 
 export const SilverBlueIDBadgeIcon = ({ number }: { number: string }) => (
-  <View style={{ flexDirection: 'row', alignItems: 'center', height: 40, width: 140, position: 'relative' }}>
+  <View style={{ flexDirection: 'row', alignItems: 'center', height: 34, minWidth: 50, position: 'relative', paddingRight: 4 }}>
     <LinearGradient
       colors={['#0C3E8A', '#1D5DC2']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 0 }}
       style={{
-        height: 24,
-        paddingLeft: 34,
+        height: 18,
+        paddingLeft: 28,
         paddingRight: 10,
         justifyContent: 'center',
         borderTopRightRadius: 12,
@@ -75,9 +75,9 @@ export const SilverBlueIDBadgeIcon = ({ number }: { number: string }) => (
         zIndex: 0,
       }}
     >
-      <Text style={{ color: '#fff', fontSize: 11, fontWeight: 'bold', letterSpacing: 1.5, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1 }}>{number}</Text>
+      <Text style={{ color: '#fff', fontSize: 9.5, fontWeight: 'bold', letterSpacing: 1.5, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1 }}>{number}</Text>
     </LinearGradient>
-    <View style={{ position: 'absolute', left: 0, zIndex: 10, width: 44, height: 44 }}>
+    <View style={{ position: 'absolute', left: 0, zIndex: 10, width: 34, height: 34 }}>
       <Svg viewBox="0 0 100 100" width="100%" height="100%">
         <Defs>
           <SvgLinearGradient id="silverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -105,14 +105,14 @@ export const SilverBlueIDBadgeIcon = ({ number }: { number: string }) => (
 );
 
 export const IDBadgeIcon = ({ number }: { number: string }) => (
-  <View style={{ flexDirection: 'row', alignItems: 'center', height: 40, width: 140, position: 'relative' }}>
+  <View style={{ flexDirection: 'row', alignItems: 'center', height: 34, minWidth: 50, position: 'relative', paddingRight: 4 }}>
     <LinearGradient
       colors={['#D91B10', '#F13A24']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 0 }}
       style={{
-        height: 24,
-        paddingLeft: 34,
+        height: 18,
+        paddingLeft: 28,
         paddingRight: 10,
         justifyContent: 'center',
         borderTopRightRadius: 12,
@@ -123,9 +123,9 @@ export const IDBadgeIcon = ({ number }: { number: string }) => (
         zIndex: 0,
       }}
     >
-      <Text style={{ color: '#fff', fontSize: 11, fontWeight: 'bold', letterSpacing: 1.5, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1 }}>{number}</Text>
+      <Text style={{ color: '#fff', fontSize: 9.5, fontWeight: 'bold', letterSpacing: 1.5, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1 }}>{number}</Text>
     </LinearGradient>
-    <View style={{ position: 'absolute', left: 0, zIndex: 10, width: 44, height: 44 }}>
+    <View style={{ position: 'absolute', left: 0, zIndex: 10, width: 34, height: 34 }}>
       <Svg viewBox="0 0 100 100" width="100%" height="100%">
         <Defs>
           <SvgLinearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -150,14 +150,14 @@ export const IDBadgeIcon = ({ number }: { number: string }) => (
 // ==========================================
 
 export const GoldSovereignBadgeIcon = ({ number }: { number: string }) => (
-  <View style={{ flexDirection: 'row', alignItems: 'center', height: 40, width: 140, position: 'relative' }}>
+  <View style={{ flexDirection: 'row', alignItems: 'center', height: 34, minWidth: 50, position: 'relative', paddingRight: 4 }}>
     <LinearGradient
       colors={['#854D0E', '#CA8A04']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 0 }}
       style={{
-        height: 24,
-        paddingLeft: 34,
+        height: 18,
+        paddingLeft: 28,
         paddingRight: 10,
         justifyContent: 'center',
         borderTopRightRadius: 12,
@@ -168,9 +168,9 @@ export const GoldSovereignBadgeIcon = ({ number }: { number: string }) => (
         zIndex: 0,
       }}
     >
-      <Text style={{ color: '#fff', fontSize: 11, fontWeight: 'bold', letterSpacing: 1.2 }}>{number}</Text>
+      <Text style={{ color: '#fff', fontSize: 9.5, fontWeight: 'bold', letterSpacing: 1.2 }}>{number}</Text>
     </LinearGradient>
-    <View style={{ position: 'absolute', left: 0, zIndex: 10, width: 44, height: 44 }}>
+    <View style={{ position: 'absolute', left: 0, zIndex: 10, width: 34, height: 34 }}>
       <Svg viewBox="0 0 100 100" width="100%" height="100%">
         <Defs>
           <SvgLinearGradient id="sovGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -188,14 +188,14 @@ export const GoldSovereignBadgeIcon = ({ number }: { number: string }) => (
 );
 
 export const RoseSovereignBadgeIcon = ({ number }: { number: string }) => (
-  <View style={{ flexDirection: 'row', alignItems: 'center', height: 40, width: 140, position: 'relative' }}>
+  <View style={{ flexDirection: 'row', alignItems: 'center', height: 34, minWidth: 50, position: 'relative', paddingRight: 4 }}>
     <LinearGradient
       colors={['#9F1239', '#E11D48']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 0 }}
       style={{
-        height: 24,
-        paddingLeft: 34,
+        height: 18,
+        paddingLeft: 28,
         paddingRight: 10,
         justifyContent: 'center',
         borderTopRightRadius: 12,
@@ -206,9 +206,9 @@ export const RoseSovereignBadgeIcon = ({ number }: { number: string }) => (
         zIndex: 0,
       }}
     >
-      <Text style={{ color: '#fff', fontSize: 11, fontWeight: 'bold', letterSpacing: 1.2 }}>{number}</Text>
+      <Text style={{ color: '#fff', fontSize: 9.5, fontWeight: 'bold', letterSpacing: 1.2 }}>{number}</Text>
     </LinearGradient>
-    <View style={{ position: 'absolute', left: 0, zIndex: 10, width: 44, height: 44 }}>
+    <View style={{ position: 'absolute', left: 0, zIndex: 10, width: 34, height: 34 }}>
       <Svg viewBox="0 0 100 100" width="100%" height="100%">
         <Defs>
           <SvgLinearGradient id="sovRoseGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -226,14 +226,14 @@ export const RoseSovereignBadgeIcon = ({ number }: { number: string }) => (
 );
 
 export const DiamondSovereignBadgeIcon = ({ number }: { number: string }) => (
-  <View style={{ flexDirection: 'row', alignItems: 'center', height: 40, width: 140, position: 'relative' }}>
+  <View style={{ flexDirection: 'row', alignItems: 'center', height: 34, minWidth: 50, position: 'relative', paddingRight: 4 }}>
     <LinearGradient
       colors={['#0891B2', '#06B6D4']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 0 }}
       style={{
-        height: 24,
-        paddingLeft: 34,
+        height: 18,
+        paddingLeft: 28,
         paddingRight: 10,
         justifyContent: 'center',
         borderTopRightRadius: 12,
@@ -244,9 +244,9 @@ export const DiamondSovereignBadgeIcon = ({ number }: { number: string }) => (
         zIndex: 0,
       }}
     >
-      <Text style={{ color: '#fff', fontSize: 11, fontWeight: 'bold', letterSpacing: 1.2 }}>{number}</Text>
+      <Text style={{ color: '#fff', fontSize: 9.5, fontWeight: 'bold', letterSpacing: 1.2 }}>{number}</Text>
     </LinearGradient>
-    <View style={{ position: 'absolute', left: 0, zIndex: 10, width: 44, height: 44 }}>
+    <View style={{ position: 'absolute', left: 0, zIndex: 10, width: 34, height: 34 }}>
       <Svg viewBox="0 0 100 100" width="100%" height="100%">
         <Defs>
           <SvgLinearGradient id="sovCyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -264,14 +264,14 @@ export const DiamondSovereignBadgeIcon = ({ number }: { number: string }) => (
 );
 
 export const PurpleSovereignBadgeIcon = ({ number }: { number: string }) => (
-  <View style={{ flexDirection: 'row', alignItems: 'center', height: 40, width: 140, position: 'relative' }}>
+  <View style={{ flexDirection: 'row', alignItems: 'center', height: 34, minWidth: 50, position: 'relative', paddingRight: 4 }}>
     <LinearGradient
       colors={['#6B21A8', '#A855F7']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 0 }}
       style={{
-        height: 24,
-        paddingLeft: 34,
+        height: 18,
+        paddingLeft: 28,
         paddingRight: 10,
         justifyContent: 'center',
         borderTopRightRadius: 12,
@@ -282,9 +282,9 @@ export const PurpleSovereignBadgeIcon = ({ number }: { number: string }) => (
         zIndex: 0,
       }}
     >
-      <Text style={{ color: '#fff', fontSize: 11, fontWeight: 'bold', letterSpacing: 1.2 }}>{number}</Text>
+      <Text style={{ color: '#fff', fontSize: 9.5, fontWeight: 'bold', letterSpacing: 1.2 }}>{number}</Text>
     </LinearGradient>
-    <View style={{ position: 'absolute', left: 0, zIndex: 10, width: 44, height: 44 }}>
+    <View style={{ position: 'absolute', left: 0, zIndex: 10, width: 34, height: 34 }}>
       <Svg viewBox="0 0 100 100" width="100%" height="100%">
         <Defs>
           <SvgLinearGradient id="sovPurpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -302,14 +302,14 @@ export const PurpleSovereignBadgeIcon = ({ number }: { number: string }) => (
 );
 
 export const EmeraldSovereignBadgeIcon = ({ number }: { number: string }) => (
-  <View style={{ flexDirection: 'row', alignItems: 'center', height: 40, width: 140, position: 'relative' }}>
+  <View style={{ flexDirection: 'row', alignItems: 'center', height: 34, minWidth: 50, position: 'relative', paddingRight: 4 }}>
     <LinearGradient
       colors={['#065F46', '#10B981']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 0 }}
       style={{
-        height: 24,
-        paddingLeft: 34,
+        height: 18,
+        paddingLeft: 28,
         paddingRight: 10,
         justifyContent: 'center',
         borderTopRightRadius: 12,
@@ -320,9 +320,9 @@ export const EmeraldSovereignBadgeIcon = ({ number }: { number: string }) => (
         zIndex: 0,
       }}
     >
-      <Text style={{ color: '#fff', fontSize: 11, fontWeight: 'bold', letterSpacing: 1.2 }}>{number}</Text>
+      <Text style={{ color: '#fff', fontSize: 9.5, fontWeight: 'bold', letterSpacing: 1.2 }}>{number}</Text>
     </LinearGradient>
-    <View style={{ position: 'absolute', left: 0, zIndex: 10, width: 44, height: 44 }}>
+    <View style={{ position: 'absolute', left: 0, zIndex: 10, width: 34, height: 34 }}>
       <Svg viewBox="0 0 100 100" width="100%" height="100%">
         <Defs>
           <SvgLinearGradient id="sovGreenGrad" x1="0%" y1="0%" x2="100%" y2="100%">

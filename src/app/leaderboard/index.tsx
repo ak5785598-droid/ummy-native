@@ -511,7 +511,7 @@ function InfoModal({ visible, onClose }: InfoModalProps) {
                 <Text className="font-bold">Top 3:</Text> Exclusive Frames + Coins{'\n'}
                 <Text className="font-bold">Rank 4 - 7:</Text> Coins{'\n'}
                 <Text className="font-bold">Rank 8 - 10:</Text> Coins{'\n\n'}
-                Weekly and Monthly rewards are 3x of Daily.
+                Weekly rewards are 2x of Daily. Monthly rewards are 3x of Daily.
               </Text>
             </View>
           </View>
