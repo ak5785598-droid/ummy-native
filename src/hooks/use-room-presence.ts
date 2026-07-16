@@ -10,7 +10,7 @@ const enteredRooms = new Set<string>();
 
 const filterBase64 = (url: string | null | undefined): string | null => {
   if (!url) return null;
-  if (url.startsWith('data:') || url.length > 2000) return null;
+  if (url.startsWith('data:')) return null;
   return url;
 };
 
@@ -136,11 +136,11 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
 
     if (lastRoomId.current !== roomId || !hasJoinedRef.current) {
       if (!enteredRooms.has(roomId)) {
+        enteredRooms.add(roomId);
         performJoin();
 
         // Send entrance message only if username is loaded
         if (userProfile?.username && !userProfile?.roomInvisible) {
-          enteredRooms.add(roomId);
           const inventoryEntryType = userProfile?.inventory?.activeEntryEffect || null;
           const inventoryEntryVideoUrl = userProfile?.inventory?.activeEntryVideoUrl || null;
           const entryType = userProfile?.svipPrivileges?.entranceType || inventoryEntryType;
@@ -153,7 +153,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
             senderId: uid, 
             senderName: userProfile.username,
             senderAvatar: filterBase64(userProfile?.avatarUrl) || user.photoURL || null,
-            mediaUrl: filterBase64(userProfile?.svipPrivileges?.entranceUrl || userProfile?.inventory?.activeEntryMediaUrl) || null,
+            mediaUrl: filterBase64(userProfile?.svipPrivileges?.entranceUrl || userProfile?.inventory?.activeEntryVideoUrl) || null,
             entryEffectType: entryType,
             entryVideoUrl: filterBase64(entryVideoUrl),
             content: 'entered the room', 
@@ -165,7 +165,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
             senderId: uid, 
             senderName: userProfile.username,
             senderAvatar: filterBase64(userProfile?.avatarUrl) || user.photoURL || null,
-            mediaUrl: filterBase64(userProfile?.svipPrivileges?.entranceUrl || userProfile?.inventory?.activeEntryMediaUrl) || null,
+            mediaUrl: filterBase64(userProfile?.svipPrivileges?.entranceUrl || userProfile?.inventory?.activeEntryVideoUrl) || null,
             entryEffectType: entryType,
             entryVideoUrl: filterBase64(entryVideoUrl),
             content: 'entered the room', 
@@ -358,7 +358,6 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
     if (!firestore || !roomId || !user?.uid || !database) return;
     if (!userProfile?.username || userProfile?.roomInvisible) return;
     if (entranceSentForRoom.current === roomId) return;
-    if (!enteredRooms.has(roomId)) return;
 
     entranceSentForRoom.current = roomId;
     const uid = user.uid;
@@ -374,7 +373,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
       senderId: uid,
       senderName: userProfile.username,
       senderAvatar: filterBase64(userProfile?.avatarUrl) || user.photoURL || null,
-      mediaUrl: filterBase64(userProfile?.svipPrivileges?.entranceUrl || userProfile?.inventory?.activeEntryMediaUrl) || null,
+      mediaUrl: filterBase64(userProfile?.svipPrivileges?.entranceUrl || userProfile?.inventory?.activeEntryVideoUrl) || null,
       entryEffectType: entryType,
       entryVideoUrl: filterBase64(entryVideoUrl),
       content: 'entered the room',
@@ -386,7 +385,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
       senderId: uid,
       senderName: userProfile.username,
       senderAvatar: filterBase64(userProfile?.avatarUrl) || user.photoURL || null,
-      mediaUrl: filterBase64(userProfile?.svipPrivileges?.entranceUrl || userProfile?.inventory?.activeEntryMediaUrl) || null,
+      mediaUrl: filterBase64(userProfile?.svipPrivileges?.entranceUrl || userProfile?.inventory?.activeEntryVideoUrl) || null,
       entryEffectType: entryType,
       entryVideoUrl: filterBase64(entryVideoUrl),
       content: 'entered the room',
