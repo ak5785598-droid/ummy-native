@@ -681,7 +681,7 @@ export default function ProfileScreen() {
               {isCertifiedSeller && (
                 <ProfileMenuItem
                   CustomIcon={SVGA_SellerBag}
-                  label="Seller center"
+                  label="Seller Centre"
                   onPress={() => {}}
                 />
               )}

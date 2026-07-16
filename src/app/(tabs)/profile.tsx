@@ -495,7 +495,7 @@ export default function ProfileScreen() {
               {isCertifiedSeller && (
                 <SellerTransferDialog trigger={
                   <View pointerEvents="none">
-                    <ProfileMenuItem icon={SVGA_SellerBag} label="Seller center" iconColor="bg-red-50" onPress={() => {}} />
+                    <ProfileMenuItem icon={SVGA_SellerBag} label="Seller Centre" iconColor="bg-red-50" onPress={() => {}} />
                   </View>
                 } />
               )}

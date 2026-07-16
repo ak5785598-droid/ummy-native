@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator, StyleSheet, FlatList, Dimensions, BackHandler, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ChevronLeft, ShoppingBag, Check, X, Play, Gift,
   Activity, Palette, MessageSquare, Ticket, ImageIcon, User
@@ -97,6 +97,7 @@ const TABS = ['Store', 'My Items'];
 
 export default function StoreScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useUser();
   const firestore = useFirestore();
   const { profile: userProfile } = useUserProfile(user?.uid);
@@ -855,7 +856,7 @@ export default function StoreScreen() {
                 keyExtractor={item => item.id}
                 numColumns={2}
                 renderItem={renderItem}
-                contentContainerStyle={{ padding: 12, paddingBottom: 80 }}
+                contentContainerStyle={{ padding: 12, paddingBottom: 80 + insets.bottom }}
                 columnWrapperStyle={{ gap: 12 }}
                 ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
                 showsVerticalScrollIndicator={false}
@@ -881,7 +882,7 @@ export default function StoreScreen() {
               keyExtractor={item => item.id}
               numColumns={2}
               renderItem={renderItem}
-              contentContainerStyle={{ padding: 12, paddingBottom: 80 }}
+              contentContainerStyle={{ padding: 12, paddingBottom: 80 + insets.bottom }}
               columnWrapperStyle={{ gap: 12 }}
               ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
               showsVerticalScrollIndicator={false}
