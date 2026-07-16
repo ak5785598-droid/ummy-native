@@ -35,6 +35,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
     minimizedRoomId: null,
   });
   const lastSyncMetadata = useRef<string>('');
+  const entranceSentForRoom = useRef<string | null>(null);
 
   useEffect(() => {
     const sessionRoom = activeRoom || minimizedRoom;
@@ -135,23 +136,22 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
 
     if (lastRoomId.current !== roomId || !hasJoinedRef.current) {
       if (!enteredRooms.has(roomId)) {
-        enteredRooms.add(roomId);
         performJoin();
 
-        // Skip entrance message if roomInvisible is enabled
-        if (!userProfile?.roomInvisible) {
+        // Send entrance message only if username is loaded
+        if (userProfile?.username && !userProfile?.roomInvisible) {
+          enteredRooms.add(roomId);
           const inventoryEntryType = userProfile?.inventory?.activeEntryEffect || null;
           const inventoryEntryVideoUrl = userProfile?.inventory?.activeEntryVideoUrl || null;
-          // SVIP entrance takes priority over inventory entrance
           const entryType = userProfile?.svipPrivileges?.entranceType || inventoryEntryType;
           const entryVideoUrl = userProfile?.svipPrivileges?.entranceUrl || inventoryEntryVideoUrl;
           
-                    const newMsgRef = push(ref(database, `roomMessages/${roomId}`));
+          const newMsgRef = push(ref(database, `roomMessages/${roomId}`));
           set(newMsgRef, {
             id: newMsgRef.key,
             type: 'entrance', 
             senderId: uid, 
-            senderName: userProfile?.username || 'User',
+            senderName: userProfile.username,
             senderAvatar: filterBase64(userProfile?.avatarUrl) || user.photoURL || null,
             mediaUrl: filterBase64(userProfile?.svipPrivileges?.entranceUrl || userProfile?.inventory?.activeEntryMediaUrl) || null,
             entryEffectType: entryType,
@@ -163,7 +163,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
           addDocumentNonBlocking(collection(firestore, 'chatRooms', roomId, 'messages'), {
             type: 'entrance', 
             senderId: uid, 
-            senderName: userProfile?.username || 'User',
+            senderName: userProfile.username,
             senderAvatar: filterBase64(userProfile?.avatarUrl) || user.photoURL || null,
             mediaUrl: filterBase64(userProfile?.svipPrivileges?.entranceUrl || userProfile?.inventory?.activeEntryMediaUrl) || null,
             entryEffectType: entryType,
@@ -351,6 +351,48 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
       }
     };
   }, [firestore, activeRoom?.id, minimizedRoom?.id, user?.uid, database]);
+
+  // Delayed entrance: if userProfile wasn't loaded when room was joined, send entrance now
+  useEffect(() => {
+    const roomId = (activeRoom || minimizedRoom)?.id;
+    if (!firestore || !roomId || !user?.uid || !database) return;
+    if (!userProfile?.username || userProfile?.roomInvisible) return;
+    if (entranceSentForRoom.current === roomId) return;
+    if (!enteredRooms.has(roomId)) return;
+
+    entranceSentForRoom.current = roomId;
+    const uid = user.uid;
+
+    const inventoryEntryType = userProfile?.inventory?.activeEntryEffect || null;
+    const entryType = userProfile?.svipPrivileges?.entranceType || inventoryEntryType;
+    const entryVideoUrl = userProfile?.svipPrivileges?.entranceUrl || userProfile?.inventory?.activeEntryVideoUrl;
+
+    const newMsgRef = push(ref(database, `roomMessages/${roomId}`));
+    set(newMsgRef, {
+      id: newMsgRef.key,
+      type: 'entrance',
+      senderId: uid,
+      senderName: userProfile.username,
+      senderAvatar: filterBase64(userProfile?.avatarUrl) || user.photoURL || null,
+      mediaUrl: filterBase64(userProfile?.svipPrivileges?.entranceUrl || userProfile?.inventory?.activeEntryMediaUrl) || null,
+      entryEffectType: entryType,
+      entryVideoUrl: filterBase64(entryVideoUrl),
+      content: 'entered the room',
+      timestamp: Date.now(),
+    }).catch(() => {});
+
+    addDocumentNonBlocking(collection(firestore, 'chatRooms', roomId, 'messages'), {
+      type: 'entrance',
+      senderId: uid,
+      senderName: userProfile.username,
+      senderAvatar: filterBase64(userProfile?.avatarUrl) || user.photoURL || null,
+      mediaUrl: filterBase64(userProfile?.svipPrivileges?.entranceUrl || userProfile?.inventory?.activeEntryMediaUrl) || null,
+      entryEffectType: entryType,
+      entryVideoUrl: filterBase64(entryVideoUrl),
+      content: 'entered the room',
+      timestamp: serverTimestamp(),
+    }).catch(() => {});
+  }, [userProfile?.username, activeRoom?.id, minimizedRoom?.id]);
 
   useEffect(() => {
     if (!firestore || !activeRoom?.id || !user?.uid || !userProfile) return;
