@@ -268,9 +268,12 @@ export function useWebRTCVoice(
     }
 
     if (signalingRef.current) {
-      await signalingRef.current.clearSignalingData();
-      await signalingRef.current.removeUserFromRoom();
+      const signaling = signalingRef.current;
       signalingRef.current = null;
+      try {
+        await signaling.clearSignalingData();
+        await signaling.removeUserFromRoom();
+      } catch {}
     }
 
     setRemoteUsers([]);

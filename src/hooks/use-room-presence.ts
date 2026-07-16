@@ -88,7 +88,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
         // Use set+merge directly — no need for getDoc check
         batch.set(participantRef, {
           uid,
-          name: userProfile?.username || user.displayName || 'Anonymous',
+          name: userProfile?.username || 'User',
           avatarUrl: userProfile?.avatarUrl || user.photoURL || '',
           activeFrame: frameToSend,
           activeFrameMediaUrl: frameMediaUrlToSend,
@@ -124,7 +124,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
         batch.set(logRef, {
           type: 'entry',
           userId: uid,
-          username: userProfile?.username || user.displayName || 'Anonymous',
+          username: userProfile?.username || 'User',
           timestamp: serverTimestamp(),
         });
 
@@ -151,7 +151,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
             id: newMsgRef.key,
             type: 'entrance', 
             senderId: uid, 
-            senderName: userProfile?.username || 'Anonymous',
+            senderName: userProfile?.username || 'User',
             senderAvatar: filterBase64(userProfile?.avatarUrl) || user.photoURL || null,
             mediaUrl: filterBase64(userProfile?.svipPrivileges?.entranceUrl || userProfile?.inventory?.activeEntryMediaUrl) || null,
             entryEffectType: entryType,
@@ -163,7 +163,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
           addDocumentNonBlocking(collection(firestore, 'chatRooms', roomId, 'messages'), {
             type: 'entrance', 
             senderId: uid, 
-            senderName: userProfile?.username || 'Anonymous',
+            senderName: userProfile?.username || 'User',
             senderAvatar: filterBase64(userProfile?.avatarUrl) || user.photoURL || null,
             mediaUrl: filterBase64(userProfile?.svipPrivileges?.entranceUrl || userProfile?.inventory?.activeEntryMediaUrl) || null,
             entryEffectType: entryType,
@@ -189,7 +189,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
       } else {
         setDocumentNonBlocking(participantRef, {
           lastSeen: serverTimestamp(),
-          name: userProfile?.username || user.displayName || 'Anonymous',
+          name: userProfile?.username || 'User',
           avatarUrl: userProfile?.avatarUrl || user.photoURL || '',
           accountNumber: userProfile?.accountNumber || '',
         }, { merge: true });
@@ -278,7 +278,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
     if (!userProfile?.roomInvisible) {
       set(presenceRef.current, {
         uid,
-        name: userProfile?.username || user.displayName || 'Anonymous',
+        name: userProfile?.username || 'User',
         avatarUrl: filterBase64(userProfile?.avatarUrl) || user.photoURL || '',
         joinedAt: dbServerTimestamp(),
         lastSeen: dbServerTimestamp(),
@@ -297,7 +297,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
         if (presenceRef.current && !userProfile?.roomInvisible) {
           set(presenceRef.current, {
             uid,
-            name: userProfile?.username || user.displayName || 'Anonymous',
+          name: userProfile?.username || 'User',
             avatarUrl: filterBase64(userProfile?.avatarUrl) || user.photoURL || '',
             joinedAt: dbServerTimestamp(),
             lastSeen: dbServerTimestamp(),
