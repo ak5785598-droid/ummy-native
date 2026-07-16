@@ -5,8 +5,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Crown, Medal, TrendingUp, HelpCircle, ArrowLeft, User, X } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFirebase } from '../../firebase/provider';
-import { collection, query, where, orderBy, limit, onSnapshot } from '@/firebase/firestore-compat';
-import { useCollection, useMemoFirebase } from '../../firebase/provider';
+import { collection, query, where, orderBy, limit, onSnapshot, doc, updateDoc, arrayUnion } from '@/firebase/firestore-compat';
+import { useCollection, useMemoFirebase, useUser } from '../../firebase/provider';
 import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, Stop, Rect, Circle } from 'react-native-svg';
 import { Image } from 'expo-image';
 import { Video, ResizeMode } from 'expo-av';
@@ -204,6 +204,7 @@ export default function LeaderboardScreen() {
   const searchParams = useLocalSearchParams();
   const initialTab = (searchParams.type as any) || 'rich';
 
+  const { user } = useUser();
   const { firestore } = useFirebase();
   const [activeTab, setActiveTab] = useState<'rich' | 'charm' | 'rooms'>(initialTab);
   const [timeFilter, setTimeFilter] = useState<'daily' | 'weekly' | 'monthly'>('daily');
@@ -296,6 +297,8 @@ export default function LeaderboardScreen() {
   const top3 = useMemo(() => {
     return activeEntries.slice(0, 3);
   }, [activeEntries]);
+
+  // Frames are assigned by backend daily cron — no real-time assignment needed
 
   const rest = useMemo(() => {
     return activeEntries.slice(3);
@@ -431,6 +434,11 @@ export default function LeaderboardScreen() {
                   )}
                   <View className="flex-1 mr-2">
                     <Text className="text-white text-sm font-bold" numberOfLines={1}>{getLabel(item)}</Text>
+                    {activeTab !== 'rooms' && (item.accountNumber || item.roomNumber) && (
+                      <Text className="text-white/40 text-[10px] font-medium" numberOfLines={1}>
+                        ID: {item.accountNumber || item.roomNumber}
+                      </Text>
+                    )}
                   </View>
                   <View className="flex-row items-center gap-1">
                     <Text className="text-amber-400 text-xs font-bold">{formatValue(getValue(item))}</Text>

@@ -134,11 +134,13 @@ export function RoomMessagesDialog({ visible, onClose, roomId, initialRecipient 
       const activeBubble = userProfile?.inventory?.activeBubble || null;
       const isExpired = isInventoryItemExpired(userProfile?.inventory || {}, activeBubble);
       const bubbleToSend = isExpired ? null : activeBubble;
+      const bubbleMediaUrl = (userProfile?.inventory as any)?.activeBubbleMediaUrl || null;
 
       const messageData = {
         text: inputText.trim(),
         senderId: user.uid,
         senderBubble: bubbleToSend,
+        senderBubbleMediaUrl: bubbleMediaUrl,
         timestamp: serverTimestamp()
       };
       

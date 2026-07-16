@@ -361,6 +361,10 @@ const STYLE_CONFIGS: Record<string, { colors: string[]; border: string; tailColo
   'taurus-2026': { colors: ['#b45309', '#78350f', '#451a03'], border: 'rgba(255,255,255,0.4)', tailColor: '#78350f', decorator: '♉', borderWidth: 1.5, borderStyle: 'solid' },
   'destiny-battle-a': { colors: ['#44403c', '#292524', '#1c1917'], border: 'rgba(255,255,255,0.3)', tailColor: '#292524', decorator: '🔫', borderWidth: 2.5, borderStyle: 'solid', animation: 'shine' },
   'eid-adha-2026': { colors: ['#065f46', '#14532d', '#052e16'], border: 'rgba(255,255,255,0.45)', tailColor: '#14532d', decorator: '🐑', borderWidth: 1.5, borderStyle: 'solid' },
+  'svip-dragon-bubble': { colors: ['#7f1d1d', '#991b1b', '#dc2626'], border: '#fbbf24', tailColor: '#991b1b', decorator: '🐉', borderWidth: 2, borderStyle: 'solid', animation: 'shine' },
+  'svip-lion-bubble': { colors: ['#78350f', '#92400e', '#b45309'], border: '#fbbf24', tailColor: '#92400e', decorator: '🦁', borderWidth: 2, borderStyle: 'solid', animation: 'sparkles' },
+  'svip-owl-bubble': { colors: ['#1e1b4b', '#312e81', '#4338ca'], border: '#a78bfa', tailColor: '#312e81', decorator: '🦉', borderWidth: 2, borderStyle: 'solid', animation: 'sparkles' },
+  'svip-wolf-bubble': { colors: ['#374151', '#4b5563', '#6b7280'], border: '#d1d5db', tailColor: '#4b5563', decorator: '🐺', borderWidth: 2, borderStyle: 'solid', animation: 'shine' },
   'default-premium': { colors: ['#c084fc', '#818cf8', '#4f46e5'], border: 'rgba(255,255,255,0.4)', tailColor: '#818cf8', decorator: '⭐', borderWidth: 1.5, borderStyle: 'solid', animation: 'sparkles' },
   'b-cosmic-star': { colors: ['#1e1b4b', '#260c44', '#0d041e'], border: '#c084fc', tailColor: '#260c44', decorator: '🪐', borderWidth: 2, borderStyle: 'solid', animation: 'sparkles' },
   'b-royal-gold': { colors: ['#3b2a09', '#2e1f04', '#1f1300'], border: '#fbbf24', tailColor: '#2e1f04', decorator: '👑', borderWidth: 2.2, borderStyle: 'solid', animation: 'shine' },
@@ -480,6 +484,40 @@ export const ChatMessageBubble = memo(({ bubbleId, bubbleMediaUrl, isMe, childre
               paddingRight: bubbleId === 'b-royal-gold' ? 46 : 42,
               paddingTop: bubbleId === 'b-royal-gold' ? 32 : 24,
               paddingBottom: bubbleId === 'b-royal-gold' ? 32 : 24,
+              minWidth: bubbleMinWidth || 140,
+              width: bubbleWidth,
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+            imageStyle={{ resizeMode: 'stretch' }}
+          >
+            <View style={{ position: 'relative', width: '100%' }}>
+              {children}
+            </View>
+          </ImageBackground>
+          {isMe && showTail && (
+            <View style={{ width: 0, height: 0, borderLeftWidth: 0, borderRightWidth: 8, borderTopWidth: 8, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: 'transparent', marginBottom: 8 }} />
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  // Image-backed custom bubble from store (HTTP URL)
+  if (bubbleMediaUrl && typeof bubbleMediaUrl === 'string' && (bubbleMediaUrl.startsWith('http://') || bubbleMediaUrl.startsWith('https://'))) {
+    return (
+      <View style={[{ alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '85%', marginBottom: 4 }, restStyle]}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+          {!isMe && showTail && (
+            <View style={{ width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 0, borderTopWidth: 8, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: 'transparent', marginBottom: 8 }} />
+          )}
+          <ImageBackground
+            source={{ uri: bubbleMediaUrl }}
+            style={{
+              paddingLeft: 42,
+              paddingRight: 42,
+              paddingTop: 24,
+              paddingBottom: 24,
               minWidth: bubbleMinWidth || 140,
               width: bubbleWidth,
               justifyContent: 'center',

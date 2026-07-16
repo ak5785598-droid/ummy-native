@@ -23,6 +23,11 @@ const LOCAL_FRAME_ASSETS: Record<string, any> = {
   'basra_frame': require('../../../assets/images/basra_frame.png'),
   'top3family_topuser': require('../../../assets/images/top3family_topuser.png'),
   'top2family_topuser': require('../../../assets/images/top2family_topuser.png'),
+  'event_rank1_frame': require('../../../assets/animations/frame_event_based_1-ezgif.com-effects.gif'),
+  'event_rank2_frame': require('../../../assets/animations/frame_event_based_2-ezgif.com-effects.gif'),
+  'event_rank3_frame': require('../../../assets/animations/frame_event_based_3-ezgif.com-effects.gif'),
+  'cp_king_frame': require('../../../assets/animations/frame_cp_king_1-ezgif.com-effects.gif'),
+  'cp_queen_frame': require('../../../assets/animations/frame_cp_queen-ezgif.com-effects.gif'),
 };
 
 function FrameDecorationAnimation({ type, frameSize }: { type: string; frameSize: number }) {

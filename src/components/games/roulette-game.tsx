@@ -151,9 +151,11 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
     return () => clearInterval(iv);
   }, [gameState, roundStartTime]);
 
-  // Handle local state driver transitions (multiplayer-friendly logic)
+  // Timer hits 0 → DIRECT spin trigger (web app style — no RTD dependency)
   useEffect(() => {
-    if (!database || gameState !== 'betting' || timeLeft > 0 || spinInitiatedRef.current) return;
+    if (gameState !== 'betting') return;
+    if (spinInitiatedRef.current) return;
+    if (timeLeft !== 0) return;
     spinInitiatedRef.current = true;
 
     (async () => {
@@ -174,77 +176,91 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
       const extraSpins = 5 + Math.floor(Math.random() * 5);
       const newRotation = syncedRotation + (extraSpins * 360) + (targetIdx * rotationStep);
 
-      // Perform spin status write using RTD transaction
-      databaseTransaction(databaseRef(database, `games/roulette_${roomId || 'global'}`), (currentData) => {
-        if (currentData && currentData.status !== 'betting') return;
-        if (!currentData) {
-          return {
-            status: 'spinning',
-            winningNumber: targetNum,
-            rotation: newRotation,
-            updatedAt: Date.now(),
-            history: [14, 31, 22, 0, 17, 5, 29, 8],
-            roundStartTime: Date.now()
-          };
-        }
-        currentData.status = 'spinning';
-        currentData.winningNumber = targetNum;
-        currentData.rotation = newRotation;
-        currentData.updatedAt = Date.now();
-        return currentData;
-      }).catch(() => { spinInitiatedRef.current = false; });
+      // DIRECT spin (like web app) — no RTD dependency
+      setGameState('spinning');
+      setSyncedRotation(newRotation);
+      Animated.timing(wheelRotationAnim, {
+        toValue: newRotation,
+        duration: 5000,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }).start();
 
-      // After 5s spin duration, trigger result state
-      setTimeout(() => {
+      // RTDB sync for other players (non-blocking)
+      if (database) {
         databaseTransaction(databaseRef(database, `games/roulette_${roomId || 'global'}`), (currentData) => {
-          if (!currentData || currentData.status !== 'spinning') return;
-          currentData.status = 'result';
+          if (currentData && currentData.status !== 'betting') return;
+          if (!currentData) {
+            return { status: 'spinning', winningNumber: targetNum, rotation: newRotation, updatedAt: Date.now(), history: [14, 31, 22, 0, 17, 5, 29, 8], roundStartTime: Date.now() };
+          }
+          currentData.status = 'spinning';
           currentData.winningNumber = targetNum;
+          currentData.rotation = newRotation;
           currentData.updatedAt = Date.now();
           return currentData;
         }).catch(() => {});
+      }
+
+      // After 5s spin → result (local)
+      setTimeout(() => {
+        setGameState('result');
+        setWinningNumber(targetNum);
+        finalizeResult(targetNum);
+        // RTDB sync
+        if (database) {
+          databaseTransaction(databaseRef(database, `games/roulette_${roomId || 'global'}`), (currentData) => {
+            if (!currentData || currentData.status !== 'spinning') return;
+            currentData.status = 'result';
+            currentData.winningNumber = targetNum;
+            currentData.updatedAt = Date.now();
+            return currentData;
+          }).catch(() => {});
+        }
       }, 5000);
 
-      // After 10s total, reset to betting
+      // After 10s total → reset to betting (local)
       setTimeout(() => {
-        databaseTransaction(databaseRef(database, `games/roulette_${roomId || 'global'}`), (currentData) => {
-          if (!currentData || currentData.status !== 'result') return;
-          currentData.status = 'betting';
-          currentData.winningNumber = null;
-          currentData.history = [targetNum, ...(currentData.history || [])].slice(0, 15);
-          currentData.roundStartTime = Date.now();
-          currentData.updatedAt = Date.now();
-          return currentData;
-        }).catch(() => {});
+        setGameState('betting');
+        setTimeLeft(15);
+        setWinningNumber(null);
+        setResultMessage(null);
+        setMyBets({});
         spinInitiatedRef.current = false;
+        // RTDB sync
+        if (database) {
+          databaseTransaction(databaseRef(database, `games/roulette_${roomId || 'global'}`), (currentData) => {
+            if (!currentData || currentData.status !== 'result') return;
+            currentData.status = 'betting';
+            currentData.winningNumber = null;
+            currentData.history = [targetNum, ...(currentData.history || [])].slice(0, 15);
+            currentData.roundStartTime = Date.now();
+            currentData.updatedAt = Date.now();
+            return currentData;
+          }).catch(() => {});
+        }
       }, 10000);
 
     })();
-  }, [gameState, timeLeft]); // Bug fix: removed firestore/database/roomId/syncedRotation - re-subscribing caused race conditions
+  }, [timeLeft]); // Bug fix: removed firestore/database/roomId/syncedRotation - re-subscribing caused race conditions
 
-  // Real-time RTD Sync (Locks state globally with room players)
+  // RTD Sync — ONLY syncs data for other players. NO state transitions.
   useEffect(() => {
     if (!database) return;
     const gamePath = `games/roulette_${roomId || 'global'}`;
 
     const unsub = onValue(databaseRef(database, gamePath), (snap: any) => {
-      const exists = snap.exists();
-      if (!exists) {
+      if (!snap.exists()) {
         databaseSet(databaseRef(database, gamePath), {
-          status: 'betting',
-          winningNumber: null,
-          rotation: 0,
+          status: 'betting', winningNumber: null, rotation: 0,
           history: [14, 31, 22, 0, 17, 5, 29, 8],
-          roundStartTime: Date.now(),
-          updatedAt: Date.now()
+          roundStartTime: Date.now(), updatedAt: Date.now()
         }).catch(() => {});
         return;
       }
 
       const data = snap.val() as any;
-      const status = data.status || 'betting';
 
-      // Self-heal: If fields are missing in an existing doc
+      // Self-heal missing fields
       if (data.status === undefined || data.roundStartTime === undefined) {
         databaseUpdate(databaseRef(database, gamePath), {
           status: data.status || 'betting',
@@ -254,38 +270,21 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
           roundStartTime: data.roundStartTime || Date.now(),
           updatedAt: Date.now()
         }).catch(() => {});
-        return;
       }
 
-      setGameState(status);
+      // Only sync display data — NO setGameState calls
       if (data.history) setHistory(data.history);
-
-      // Handle timer countdown
-      if (data.roundStartTime) {
-        setRoundStartTime(data.roundStartTime);
-      }
-
-      // Sync wheel rotation with smooth physics rotation
+      if (data.roundStartTime) setRoundStartTime(data.roundStartTime);
       if (data.rotation !== undefined && data.rotation !== null) {
         setSyncedRotation(data.rotation);
-        Animated.timing(wheelRotationAnim, {
-          toValue: data.rotation,
-          duration: status === 'spinning' ? 5000 : 0,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }).start();
-      }
-
-      // Sync winning number & finalize local winnings when transitioning to result status
-      if (status === 'result' && data.winningNumber !== undefined && data.winningNumber !== null) {
-        setWinningNumber(data.winningNumber);
-        finalizeResult(data.winningNumber);
-      }
-
-      // Clear bets on transition back to betting state
-      if (status === 'betting') {
-        setWinningNumber(null);
-        setResultMessage(null);
+        // Only animate wheel if not already spinning locally
+        if (gameState !== 'spinning') {
+          Animated.timing(wheelRotationAnim, {
+            toValue: data.rotation,
+            duration: 0,
+            useNativeDriver: true,
+          }).start();
+        }
       }
     });
 

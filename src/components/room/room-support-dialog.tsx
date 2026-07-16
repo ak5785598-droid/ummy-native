@@ -15,6 +15,10 @@ interface RoomSupportDialogProps {
     weeklyGifts?: number;
     totalGifts?: number;
     dailyGifts?: number;
+    lastWeekGifts?: number;
+    lastWeekLevel?: number;
+    lastWeekVisitors?: number;
+    lastWeekRewardsDistributed?: boolean;
   };
   visitorCount?: number;
   levelPoints?: number;
@@ -91,16 +95,25 @@ export function RoomSupportDialog({
     return () => clearInterval(timer);
   }, []);
 
-  // Link with Room Trophy (Daily Gifts)
-  const roomCoins = roomStats?.dailyGifts || 0;
+  // Link with Room Trophy (Weekly Gifts — resets every week)
+  const roomCoins = roomStats?.weeklyGifts || roomStats?.dailyGifts || 0;
 
-  // Find current goal level based on dailyGifts
+  // Last week data from Firestore (saved before Monday reset)
+  const lastWeekGifts = roomStats?.lastWeekGifts || 0;
+  const lastWeekLevel = roomStats?.lastWeekLevel || 0;
+  const lastWeekVisitors = roomStats?.lastWeekVisitors || 0;
+  const lastWeekRewardsDistributed = roomStats?.lastWeekRewardsDistributed || false;
+
+  // Find current goal level based on weeklyGifts
   const currentGoal = [...GOALS_REWARDS].reverse().find(g => {
     const targetCoins = parseFloat(g.roomCoins.replace('M', '')) * 1000000;
     return roomCoins >= targetCoins;
   }) || (roomCoins > 0 ? GOALS_REWARDS[GOALS_REWARDS.length - 1] : { level: 0 });
 
   const roomLevel = currentGoal.level;
+
+  // Last week reward info
+  const lastWeekGoal = lastWeekLevel > 0 ? [...GOALS_REWARDS].reverse().find(g => g.level === lastWeekLevel) : null;
 
   return (
     <Modal visible={visible} transparent={false} animationType="slide" onRequestClose={onClose}>
@@ -172,23 +185,28 @@ export function RoomSupportDialog({
                 <View className="flex-row border-b border-white/5 bg-blue-500/5 py-2.5 px-3 justify-between items-center">
                   <Text className="text-[10px] font-bold text-blue-400 flex-1">This Week</Text>
                   <Text className="text-[10px] font-bold text-white w-12 text-center">{roomLevel}</Text>
-                  <Text className="text-[10px] font-bold text-yellow-400 w-16 text-center">0</Text>
+                  <Text className="text-[10px] font-bold text-yellow-400 w-16 text-center">{roomLevel > 0 ? `🎁` : '0'}</Text>
                   <Text className="text-[10px] font-bold text-white w-16 text-center">{visitorCount}</Text>
                   <Text className="text-[10px] font-bold text-cyan-400 w-20 text-right">{roomCoins.toLocaleString()}</Text>
                 </View>
 
                 {/* Last Week Row */}
-                <View className="flex-row py-2.5 px-3 justify-between items-center opacity-50">
-                  <Text className="text-[10px] font-bold text-white/40 flex-1">Last Week</Text>
-                  <Text className="text-[10px] font-bold text-white/40 w-12 text-center">0</Text>
-                  <Text className="text-[10px] font-bold text-white/40 w-16 text-center">--</Text>
-                  <Text className="text-[10px] font-bold text-white/40 w-16 text-center">0</Text>
-                  <Text className="text-[10px] font-bold text-white/40 w-20 text-right">0</Text>
+                <View className="flex-row py-2.5 px-3 justify-between items-center opacity-70">
+                  <Text className="text-[10px] font-bold text-white/50 flex-1">Last Week</Text>
+                  <Text className="text-[10px] font-bold text-white/50 w-12 text-center">{lastWeekLevel}</Text>
+                  <Text className="text-[10px] font-bold text-yellow-400/70 w-16 text-center">{lastWeekRewardsDistributed ? '✅' : lastWeekLevel > 0 ? '⏳' : '--'}</Text>
+                  <Text className="text-[10px] font-bold text-white/50 w-16 text-center">{lastWeekVisitors}</Text>
+                  <Text className="text-[10px] font-bold text-cyan-400/70 w-20 text-right">{lastWeekGifts > 0 ? lastWeekGifts.toLocaleString() : '0'}</Text>
                 </View>
 
                 <View className="p-3 bg-blue-950/40 border-t border-white/5">
                   <Text className="text-[9px] text-white/40 font-bold text-center italic">
-                    This week's rewards will be delivered next Wednesday (UTC+0)
+                    {lastWeekLevel > 0 && !lastWeekRewardsDistributed
+                      ? `Last week Level ${lastWeekLevel} — rewards pending (Wed 00:30 IST)`
+                      : lastWeekRewardsDistributed && lastWeekLevel > 0
+                        ? `Last week Level ${lastWeekLevel} — rewards delivered ✅`
+                        : "This week's rewards will be delivered next Wednesday (IST)"
+                    }
                   </Text>
                 </View>
               </View>

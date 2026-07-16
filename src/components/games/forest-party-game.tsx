@@ -72,6 +72,8 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
   const [timeLeft, setTimeLeft] = useState(30);
   const [roundStartTime, setRoundStartTime] = useState<number | null>(null);
   const spinInitiatedRef = useRef(false);
+  const myBetsRef = useRef<Record<string, number>>({});
+
   const [selectedChip, setSelectedChip] = useState(1000);
   const [myBets, setMyBets] = useState<Record<string, number>>({});
   const [lastBets, setLastBets] = useState<Record<string, number>>({});
@@ -145,9 +147,11 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
     return () => clearInterval(iv);
   }, [gameState, roundStartTime]);
 
-  // Handle local state transitions based on timer ending
+  // Timer hits 0 → DIRECT spin trigger (web app style — no RTD dependency)
   useEffect(() => {
-    if (!database || gameState !== 'betting' || timeLeft > 0 || spinInitiatedRef.current) return;
+    if (gameState !== 'betting') return;
+    if (spinInitiatedRef.current) return;
+    if (timeLeft !== 0) return;
     spinInitiatedRef.current = true;
 
     (async () => {
@@ -177,78 +181,45 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
         winningId = rightIds[Math.floor(Math.random() * rightIds.length)];
       }
 
+      // RTDB sync for other players (non-blocking, best-effort)
       const gamePath = `games/forest_party_${roomId || 'global'}`;
-
-      databaseTransaction(databaseRef(database, gamePath), (currentData) => {
-        if (currentData && currentData.status !== 'betting') return;
-        if (!currentData) {
-          return {
-            status: 'spinning',
-            winningId,
-            groupType,
-            updatedAt: Date.now(),
-            history: ['rabbit', 'dog', 'panda', 'rabbit', 'sheep', 'cat', 'rabbit', 'tiger'],
-            roundStartTime: Date.now()
-          };
-        }
-        currentData.status = 'spinning';
-        currentData.winningId = winningId;
-        currentData.groupType = groupType;
-        currentData.updatedAt = Date.now();
-        return currentData;
-      }).catch(() => { spinInitiatedRef.current = false; });
-
-      // After 6s spin duration, trigger result state
-      setTimeout(() => {
+      if (database) {
         databaseTransaction(databaseRef(database, gamePath), (currentData) => {
-          if (!currentData || currentData.status !== 'spinning') return;
-          currentData.status = 'result';
+          if (currentData && currentData.status !== 'betting') return;
+          if (!currentData) {
+            return { status: 'spinning', winningId, groupType, updatedAt: Date.now(), history: ['rabbit', 'dog', 'panda', 'rabbit', 'sheep', 'cat', 'rabbit', 'tiger'], roundStartTime: Date.now() };
+          }
+          currentData.status = 'spinning';
+          currentData.winningId = winningId;
+          currentData.groupType = groupType;
           currentData.updatedAt = Date.now();
           return currentData;
         }).catch(() => {});
-      }, 6000);
+      }
 
-      // After 12s total, reset to betting
-      setTimeout(() => {
-        databaseTransaction(databaseRef(database, gamePath), (currentData) => {
-          if (!currentData || currentData.status !== 'result') return;
-          currentData.status = 'betting';
-          currentData.winningId = null;
-          currentData.groupType = 'none';
-          currentData.history = [winningId, ...(currentData.history || [])].slice(0, 15);
-          currentData.roundStartTime = Date.now();
-          currentData.updatedAt = Date.now();
-          return currentData;
-        }).catch(() => {});
-        spinInitiatedRef.current = false;
-      }, 12000);
-
+      // DIRECT spin (like web app) — no waiting for RTD listener
+      startSpin(winningId, groupType);
     })();
-  }, [gameState, timeLeft]); // Bug fix: removed extra deps that caused re-fires
+  }, [timeLeft]);
 
-  // Real-time RTD Sync (Locks state globally with room players)
+  // RTD Sync — ONLY syncs roundStartTime + history for other players. NO state transitions.
   useEffect(() => {
     if (!database) return;
     const gamePath = `games/forest_party_${roomId || 'global'}`;
 
     const unsub = onValue(databaseRef(database, gamePath), (snap: any) => {
-      const exists = snap.exists();
-      if (!exists) {
+      if (!snap.exists()) {
         databaseSet(databaseRef(database, gamePath), {
-          status: 'betting',
-          winningId: null,
-          groupType: 'none',
+          status: 'betting', winningId: null, groupType: 'none',
           history: ['rabbit', 'dog', 'panda', 'rabbit', 'sheep', 'cat', 'rabbit', 'tiger'],
-          roundStartTime: Date.now(),
-          updatedAt: Date.now()
+          roundStartTime: Date.now(), updatedAt: Date.now()
         }).catch(() => {});
         return;
       }
 
       const data = snap.val() as any;
-      const status = data.status || 'betting';
 
-      // Self-heal
+      // Self-heal missing fields
       if (data.status === undefined || data.roundStartTime === undefined) {
         databaseUpdate(databaseRef(database, gamePath), {
           status: data.status || 'betting',
@@ -258,26 +229,15 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
           roundStartTime: data.roundStartTime || Date.now(),
           updatedAt: Date.now()
         }).catch(() => {});
-        return;
       }
 
+      // Only sync display data — NO setGameState, NO startSpin calls
       if (data.history) setHistory(data.history);
       if (data.roundStartTime) setRoundStartTime(data.roundStartTime);
-
-      if (status === 'spinning' && data.winningId) {
-        startSpin(data.winningId, data.groupType || 'none');
-      } else if (status === 'betting') {
-        setMyBets({});
-        setWinnerData(null);
-        spinInitiatedRef.current = false;
-        setGameState('betting');
-      } else if (status === 'result') {
-        setGameState('result');
-      }
     });
 
     return () => unsub();
-  }, [database, roomId]); // Bug fix: removed gameState — stable listener
+  }, [database, roomId]);
 
   useEffect(() => {
     let spinLoop: Animated.CompositeAnimation | null = null;
@@ -321,7 +281,11 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
       setLocalCoins(p => p - selectedChip);
     } catch {}
     setDroppedChips(prev => [...prev, { id: `${Date.now()}-${Math.random()}`, animalId, label: formatChipLabel(selectedChip) }]);
-    setMyBets(prev => ({ ...prev, [animalId]: (prev[animalId] || 0) + selectedChip }));
+    setMyBets(prev => {
+      const next = { ...prev, [animalId]: (prev[animalId] || 0) + selectedChip };
+      myBetsRef.current = next;
+      return next;
+    });
   };
 
   const handleRepeat = async () => {
@@ -349,6 +313,7 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
     setMyBets(prev => {
       const merged = { ...prev };
       Object.entries(lastBets).forEach(([k, v]) => { merged[k] = (merged[k] || 0) + v; });
+      myBetsRef.current = merged;
       return merged;
     });
   };
@@ -361,6 +326,12 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
     const totalSteps = (SEQUENCE.length * 6) + targetIdx;
     let currentStep = 0;
     let speed = 50;
+
+    // Fix: clear any existing spin timer chain before starting new one
+    if (spinTimerRef.current) {
+      clearTimeout(spinTimerRef.current);
+      spinTimerRef.current = null;
+    }
 
     const runChase = () => {
       const activeIdx = SEQUENCE[currentStep % SEQUENCE.length];
@@ -391,7 +362,7 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
     let winAmount = 0;
     winningIds.forEach(wid => {
       const winItem = ANIMALS.find(a => a.id === wid);
-      winAmount += (myBets[wid] || 0) * (winItem?.multiplier || 0);
+      winAmount += (myBetsRef.current[wid] || 0) * (winItem?.multiplier || 0);
     });
 
     const winItem = ANIMALS.find(a => a.id === id);
@@ -399,9 +370,9 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
     setWinnerData({ id, win: winAmount, multiplier: winItem?.multiplier || 0 });
     setGameState('result');
 
-    const totalWagerForGroup = winningIds.reduce((sum, wid) => sum + (myBets[wid] || 0), 0);
+    const totalWagerForGroup = winningIds.reduce((sum, wid) => sum + (myBetsRef.current[wid] || 0), 0);
 
-    if (winAmount > 0 && currentUser && firestore && userProfile) {
+    if (winAmount > 0 && currentUser && firestore) {
       try {
         const batch = writeBatch(firestore);
         const winData = { wallet: { coins: increment(winAmount) } };
@@ -409,10 +380,10 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
         batch.set(doc(firestore, 'users', currentUser.uid), winData, { merge: true });
         await batch.commit();
         addDoc(collection(firestore, 'globalGameWins'), {
-          gameId: 'forest-party', roomId: roomId || null, userId: currentUser.uid, username: userProfile.username || 'Guest',
-          avatarUrl: userProfile.avatarUrl || null, amount: winAmount, betAmount: totalWagerForGroup, timestamp: new Date(),
-        });
-      } catch {}
+          gameId: 'forest-party', roomId: roomId || null, userId: currentUser.uid, username: userProfile?.username || 'Guest',
+          avatarUrl: userProfile?.avatarUrl || null, amount: winAmount, betAmount: totalWagerForGroup, timestamp: new Date(),
+        }).catch(() => {});
+      } catch (e) { console.log('Forest Party win credit failed:', e); }
       setLocalCoins(p => p + winAmount);
     }
 
@@ -444,15 +415,34 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
       }
     }
 
-    // Local UI cleanup only — RTD listener handles setGameState('betting') + roundStartTime reset
+    // Local reset after 6s (web app style — no RTD dependency)
     setTimeout(() => {
       setWinnerData(null);
       setShiningGroup('none');
       setLastBets({ ...myBets });
       setMyBets({});
+      myBetsRef.current = {};
       setHighlightIdx(null);
       setDroppedChips([]);
-    }, 5000);
+      // Reset local state for next round (like web app)
+      setGameState('betting');
+      setTimeLeft(30);
+      spinInitiatedRef.current = false;
+      // Sync new round to RTDB (non-blocking)
+      if (database) {
+        const gamePath = `games/forest_party_${roomId || 'global'}`;
+        databaseTransaction(databaseRef(database, gamePath), (cur) => {
+          if (!cur) return cur;
+          cur.status = 'betting';
+          cur.winningId = null;
+          cur.groupType = 'none';
+          cur.history = [id, ...(cur.history || [])].slice(0, 15);
+          cur.roundStartTime = Date.now();
+          cur.updatedAt = Date.now();
+          return cur;
+        }).catch(() => {});
+      }
+    }, 6000);
   };
 
   useEffect(() => { return () => clearTimeout(spinTimerRef.current); }, []);

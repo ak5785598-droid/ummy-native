@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Platform } from 'react-native';
-import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, RadialGradient, Stop, Circle, Rect, Ellipse, Text as SvgText, G } from 'react-native-svg';
+import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, RadialGradient, Stop, Circle, Rect, Ellipse, Text as SvgText, G, Line } from 'react-native-svg';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { Sparkles, DollarSign } from 'lucide-react-native';
 import { GoldenCoin } from '../GoldenCoin';
@@ -159,6 +159,14 @@ export const SVGA_ServiceTag = React.memo(() => (
   <View style={{ height: 22, marginLeft: 4, borderRadius: 11, overflow: 'hidden' }}>
     <ExpoLinearGradient colors={['#17CFB8', '#0D9482']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
       style={{ height: '100%', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, borderWidth: 1, borderColor: '#A7FFF1', borderRadius: 11 }}>
+      {/* Headphones Icon */}
+      <View style={{ width: 12, height: 12, marginRight: 4 }}>
+        <Svg viewBox="0 0 24 24" width="100%" height="100%">
+          <Path d="M3 18v-6a9 9 0 0 1 18 0v6" stroke="white" strokeWidth="2" strokeLinecap="round" fill="none" />
+          <Path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3v5z" fill="white" />
+          <Path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3v5z" fill="white" />
+        </Svg>
+      </View>
       <Text style={{ fontSize: 9, fontWeight: '900', color: 'white', textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1 }}>Service</Text>
     </ExpoLinearGradient>
   </View>
@@ -172,6 +180,15 @@ export const SVGA_HostTag = React.memo(() => (
   <View style={{ height: 22, marginLeft: 4, borderRadius: 11, overflow: 'hidden' }}>
     <ExpoLinearGradient colors={['#B57AFF', '#803AF5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
       style={{ height: '100%', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, borderWidth: 1, borderColor: '#E0C6FF', borderRadius: 11 }}>
+      {/* Mic Icon */}
+      <View style={{ width: 11, height: 11, marginRight: 4 }}>
+        <Svg viewBox="0 0 24 24" width="100%" height="100%">
+          <Rect x="9" y="2" width="6" height="12" rx="3" fill="white" />
+          <Path d="M19 10a7 7 0 0 1-14 0" stroke="white" strokeWidth="2" strokeLinecap="round" fill="none" />
+          <Line x1="12" y1="17" x2="12" y2="22" stroke="white" strokeWidth="2" strokeLinecap="round" />
+          <Line x1="8" y1="22" x2="16" y2="22" stroke="white" strokeWidth="2" strokeLinecap="round" />
+        </Svg>
+      </View>
       <Text style={{ fontSize: 9, fontWeight: '900', color: 'white', textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1 }}>Host</Text>
     </ExpoLinearGradient>
   </View>

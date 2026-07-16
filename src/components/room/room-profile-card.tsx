@@ -471,8 +471,8 @@ export function RoomProfileCard({
             </View>
           )}
 
-          {/* Admin controls panel */}
-          {canManage && !isMe && (
+          {/* Admin controls panel — hidden for room owner */}
+          {canManage && !isMe && !isOwner && (
             <View className="w-full border-t border-slate-100 mt-4 pt-4 px-6">
               <View className="flex-row items-center justify-between px-2">
                 <TouchableOpacity onPress={() => { onMute?.(user.uid, user.isMuted || false); onClose(); }}>

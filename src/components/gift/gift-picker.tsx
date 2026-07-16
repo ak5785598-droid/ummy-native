@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
-import { View, Text, Modal, TouchableOpacity, ScrollView, Vibration, Dimensions, Alert, Animated, Easing } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, ScrollView, Vibration, Dimensions, Alert, Animated, Easing, TextInput, ActivityIndicator } from 'react-native';
 import { X, ChevronDown, Zap, Send } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFirestore, useUser, useCollection, useMemoFirebase, useDatabase } from '../../firebase/provider';
@@ -102,6 +102,44 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
   const [comboState, setComboState] = useState<{ active: boolean; multiplier: number; gift: Gift | null; isLucky?: boolean; totalWinAmount?: number } | null>(null);
   const [showCosmic, setShowCosmic] = useState(false);
   const [cosmicGift, setCosmicGift] = useState<{ name: string; image: string | null } | null>(null);
+  const [showCustomRequest, setShowCustomRequest] = useState(false);
+  const [customRequestForm, setCustomRequestForm] = useState({ giftName: '', description: '', referenceUrl: '' });
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+
+  const handleSubmitCustomRequest = async () => {
+    if (!firestore || !user?.uid || !userProfile) return;
+    if (!customRequestForm.giftName.trim()) { Alert.alert('Error', 'Please enter a gift name.'); return; }
+    const COST = 50000;
+    if ((userProfile as any)?.wallet?.coins < COST) {
+      Alert.alert('Insufficient Coins', `You need ${COST.toLocaleString()} coins to request a custom gift.`);
+      return;
+    }
+    setIsSubmittingRequest(true);
+    try {
+      const { addDoc, collection: col, serverTimestamp: sTs, doc: fDoc, updateDoc, increment: inc } = require('@/firebase/firestore-compat');
+      const reqRef = await addDoc(col(firestore, 'customizedGiftRequests'), {
+        uid: user.uid,
+        username: userProfile.username || 'User',
+        avatarUrl: userProfile.avatarUrl || null,
+        giftName: customRequestForm.giftName.trim(),
+        description: customRequestForm.description.trim(),
+        referenceUrl: customRequestForm.referenceUrl.trim(),
+        coinsPaid: COST,
+        status: 'pending',
+        createdAt: sTs(),
+      });
+      // Deduct coins
+      const profileRef = fDoc(firestore, 'users', user.uid, 'profile', user.uid);
+      await updateDoc(profileRef, { 'wallet.coins': inc(-COST) });
+      Alert.alert('Request Submitted! ✨', `Your custom gift request has been submitted. Our team will review it within 3-5 business days. Request ID: ${reqRef.id}`);
+      setShowCustomRequest(false);
+      setCustomRequestForm({ giftName: '', description: '', referenceUrl: '' });
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to submit request.');
+    } finally {
+      setIsSubmittingRequest(false);
+    }
+  };
   
   const comboClicksRef = useRef(1);
   const comboTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -249,24 +287,26 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
 
       const batch = writeBatch(firestore);
 
-      // Write to globalBroadcasts for room patti/marquee
-      const expiresAtDate = new Date(Date.now() + 10000); // 10 seconds display duration
-      const broadcastRef = doc(collection(firestore, 'globalBroadcasts'));
-      const recipientNames = validUids.map(uid => recipientProfiles[uid]?.username || 'User');
-      batch.set(broadcastRef, {
-        id: broadcastRef.id,
-        roomId: roomId,
-        roomName: roomName,
-        roomNumber: roomNumber,
-        senderName: userProfile?.username || 'User',
-        receiverNames: recipientNames,
-        giftName: gift.name,
-        giftImageUrl: gift.imageUrl || null,
-        qty: qty,
-        expiresAt: Timestamp.fromDate(expiresAtDate),
-        timestamp: serverTimestamp(),
-        type: 'gift'
-      });
+      // Write to globalBroadcasts ONLY for premium gifts (1000+ coins) — not for cheap gifts
+      if (gift.price >= 1000) {
+        const expiresAtDate = new Date(Date.now() + 10000); // 10 seconds display duration
+        const broadcastRef = doc(collection(firestore, 'globalBroadcasts'));
+        const recipientNames = validUids.map(uid => recipientProfiles[uid]?.username || 'User');
+        batch.set(broadcastRef, {
+          id: broadcastRef.id,
+          roomId: roomId,
+          roomName: roomName,
+          roomNumber: roomNumber,
+          senderName: userProfile?.username || 'User',
+          receiverNames: recipientNames,
+          giftName: gift.name,
+          giftImageUrl: gift.imageUrl || null,
+          qty: qty,
+          expiresAt: Timestamp.fromDate(expiresAtDate),
+          timestamp: serverTimestamp(),
+          type: 'gift'
+        });
+      }
 
       const senderProfileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
       const senderUserRef = doc(firestore, 'users', user.uid);
@@ -825,6 +865,71 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
         giftImage={cosmicGift?.image}
         onComplete={() => { setShowCosmic(false); setCosmicGift(null); }}
       />
+
+      {/* Custom Gift Request Modal */}
+      {showCustomRequest && (
+        <Modal visible={showCustomRequest} transparent animationType="slide" onRequestClose={() => setShowCustomRequest(false)}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' }}>
+            <View style={{ backgroundColor: '#13082a', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 40 }}>
+              {/* Header */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <View>
+                  <Text style={{ color: 'white', fontSize: 18, fontWeight: '900' }}>✨ Request Custom Gift</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 2 }}>50,000 coins · Reviewed in 3-5 days</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowCustomRequest(false)} style={{ padding: 8 }}>
+                  <X size={22} color="rgba(255,255,255,0.5)" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Gift Name */}
+              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '700', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Gift Name *</Text>
+              <TextInput
+                value={customRequestForm.giftName}
+                onChangeText={(t) => setCustomRequestForm(f => ({ ...f, giftName: t }))}
+                placeholder="e.g. Golden Dragon"
+                placeholderTextColor="rgba(255,255,255,0.25)"
+                style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 14, color: 'white', fontSize: 14, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(124,58,237,0.3)' }}
+              />
+
+              {/* Description */}
+              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '700', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Description</Text>
+              <TextInput
+                value={customRequestForm.description}
+                onChangeText={(t) => setCustomRequestForm(f => ({ ...f, description: t }))}
+                placeholder="Describe your gift idea, colors, animations..."
+                placeholderTextColor="rgba(255,255,255,0.25)"
+                multiline
+                numberOfLines={3}
+                style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 14, color: 'white', fontSize: 14, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(124,58,237,0.3)', height: 80, textAlignVertical: 'top' }}
+              />
+
+              {/* Reference URL */}
+              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '700', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Reference Image URL (optional)</Text>
+              <TextInput
+                value={customRequestForm.referenceUrl}
+                onChangeText={(t) => setCustomRequestForm(f => ({ ...f, referenceUrl: t }))}
+                placeholder="https://example.com/image.png"
+                placeholderTextColor="rgba(255,255,255,0.25)"
+                style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 14, color: 'white', fontSize: 14, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(124,58,237,0.3)' }}
+              />
+
+              {/* Submit */}
+              <TouchableOpacity
+                onPress={handleSubmitCustomRequest}
+                disabled={isSubmittingRequest}
+                style={{ backgroundColor: '#7c3aed', borderRadius: 16, paddingVertical: 16, alignItems: 'center', opacity: isSubmittingRequest ? 0.7 : 1 }}
+              >
+                {isSubmittingRequest ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={{ color: 'white', fontWeight: '900', fontSize: 15 }}>Submit Request · 🪙 50,000</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
     </>
   );
 }

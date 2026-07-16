@@ -202,6 +202,10 @@ export type Room = {
     weeklyGifts: number;
     monthlyGifts: number;
     lastWealthResetDate?: any;
+    lastWeekGifts?: number;
+    lastWeekLevel?: number;
+    lastWeekVisitors?: number;
+    lastWeekRewardsDistributed?: boolean;
   };
   levelPoints?: number;
   rocket?: {

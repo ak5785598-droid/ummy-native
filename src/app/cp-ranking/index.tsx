@@ -29,7 +29,7 @@ import {
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useUser, useCollection, useFirebase } from '../../firebase/provider';
-import { collection, query, orderBy, limit, where } from '@/firebase/firestore-compat';
+import { collection, query, orderBy, limit, where, doc, updateDoc, onSnapshot, arrayUnion } from '@/firebase/firestore-compat';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { toCDN } from '@/lib/cdn';
 
@@ -283,6 +283,20 @@ export default function CpRankingScreen() {
 
   // Find my rank
   const myRank = topCp?.findIndex((c: any) => c.participantIds?.includes(user?.uid)) ?? -1;
+
+  // Fetch active leaderboard theme to get store event-based top 1/2/3 frames
+  const [cpActiveTheme, setCpActiveTheme] = useState<any>(null);
+  useEffect(() => {
+    if (!firestore) return;
+    const q = query(collection(firestore, 'leaderboardThemes'), where('isActive', '==', true), limit(1));
+    const unsub = onSnapshot(q, (snap: any) => {
+      if (snap.docs?.length > 0) setCpActiveTheme({ id: snap.docs[0].id, ...snap.docs[0].data() });
+      else setCpActiveTheme(null);
+    }, () => {});
+    return () => unsub();
+  }, [firestore]);
+
+  // CP ranking frames are assigned by backend daily cron — no real-time assignment
 
   return (
     <View style={{ flex: 1, backgroundColor: '#080014' }}>

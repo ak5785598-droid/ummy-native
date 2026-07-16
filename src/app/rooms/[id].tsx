@@ -311,6 +311,8 @@ export default function RoomScreen() {
       if (!snap.exists()) return;
       const evt = snap.val();
       if (!evt || !evt.id) return;
+      // Fix: reject events older than when this session started — prevents re-animation on room re-entry
+      if (evt.timestamp && evt.timestamp < sessionJoinTime.getTime()) return;
       // Deduplicate — don't fire same event twice
       if (processedRtdGiftIds.current.has(evt.id)) return;
       processedRtdGiftIds.current.add(evt.id);
@@ -986,9 +988,11 @@ export default function RoomScreen() {
     const activeBubble = userProfile.inventory?.activeBubble || null;
     const isExpired = isInventoryItemExpired(userProfile.inventory, activeBubble);
     const inventoryBubble = isExpired ? null : activeBubble;
-    // SVIP bubble takes priority over inventory bubble
-    const bubbleToSend = userProfile?.svipPrivileges?.bubbleId || inventoryBubble;
-    await addDocumentNonBlocking(collection(firestore, 'chatRooms', id, 'messages'), { content: text, imageUrl: imageUrl || null, senderId: user.uid, senderName: userProfile.username, senderAvatar: userProfile.avatarUrl || null, senderBubble: bubbleToSend, chatRoomId: id, timestamp: serverTimestamp(), type: 'text' });
+    // User's selected bubble takes priority (no SVIP override)
+    const bubbleToSend = inventoryBubble;
+    // Also send the bubble media URL for image-backed custom bubbles
+    const bubbleMediaUrl = (userProfile?.inventory as any)?.activeBubbleMediaUrl || null;
+    await addDocumentNonBlocking(collection(firestore, 'chatRooms', id, 'messages'), { content: text, imageUrl: imageUrl || null, senderId: user.uid, senderName: userProfile.username, senderAvatar: userProfile.avatarUrl || null, senderBubble: bubbleToSend, senderBubbleMediaUrl: bubbleMediaUrl, chatRoomId: id, timestamp: serverTimestamp(), type: 'text' });
   };
 
   const handleImageUpload = async (uri: string): Promise<string | null> => {
@@ -1053,23 +1057,34 @@ export default function RoomScreen() {
   const handleMuteUser = async () => {
     if (!firestore || !id || selectedSeatIdx === null || !canManageRoom) return;
     const occupant = getOccupant(selectedSeatIdx);
-    if (occupant) await setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', occupant.uid), { isMuted: true, lastSeen: serverTimestamp() }, { merge: true });
+    if (!occupant) return;
+    // Room owner cannot be muted by admins/moderators
+    if (occupant.uid === room?.ownerId && !isOwner) {
+      Alert.alert('Not Allowed', 'Room owner cannot be muted.');
+      return;
+    }
+    await setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', occupant.uid), { isMuted: true, lastSeen: serverTimestamp() }, { merge: true });
   };
 
   const handleKickUser = async () => {
     if (!firestore || !id || selectedSeatIdx === null || !canManageRoom) return;
     const occupant = getOccupant(selectedSeatIdx);
-    if (occupant) {
-      try {
-        const snap = await getDoc(doc(firestore, 'users', occupant.uid));
-        if (snap.exists() && snap.data()?.avoidBeingKicked) {
-          Alert.alert('Immune', 'This user has kick immunity.');
-          setShowSeatMenu(false);
-          return;
-        }
-      } catch (e) {}
-      await setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', occupant.uid), { seatIndex: 0, isMuted: true }, { merge: true });
+    if (!occupant) return;
+    // Room owner cannot be kicked by admins/moderators
+    if (occupant.uid === room?.ownerId && !isOwner) {
+      Alert.alert('Not Allowed', 'Room owner cannot be kicked.');
+      setShowSeatMenu(false);
+      return;
     }
+    try {
+      const snap = await getDoc(doc(firestore, 'users', occupant.uid));
+      if (snap.exists() && snap.data()?.avoidBeingKicked) {
+        Alert.alert('Immune', 'This user has kick immunity.');
+        setShowSeatMenu(false);
+        return;
+      }
+    } catch (e) {}
+    await setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', occupant.uid), { seatIndex: 0, isMuted: true }, { merge: true });
   };
 
   const handleSendInvite = async (targetUid: string, targetName: string, targetAvatar: string | null, seatIdx: number) => {
@@ -1205,6 +1220,13 @@ export default function RoomScreen() {
     );
   }, [getOccupant, user?.uid, isMuted, isInSeat, displayRoom?.mutedSeats, displayRoom?.ownerId, isSeatLocked, handleSeatClick, getSeatSpeaking, customEmojiMap]);
 
+  // These useMemo hooks MUST be before any early returns (Rules of Hooks)
+  const themeConfigBg = useMemo(() => ROOM_THEMES.find(t => t.id === displayRoom?.roomThemeId), [displayRoom?.roomThemeId]);
+  const backgroundSource = useMemo(() => themeConfigBg 
+    ? (typeof themeConfigBg.url === 'string' ? { uri: themeConfigBg.url } : themeConfigBg.url) 
+    : { uri: displayRoom?.backgroundUrl || displayRoom?.coverUrl || 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=2000' }, [themeConfigBg, displayRoom?.backgroundUrl, displayRoom?.coverUrl]);
+  const profileCardUserWithSeat = useMemo(() => profileCardUser ? { ...profileCardUser, isInSeat: seatedParticipants.some(p => p.uid === profileCardUser?.uid) } : null, [profileCardUser, seatedParticipants]);
+
   if (requiresPassword) {
     return (
       <View className="flex-1">
@@ -1241,12 +1263,17 @@ export default function RoomScreen() {
     );
   }
 
-  const themeConfigBg = useMemo(() => ROOM_THEMES.find(t => t.id === displayRoom?.roomThemeId), [displayRoom?.roomThemeId]);
-  const backgroundSource = useMemo(() => themeConfigBg 
-    ? (typeof themeConfigBg.url === 'string' ? { uri: themeConfigBg.url } : themeConfigBg.url) 
-    : { uri: displayRoom?.backgroundUrl || displayRoom?.coverUrl || 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=2000' }, [themeConfigBg, displayRoom?.backgroundUrl, displayRoom?.coverUrl]);
+  // Fix: After password accepted, if room data hasn't loaded yet — show loader not white screen
+  if (isUnlocked && !room) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#0a0015', alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color="#ff6b9d" />
+        <Text style={{ color: 'rgba(255,255,255,0.6)', marginTop: 14, fontSize: 14 }}>Loading room...</Text>
+      </View>
+    );
+  }
 
-  const profileCardUserWithSeat = useMemo(() => profileCardUser ? { ...profileCardUser, isInSeat: seatedParticipants.some(p => p.uid === profileCardUser?.uid) } : null, [profileCardUser, seatedParticipants]);
+
 
   return (
     <View className="flex-1">
@@ -1665,9 +1692,22 @@ export default function RoomScreen() {
           }
         }}
         onReport={(uid) => { Alert.alert('Report', `User ${uid} reported`); }}
-        onMute={(uid, current) => { if (!firestore || !id) return; setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', uid), { isMuted: !current }, { merge: true }); }}
+        onMute={(uid, current) => {
+          if (!firestore || !id) return;
+          // Room owner cannot be muted by moderators — only by themselves
+          if (uid === room?.ownerId && !isOwner) {
+            Alert.alert('Not Allowed', 'Room owner cannot be muted by moderators.');
+            return;
+          }
+          setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', uid), { isMuted: !current }, { merge: true });
+        }}
         onKick={async (uid) => { 
-          if (!firestore || !id) return; 
+          if (!firestore || !id) return;
+          // Room owner cannot be kicked by moderators
+          if (uid === room?.ownerId && !isOwner) {
+            Alert.alert('Not Allowed', 'Room owner cannot be kicked by moderators.');
+            return;
+          }
           try {
             const snap = await getDoc(doc(firestore, 'users', uid));
             if (snap.exists() && snap.data()?.avoidBeingKicked) {
@@ -1691,6 +1731,11 @@ export default function RoomScreen() {
         }}
         onLeaveSeat={(uid) => {
           if (!firestore || !id) return;
+          // Room owner cannot be removed from seat by moderators
+          if (uid === room?.ownerId && !isOwner) {
+            Alert.alert('Not Allowed', 'Room owner cannot be removed from seat by moderators.');
+            return;
+          }
           setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', uid), { seatIndex: 0, isMuted: true }, { merge: true });
         }}
         onToggleMod={(uid) => { if (!firestore || !id) return; const isMod = room?.moderatorIds?.includes(uid); updateDocumentNonBlocking(doc(firestore, 'chatRooms', id), { moderatorIds: isMod ? arrayRemove(uid) : arrayUnion(uid) }); }}

@@ -14,6 +14,7 @@ import { AvatarFrame } from '@/components/profile/AvatarFrame';
 import { GoldenCoin } from '@/components/GoldenCoin';
 import { PinkDiamondIDBadgeIcon, SilverBlueIDBadgeIcon, IDBadgeIcon } from '@/components/native-id-badge';
 import { ChatMessageBubble } from '@/components/chat-message-bubble';
+import { isInventoryItemExpired } from '@/lib/types';
 
 const LOCAL_FRAME_ASSETS: Record<string, any> = {
   'sea_sands': require('../../../assets/images/sea_sands_frame.png'),
@@ -24,6 +25,11 @@ const LOCAL_FRAME_ASSETS: Record<string, any> = {
   'top2family_topuser': require('../../../assets/images/top2family_topuser.png'),
   'b-cosmic-star': require('../../../assets/images/cosmic_star_bubble_v2.png'),
   'b-royal-gold': require('../../../assets/images/royal_gold_bubble_v2.png'),
+  'event_rank1_frame': require('../../../assets/animations/frame_event_based_1-ezgif.com-effects.gif'),
+  'event_rank2_frame': require('../../../assets/animations/frame_event_based_2-ezgif.com-effects.gif'),
+  'event_rank3_frame': require('../../../assets/animations/frame_event_based_3-ezgif.com-effects.gif'),
+  'cp_king_frame': require('../../../assets/animations/frame_cp_king_1-ezgif.com-effects.gif'),
+  'cp_queen_frame': require('../../../assets/animations/frame_cp_queen-ezgif.com-effects.gif'),
 };
 
 const cleanItemName = (name: string): string => {
@@ -46,7 +52,17 @@ const STATIC_WAVE_ITEMS = [
 
 const STATIC_BUBBLE_ITEMS = [
   { id: 'b-cosmic-star', name: 'Cosmic Star Bubble', type: 'Bubble', price: 150000, durationDays: 30, description: 'Deep cosmic indigo-purple gradient with constellations and shooting stars.' },
-  { id: 'b-royal-gold', name: 'Royal Gold Bubble', type: 'Bubble', price: 250000, durationDays: 30, description: 'Rich royal golden gradient theme with detailed vector scrollwork borders.' }
+  { id: 'b-royal-gold', name: 'Royal Gold Bubble', type: 'Bubble', price: 250000, durationDays: 30, description: 'Rich royal golden gradient theme with detailed vector scrollwork borders.' },
+  { id: 'heart-bubble', name: 'Heart Bubble', type: 'Bubble', price: 80000, durationDays: 30, description: 'Lovely pink bubble with falling roses.' },
+  { id: 'love-bubble', name: 'Love Letter Bubble', type: 'Bubble', price: 90000, durationDays: 30, description: 'Romantic red love letter theme.' },
+  { id: 'evil-bubble', name: 'Evil Devil Bubble', type: 'Bubble', price: 100000, durationDays: 30, description: 'Deep purple devil themed bubble.' },
+  { id: 'candy-bubble', name: 'Candy Donut Bubble', type: 'Bubble', price: 85000, durationDays: 30, description: 'Sweet donut candy themed bubble.' },
+  { id: 'neon-cyber', name: 'Neon Cyber Bubble', type: 'Bubble', price: 120000, durationDays: 30, description: 'Futuristic glowing cyan cyber bubble.' },
+  { id: 'ice-crystal', name: 'Ice Crystal Bubble', type: 'Bubble', price: 75000, durationDays: 30, description: 'Chilly snow-falling ice crystal bubble.' },
+  { id: 'halloween-2025', name: 'Halloween Pumpkin Bubble', type: 'Bubble', price: 95000, durationDays: 30, description: 'Spooky orange pumpkin bubble.' },
+  { id: 'christmas-2025', name: 'Christmas Tree Bubble', type: 'Bubble', price: 95000, durationDays: 30, description: 'Festive red Christmas theme.' },
+  { id: 'coin-seller', name: 'Coin Merchant Bubble', type: 'Bubble', price: 110000, durationDays: 30, description: 'Merchant style green money bubble.' },
+  { id: 'zodiac-2026', name: 'Zodiac Star Bubble', type: 'Bubble', price: 130000, durationDays: 30, description: 'Astral space zodiac star bubble.' }
 ];
 
 const STATIC_ENTRY_ITEMS: any[] = [];
@@ -61,6 +77,13 @@ const STATIC_FRAME_ITEMS = [
   { id: 'top2family_topuser', name: 'Top 2 Family User Frame', type: 'Frame', price: 0, durationDays: 30, description: 'Exclusive Top 2 Family User Reward Frame.', imageUrl: 'top2family_topuser', notForSale: true, requiredTag: 'Top 2 Family' },
   { id: 'official-frame-1', name: 'Official Frame 1', type: 'Frame', price: 0, durationDays: 9999, description: 'Exclusive Official Frame — Only for verified official accounts.', videoUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Fofficial%2Fofficial_1_video.gif?alt=media', imageUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Fofficial%2Fofficial_1_image.png?alt=media', notForSale: true, requiredTag: 'Official' },
   { id: 'official-frame-2', name: 'Official Frame 2', type: 'Frame', price: 0, durationDays: 9999, description: 'Exclusive Official Frame — Only for verified official accounts.', videoUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Fofficial%2Fofficial_2_video.gif?alt=media', imageUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Fofficial%2Fofficial_2_image.png?alt=media', notForSale: true, requiredTag: 'Official' },
+  // Event Based Frames — Leaderboard Top 1/2/3 (Not for Sale, earned via ranking)
+  { id: 'event_rank1_frame', name: 'Top 1 Leaderboard Frame', type: 'Frame', price: 0, durationDays: 30, description: 'Exclusive Top 1 Leaderboard Reward Frame — Event Based.', videoUrl: require('../../../assets/animations/frame_event_based_1-ezgif.com-effects.gif'), imageUrl: require('../../../assets/animations/frame_event_based_1-ezgif.com-effects.gif'), notForSale: true, eventBased: true },
+  { id: 'event_rank2_frame', name: 'Top 2 Leaderboard Frame', type: 'Frame', price: 0, durationDays: 30, description: 'Exclusive Top 2 Leaderboard Reward Frame — Event Based.', videoUrl: require('../../../assets/animations/frame_event_based_2-ezgif.com-effects.gif'), imageUrl: require('../../../assets/animations/frame_event_based_2-ezgif.com-effects.gif'), notForSale: true, eventBased: true },
+  { id: 'event_rank3_frame', name: 'Top 3 Leaderboard Frame', type: 'Frame', price: 0, durationDays: 30, description: 'Exclusive Top 3 Leaderboard Reward Frame — Event Based.', videoUrl: require('../../../assets/animations/frame_event_based_3-ezgif.com-effects.gif'), imageUrl: require('../../../assets/animations/frame_event_based_3-ezgif.com-effects.gif'), notForSale: true, eventBased: true },
+  // CP King & Queen Frames — Top CP Pair (Not for Sale, earned via CP ranking)
+  { id: 'cp_king_frame', name: 'CP King Frame', type: 'Frame', price: 0, durationDays: 30, description: 'Exclusive CP King Frame — Awarded to Top 1 CP Pair.', videoUrl: require('../../../assets/animations/frame_cp_king_1-ezgif.com-effects.gif'), imageUrl: require('../../../assets/animations/frame_cp_king_1-ezgif.com-effects.gif'), notForSale: true, eventBased: true },
+  { id: 'cp_queen_frame', name: 'CP Queen Frame', type: 'Frame', price: 0, durationDays: 30, description: 'Exclusive CP Queen Frame — Awarded to Top 1 CP Pair.', videoUrl: require('../../../assets/animations/frame_cp_queen-ezgif.com-effects.gif'), imageUrl: require('../../../assets/animations/frame_cp_queen-ezgif.com-effects.gif'), notForSale: true, eventBased: true },
 ];
 
 const STATIC_ID_ITEMS = [
@@ -282,7 +305,12 @@ export default function StoreScreen() {
   const activeEntryEffect = (userProfile?.inventory as any)?.activeEntryEffect || null;
   const activeFrameId = (userProfile?.inventory as any)?.activeFrame || null;
   const activeWaveId = (userProfile?.inventory as any)?.activeWave || null;
-  const activeBubbleId = (userProfile?.inventory as any)?.activeBubble || null;
+  const activeBubble = userProfile?.inventory?.activeBubble || null;
+  const isExpired = isInventoryItemExpired(userProfile?.inventory, activeBubble);
+  const inventoryBubble = isExpired ? null : activeBubble;
+  const bubbleToSend = inventoryBubble || userProfile?.svipPrivileges?.bubbleId || null;
+  const bubbleMediaUrl = (userProfile?.inventory as any)?.activeBubbleMediaUrl || null;
+  const activeBubbleId = bubbleToSend;
   const getPrice = (item: any, duration: number) => {
     if (!item) return 0;
     if (item.type === 'ID') {
@@ -537,7 +565,9 @@ export default function StoreScreen() {
     try {
       const profileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
       const userRef = doc(firestore, 'users', user.uid);
-      const itemUrl = item.videoUrl || item.imageUrl || null;
+      // For local assets (require'd), use item ID as media URL so AvatarFrame can resolve from LOCAL_FRAME_ASSETS
+      const isLocalAsset = item.imageUrl && typeof item.imageUrl === 'number';
+      const itemUrl = isLocalAsset ? item.id : (item.videoUrl || item.imageUrl || null);
       let field: string;
       if (item.type === 'Frame') { field = 'inventory.activeFrame'; }
       else if (item.type === 'Wave') { field = 'inventory.activeWave'; }
@@ -670,12 +700,12 @@ export default function StoreScreen() {
                <ShoppingBag size={28} color="#94a3b8" />}
             </View>
           )}
-          {(isActiveEntry || isActiveFrame) && (
+          {(isActiveEntry || isActiveFrame || isActiveBubble) && (
             <View style={[styles.ownedBadge, { backgroundColor: '#fbbf24' }]}>
               <Play size={10} color="#000" fill="#000" />
             </View>
           )}
-          {owned && !isActiveEntry && !isActiveFrame && (
+          {owned && !isActiveEntry && !isActiveFrame && !isActiveBubble && (
             <View style={styles.ownedBadge}>
               <Check size={10} color="#fff" />
             </View>
@@ -708,7 +738,10 @@ export default function StoreScreen() {
               </TouchableOpacity>
             )
           ) : item.notForSale ? (
-            <Text style={{ fontSize: 11, fontWeight: '700', color: '#ef4444' }}>Not for Sale</Text>
+            <View style={{ alignItems: 'center' }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#ef4444' }}>Not for Sale</Text>
+              {item.eventBased && <Text style={{ fontSize: 9, fontWeight: '600', color: '#a855f7', marginTop: 2 }}>Event Based</Text>}
+            </View>
           ) : (
             <View style={styles.priceRow}>
               <GoldenCoin size={20} />

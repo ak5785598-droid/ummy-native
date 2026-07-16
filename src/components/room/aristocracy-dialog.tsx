@@ -126,15 +126,12 @@ export function AristocracyDialog({ visible, onClose }: AristocracyDialogProps) 
       const expireTime = Date.now() + duration * 24 * 60 * 60 * 1000;
 
       const frameData = {
-        'inventory.activeFrame': currentRank.frameId,
-        'inventory.activeFrameMediaUrl': currentRank.frameUrl,
         'inventory.ownedItems': arrayUnion(currentRank.frameId),
       };
 
       await updateDoc(userRef, {
         'wallet.coins': increment(-price),
         'wallet.dailySpent': increment(price),
-        'wallet.totalSpent': increment(price),
         'nobility.rank': currentRank.id,
         'nobility.expiresAt': expireTime,
         'nobility.purchasedAt': Date.now(),
