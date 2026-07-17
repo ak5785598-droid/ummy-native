@@ -1291,7 +1291,7 @@ export default function RoomScreen() {
       <SafeAreaView className="flex-1">
         <LinearGradient colors={['rgba(0,0,0,0.7)', 'transparent']} className="absolute top-0 left-0 right-0 h-40 z-0" pointerEvents="none" />
 
-        <RoomHeader roomTitle={displayRoom.name || displayRoom.title || 'Room'} roomId={displayRoom.id} roomNumber={displayRoom.roomNumber} onlineCount={participants.length} coverUrl={displayRoom.coverUrl} isOwner={isOwner} isFollowing={isFollowing} onOpenInfo={() => setIsInfoOpen(true)} onFollow={handleFollow} onOpenSettings={() => setIsSettingsOpen(true)} onOpenShare={() => setIsShareOpen(true)} onExit={() => setShowExitDialog(true)} onOpenUserList={() => setIsUserListOpen(true)} />
+        <RoomHeader roomTitle={displayRoom.name || displayRoom.title || 'Room'} roomId={displayRoom.id} roomNumber={displayRoom.roomNumber} onlineCount={participants.length} coverUrl={displayRoom.coverUrl} isOwner={isOwner} isFollowing={isFollowing} onOpenInfo={() => setIsInfoOpen(true)} onFollow={undefined} onOpenSettings={() => setIsSettingsOpen(true)} onOpenShare={() => setIsShareOpen(true)} onExit={() => setShowExitDialog(true)} onOpenUserList={() => setIsUserListOpen(true)} />
 
         {/* Global Gift Patti Banner */}
         {activeBroadcast && (
@@ -1559,6 +1559,8 @@ export default function RoomScreen() {
         onClose={() => setIsInfoOpen(false)} 
         room={displayRoom} 
         isOwner={isOwner} 
+        isFollowing={isFollowing}
+        onFollow={handleFollow}
         onUserPress={(uid) => { 
           setIsInfoOpen(false); 
           setProfileCardUser({ uid, name: '', avatarUrl: '' }); 

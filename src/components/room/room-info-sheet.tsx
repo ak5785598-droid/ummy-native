@@ -1,6 +1,6 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
-import { X, Star, Users, MessageSquare, Gamepad2, Music, PartyPopper, MoreVertical } from 'lucide-react-native';
+import { X, Star, Users, MessageSquare, Gamepad2, Music, PartyPopper, MoreVertical, Heart } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { useUserLevel } from '../../hooks/use-user-level';
@@ -16,6 +16,8 @@ interface RoomInfoSheetProps {
   onClose: () => void;
   room: Room | null;
   isOwner?: boolean;
+  isFollowing?: boolean;
+  onFollow?: () => void;
   onUserPress?: (uid: string) => void;
 }
 
@@ -26,7 +28,7 @@ const CATEGORY_TAGS: Record<string, { icon: any; color: string; bg: string; labe
   Party: { icon: PartyPopper, color: '#f97316', bg: '#fff7ed', label: 'Party' },
 };
 
-export function RoomInfoSheet({ visible, onClose, room: propRoom, isOwner = false, onUserPress }: RoomInfoSheetProps) {
+export function RoomInfoSheet({ visible, onClose, room: propRoom, isOwner = false, isFollowing = false, onFollow, onUserPress }: RoomInfoSheetProps) {
   const firestore = useFirestore();
   const [activeTab, setActiveTab] = useState<'profile' | 'member'>('profile');
   const [liveRoom, setLiveRoom] = useState<Room | null>(null);
@@ -101,6 +103,23 @@ export function RoomInfoSheet({ visible, onClose, room: propRoom, isOwner = fals
         <View className="bg-white rounded-t-[2.5rem] pb-8 pt-5 w-full max-h-[80vh] relative shadow-2xl">
           {/* Tabs Navigation Header */}
           <View className="flex-row items-center justify-center border-b border-slate-100 pb-3 relative">
+            {!isOwner && onFollow && (
+              <TouchableOpacity 
+                onPress={onFollow} 
+                className="absolute left-6 flex-row items-center gap-1.5 px-3 py-1 rounded-full border"
+                style={{
+                  top: -6,
+                  backgroundColor: isFollowing ? 'rgba(236,72,153,0.1)' : 'rgba(59,130,246,0.1)',
+                  borderColor: isFollowing ? 'rgba(236,72,153,0.3)' : 'rgba(59,130,246,0.3)',
+                }}
+              >
+                <Heart size={11} color={isFollowing ? '#ec4899' : '#3b82f6'} fill={isFollowing ? '#ec4899' : 'transparent'} />
+                <Text style={{ fontSize: 10, fontWeight: '900', color: isFollowing ? '#ec4899' : '#3b82f6' }}>
+                  {isFollowing ? 'Sub' : 'Follow'}
+                </Text>
+              </TouchableOpacity>
+            )}
+
             <View className="flex-row gap-10 justify-center">
               <TouchableOpacity onPress={() => setActiveTab('profile')} className="pb-1 relative">
                 <Text className={`text-base font-black uppercase tracking-wider ${activeTab === 'profile' ? 'text-blue-600' : 'text-slate-300'}`}>
@@ -120,7 +139,7 @@ export function RoomInfoSheet({ visible, onClose, room: propRoom, isOwner = fals
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity onPress={onClose} className="absolute right-1.5 top-[-10] p-1.5 bg-slate-100 rounded-full">
+            <TouchableOpacity onPress={onClose} className="absolute right-6 top-[-6] p-1.5 bg-slate-100 rounded-full">
               <X size={14} color="#64748b" />
             </TouchableOpacity>
           </View>

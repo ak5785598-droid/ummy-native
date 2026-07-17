@@ -1355,7 +1355,8 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
           placeholder="Type something..."
           placeholderTextColor="#94a3b8"
           multiline
-          className="flex-1 bg-slate-100 rounded-full px-4 py-2 text-sm text-slate-800 max-h-24"
+          className="flex-1 bg-slate-100 rounded-full px-4 py-2 text-sm max-h-24"
+          style={{ color: '#1e293b', backgroundColor: '#f1f5f9' }}
         />
         <TouchableOpacity onPress={() => setShowEmojiPicker(!showEmojiPicker)} className="p-1.5">
           <View className="w-9 h-9 rounded-full bg-slate-100 items-center justify-center">
