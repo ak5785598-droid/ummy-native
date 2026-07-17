@@ -9,6 +9,7 @@ import { GlobalBanGuard } from '../components/global-ban-guard';
 import { FloatingRoomBar } from '../components/floating-room-bar';
 import { ProfileInitializer } from '../components/profile-initializer';
 import { GlobalBackHandler } from '../components/global-back-handler';
+import { GlobalActivityBanner } from '../components/global-activity-banner';
 import { View, ActivityIndicator } from 'react-native';
 import { useFonts } from 'expo-font';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
@@ -83,6 +84,7 @@ export default function RootLayout() {
             <Stack.Screen name="families/create" />
           </Stack>
           <FloatingRoomBar />
+          <GlobalActivityBanner />
         </VoiceActivityProvider>
       </RoomProvider>
     </FirebaseProvider>

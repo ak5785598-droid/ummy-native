@@ -18,12 +18,39 @@ interface OfficialCenterDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isAuthorized: boolean;
+  userLevel: number;
 }
 
-export function OfficialCenterDialog({ open, onOpenChange, isAuthorized }: OfficialCenterDialogProps) {
+export function OfficialCenterDialog({ open, onOpenChange, isAuthorized, userLevel }: OfficialCenterDialogProps) {
   const router = useRouter();
 
   if (!isAuthorized) return null;
+
+  // Custom metadata based on userLevel
+  const dynamicMeta = (() => {
+    if (userLevel >= 6) {
+      return {
+        title: 'Supreme Authority',
+        subtitle: 'Tribal Command & Control Center',
+      };
+    }
+    if (userLevel >= 4) {
+      return {
+        title: 'Operations Desk',
+        subtitle: 'Staff Management & Moderation',
+      };
+    }
+    if (userLevel === 3) {
+      return {
+        title: 'Audit Control',
+        subtitle: 'Financial Oversight & Ledger Reports',
+      };
+    }
+    return {
+      title: 'Support Desk',
+      subtitle: 'User Operations Support Room',
+    };
+  })();
 
   const AdminLink = ({ icon: Icon, label, colorClass, borderClass, onPress }: any) => (
     <TouchableOpacity 
@@ -107,64 +134,89 @@ export function OfficialCenterDialog({ open, onOpenChange, isAuthorized }: Offic
             </View>
 
             <Text style={{ fontSize: 20, fontWeight: '900', color: '#fff', letterSpacing: 2, textTransform: 'uppercase' }}>
-              Supreme Authority
+              {dynamicMeta.title}
             </Text>
             <Text style={{ fontSize: 9, fontWeight: '800', color: 'rgba(255,255,255,0.4)', letterSpacing: 3, textTransform: 'uppercase', marginTop: 4 }}>
-              Tribal Command & Control Center
+              {dynamicMeta.subtitle}
             </Text>
           </LinearGradient>
 
           {/* Links List */}
           <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}>
+            {/* Admin Portal / Operations Hub Desk link */}
             <AdminLink 
               icon={ShieldCheck} 
-              label="Admin Portal" 
+              label={userLevel >= 6 ? "Admin Portal" : userLevel >= 4 ? "Operations Hub" : userLevel === 3 ? "Audit Panel" : "Support Desk"} 
               colorClass="bg-red-500/20" 
               borderClass="#f87171"
               onPress={() => { onOpenChange(false); router.push('/admin'); }} 
             />
-            <AdminLink 
-              icon={Crown} 
-              label="Broadcast & Banning" 
-              colorClass="bg-amber-500/20" 
-              borderClass="#fbbf24"
-              onPress={() => { onOpenChange(false); router.push('/admin'); }} 
-            />
-            <AdminLink 
-              icon={ShoppingBag} 
-              label="Store Management" 
-              colorClass="bg-purple-500/20" 
-              borderClass="#c084fc"
-              onPress={() => { onOpenChange(false); router.push('/store'); }} 
-            />
-            <AdminLink 
-              icon={Target} 
-              label="Game Controls" 
-              colorClass="bg-green-500/20" 
-              borderClass="#4ade80"
-              onPress={() => { onOpenChange(false); router.push('/games'); }} 
-            />
-            <AdminLink 
-              icon={ClipboardList} 
-              label="Task Management" 
-              colorClass="bg-blue-500/20" 
-              borderClass="#60a5fa"
-              onPress={() => { onOpenChange(false); router.push('/tasks' as any); }} 
-            />
-            <AdminLink 
-              icon={CreditCard} 
-              label="Coin Dispatch" 
-              colorClass="bg-cyan-500/20" 
-              borderClass="#22d3ee"
-              onPress={() => { onOpenChange(false); router.push('/wallet'); }} 
-            />
-            <AdminLink 
-              icon={Trophy} 
-              label="Leaderboard" 
-              colorClass="bg-orange-500/20" 
-              borderClass="#fb923c"
-              onPress={() => { onOpenChange(false); router.push('/leaderboard'); }} 
-            />
+
+            {/* Broadcast & Banning link: Level >= 6 */}
+            {userLevel >= 6 && (
+              <AdminLink 
+                icon={Crown} 
+                label="Broadcast & Banning" 
+                colorClass="bg-amber-500/20" 
+                borderClass="#fbbf24"
+                onPress={() => { onOpenChange(false); router.push('/admin'); }} 
+              />
+            )}
+
+            {/* Store Management link: Level >= 3 */}
+            {userLevel >= 3 && (
+              <AdminLink 
+                icon={ShoppingBag} 
+                label="Store Management" 
+                colorClass="bg-purple-500/20" 
+                borderClass="#c084fc"
+                onPress={() => { onOpenChange(false); router.push('/store'); }} 
+              />
+            )}
+
+            {/* Game Controls link: Level >= 4 or CS desk */}
+            {(userLevel >= 4 || userLevel < 3) && (
+              <AdminLink 
+                icon={Target} 
+                label="Game Controls" 
+                colorClass="bg-green-500/20" 
+                borderClass="#4ade80"
+                onPress={() => { onOpenChange(false); router.push('/games'); }} 
+              />
+            )}
+
+            {/* Task Management link: Level >= 6 */}
+            {userLevel >= 6 && (
+              <AdminLink 
+                icon={ClipboardList} 
+                label="Task Management" 
+                colorClass="bg-blue-500/20" 
+                borderClass="#60a5fa"
+                onPress={() => { onOpenChange(false); router.push('/tasks' as any); }} 
+              />
+            )}
+
+            {/* Coin Dispatch link: Level >= 3 (Auditor to Creator) */}
+            {userLevel >= 3 && (
+              <AdminLink 
+                icon={CreditCard} 
+                label="Coin Dispatch" 
+                colorClass="bg-cyan-500/20" 
+                borderClass="#22d3ee"
+                onPress={() => { onOpenChange(false); router.push('/wallet'); }} 
+              />
+            )}
+
+            {/* Leaderboard link: Level >= 4 */}
+            {userLevel >= 4 && (
+              <AdminLink 
+                icon={Trophy} 
+                label="Leaderboard" 
+                colorClass="bg-orange-500/20" 
+                borderClass="#fb923c"
+                onPress={() => { onOpenChange(false); router.push('/leaderboard'); }} 
+              />
+            )}
           </ScrollView>
 
           {/* Active Status Footer */}

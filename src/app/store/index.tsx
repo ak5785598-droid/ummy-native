@@ -395,11 +395,18 @@ export default function StoreScreen() {
           expiry: expiryDate.toISOString()
         };
 
-        batch.update(profileRef, {
+        const originalId = userProfile?.originalAccountNumber || userProfile?.accountNumber || '';
+        const profileUpdates: any = {
           'wallet.coins': increment(-finalPrice),
           activeIdBadge: activeIdBadge,
+          accountNumber: trimmed,
           updatedAt: serverTimestamp()
-        });
+        };
+        if (!userProfile?.originalAccountNumber) {
+          profileUpdates.originalAccountNumber = originalId;
+        }
+
+        batch.update(profileRef, profileUpdates);
       } else {
         const updateData: any = {
           'wallet.coins': increment(-finalPrice),
@@ -423,7 +430,15 @@ export default function StoreScreen() {
         batch.update(profileRef, updateData);
       }
 
-      batch.update(userRef, { 'wallet.coins': increment(-finalPrice), updatedAt: serverTimestamp() });
+      const userUpdates: any = { 'wallet.coins': increment(-finalPrice), updatedAt: serverTimestamp() };
+      if (previewItem.type === 'ID') {
+        userUpdates.accountNumber = checkedId;
+        const originalId = userProfile?.originalAccountNumber || userProfile?.accountNumber || '';
+        if (!userProfile?.originalAccountNumber) {
+          userUpdates.originalAccountNumber = originalId;
+        }
+      }
+      batch.update(userRef, userUpdates);
       await batch.commit();
       Alert.alert('✅ Purchase Successful!', `${previewItem.name} added to your inventory.`);
       setPreviewItem(null);

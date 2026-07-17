@@ -90,10 +90,25 @@ type AdminTab =
   | 'custom-gifts'
   | 'menu';
 
+const CREATOR_ID = '901piBzTQ0VzCtAvlyyobwvAaTs1';
+
+const getUserLevel = (tags: string[] = [], isAdmin: boolean = false, uid: string = "") => {
+  if (uid === CREATOR_ID) return 7;
+  if (tags.includes("Official") || tags.includes("Official center") || isAdmin) return 6;
+  if (tags.includes("Super Admin")) return 5;
+  if (tags.includes("Manager")) return 4;
+  if (tags.includes("Auditor")) return 3;
+  if (tags.includes("Admin")) return 2;
+  if (tags.includes("CS Leader")) return 1;
+  if (tags.includes("Customer Service")) return 0;
+  return -1;
+};
+
 export default function AdminScreen() {
   const router = useRouter();
   const { user } = useUser();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [userLevel, setUserLevel] = useState<number>(-1);
   const [activeTab, setActiveTab] = useState<AdminTab>('menu');
 
   useEffect(() => {
@@ -107,8 +122,11 @@ export default function AdminScreen() {
       .onSnapshot(snap => {
         if (snap.exists()) {
           const d = snap.data();
-          const authorized = user.uid === '901piBzTQ0VzCtAvlyyobwvAaTs1' || d?.isAdmin === true;
-          setIsAdmin(authorized);
+          const tags = d?.tags || [];
+          const level = getUserLevel(tags, d?.isAdmin, user.uid);
+          setUserLevel(level);
+          // Authorized if level >= 0 (CS support and above)
+          setIsAdmin(level >= 0);
         } else {
           setIsAdmin(false);
         }
@@ -118,6 +136,23 @@ export default function AdminScreen() {
 
     return () => unsub();
   }, [user]);
+
+  // Determine page header title based on role
+  const pageTitle = useMemo(() => {
+    if (userLevel >= 6) return 'Official Center';
+    if (userLevel >= 4) return 'Operations Hub';
+    if (userLevel === 3) return 'Audit Panel';
+    if (userLevel >= 0) return 'Support Desk';
+    return 'Admin Control';
+  }, [userLevel]);
+
+  const handleBack = () => {
+    if (activeTab !== 'menu') {
+      setActiveTab('menu');
+    } else {
+      router.back();
+    }
+  };
 
   if (isAdmin === null) {
     return (
@@ -138,7 +173,7 @@ export default function AdminScreen() {
           ACCESS DENIED
         </Text>
         <Text style={{ marginTop: 8, fontSize: 14, color: '#64748b', textAlign: 'center', marginBottom: 24 }}>
-          This sector requires Supreme Command clearance levels.
+          This sector requires command clearance levels.
         </Text>
         <TouchableOpacity 
           onPress={() => router.back()} 
@@ -149,14 +184,6 @@ export default function AdminScreen() {
       </View>
     );
   }
-
-  const handleBack = () => {
-    if (activeTab !== 'menu') {
-      setActiveTab('menu');
-    } else {
-      router.back();
-    }
-  };
 
   const AdminMenuItem = ({ icon: Icon, label, onPress, color = '#7c3aed' }: any) => (
     <TouchableOpacity 
@@ -186,7 +213,7 @@ export default function AdminScreen() {
           <ArrowLeft size={24} color="#1e293b" />
         </TouchableOpacity>
         <Text style={{ fontSize: 20, fontWeight: '900', color: '#1e293b', marginLeft: 12, textTransform: 'uppercase' }}>
-          {activeTab === 'menu' ? 'Supreme Control' : activeTab.replace('-', ' ')}
+          {activeTab === 'menu' ? pageTitle : activeTab.replace('-', ' ')}
         </Text>
       </View>
 
@@ -195,41 +222,65 @@ export default function AdminScreen() {
           <Text style={{ fontSize: 12, fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>
             Core Operations
           </Text>
-          <AdminMenuItem icon={Wallet} label="Recharge Requests" color="#22c55e" onPress={() => setActiveTab('recharge-requests')} />
-          <AdminMenuItem icon={ClipboardList} label="Financial Audit 💰" color="#3b82f6" onPress={() => setActiveTab('financial-audit')} />
-          <AdminMenuItem icon={Zap} label="Authority Hub ⚡" color="#a855f7" onPress={() => setActiveTab('authority')} />
-          <AdminMenuItem icon={ShieldAlert} label="Moderation Reports 🚨" color="#ef4444" onPress={() => setActiveTab('moderation-reports')} />
-          <AdminMenuItem icon={Megaphone} label="Broadcaster System 📢" color="#3b82f6" onPress={() => setActiveTab('broadcaster')} />
-          <AdminMenuItem icon={Gift} label="Loot Config 🎁" color="#a855f7" onPress={() => setActiveTab('loot')} />
-          <AdminMenuItem icon={Gift} label="Rewards Center 🎁" color="#22c55e" onPress={() => setActiveTab('rewards')} />
-          <AdminMenuItem icon={MessageSquareText} label="Direct Messenger 💬" color="#3b82f6" onPress={() => setActiveTab('dm')} />
-          <AdminMenuItem icon={Gavel} label="ID Ban Control 🔨" color="#ef4444" onPress={() => setActiveTab('id-ban')} />
-          <AdminMenuItem icon={ImageIcon} label="Banners Management 🖼️" color="#3b82f6" onPress={() => setActiveTab('banners')} />
-          <AdminMenuItem icon={Crown} label="Sovereign ID Control 👑" color="#8b5cf6" onPress={() => setActiveTab('sovereign-ids')} />
-          <AdminMenuItem icon={Trophy} label="Level Management 🏆" color="#06b6d4" onPress={() => setActiveTab('level-management')} />
-          <AdminMenuItem icon={Award} label="Medal Management 🎖️" color="#fb923c" onPress={() => setActiveTab('medal-management')} />
-          <AdminMenuItem icon={Smile} label="Emoji Management 😃" color="#10b981" onPress={() => setActiveTab('emoji-management')} />
-          <AdminMenuItem icon={RefreshCcw} label="System Control ⚙️" color="#64748b" onPress={() => setActiveTab('system-control')} />
-          <AdminMenuItem icon={Wallet} label="Financial Settings 💳" color="#22c55e" onPress={() => setActiveTab('financial-settings')} />
-          <AdminMenuItem icon={Database} label="App Ledger 📊" color="#3b82f6" onPress={() => setActiveTab('app-ledger')} />
-          <AdminMenuItem icon={Gamepad2} label="Game Sync 🎮" color="#a855f7" onPress={() => setActiveTab('game-sync')} />
-          <AdminMenuItem icon={Clock} label="Seat Timing Tracker ⏱️" color="#0ea5e9" onPress={() => setActiveTab('seat-timing')} />
-          <AdminMenuItem icon={ImageIcon} label="Loading Screen Sync 🖼️" color="#4f46e5" onPress={() => setActiveTab('loading-screen')} />
-          <AdminMenuItem icon={Gamepad2} label="Game Loading Sync 🎮" color="#a855f7" onPress={() => setActiveTab('game-loading')} />
-          <AdminMenuItem icon={Palette} label="Visual Identity 🎨" color="#ec4899" onPress={() => setActiveTab('visual-identity')} />
-          <AdminMenuItem icon={Crown} label="VIP Management 👑" color="#eab308" onPress={() => setActiveTab('vip-management')} />
-          <AdminMenuItem icon={Heart} label="CP Backgrounds 💖" color="#db2777" onPress={() => setActiveTab('cp-management')} />
-          <AdminMenuItem icon={Users} label="Family Management 🏡" color="#10b981" onPress={() => setActiveTab('family-management')} />
-          <AdminMenuItem icon={Pin} label="Pin Control 📌" color="#10b981" onPress={() => setActiveTab('pin-control')} />
-          <AdminMenuItem icon={Users} label="Member Directory 👥" color="#0ea5e9" onPress={() => setActiveTab('member-directory')} />
-          <AdminMenuItem icon={UserSearch} label="User Ledger 🔍" color="#f43f5e" onPress={() => setActiveTab('user-records')} />
-          <AdminMenuItem icon={ShieldCheck} label="Center Management 🛡️" color="#6366f1" onPress={() => setActiveTab('assign-center')} />
-          <AdminMenuItem icon={BadgeCheck} label="Assign Tags 🏷️" color="#7c3aed" onPress={() => setActiveTab('tags')} />
-          <AdminMenuItem icon={Monitor} label="Splash Screen & Logo 🖥️" color="#14b8a6" onPress={() => setActiveTab('splash-screen')} />
-          <AdminMenuItem icon={Trophy} label="Ranking Themes 🏆" color="#6366f1" onPress={() => setActiveTab('ranking-themes')} />
-          <AdminMenuItem icon={ShoppingBag} label="Boutique Sync 👜" color="#7c3aed" onPress={() => setActiveTab('boutique-hub')} />
-          <AdminMenuItem icon={Gift} label="Gift Management 🎁" color="#f97316" onPress={() => setActiveTab('gift-management')} />
-          <AdminMenuItem icon={Sparkles} label="Customized Gifts ✨" color="#db2777" onPress={() => setActiveTab('custom-gifts')} />
+
+          {/* recharge & financial features: Creator, Official, Auditor (Level 3, 6, 7) */}
+          {(userLevel === 3 || userLevel >= 6) && (
+            <>
+              <AdminMenuItem icon={Wallet} label="Recharge Requests" color="#22c55e" onPress={() => setActiveTab('recharge-requests')} />
+              <AdminMenuItem icon={ClipboardList} label="Financial Audit 💰" color="#3b82f6" onPress={() => setActiveTab('financial-audit')} />
+              <AdminMenuItem icon={Wallet} label="Financial Settings 💳" color="#22c55e" onPress={() => setActiveTab('financial-settings')} />
+              <AdminMenuItem icon={Database} label="App Ledger 📊" color="#3b82f6" onPress={() => setActiveTab('app-ledger')} />
+            </>
+          )}
+
+          {/* moderator & CS features: CS (0) up to Creator (7) except tags */}
+          {userLevel >= 0 && (
+            <>
+              <AdminMenuItem icon={Gavel} label="ID Ban Control 🔨" color="#ef4444" onPress={() => setActiveTab('id-ban')} />
+              <AdminMenuItem icon={ShieldAlert} label="Moderation Reports 🚨" color="#ef4444" onPress={() => setActiveTab('moderation-reports')} />
+              <AdminMenuItem icon={Users} label="Member Directory 👥" color="#0ea5e9" onPress={() => setActiveTab('member-directory')} />
+              <AdminMenuItem icon={UserSearch} label="User Ledger 🔍" color="#f43f5e" onPress={() => setActiveTab('user-records')} />
+            </>
+          )}
+
+          {/* management roles: Manager (4) up to Creator (7) */}
+          {userLevel >= 4 && (
+            <>
+              <AdminMenuItem icon={Zap} label="Authority Hub ⚡" color="#a855f7" onPress={() => setActiveTab('authority')} />
+              <AdminMenuItem icon={Crown} label="VIP Management 👑" color="#eab308" onPress={() => setActiveTab('vip-management')} />
+              <AdminMenuItem icon={Heart} label="CP Backgrounds 💖" color="#db2777" onPress={() => setActiveTab('cp-management')} />
+              <AdminMenuItem icon={Users} label="Family Management 🏡" color="#10b981" onPress={() => setActiveTab('family-management')} />
+              <AdminMenuItem icon={Pin} label="Pin Control 📌" color="#10b981" onPress={() => setActiveTab('pin-control')} />
+              <AdminMenuItem icon={BadgeCheck} label="Assign Tags 🏷️" color="#7c3aed" onPress={() => setActiveTab('tags')} />
+            </>
+          )}
+
+          {/* absolute systems config: Creator & Official (Level 6 & 7) */}
+          {userLevel >= 6 && (
+            <>
+              <AdminMenuItem icon={Megaphone} label="Broadcaster System 📢" color="#3b82f6" onPress={() => setActiveTab('broadcaster')} />
+              <AdminMenuItem icon={Gift} label="Loot Config 🎁" color="#a855f7" onPress={() => setActiveTab('loot')} />
+              <AdminMenuItem icon={Gift} label="Rewards Center 🎁" color="#22c55e" onPress={() => setActiveTab('rewards')} />
+              <AdminMenuItem icon={MessageSquareText} label="Direct Messenger 💬" color="#3b82f6" onPress={() => setActiveTab('dm')} />
+              <AdminMenuItem icon={ImageIcon} label="Banners Management 🖼️" color="#3b82f6" onPress={() => setActiveTab('banners')} />
+              <AdminMenuItem icon={Crown} label="Sovereign ID Control 👑" color="#8b5cf6" onPress={() => setActiveTab('sovereign-ids')} />
+              <AdminMenuItem icon={Trophy} label="Level Management 🏆" color="#06b6d4" onPress={() => setActiveTab('level-management')} />
+              <AdminMenuItem icon={Award} label="Medal Management 🎖️" color="#fb923c" onPress={() => setActiveTab('medal-management')} />
+              <AdminMenuItem icon={Smile} label="Emoji Management 😃" color="#10b981" onPress={() => setActiveTab('emoji-management')} />
+              <AdminMenuItem icon={RefreshCcw} label="System Control ⚙️" color="#64748b" onPress={() => setActiveTab('system-control')} />
+              <AdminMenuItem icon={Gamepad2} label="Game Sync 🎮" color="#a855f7" onPress={() => setActiveTab('game-sync')} />
+              <AdminMenuItem icon={Clock} label="Seat Timing Tracker ⏱️" color="#0ea5e9" onPress={() => setActiveTab('seat-timing')} />
+              <AdminMenuItem icon={ImageIcon} label="Loading Screen Sync 🖼️" color="#4f46e5" onPress={() => setActiveTab('loading-screen')} />
+              <AdminMenuItem icon={Gamepad2} label="Game Loading Sync 🎮" color="#a855f7" onPress={() => setActiveTab('game-loading')} />
+              <AdminMenuItem icon={Palette} label="Visual Identity 🎨" color="#ec4899" onPress={() => setActiveTab('visual-identity')} />
+              <AdminMenuItem icon={ShieldCheck} label="Center Management 🛡️" color="#6366f1" onPress={() => setActiveTab('assign-center')} />
+              <AdminMenuItem icon={Monitor} label="Splash Screen & Logo 🖥️" color="#14b8a6" onPress={() => setActiveTab('splash-screen')} />
+              <AdminMenuItem icon={Trophy} label="Ranking Themes 🏆" color="#6366f1" onPress={() => setActiveTab('ranking-themes')} />
+              <AdminMenuItem icon={ShoppingBag} label="Boutique Sync 👜" color="#7c3aed" onPress={() => setActiveTab('boutique-hub')} />
+              <AdminMenuItem icon={Gift} label="Gift Management 🎁" color="#f97316" onPress={() => setActiveTab('gift-management')} />
+              <AdminMenuItem icon={Sparkles} label="Customized Gifts ✨" color="#db2777" onPress={() => setActiveTab('custom-gifts')} />
+            </>
+          )}
 
           <Text style={{ fontSize: 12, fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, marginTop: 12, marginBottom: 16 }}>
             Quick Redirections

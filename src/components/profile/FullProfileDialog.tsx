@@ -30,6 +30,10 @@ import {
   SVGA_CustomerServiceTag,
   SVGA_GlossyID,
   SVGA_CpHeart,
+  SVGA_SuperAdminTag,
+  SVGA_ManagerTag,
+  SVGA_AuditorTag,
+  SVGA_AdminTag
 } from './NativeSVGs';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -539,6 +543,10 @@ export function FullProfileDialog({
             {/* Tags + Relationship */}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 8 }}>
               {hasOfficialTag && <SVGA_OfficialTag />}
+              {profile.tags?.includes('Super Admin') && <SVGA_SuperAdminTag />}
+              {profile.tags?.includes('Manager') && <SVGA_ManagerTag />}
+              {profile.tags?.includes('Auditor') && <SVGA_AuditorTag />}
+              {profile.tags?.includes('Admin') && <SVGA_AdminTag />}
               {isSeller && <SVGA_SellerTag />}
               {profile.tags?.includes('CS Leader') && <SVGA_CSLeaderTag />}
               {profile.tags?.includes('Customer Service') && <SVGA_CustomerServiceTag />}

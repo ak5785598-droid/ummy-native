@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, Clipboard, Alert, Animated, Easing } from 'react-native';
 import { X, Heart, MessageCircle, Shield, Crown, Mic, MicOff, Gift, AtSign, UserX, Star, Zap, Sparkles, UserPlus, MoreVertical, Copy } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SVGA_OfficialTag, SVGA_SellerTag, SVGA_CSLeaderTag, SVGA_CustomerServiceTag, SVGA_ServiceTag, SVGA_HostTag, SVGA_GlossyID } from '../profile/NativeSVGs';
+import { SVGA_OfficialTag, SVGA_SellerTag, SVGA_CSLeaderTag, SVGA_CustomerServiceTag, SVGA_ServiceTag, SVGA_HostTag, SVGA_GlossyID, SVGA_SuperAdminTag, SVGA_ManagerTag, SVGA_AuditorTag, SVGA_AdminTag } from '../profile/NativeSVGs';
 import { ActiveIDBadge, SovereignIDBadge } from '@/components/native-id-badge';
 import { Image } from 'expo-image';
 import { useUserProfile } from '../../hooks/use-user-profile';
@@ -354,6 +354,10 @@ export function RoomProfileCard({
           {/* Tags + ID Badge */}
           <View className="mt-0.5 flex-row flex-wrap items-center justify-center gap-3 px-6">
             {profile?.tags?.includes('Official') && <SVGA_OfficialTag />}
+            {profile?.tags?.includes('Super Admin') && <SVGA_SuperAdminTag />}
+            {profile?.tags?.includes('Manager') && <SVGA_ManagerTag />}
+            {profile?.tags?.includes('Auditor') && <SVGA_AuditorTag />}
+            {profile?.tags?.includes('Admin') && <SVGA_AdminTag />}
             {profile?.tags?.some((t: string) => ['Seller', 'Seller center', 'Coin Seller'].includes(t)) && <SVGA_SellerTag />}
             {profile?.tags?.includes('CS Leader') && <SVGA_CSLeaderTag />}
             {profile?.tags?.includes('Customer Service') && <SVGA_CustomerServiceTag />}

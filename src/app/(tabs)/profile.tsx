@@ -21,7 +21,7 @@ import { ActiveIDBadge, SovereignIDBadge } from '@/components/native-id-badge';
 // Subcomponents
 import { 
   SVGA_OfficialTag, SVGA_GlossyID, SVGA_VIPBanner, SVGA_SellerTag, SVGA_ServiceTag, SVGA_HostTag,
-  SVGA_CSLeaderTag, SVGA_CustomerServiceTag,
+  SVGA_CSLeaderTag, SVGA_CustomerServiceTag, SVGA_SuperAdminTag, SVGA_ManagerTag, SVGA_AuditorTag, SVGA_AdminTag,
   SVGA_GoldDollar, SVGA_LevelCrown, SVGA_StoreCart, SVGA_MedalStar, SVGA_BonusGift, SVGA_InviteHeart, 
   SVGA_FamilyShield, SVGA_BagShirt, SVGA_CpHeart, SVGA_SellerBag, SVGA_Settings, SVGA_HelpCenter, SVGA_OfficialUser, SVGA_AboutInfo 
 } from '../../components/profile/NativeSVGs';
@@ -249,6 +249,31 @@ export default function ProfileScreen() {
     }
   }, [profileId, firestore, profile?.tags]);
 
+  // Auto-restore original ID if special custom ID has expired
+  useEffect(() => {
+    if (!profile || !profileId || !firestoreDb) return;
+    const badge = profile.activeIdBadge;
+    if (badge && badge.expiry) {
+      const expDate = new Date(badge.expiry);
+      if (expDate <= new Date()) {
+        const originalId = profile.originalAccountNumber || null;
+        const profileRef = doc(firestoreDb, 'users', profileId, 'profile', profileId);
+        const userRef = doc(firestoreDb, 'users', profileId);
+        
+        const updates: any = {
+          activeIdBadge: null,
+          updatedAt: serverTimestamp()
+        };
+        if (originalId) {
+          updates.accountNumber = originalId;
+        }
+        
+        updateDoc(profileRef, updates).catch(() => {});
+        updateDoc(userRef, updates).catch(() => {});
+      }
+    }
+  }, [profile, profileId, firestoreDb]);
+
   // ── Real-time Stats via live listeners ───────────────────
   const [fansData, setFansData] = useState<any[]>([]);
   const [followingData, setFollowingData] = useState<any[]>([]);
@@ -310,7 +335,29 @@ export default function ProfileScreen() {
     return () => sub.remove();
   }, [fullViewOpen, medalModalOpen, socialOpen, officialCenterOpen]);
 
-  const isAuthorizedAdmin = currentUser?.uid === '901piBzTQ0VzCtAvlyyobwvAaTs1' || profile?.isAdmin === true;
+  const getUserLevel = (tags: string[] = [], isAdmin: boolean = false, uid: string = "") => {
+    if (uid === '901piBzTQ0VzCtAvlyyobwvAaTs1') return 7;
+    if (tags.includes("Official") || tags.includes("Official center") || isAdmin) return 6;
+    if (tags.includes("Super Admin")) return 5;
+    if (tags.includes("Manager")) return 4;
+    if (tags.includes("Auditor")) return 3;
+    if (tags.includes("Admin")) return 2;
+    if (tags.includes("CS Leader")) return 1;
+    if (tags.includes("Customer Service")) return 0;
+    return -1;
+  };
+
+  const currentUserLevel = getUserLevel(profile?.tags || [], profile?.isAdmin || false, currentUser?.uid || "");
+  const isAuthorizedAdmin = currentUserLevel >= 0;
+
+  const adminPanelTitle = useMemo(() => {
+    if (currentUserLevel >= 6) return 'Official Centre';
+    if (currentUserLevel >= 4) return 'Operations Hub';
+    if (currentUserLevel === 3) return 'Audit Panel';
+    if (currentUserLevel >= 0) return 'Support Desk';
+    return 'Admin Centre';
+  }, [currentUserLevel]);
+
   const isCertifiedSeller = profile?.tags?.some((t: string) => ['Seller', 'Seller center', 'Coin Seller'].includes(t)) || isAuthorizedAdmin;
   const isValidAccNum = (id: any) => {
     if (!id) return false;
@@ -412,6 +459,10 @@ export default function ProfileScreen() {
                   )}
                 </TouchableOpacity>
                 {profile.tags?.includes('Official') && <SVGA_OfficialTag />}
+                {profile.tags?.includes('Super Admin') && <SVGA_SuperAdminTag />}
+                {profile.tags?.includes('Manager') && <SVGA_ManagerTag />}
+                {profile.tags?.includes('Auditor') && <SVGA_AuditorTag />}
+                {profile.tags?.includes('Admin') && <SVGA_AdminTag />}
                 {profile.tags?.some((t: string) => ['Seller', 'Seller center', 'Coin Seller'].includes(t)) && <SVGA_SellerTag />}
                 {profile.tags?.includes('CS Leader') && <SVGA_CSLeaderTag />}
                 {profile.tags?.includes('Customer Service') && <SVGA_CustomerServiceTag />}
@@ -501,7 +552,7 @@ export default function ProfileScreen() {
               )}
               
               {isAuthorizedAdmin && (
-                <ProfileMenuItem icon={SVGA_OfficialUser} label="Official Centre" iconColor="bg-orange-50" extraColor="text-orange-600" onPress={() => setOfficialCenterOpen(true)} />
+                <ProfileMenuItem icon={SVGA_OfficialUser} label={adminPanelTitle} iconColor="bg-orange-50" extraColor="text-orange-600" onPress={() => setOfficialCenterOpen(true)} />
               )}
             </View>
 
@@ -530,7 +581,7 @@ export default function ProfileScreen() {
         } catch (e: any) { Alert.alert('Error', e?.message || 'Failed'); }
       }} />
       <ReportUserDialog open={reportOpen} onOpenChange={setReportOpen} targetUser={profile} />
-      <OfficialCenterDialog open={officialCenterOpen} onOpenChange={setOfficialCenterOpen} isAuthorized={isAuthorizedAdmin} />
+      <OfficialCenterDialog open={officialCenterOpen} onOpenChange={setOfficialCenterOpen} isAuthorized={isAuthorizedAdmin} userLevel={currentUserLevel} />
 
     </SafeAreaView>
   );

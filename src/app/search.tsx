@@ -67,10 +67,12 @@ export default function SearchScreen() {
       if (activeTab === 'user') {
         const qs = [
           query(collection(firestore, 'users'), where('accountNumber', '==', input), limit(5)),
+          query(collection(firestore, 'users'), where('activeIdBadge.displayId', '==', input), limit(5)),
           query(collection(firestore, 'users'), where('username', '>=', input), where('username', '<=', input + '\uf8ff'), limit(5)),
         ];
         if (isNumeric) {
           qs.push(query(collection(firestore, 'users'), where('accountNumber', '==', Number(input)), limit(5)));
+          qs.push(query(collection(firestore, 'users'), where('activeIdBadge.displayId', '==', Number(input)), limit(5)));
         }
 
         for (const q of qs) {
@@ -78,12 +80,14 @@ export default function SearchScreen() {
           snap.forEach((doc: any) => {
             const d = doc.data();
             if (!found.find(f => f.id === doc.id)) {
+              // Set correct display ID using activeIdBadge if available
+              const displayId = d.activeIdBadge?.displayId || d.accountNumber || 'No ID';
               found.push({
                 type: 'user',
                 id: doc.id,
                 title: d.username || d.name || 'User',
                 avatarUrl: d.avatarUrl,
-                subtitle: d.accountNumber ? `ID: ${d.accountNumber}` : 'No ID',
+                subtitle: `ID: ${displayId}`,
                 badge: `Lv.${getLevelFromSpent(d.wallet?.totalSpent || 0)}`,
                 levelValue: getLevelFromSpent(d.wallet?.totalSpent || 0),
               });

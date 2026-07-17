@@ -1,14 +1,34 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth';
 import { BadgeCheck, RefreshCcw } from 'lucide-react-native';
 import { Image } from 'expo-image';
 
+const CREATOR_ID = '901piBzTQ0VzCtAvlyyobwvAaTs1';
+
+const getUserLevel = (tags: string[] = [], isAdmin: boolean = false, uid: string = "") => {
+  if (uid === CREATOR_ID) return 7;
+  if (tags.includes("Official") || tags.includes("Official center") || isAdmin) return 6;
+  if (tags.includes("Super Admin")) return 5;
+  if (tags.includes("Manager")) return 4;
+  if (tags.includes("Auditor")) return 3;
+  if (tags.includes("Admin")) return 2;
+  if (tags.includes("CS Leader")) return 1;
+  if (tags.includes("Customer Service")) return 0;
+  return -1;
+};
+
 const ELITE_TAGS = [
   { id: 'Official', label: 'Official' },
+  { id: 'Super Admin', label: 'Super Admin' },
+  { id: 'Manager', label: 'Manager' },
+  { id: 'Auditor', label: 'Auditor' },
+  { id: 'Admin', label: 'Admin' },
   { id: 'CS Leader', label: 'CS Leader' },
   { id: 'Customer Service', label: 'Customer Service' },
   { id: 'Seller', label: 'Seller' },
+  { id: 'Coin Seller', label: 'Coin Seller' },
   { id: 'Official center', label: 'Official center' },
   { id: 'Seller center', label: 'Seller center' },
 ];
@@ -36,6 +56,16 @@ export function TagsTab() {
           .get();
         if (!snap.empty) {
           found = { id: snap.docs[0].id, ...snap.docs[0].data() };
+        } else {
+          // Fallback: search by activeIdBadge.displayId
+          const fallbackSnap = await firestore()
+            .collection('users')
+            .where('activeIdBadge.displayId', '==', inputVal)
+            .limit(1)
+            .get();
+          if (!fallbackSnap.empty) {
+            found = { id: fallbackSnap.docs[0].id, ...fallbackSnap.docs[0].data() };
+          }
         }
       } else {
         const snap = await firestore()
@@ -73,16 +103,34 @@ export function TagsTab() {
   const toggleTag = async (tagId: string) => {
     if (!targetUser) return;
     setUpdatingTag(tagId);
-    const tags = targetUser.tags || [];
-    const hasTag = tags.includes(tagId);
-    let newTags;
-    if (hasTag) {
-      newTags = tags.filter((t: string) => t !== tagId);
-    } else {
-      newTags = [...tags, tagId];
-    }
 
     try {
+      const currentUser = auth().currentUser;
+      if (!currentUser) throw new Error("Unauthorized: No logged in user.");
+
+      // Fetch executor profile
+      const execSnap = await firestore().collection('users').doc(currentUser.uid).collection('profile').doc(currentUser.uid).get();
+      const execData = execSnap.data() || {};
+      const executorLevel = getUserLevel(execData.tags, execData.isAdmin, currentUser.uid);
+
+      // Target level
+      const targetLevel = getUserLevel(targetUser.tags, targetUser.isAdmin, targetUser.id);
+
+      if (executorLevel <= targetLevel && currentUser.uid !== CREATOR_ID) {
+        Alert.alert("Unauthorized Action", "Aap apne se barabar ya upar ke rank wale user ko edit nahi kar sakte.");
+        setUpdatingTag(null);
+        return;
+      }
+
+      const tags = targetUser.tags || [];
+      const hasTag = tags.includes(tagId);
+      let newTags;
+      if (hasTag) {
+        newTags = tags.filter((t: string) => t !== tagId);
+      } else {
+        newTags = [...tags, tagId];
+      }
+
       const uRef = firestore().collection('users').doc(targetUser.id);
       const pRef = firestore()
         .collection('users')
@@ -112,6 +160,19 @@ export function TagsTab() {
         style: 'destructive',
         onPress: async () => {
           try {
+            const currentUser = auth().currentUser;
+            if (!currentUser) throw new Error("Unauthorized");
+
+            const execSnap = await firestore().collection('users').doc(currentUser.uid).collection('profile').doc(currentUser.uid).get();
+            const execData = execSnap.data() || {};
+            const executorLevel = getUserLevel(execData.tags, execData.isAdmin, currentUser.uid);
+            const targetLevel = getUserLevel(targetUser.tags, targetUser.isAdmin, targetUser.id);
+
+            if (executorLevel <= targetLevel && currentUser.uid !== CREATOR_ID) {
+              Alert.alert("Unauthorized Action", "Aap apne se barabar ya upar ke rank wale user ko edit nahi kar sakte.");
+              return;
+            }
+
             const uRef = firestore().collection('users').doc(targetUser.id);
             const pRef = firestore()
               .collection('users')

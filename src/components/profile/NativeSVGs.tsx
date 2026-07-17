@@ -94,6 +94,193 @@ export const SVGA_OfficialTag = React.memo(() => (
 SVGA_OfficialTag.displayName = 'SVGA_OfficialTag';
 
 // ============================================================
+// SUPER ADMIN TAG — Indigo capsule + Platinum border + Crown Medallion
+// ============================================================
+export const SVGA_SuperAdminTag = React.memo(() => (
+  <View style={{ height: 19, width: 70, marginLeft: 2, flexDirection: 'row', alignItems: 'center', overflow: 'visible', transform: [{ scale: 0.82 }] }}>
+    {/* @ts-ignore */}
+    <Svg width="95" height="34" viewBox="-5 -7 100 34" overflow="visible" style={{ position: 'absolute', top: -8 }}>
+      <Defs>
+        <SvgLinearGradient id="satSilverBorder" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#ffffff" />
+          <Stop offset="30%" stopColor="#e2e8f0" />
+          <Stop offset="70%" stopColor="#cbd5e1" />
+          <Stop offset="100%" stopColor="#94a3b8" />
+        </SvgLinearGradient>
+        <SvgLinearGradient id="satIndigoInner" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#4f46e5" />
+          <Stop offset="30%" stopColor="#4338ca" />
+          <Stop offset="70%" stopColor="#3730a3" />
+          <Stop offset="100%" stopColor="#312e81" />
+        </SvgLinearGradient>
+        <RadialGradient id="satRadialSilver" cx="30%" cy="30%" rx="70%" ry="70%" fx="30%" fy="30%">
+          <Stop offset="0%" stopColor="#ffffff" />
+          <Stop offset="40%" stopColor="#e2e8f0" />
+          <Stop offset="75%" stopColor="#94a3b8" />
+          <Stop offset="100%" stopColor="#475569" />
+        </RadialGradient>
+        <SvgLinearGradient id="satLetterSilver" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#ffffff" />
+          <Stop offset="50%" stopColor="#cbd5e1" />
+          <Stop offset="100%" stopColor="#94a3b8" />
+        </SvgLinearGradient>
+      </Defs>
+
+      {/* Main Indigo capsule with silver border */}
+      <Rect x="8" y="1.0" width="81" height="18" rx="9.0" fill="url(#satIndigoInner)" />
+      <Rect x="6.5" y="0.0" width="84" height="20" rx="10.0" fill="none" stroke="url(#satSilverBorder)" strokeWidth="1.8" />
+
+      {/* Bottom subtle shadow line */}
+      <Rect x="20" y="18" width="55" height="0.8" rx="0.4" fill="black" opacity="0.3" />
+
+      {/* Medallion */}
+      <Circle cx="12.2" cy="11.2" r="15.5" fill="black" opacity="0.22" />
+      <Circle cx="11" cy="10" r="15.5" fill="#334155" />
+      <Circle cx="11" cy="10" r="14.7" fill="#cbd5e1" />
+      <Circle cx="11" cy="10" r="13.4" fill="#1e293b" />
+      <Circle cx="11" cy="10" r="12.5" fill="url(#satRadialSilver)" />
+      <Circle cx="11" cy="10" r="11.1" fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth="0.6" />
+
+      {/* Star symbol inside Medallion */}
+      <G transform="translate(6, 5) scale(0.65)">
+        <Path d="M8 0 L10 5 L16 6 L12 10 L13 16 L8 13 L3 16 L4 10 L0 6 L6 5 Z" fill="#eab308" />
+      </G>
+
+      {/* Super Admin Text */}
+      <SvgText x="54" y="14.3" fontSize="10.2" fontWeight="900" fill="#1e1b4b" stroke="#1e1b4b" strokeWidth="1.0" textAnchor="middle" fontFamily="Georgia" letterSpacing="0.1">SuperAdmin</SvgText>
+      <SvgText x="53.5" y="13.7" fontSize="10.2" fontWeight="900" fill="url(#satLetterSilver)" stroke="url(#satLetterSilver)" strokeWidth="0.6" textAnchor="middle" fontFamily="Georgia" letterSpacing="0.1">SuperAdmin</SvgText>
+    </Svg>
+  </View>
+));
+SVGA_SuperAdminTag.displayName = 'SVGA_SuperAdminTag';
+
+// ============================================================
+// MANAGER TAG — Emerald Green capsule + Gold border + Gear Medallion
+// ============================================================
+export const SVGA_ManagerTag = React.memo(() => (
+  <View style={{ height: 19, width: 64, marginLeft: 2, flexDirection: 'row', alignItems: 'center', overflow: 'visible', transform: [{ scale: 0.82 }] }}>
+    {/* @ts-ignore */}
+    <Svg width="88" height="34" viewBox="-5 -7 96 34" overflow="visible" style={{ position: 'absolute', top: -8 }}>
+      <Defs>
+        <SvgLinearGradient id="mtGoldBorder" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#ffe8b8" />
+          <Stop offset="30%" stopColor="#f5c57a" />
+          <Stop offset="70%" stopColor="#e4a95a" />
+          <Stop offset="100%" stopColor="#d08c3a" />
+        </SvgLinearGradient>
+        <SvgLinearGradient id="mtGreenInner" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#065f46" />
+          <Stop offset="30%" stopColor="#047857" />
+          <Stop offset="70%" stopColor="#064e3b" />
+          <Stop offset="100%" stopColor="#022c22" />
+        </SvgLinearGradient>
+        <RadialGradient id="mtRadialCoin" cx="30%" cy="30%" rx="70%" ry="70%" fx="30%" fy="30%">
+          <Stop offset="0%" stopColor="#fffae0" />
+          <Stop offset="25%" stopColor="#ffd859" />
+          <Stop offset="65%" stopColor="#fca01a" />
+          <Stop offset="100%" stopColor="#a35200" />
+        </RadialGradient>
+        <SvgLinearGradient id="mtLetterGold" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#fffeee" />
+          <Stop offset="40%" stopColor="#fff8cd" />
+          <Stop offset="80%" stopColor="#ffd86b" />
+          <Stop offset="100%" stopColor="#e5a93b" />
+        </SvgLinearGradient>
+      </Defs>
+
+      {/* Main Green capsule with gold border */}
+      <Rect x="8" y="1.0" width="74" height="18" rx="9.0" fill="url(#mtGreenInner)" />
+      <Rect x="6.5" y="0.0" width="77" height="20" rx="10.0" fill="none" stroke="url(#mtGoldBorder)" strokeWidth="1.8" />
+
+      {/* Bottom subtle shadow line */}
+      <Rect x="20" y="18" width="50" height="0.8" rx="0.4" fill="black" opacity="0.3" />
+
+      {/* Medallion */}
+      <Circle cx="12.2" cy="11.2" r="15.5" fill="black" opacity="0.22" />
+      <Circle cx="11" cy="10" r="15.5" fill="#3b1800" />
+      <Circle cx="11" cy="10" r="14.7" fill="#f3c26f" />
+      <Circle cx="11" cy="10" r="13.4" fill="#3b1800" />
+      <Circle cx="11" cy="10" r="12.5" fill="url(#mtRadialCoin)" />
+      <Circle cx="11" cy="10" r="11.1" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.6" />
+
+      {/* M Letter inside Medallion */}
+      <G transform="translate(11, 10) scale(-1.35, 0.95) translate(-11, -10)">
+        <SvgText x="11.8" y="16.7" fontSize="16" fontWeight="900" fill="#3b1800" stroke="#3b1800" strokeWidth="1.0" textAnchor="middle" fontFamily={serifFont}>M</SvgText>
+        <SvgText x="10.8" y="15.7" fontSize="16" fontWeight="900" fill="url(#mtLetterGold)" textAnchor="middle" fontFamily={serifFont}>M</SvgText>
+      </G>
+
+      {/* Manager Text */}
+      <SvgText x="51.5" y="14.8" fontSize="13.0" fontWeight="900" fill="#022c22" stroke="#022c22" strokeWidth="1.2" textAnchor="middle" fontFamily="Georgia" letterSpacing="0.2">Manager</SvgText>
+      <SvgText x="51" y="14" fontSize="13.0" fontWeight="900" fill="url(#mtLetterGold)" stroke="url(#mtLetterGold)" strokeWidth="0.8" textAnchor="middle" fontFamily="Georgia" letterSpacing="0.2">Manager</SvgText>
+    </Svg>
+  </View>
+));
+SVGA_ManagerTag.displayName = 'SVGA_ManagerTag';
+
+// ============================================================
+// AUDITOR TAG — Deep Blue capsule + Cyan border + Scale/Dollar Medallion
+// ============================================================
+export const SVGA_AuditorTag = React.memo(() => (
+  <View style={{ height: 19, width: 64, marginLeft: 2, flexDirection: 'row', alignItems: 'center', overflow: 'visible', transform: [{ scale: 0.82 }] }}>
+    {/* @ts-ignore */}
+    <Svg width="88" height="34" viewBox="-5 -7 96 34" overflow="visible" style={{ position: 'absolute', top: -8 }}>
+      <Defs>
+        <SvgLinearGradient id="atCyanBorder" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#a5f3fc" />
+          <Stop offset="30%" stopColor="#22d3ee" />
+          <Stop offset="70%" stopColor="#0891b2" />
+          <Stop offset="100%" stopColor="#0369a1" />
+        </SvgLinearGradient>
+        <SvgLinearGradient id="atBlueInner" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#1e3a8a" />
+          <Stop offset="30%" stopColor="#172554" />
+          <Stop offset="70%" stopColor="#0f172a" />
+          <Stop offset="100%" stopColor="#020617" />
+        </SvgLinearGradient>
+        <RadialGradient id="atRadialCoin" cx="30%" cy="30%" rx="70%" ry="70%" fx="30%" fy="30%">
+          <Stop offset="0%" stopColor="#ecfeff" />
+          <Stop offset="25%" stopColor="#a5f3fc" />
+          <Stop offset="65%" stopColor="#06b6d4" />
+          <Stop offset="100%" stopColor="#0891b2" />
+        </RadialGradient>
+        <SvgLinearGradient id="atLetterCyan" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#ecfeff" />
+          <Stop offset="40%" stopColor="#cffafe" />
+          <Stop offset="80%" stopColor="#22d3ee" />
+          <Stop offset="100%" stopColor="#0891b2" />
+        </SvgLinearGradient>
+      </Defs>
+
+      {/* Main Blue capsule with cyan border */}
+      <Rect x="8" y="1.0" width="74" height="18" rx="9.0" fill="url(#atBlueInner)" />
+      <Rect x="6.5" y="0.0" width="77" height="20" rx="10.0" fill="none" stroke="url(#atCyanBorder)" strokeWidth="1.8" />
+
+      {/* Bottom subtle shadow line */}
+      <Rect x="20" y="18" width="50" height="0.8" rx="0.4" fill="black" opacity="0.3" />
+
+      {/* Medallion */}
+      <Circle cx="12.2" cy="11.2" r="15.5" fill="black" opacity="0.22" />
+      <Circle cx="11" cy="10" r="15.5" fill="#0e7490" />
+      <Circle cx="11" cy="10" r="14.7" fill="#22d3ee" />
+      <Circle cx="11" cy="10" r="13.4" fill="#0f172a" />
+      <Circle cx="11" cy="10" r="12.5" fill="url(#atRadialCoin)" />
+      <Circle cx="11" cy="10" r="11.1" fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth="0.6" />
+
+      {/* A Letter inside Medallion */}
+      <G transform="translate(11, 10) scale(-1.35, 0.95) translate(-11, -10)">
+        <SvgText x="11.8" y="16.7" fontSize="16" fontWeight="900" fill="#0891b2" stroke="#0891b2" strokeWidth="1.0" textAnchor="middle" fontFamily={serifFont}>A</SvgText>
+        <SvgText x="10.8" y="15.7" fontSize="16" fontWeight="900" fill="url(#atLetterCyan)" textAnchor="middle" fontFamily={serifFont}>A</SvgText>
+      </G>
+
+      {/* Auditor Text */}
+      <SvgText x="51.5" y="14.8" fontSize="13.0" fontWeight="900" fill="#0f172a" stroke="#0f172a" strokeWidth="1.2" textAnchor="middle" fontFamily="Georgia" letterSpacing="0.2">Auditor</SvgText>
+      <SvgText x="51" y="14" fontSize="13.0" fontWeight="900" fill="url(#atLetterCyan)" stroke="url(#atLetterCyan)" strokeWidth="0.8" textAnchor="middle" fontFamily="Georgia" letterSpacing="0.2">Auditor</SvgText>
+    </Svg>
+  </View>
+));
+SVGA_AuditorTag.displayName = 'SVGA_AuditorTag';
+
+// ============================================================
 // SELLER TAG — Orange gradient pill + Red Bag SVG icon (matches web)
 // ============================================================
 export const SVGA_SellerTag = React.memo(() => (
@@ -196,84 +383,189 @@ export const SVGA_HostTag = React.memo(() => (
 SVGA_HostTag.displayName = 'SVGA_HostTag';
 
 // ============================================================
-// CS LEADER TAG — Blue-magenta nebula gradient + bear icon
+// ADMIN TAG — Crimson capsule + Gold border + A Medallion
 // ============================================================
-export const SVGA_CSLeaderTag = React.memo(() => (
-  <View style={{ height: 22, marginLeft: 2, flexDirection: 'row', alignItems: 'center', overflow: 'hidden' }}>
-    <Svg width="125" height="22" viewBox="0 0 130 24">
+export const SVGA_AdminTag = React.memo(() => (
+  <View style={{ height: 19, width: 64, marginLeft: 2, flexDirection: 'row', alignItems: 'center', overflow: 'visible', transform: [{ scale: 0.82 }] }}>
+    {/* @ts-ignore */}
+    <Svg width="88" height="34" viewBox="-5 -7 96 34" overflow="visible" style={{ position: 'absolute', top: -8 }}>
       <Defs>
-        <SvgLinearGradient id="csLeaderNebula" x1="0%" y1="0%" x2="100%" y2="100%">
-          <Stop offset="0%" stopColor="#0284c7" />
-          <Stop offset="50%" stopColor="#7c3aed" />
-          <Stop offset="100%" stopColor="#d946ef" />
+        <SvgLinearGradient id="adGoldBorder" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#ffe8b8" />
+          <Stop offset="30%" stopColor="#f5c57a" />
+          <Stop offset="70%" stopColor="#e4a95a" />
+          <Stop offset="100%" stopColor="#d08c3a" />
         </SvgLinearGradient>
-        <SvgLinearGradient id="csLeaderGoldBorder" x1="0%" y1="0%" x2="0%" y2="100%">
-          <Stop offset="0%" stopColor="#fde047" />
-          <Stop offset="50%" stopColor="#fbbf24" />
-          <Stop offset="100%" stopColor="#d97706" />
+        <SvgLinearGradient id="adCrimsonInner" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#b91c1c" />
+          <Stop offset="30%" stopColor="#991b1b" />
+          <Stop offset="70%" stopColor="#7f1d1d" />
+          <Stop offset="100%" stopColor="#450a0a" />
         </SvgLinearGradient>
-        <SvgLinearGradient id="csLeaderShine" x1="0%" y1="0%" x2="0%" y2="100%">
-          <Stop offset="0%" stopColor="rgba(255,255,255,0.4)" />
-          <Stop offset="100%" stopColor="rgba(255,255,255,0)" />
+        <RadialGradient id="adRadialCoin" cx="30%" cy="30%" rx="70%" ry="70%" fx="30%" fy="30%">
+          <Stop offset="0%" stopColor="#fffae0" />
+          <Stop offset="25%" stopColor="#ffd859" />
+          <Stop offset="65%" stopColor="#fca01a" />
+          <Stop offset="100%" stopColor="#a35200" />
+        </RadialGradient>
+        <SvgLinearGradient id="adLetterGold" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#fffeee" />
+          <Stop offset="40%" stopColor="#fff8cd" />
+          <Stop offset="80%" stopColor="#ffd86b" />
+          <Stop offset="100%" stopColor="#e5a93b" />
         </SvgLinearGradient>
       </Defs>
-      <Rect x="0" y="0" width="130" height="24" rx="12" fill="url(#csLeaderGoldBorder)" />
-      <Rect x="2" y="2" width="126" height="20" rx="10" fill="url(#csLeaderNebula)" />
-      <Rect x="12" y="3" width="106" height="9" rx="4" fill="url(#csLeaderShine)" />
-      <Circle cx="16" cy="12" r="8" fill="#facc15" />
-      <Circle cx="10" cy="7" r="4" fill="#facc15" />
-      <Circle cx="22" cy="7" r="4" fill="#facc15" />
-      <Circle cx="10" cy="7" r="2.2" fill="#ff80ab" />
-      <Circle cx="22" cy="7" r="2.2" fill="#ff80ab" />
-      <Circle cx="13.5" cy="11" r="1.2" fill="#1a1a1a" />
-      <Circle cx="18.5" cy="11" r="1.2" fill="#1a1a1a" />
-      <Circle cx="16" cy="14" r="3" fill="#fff9c4" opacity="0.9" />
-      <Circle cx="16" cy="13.2" r="1" fill="#1a1a1a" />
-      <SvgText x="72" y="15.5" fontSize="11" fontWeight="900" fill="white" textAnchor="middle" fontFamily="sans-serif" letterSpacing="0.2">CS Leader</SvgText>
-      <Circle cx="122" cy="6" r="1.5" fill="white" opacity="0.8" />
-      <Circle cx="118" cy="20" r="1" fill="white" opacity="0.5" />
+
+      {/* Main Crimson capsule with gold border */}
+      <Rect x="8" y="1.0" width="74" height="18" rx="9.0" fill="url(#adCrimsonInner)" />
+      <Rect x="6.5" y="0.0" width="77" height="20" rx="10.0" fill="none" stroke="url(#adGoldBorder)" strokeWidth="1.8" />
+
+      {/* Bottom subtle shadow line */}
+      <Rect x="20" y="18" width="50" height="0.8" rx="0.4" fill="black" opacity="0.3" />
+
+      {/* Medallion */}
+      <Circle cx="12.2" cy="11.2" r="15.5" fill="black" opacity="0.22" />
+      <Circle cx="11" cy="10" r="15.5" fill="#3b1800" />
+      <Circle cx="11" cy="10" r="14.7" fill="#f3c26f" />
+      <Circle cx="11" cy="10" r="13.4" fill="#3b1800" />
+      <Circle cx="11" cy="10" r="12.5" fill="url(#adRadialCoin)" />
+      <Circle cx="11" cy="10" r="11.1" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.6" />
+
+      {/* A Letter inside Medallion */}
+      <G transform="translate(11, 10) scale(-1.35, 0.95) translate(-11, -10)">
+        <SvgText x="11.8" y="16.7" fontSize="16" fontWeight="900" fill="#3b1800" stroke="#3b1800" strokeWidth="1.0" textAnchor="middle" fontFamily={serifFont}>A</SvgText>
+        <SvgText x="10.8" y="15.7" fontSize="16" fontWeight="900" fill="url(#adLetterGold)" textAnchor="middle" fontFamily={serifFont}>A</SvgText>
+      </G>
+
+      {/* Admin Text */}
+      <SvgText x="51.5" y="14.8" fontSize="13.0" fontWeight="900" fill="#450a0a" stroke="#450a0a" strokeWidth="1.2" textAnchor="middle" fontFamily="Georgia" letterSpacing="0.2">Admin</SvgText>
+      <SvgText x="51" y="14" fontSize="13.0" fontWeight="900" fill="url(#adLetterGold)" stroke="url(#adLetterGold)" strokeWidth="0.8" textAnchor="middle" fontFamily="Georgia" letterSpacing="0.2">Admin</SvgText>
+    </Svg>
+  </View>
+));
+SVGA_AdminTag.displayName = 'SVGA_AdminTag';
+
+// ============================================================
+// CS LEADER TAG — Nebula capsule + Rose gold border + Crown Medallion
+// ============================================================
+export const SVGA_CSLeaderTag = React.memo(() => (
+  <View style={{ height: 19, width: 72, marginLeft: 2, flexDirection: 'row', alignItems: 'center', overflow: 'visible', transform: [{ scale: 0.82 }] }}>
+    {/* @ts-ignore */}
+    <Svg width="90" height="34" viewBox="-5 -7 98 34" overflow="visible" style={{ position: 'absolute', top: -8 }}>
+      <Defs>
+        <SvgLinearGradient id="cslRoseBorder" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#fbcfe8" />
+          <Stop offset="30%" stopColor="#f472b6" />
+          <Stop offset="70%" stopColor="#db2777" />
+          <Stop offset="100%" stopColor="#9d174d" />
+        </SvgLinearGradient>
+        <SvgLinearGradient id="cslNebulaInner" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#701a75" />
+          <Stop offset="30%" stopColor="#4a044e" />
+          <Stop offset="70%" stopColor="#3b0764" />
+          <Stop offset="100%" stopColor="#1e1b4b" />
+        </SvgLinearGradient>
+        <RadialGradient id="cslRadialCoin" cx="30%" cy="30%" rx="70%" ry="70%" fx="30%" fy="30%">
+          <Stop offset="0%" stopColor="#fdf2f8" />
+          <Stop offset="25%" stopColor="#fbcfe8" />
+          <Stop offset="65%" stopColor="#ec4899" />
+          <Stop offset="100%" stopColor="#db2777" />
+        </RadialGradient>
+        <SvgLinearGradient id="cslLetterGold" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#fffeee" />
+          <Stop offset="40%" stopColor="#fff8cd" />
+          <Stop offset="80%" stopColor="#ffd86b" />
+          <Stop offset="100%" stopColor="#e5a93b" />
+        </SvgLinearGradient>
+      </Defs>
+
+      {/* Main Nebula capsule with rose gold border */}
+      <Rect x="8" y="1.0" width="76" height="18" rx="9.0" fill="url(#cslNebulaInner)" />
+      <Rect x="6.5" y="0.0" width="79" height="20" rx="10.0" fill="none" stroke="url(#cslRoseBorder)" strokeWidth="1.8" />
+
+      {/* Bottom subtle shadow line */}
+      <Rect x="20" y="18" width="52" height="0.8" rx="0.4" fill="black" opacity="0.3" />
+
+      {/* Medallion */}
+      <Circle cx="12.2" cy="11.2" r="15.5" fill="black" opacity="0.22" />
+      <Circle cx="11" cy="10" r="15.5" fill="#4d0613" />
+      <Circle cx="11" cy="10" r="14.7" fill="#f472b6" />
+      <Circle cx="11" cy="10" r="13.4" fill="#3b0764" />
+      <Circle cx="11" cy="10" r="12.5" fill="url(#cslRadialCoin)" />
+      <Circle cx="11" cy="10" r="11.1" fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth="0.6" />
+
+      {/* C symbol inside Medallion */}
+      <G transform="translate(11, 10) scale(-1.35, 0.95) translate(-11, -10)">
+        <SvgText x="11.8" y="16.7" fontSize="16" fontWeight="900" fill="#3b0764" stroke="#3b0764" strokeWidth="1.0" textAnchor="middle" fontFamily={serifFont}>C</SvgText>
+        <SvgText x="10.8" y="15.7" fontSize="16" fontWeight="900" fill="url(#cslLetterGold)" textAnchor="middle" fontFamily={serifFont}>C</SvgText>
+      </G>
+
+      {/* CS Leader Text */}
+      <SvgText x="52.5" y="14.8" fontSize="10.5" fontWeight="900" fill="#4a044e" stroke="#4a044e" strokeWidth="1.0" textAnchor="middle" fontFamily="Georgia" letterSpacing="0.1">CS Leader</SvgText>
+      <SvgText x="52" y="14" fontSize="10.5" fontWeight="900" fill="url(#cslLetterGold)" stroke="url(#cslLetterGold)" strokeWidth="0.6" textAnchor="middle" fontFamily="Georgia" letterSpacing="0.1">CS Leader</SvgText>
     </Svg>
   </View>
 ));
 SVGA_CSLeaderTag.displayName = 'SVGA_CSLeaderTag';
 
 // ============================================================
-// CUSTOMER SERVICE TAG — Blue gradient + bear icon
+// CUSTOMER SERVICE TAG — Ocean Blue capsule + Cyan border + Support Medallion
 // ============================================================
 export const SVGA_CustomerServiceTag = React.memo(() => (
-  <View style={{ height: 22, marginLeft: 2, flexDirection: 'row', alignItems: 'center', overflow: 'hidden' }}>
-    <Svg width="145" height="22" viewBox="0 0 150 24">
+  <View style={{ height: 19, width: 62, marginLeft: 2, flexDirection: 'row', alignItems: 'center', overflow: 'visible', transform: [{ scale: 0.82 }] }}>
+    {/* @ts-ignore */}
+    <Svg width="88" height="34" viewBox="-5 -7 96 34" overflow="visible" style={{ position: 'absolute', top: -8 }}>
       <Defs>
-        <SvgLinearGradient id="csBlueGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-          <Stop offset="0%" stopColor="#38bdf8" />
-          <Stop offset="50%" stopColor="#0284c7" />
+        <SvgLinearGradient id="csCyanBorder" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#a5f3fc" />
+          <Stop offset="30%" stopColor="#22d3ee" />
+          <Stop offset="70%" stopColor="#0891b2" />
           <Stop offset="100%" stopColor="#0369a1" />
         </SvgLinearGradient>
-        <SvgLinearGradient id="csGoldBorder2" x1="0%" y1="0%" x2="0%" y2="100%">
-          <Stop offset="0%" stopColor="#fde047" />
-          <Stop offset="50%" stopColor="#fbbf24" />
-          <Stop offset="100%" stopColor="#d97706" />
+        <SvgLinearGradient id="csBlueInner" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#0891b2" />
+          <Stop offset="30%" stopColor="#0e7490" />
+          <Stop offset="70%" stopColor="#155e75" />
+          <Stop offset="100%" stopColor="#083344" />
         </SvgLinearGradient>
-        <SvgLinearGradient id="csShine2" x1="0%" y1="0%" x2="0%" y2="100%">
-          <Stop offset="0%" stopColor="rgba(255,255,255,0.4)" />
-          <Stop offset="100%" stopColor="rgba(255,255,255,0)" />
+        <RadialGradient id="csRadialCoin" cx="30%" cy="30%" rx="70%" ry="70%" fx="30%" fy="30%">
+          <Stop offset="0%" stopColor="#ecfeff" />
+          <Stop offset="25%" stopColor="#a5f3fc" />
+          <Stop offset="65%" stopColor="#06b6d4" />
+          <Stop offset="100%" stopColor="#0891b2" />
+        </RadialGradient>
+        <SvgLinearGradient id="csLetterCyan" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#ecfeff" />
+          <Stop offset="40%" stopColor="#cffafe" />
+          <Stop offset="80%" stopColor="#22d3ee" />
+          <Stop offset="100%" stopColor="#0891b2" />
         </SvgLinearGradient>
       </Defs>
-      <Rect x="0" y="0" width="150" height="24" rx="12" fill="url(#csGoldBorder2)" />
-      <Rect x="2" y="2" width="146" height="20" rx="10" fill="url(#csBlueGrad)" />
-      <Rect x="12" y="3" width="126" height="9" rx="4" fill="url(#csShine2)" />
-      <Circle cx="16" cy="12" r="8" fill="#fbc02d" />
-      <Circle cx="10" cy="7" r="4" fill="#fbc02d" />
-      <Circle cx="22" cy="7" r="4" fill="#fbc02d" />
-      <Circle cx="10" cy="7" r="2.2" fill="#ff80ab" />
-      <Circle cx="22" cy="7" r="2.2" fill="#ff80ab" />
-      <Circle cx="13.5" cy="11" r="1.2" fill="#1a1a1a" />
-      <Circle cx="18.5" cy="11" r="1.2" fill="#1a1a1a" />
-      <Circle cx="16" cy="14" r="3" fill="#fff9c4" opacity="0.9" />
-      <Circle cx="16" cy="13.2" r="1" fill="#1a1a1a" />
-      <SvgText x="82" y="15.5" fontSize="10.5" fontWeight="900" fill="white" textAnchor="middle" fontFamily="sans-serif" letterSpacing="0.2">Customer Service</SvgText>
-      <Circle cx="142" cy="6" r="1.5" fill="white" opacity="0.8" />
-      <Circle cx="138" cy="20" r="1" fill="white" opacity="0.5" />
+
+      {/* Main Ocean Blue capsule with cyan border */}
+      <Rect x="8" y="1.0" width="74" height="18" rx="9.0" fill="url(#csBlueInner)" />
+      <Rect x="6.5" y="0.0" width="77" height="20" rx="10.0" fill="none" stroke="url(#csCyanBorder)" strokeWidth="1.8" />
+
+      {/* Bottom subtle shadow line */}
+      <Rect x="20" y="18" width="50" height="0.8" rx="0.4" fill="black" opacity="0.3" />
+
+      {/* Medallion */}
+      <Circle cx="12.2" cy="11.2" r="15.5" fill="black" opacity="0.22" />
+      <Circle cx="11" cy="10" r="15.5" fill="#083344" />
+      <Circle cx="11" cy="10" r="14.7" fill="#22d3ee" />
+      <Circle cx="11" cy="10" r="13.4" fill="#155e75" />
+      <Circle cx="11" cy="10" r="12.5" fill="url(#csRadialCoin)" />
+      <Circle cx="11" cy="10" r="11.1" fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth="0.6" />
+
+      {/* S Letter inside Medallion */}
+      <G transform="translate(11, 10) scale(-1.35, 0.95) translate(-11, -10)">
+        <SvgText x="11.8" y="16.7" fontSize="16" fontWeight="900" fill="#155e75" stroke="#155e75" strokeWidth="1.0" textAnchor="middle" fontFamily={serifFont}>S</SvgText>
+        <SvgText x="10.8" y="15.7" fontSize="16" fontWeight="900" fill="url(#csLetterCyan)" textAnchor="middle" fontFamily={serifFont}>S</SvgText>
+      </G>
+
+      {/* CS Text */}
+      <SvgText x="51.5" y="14.8" fontSize="13.0" fontWeight="900" fill="#083344" stroke="#083344" strokeWidth="1.2" textAnchor="middle" fontFamily="Georgia" letterSpacing="0.2">CS</SvgText>
+      <SvgText x="51" y="14" fontSize="13.0" fontWeight="900" fill="url(#csLetterCyan)" stroke="url(#csLetterCyan)" strokeWidth="0.8" textAnchor="middle" fontFamily="Georgia" letterSpacing="0.2">CS</SvgText>
     </Svg>
   </View>
 ));

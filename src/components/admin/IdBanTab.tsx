@@ -1,7 +1,22 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth';
 import { Image } from 'expo-image';
+
+const CREATOR_ID = '901piBzTQ0VzCtAvlyyobwvAaTs1';
+
+const getUserLevel = (tags: string[] = [], isAdmin: boolean = false, uid: string = "") => {
+  if (uid === CREATOR_ID) return 7;
+  if (tags.includes("Official") || tags.includes("Official center") || isAdmin) return 6;
+  if (tags.includes("Super Admin")) return 5;
+  if (tags.includes("Manager")) return 4;
+  if (tags.includes("Auditor")) return 3;
+  if (tags.includes("Admin")) return 2;
+  if (tags.includes("CS Leader")) return 1;
+  if (tags.includes("Customer Service")) return 0;
+  return -1;
+};
 
 export function IdBanTab() {
   const [userIdInput, setUserIdInput] = useState('');
@@ -28,11 +43,23 @@ export function IdBanTab() {
         const doc = querySnap.docs[0];
         setFoundUser({ id: doc.id, ...doc.data() });
       } else {
-        const docSnap = await firestore().collection('users').doc(userIdInput.trim()).get();
-        if (docSnap.exists()) {
-          setFoundUser({ id: docSnap.id, ...docSnap.data() });
+        // Fallback: search by activeIdBadge.displayId
+        const fallbackSnap = await firestore()
+          .collection('users')
+          .where('activeIdBadge.displayId', '==', userIdInput.trim())
+          .limit(1)
+          .get();
+        
+        if (!fallbackSnap.empty) {
+          const doc = fallbackSnap.docs[0];
+          setFoundUser({ id: doc.id, ...doc.data() });
         } else {
-          Alert.alert('Not Found', 'No user matches this ID or UID.');
+          const docSnap = await firestore().collection('users').doc(userIdInput.trim()).get();
+          if (docSnap.exists()) {
+            setFoundUser({ id: docSnap.id, ...docSnap.data() });
+          } else {
+            Alert.alert('Not Found', 'No user matches this ID or UID.');
+          }
         }
       }
     } catch (err: any) {
@@ -46,6 +73,29 @@ export function IdBanTab() {
     if (!foundUser) return;
     setUpdating(true);
     try {
+      const currentUser = auth().currentUser;
+      if (!currentUser) throw new Error("Unauthorized");
+
+      // Fetch executor profile
+      const execSnap = await firestore().collection('users').doc(currentUser.uid).collection('profile').doc(currentUser.uid).get();
+      const execData = execSnap.data() || {};
+      const executorLevel = getUserLevel(execData.tags, execData.isAdmin, currentUser.uid);
+
+      // Target level
+      const targetLevel = getUserLevel(foundUser.tags, foundUser.isAdmin, foundUser.id);
+
+      if (executorLevel < 3 && currentUser.uid !== CREATOR_ID) {
+        Alert.alert("Unauthorized Action", "Banning features are restricted to Admins and above.");
+        setUpdating(false);
+        return;
+      }
+
+      if (executorLevel <= targetLevel && currentUser.uid !== CREATOR_ID) {
+        Alert.alert("Unauthorized Action", "Aap apne se barabar ya upar ke rank wale user ko ban nahi kar sakte.");
+        setUpdating(false);
+        return;
+      }
+
       const days = parseInt(banDays) || 0;
       const hours = parseInt(banHours) || 0;
       const mins = parseInt(banMinutes) || 0;
@@ -84,6 +134,29 @@ export function IdBanTab() {
     if (!foundUser) return;
     setUpdating(true);
     try {
+      const currentUser = auth().currentUser;
+      if (!currentUser) throw new Error("Unauthorized");
+
+      // Fetch executor profile
+      const execSnap = await firestore().collection('users').doc(currentUser.uid).collection('profile').doc(currentUser.uid).get();
+      const execData = execSnap.data() || {};
+      const executorLevel = getUserLevel(execData.tags, execData.isAdmin, currentUser.uid);
+
+      // Target level
+      const targetLevel = getUserLevel(foundUser.tags, foundUser.isAdmin, foundUser.id);
+
+      if (executorLevel < 3 && currentUser.uid !== CREATOR_ID) {
+        Alert.alert("Unauthorized Action", "Unbanning features are restricted to Admins and above.");
+        setUpdating(false);
+        return;
+      }
+
+      if (executorLevel <= targetLevel && currentUser.uid !== CREATOR_ID) {
+        Alert.alert("Unauthorized Action", "Aap apne se barabar ya upar ke rank wale user ko unban nahi kar sakte.");
+        setUpdating(false);
+        return;
+      }
+
       const banStatus = {
         isBanned: false,
         bannedAt: null,

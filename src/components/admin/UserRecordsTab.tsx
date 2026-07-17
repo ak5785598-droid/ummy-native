@@ -27,6 +27,16 @@ export function UserRecordsTab() {
           .get();
         if (!snap.empty) {
           found = { id: snap.docs[0].id, ...snap.docs[0].data() };
+        } else {
+          // Fallback: search by activeIdBadge.displayId
+          const fallbackSnap = await firestore()
+            .collection('users')
+            .where('activeIdBadge.displayId', '==', inputVal)
+            .limit(1)
+            .get();
+          if (!fallbackSnap.empty) {
+            found = { id: fallbackSnap.docs[0].id, ...fallbackSnap.docs[0].data() };
+          }
         }
       } else {
         const snap = await firestore()

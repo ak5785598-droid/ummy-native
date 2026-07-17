@@ -29,6 +29,10 @@ import {
   SVGA_HostTag,
   SVGA_CSLeaderTag,
   SVGA_CustomerServiceTag,
+  SVGA_SuperAdminTag,
+  SVGA_ManagerTag,
+  SVGA_AuditorTag,
+  SVGA_AdminTag,
   SVGA_VIPBanner,
   SVGA_GlossyID,
   SVGA_GoldDollar,
@@ -497,6 +501,10 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
 
                 {profile.tags?.includes('Official') && <SVGA_OfficialTag />}
+                {profile.tags?.includes('Super Admin') && <SVGA_SuperAdminTag />}
+                {profile.tags?.includes('Manager') && <SVGA_ManagerTag />}
+                {profile.tags?.includes('Auditor') && <SVGA_AuditorTag />}
+                {profile.tags?.includes('Admin') && <SVGA_AdminTag />}
                 {profile.tags?.some((t: string) => ['Seller', 'Seller center', 'Coin Seller'].includes(t)) && <SVGA_SellerTag />}
                 {profile.tags?.includes('CS Leader') && <SVGA_CSLeaderTag />}
                 {profile.tags?.includes('Customer Service') && <SVGA_CustomerServiceTag />}
