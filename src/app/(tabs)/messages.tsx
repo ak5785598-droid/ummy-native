@@ -690,7 +690,14 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
     return query(collection(firestore, 'privateChats', chatId, 'messages'), orderBy('timestamp', 'asc'), limit(100));
   }, [firestore, chatId]);
 
-  const { data: messages } = useCollection<PrivateMessage>(messagesQuery);
+  const { data: messages, error: messagesError } = useCollection<PrivateMessage>(messagesQuery);
+
+  useEffect(() => {
+    if (messagesError) {
+      console.warn('[DM Chat Error] Firestore query failed:', messagesError);
+      Alert.alert('Chat Sync Failed', 'Please verify privacy settings or internet connection.');
+    }
+  }, [messagesError]);
 
   // Load block status and last seen preference
   useEffect(() => {
@@ -707,11 +714,20 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
     return () => unsub();
   }, [firestore, user?.uid, recipientUid]);
 
+  const sortedMessages = useMemo(() => {
+    if (!messages) return [];
+    return [...messages].sort((a, b) => {
+      const aTime = a.timestamp?.toMillis?.() || (a.timestamp?.seconds ? a.timestamp.seconds * 1000 : (a.timestamp ? new Date(a.timestamp).getTime() : Date.now()));
+      const bTime = b.timestamp?.toMillis?.() || (b.timestamp?.seconds ? b.timestamp.seconds * 1000 : (b.timestamp ? new Date(b.timestamp).getTime() : Date.now()));
+      return aTime - bTime;
+    });
+  }, [messages]);
+
   useEffect(() => {
-    if (messages && messages.length > 0) {
+    if (sortedMessages && sortedMessages.length > 0) {
       setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
     }
-  }, [messages?.length]);
+  }, [sortedMessages?.length]);
 
   useEffect(() => {
     if (firestore && user?.uid && chatRef) {
@@ -1223,7 +1239,7 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
       >
         {(() => {
           let lastDateStr = '';
-          return messages?.map((msg) => {
+          return sortedMessages?.map((msg) => {
             const isMe = msg.senderId === user?.uid;
             if (isMe && (msg as any).deletedBySender) return null;
 

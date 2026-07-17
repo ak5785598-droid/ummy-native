@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { X, Send, MessageCircle } from 'lucide-react-native';
 import { useFirestore, useUser } from '../../firebase/provider';
@@ -119,9 +119,17 @@ export function RoomMessagesDialog({ visible, onClose, roomId, initialRecipient 
     }
   }, [initialRecipient, chats]);
 
+  const sortedMessages = useMemo(() => {
+    return [...messages].sort((a, b) => {
+      const aTime = a.timestamp?.toMillis?.() || (a.timestamp?.seconds ? a.timestamp.seconds * 1000 : (a.timestamp ? new Date(a.timestamp).getTime() : Date.now()));
+      const bTime = b.timestamp?.toMillis?.() || (b.timestamp?.seconds ? b.timestamp.seconds * 1000 : (b.timestamp ? new Date(b.timestamp).getTime() : Date.now()));
+      return aTime - bTime;
+    });
+  }, [messages]);
+
   useEffect(() => {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 200);
-  }, [messages]);
+  }, [sortedMessages.length]);
 
   const handleSend = async () => {
     if (!firestore || !user?.uid || !userProfile || !inputText.trim() || !selectedChat) return;
@@ -184,7 +192,7 @@ export function RoomMessagesDialog({ visible, onClose, roomId, initialRecipient 
             ) : (
               <View className="flex-1">
                 <ScrollView ref={scrollRef} className="flex-1 px-4 py-2" showsVerticalScrollIndicator={false}>
-                  {messages.map(msg => (
+                  {sortedMessages.map(msg => (
                     <View key={msg.id} className={`mb-2 ${msg.senderId === user?.uid ? 'items-end' : 'items-start'}`}>
                       <View className={`rounded-2xl px-3 py-2 max-w-[80%] ${msg.senderId === user?.uid ? 'bg-purple-600' : 'bg-slate-100'}`}>
                         <Text className={msg.senderId === user?.uid ? 'text-white text-sm' : 'text-slate-800 text-sm'}>{msg.text}</Text>

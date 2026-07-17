@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useFirestore } from '../firebase/provider';
+import { useFirestore, useUser } from '../firebase/provider';
 import { doc, onSnapshot, setDoc } from '@/firebase/firestore-compat';
 import { User } from '../lib/types';
 
@@ -11,11 +11,29 @@ function isValidAccNum(id: any): boolean {
 
 export function useUserProfile(uid: string | undefined | null) {
   const firestore = useFirestore();
+  const { user } = useUser();
   const [profile, setProfile] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const dataRef = useRef<{ base: any; sub: any }>({ base: null, sub: null });
   const unsubBaseRef = useRef<(() => void) | null>(null);
   const unsubSubRef = useRef<(() => void) | null>(null);
+
+  const [isOfficial, setIsOfficial] = useState(false);
+
+  useEffect(() => {
+    if (!firestore || !user?.uid) return;
+    const myUserRef = doc(firestore, 'users', user.uid);
+    const unsub = onSnapshot(myUserRef, (snap: any) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        const tags = data?.tags || [];
+        const officialRoles = ['Official', 'Super Admin', 'CS Leader', 'Customer Service', 'Auditor', 'Manager', 'CS'];
+        const hasOfficialRole = tags.some((t: string) => officialRoles.includes(t));
+        setIsOfficial(hasOfficialRole);
+      }
+    }, () => {});
+    return () => unsub();
+  }, [firestore, user?.uid]);
 
   useEffect(() => {
     if (!uid || !firestore) {
@@ -39,17 +57,21 @@ export function useUserProfile(uid: string | undefined | null) {
       // Prioritize baseAccNum (Admin source of truth) if it exists, otherwise fallback to subAccNum
       let bestAccNum: any = baseAccNum || subAccNum;
 
-      if (baseAccNum && subAccNum && baseAccNum !== subAccNum) {
-        bestAccNum = baseAccNum;
-        // Sync the profile subcollection with the new admin-assigned ID
-        setDoc(profileRef, { accountNumber: baseAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
-      } else if (!isValidAccNum(subAccNum) && isValidAccNum(baseAccNum)) {
-        bestAccNum = baseAccNum;
-        setDoc(profileRef, { accountNumber: bestAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
-        setDoc(userRef, { accountNumber: bestAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
-      } else if (isValidAccNum(subAccNum) && !isValidAccNum(baseAccNum)) {
-        bestAccNum = subAccNum;
-        setDoc(userRef, { accountNumber: subAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
+      const isOwner = uid === user?.uid;
+      const canEdit = isOwner || isOfficial;
+
+      if (canEdit) {
+        if (baseAccNum && subAccNum && baseAccNum !== subAccNum) {
+          bestAccNum = baseAccNum;
+          setDoc(profileRef, { accountNumber: baseAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
+        } else if (!isValidAccNum(subAccNum) && isValidAccNum(baseAccNum)) {
+          bestAccNum = baseAccNum;
+          setDoc(profileRef, { accountNumber: bestAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
+          setDoc(userRef, { accountNumber: bestAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
+        } else if (isValidAccNum(subAccNum) && !isValidAccNum(baseAccNum)) {
+          bestAccNum = subAccNum;
+          setDoc(userRef, { accountNumber: subAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
+        }
       }
 
       setProfile({

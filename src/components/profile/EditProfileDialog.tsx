@@ -116,12 +116,18 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
   const [showWhatsapp, setShowWhatsapp] = useState(true);
   const [spaceImages, setSpaceImages] = useState<(string | null)[]>(Array(8).fill(null));
   const [localAvatarUri, setLocalAvatarUri] = useState<string | null>(null);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   const { user } = useUser();
   const firestore = useFirestore();
 
   const isGenderFixed = !!profile?.gender;
   const selectedCountry = COUNTRIES.find((c) => c.name === country);
+
+  const OFFICIAL_ROLES = ['Official', 'Super Admin', 'CS Leader', 'Customer Service', 'Auditor', 'Manager', 'CS'];
+  const isOfficialUser = useMemo(() => {
+    return profile?.tags?.some((t: string) => OFFICIAL_ROLES.includes(t)) || profile?.isAdmin;
+  }, [profile]);
 
   useEffect(() => {
     if (profile && open) {
@@ -136,6 +142,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
       const images = profile.spaceImages || [];
       setSpaceImages([...images, ...Array(8 - images.length).fill(null)].slice(0, 8));
       setLocalAvatarUri(null);
+      setSelectedTags(profile.tags || []);
     }
   }, [profile, open]);
 
@@ -264,6 +271,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
       };
       if (country !== undefined) updateData.country = country;
       if (!isGenderFixed && gender) updateData.gender = gender;
+      if (isOfficialUser) updateData.tags = selectedTags;
 
       // Summary doc (fast sync for chat/rooms)
       await setDoc(
@@ -608,7 +616,7 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
               />
             </FieldRow>
 
-            {/* â”€â”€ Space Background Slots â”€â”€ */}
+            {/* Space Background Slots */}
             <View style={{ paddingTop: 20, paddingBottom: 8 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingHorizontal: 2 }}>
                 <Text style={{ fontSize: 11, fontWeight: '900', color: '#3b82f6', textTransform: 'uppercase', letterSpacing: 1 }}>

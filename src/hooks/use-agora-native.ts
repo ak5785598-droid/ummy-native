@@ -5,7 +5,7 @@ import { Audio } from 'expo-av';
 import { doc, setDoc, deleteDoc, serverTimestamp } from '@/firebase/firestore-compat';
 import { useFirestore } from '../firebase/provider';
 
-const APP_ID = process.env.EXPO_PUBLIC_AGORA_APP_ID || 'b63172cb1555417ba90145c91b350578';
+const APP_ID = process.env.EXPO_PUBLIC_AGORA_APP_ID || '619919c1721449c1874fb9395fe6da31';
 
 // Module-level singleton: engine persists across screen mounts/unmounts
 let singletonEngine: IRtcEngine | null = null;
@@ -117,13 +117,26 @@ export function useAgoraNative(
 
         engine.registerEventHandler({
           onUserJoined: (connection, remoteUid) => {
+            console.log('[Agora] User joined:', remoteUid);
             if (isMounted) setRemoteUsers((prev) => [...prev, remoteUid]);
           },
           onUserOffline: (connection, remoteUid) => {
             if (isMounted) setRemoteUsers((prev) => prev.filter((id) => id !== remoteUid));
           },
           onJoinChannelSuccess: () => {
+            console.log('[Agora] Join channel SUCCESS');
             if (isMounted) setConnectionState('CONNECTED');
+          },
+          onConnectionFailed: (connection, reason) => {
+            console.log('[Agora] Connection FAILED:', reason);
+            if (isMounted) setConnectionState('DISCONNECTED');
+          },
+          onJoinChannelRejected: (connection, reason) => {
+            console.log('[Agora] Join channel REJECTED:', reason);
+            if (isMounted) setConnectionState('DISCONNECTED');
+          },
+          onError: (code, msg) => {
+            console.log('[Agora] Error:', code, msg);
           },
           onAudioVolumeIndication: (connection, speakers) => {
             if (isMounted && speakers) {
@@ -163,6 +176,8 @@ export function useAgoraNative(
 
         setConnectionState('CONNECTING');
       } catch (e) {
+        console.log('[Agora] Init error:', e);
+        if (isMounted) setConnectionState('DISCONNECTED');
       }
     };
 

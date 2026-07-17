@@ -28,6 +28,9 @@ export function useVoiceEngine({
   const webrtcHook = useWebRTCVoice(roomId, isInSeat, isMuted, uid, isSpeakerMuted, keepAlive);
 
   const switchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const switchedRef = useRef(false);
+  const remoteUsersRef = useRef<number[]>([]);
+  const speakingUsersRef = useRef<Record<number, number>>({});
 
   useEffect(() => {
     if (!roomId || !uid) return;
@@ -45,6 +48,7 @@ export function useVoiceEngine({
         }
         setActiveProvider('webrtc');
       }, 5000);
+      return;
     }
 
     return () => {

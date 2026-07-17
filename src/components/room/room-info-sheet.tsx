@@ -64,23 +64,28 @@ export function RoomInfoSheet({ visible, onClose, room: propRoom, isOwner = fals
   const tagInfo = CATEGORY_TAGS[currentTag] || CATEGORY_TAGS.Chat;
   const TagIcon = tagInfo.icon;
 
-  // Fetch followers (all joined members) from subcollection - one-time fetch like web
+  // Fetch followers (all joined members) from subcollection - real-time snapshot
   const [followers, setFollowers] = useState<any[]>([]);
   const [isFollowersLoading, setIsFollowersLoading] = useState(true);
 
   useEffect(() => {
     if (!firestore || !room.id || !visible) return;
-    let mounted = true;
-    const fetchFollowers = async () => {
-      try {
-        const q = query(collection(firestore, 'chatRooms', room.id, 'followers'), orderBy('followedAt', 'desc'), limit(100));
-        const snap = await getDocs(q);
-        if (mounted) setFollowers(snap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
-      } catch (e) {}
-      if (mounted) setIsFollowersLoading(false);
-    };
-    fetchFollowers();
-    return () => { mounted = false; };
+    try {
+      const db = require('@react-native-firebase/firestore').default;
+      const unsub = db().collection('chatRooms').doc(room.id).collection('followers')
+        .orderBy('followedAt', 'desc')
+        .onSnapshot((snap: any) => {
+          if (snap) {
+            setFollowers(snap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
+          }
+          setIsFollowersLoading(false);
+        }, (error: any) => {
+          setIsFollowersLoading(false);
+        });
+      return () => unsub();
+    } catch (e) {
+      setIsFollowersLoading(false);
+    }
   }, [firestore, room.id, visible]);
 
   const handleToggleAdmin = async (uid: string, isCurrentlyAdmin: boolean) => {
@@ -106,21 +111,22 @@ export function RoomInfoSheet({ visible, onClose, room: propRoom, isOwner = fals
             {!isOwner && onFollow && (
               <TouchableOpacity 
                 onPress={onFollow} 
-                className="absolute left-6 flex-row items-center gap-1.5 px-3 py-1 rounded-full border"
+                className="absolute left-4 flex-row items-center gap-1 px-2 py-0.5 border"
                 style={{
-                  top: -6,
-                  backgroundColor: isFollowing ? 'rgba(236,72,153,0.1)' : 'rgba(59,130,246,0.1)',
-                  borderColor: isFollowing ? 'rgba(236,72,153,0.3)' : 'rgba(59,130,246,0.3)',
+                  top: 8,
+                  borderRadius: 4,
+                  backgroundColor: isFollowing ? 'rgba(236,72,153,0.06)' : 'rgba(59,130,246,0.06)',
+                  borderColor: isFollowing ? '#f472b6' : '#60a5fa',
                 }}
               >
-                <Heart size={11} color={isFollowing ? '#ec4899' : '#3b82f6'} fill={isFollowing ? '#ec4899' : 'transparent'} />
-                <Text style={{ fontSize: 10, fontWeight: '900', color: isFollowing ? '#ec4899' : '#3b82f6' }}>
-                  {isFollowing ? 'Sub' : 'Follow'}
+                <Heart size={8} color={isFollowing ? '#ec4899' : '#3b82f6'} fill={isFollowing ? '#ec4899' : 'transparent'} />
+                <Text style={{ fontSize: 9.5, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 0.3, color: isFollowing ? '#ec4899' : '#3b82f6' }}>
+                  {isFollowing ? 'Unfollow' : 'Follow'}
                 </Text>
               </TouchableOpacity>
             )}
 
-            <View className="flex-row gap-10 justify-center">
+            <View className="flex-row gap-8 justify-center ml-5">
               <TouchableOpacity onPress={() => setActiveTab('profile')} className="pb-1 relative">
                 <Text className={`text-base font-black uppercase tracking-wider ${activeTab === 'profile' ? 'text-blue-600' : 'text-slate-300'}`}>
                   Profile
@@ -131,7 +137,7 @@ export function RoomInfoSheet({ visible, onClose, room: propRoom, isOwner = fals
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setActiveTab('member')} className="pb-1 relative">
                 <Text className={`text-base font-black uppercase tracking-wider ${activeTab === 'member' ? 'text-blue-600' : 'text-slate-300'}`}>
-                  Member
+                  Member ({followers.length + 1})
                 </Text>
                 {activeTab === 'member' && (
                   <View className="absolute bottom-0 left-0 right-0 h-[3px] bg-blue-600 rounded-full" />
@@ -139,7 +145,7 @@ export function RoomInfoSheet({ visible, onClose, room: propRoom, isOwner = fals
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity onPress={onClose} className="absolute right-6 top-[-6] p-1.5 bg-slate-100 rounded-full">
+            <TouchableOpacity onPress={onClose} className="absolute right-4 top-[-6] p-1.5 bg-slate-100 rounded-full">
               <X size={14} color="#64748b" />
             </TouchableOpacity>
           </View>
