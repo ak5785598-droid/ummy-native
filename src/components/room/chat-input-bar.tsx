@@ -4,6 +4,7 @@ import { Send, X, Image as ImageIcon, Loader } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from '../../hooks/use-translation';
 import { Image } from 'expo-image';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ChatInputBarProps {
   visible: boolean;
@@ -148,6 +149,7 @@ export function ChatInputBar({ visible, onClose, onSend, onImageUpload, targetLa
   const [isUploading, setIsUploading] = useState(false);
   const [showLangPicker, setShowLangPicker] = useState(false);
   const inputRef = useRef<TextInput>(null);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (visible) {
@@ -218,7 +220,7 @@ export function ChatInputBar({ visible, onClose, onSend, onImageUpload, targetLa
           onPress={handleClose} 
         />
         
-        <View style={styles.inputContainer}>
+        <View style={[styles.inputContainer, { paddingBottom: 4 + insets.bottom }]}>
           {selectedImage && (
             <View style={styles.imageWrapper}>
               <Image cachePolicy="memory-disk" source={{ uri: selectedImage }} style={styles.previewImage} />

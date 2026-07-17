@@ -139,53 +139,19 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
         enteredRooms.add(roomId);
         performJoin();
 
-        // Send entrance message only if username is loaded
-        if (userProfile?.username && !userProfile?.roomInvisible) {
-          const inventoryEntryType = userProfile?.inventory?.activeEntryEffect || null;
-          const inventoryEntryVideoUrl = userProfile?.inventory?.activeEntryVideoUrl || null;
-          const entryType = userProfile?.svipPrivileges?.entranceType || inventoryEntryType;
-          const entryVideoUrl = userProfile?.svipPrivileges?.entranceUrl || inventoryEntryVideoUrl;
-          
-          const newMsgRef = push(ref(database, `roomMessages/${roomId}`));
-          set(newMsgRef, {
-            id: newMsgRef.key,
-            type: 'entrance', 
-            senderId: uid, 
-            senderName: userProfile.username,
-            senderAvatar: filterBase64(userProfile?.avatarUrl) || user.photoURL || null,
-            mediaUrl: filterBase64(userProfile?.svipPrivileges?.entranceUrl || userProfile?.inventory?.activeEntryVideoUrl) || null,
-            entryEffectType: entryType,
-            entryVideoUrl: filterBase64(entryVideoUrl),
-            content: 'entered the room', 
-            timestamp: Date.now(),
-          }).catch(() => {});
-          
-          addDocumentNonBlocking(collection(firestore, 'chatRooms', roomId, 'messages'), {
-            type: 'entrance', 
-            senderId: uid, 
-            senderName: userProfile.username,
-            senderAvatar: filterBase64(userProfile?.avatarUrl) || user.photoURL || null,
-            mediaUrl: filterBase64(userProfile?.svipPrivileges?.entranceUrl || userProfile?.inventory?.activeEntryVideoUrl) || null,
-            entryEffectType: entryType,
-            entryVideoUrl: filterBase64(entryVideoUrl),
-            content: 'entered the room', 
-            timestamp: serverTimestamp(),
-          }).catch(() => {});
-
-          const roomMsgsRef = ref(database, `roomMessages/${roomId}`);
-          const limitQuery = dbQuery(roomMsgsRef, orderByChild('timestamp'), limitToFirst(200));
-          get(limitQuery).then((snap: any) => {
-            const data = snap.val();
-            if (!data) return;
-            const keys = Object.keys(data);
-            if (keys.length > 150) {
-              const toRemove = keys.slice(0, keys.length - 150);
-              const updates: Record<string, null> = {};
-              toRemove.forEach((k: string) => { updates[k] = null; });
-              update(roomMsgsRef, updates).catch(() => {});
-            }
-          }).catch(() => {});
-        }
+        const roomMsgsRef = ref(database, `roomMessages/${roomId}`);
+        const limitQuery = dbQuery(roomMsgsRef, orderByChild('timestamp'), limitToFirst(200));
+        get(limitQuery).then((snap: any) => {
+          const data = snap.val();
+          if (!data) return;
+          const keys = Object.keys(data);
+          if (keys.length > 150) {
+            const toRemove = keys.slice(0, keys.length - 150);
+            const updates: Record<string, null> = {};
+            toRemove.forEach((k: string) => { updates[k] = null; });
+            update(roomMsgsRef, updates).catch(() => {});
+          }
+        }).catch(() => {});
       } else {
         setDocumentNonBlocking(participantRef, {
           lastSeen: serverTimestamp(),
@@ -391,7 +357,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
       content: 'entered the room',
       timestamp: serverTimestamp(),
     }).catch(() => {});
-  }, [userProfile?.username, activeRoom?.id, minimizedRoom?.id]);
+  }, [userProfile?.username, userProfile?.inventory?.activeEntryEffect, userProfile?.inventory?.activeEntryVideoUrl, activeRoom?.id, minimizedRoom?.id]);
 
   useEffect(() => {
     if (!firestore || !activeRoom?.id || !user?.uid || !userProfile) return;

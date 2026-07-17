@@ -142,6 +142,8 @@ export default function MessagesScreen() {
 
   const teamMsgs = notifications?.filter((n: any) => n.type === 'system') || [];
   const systemMsgs = notifications?.filter((n: any) => n.type === 'direct_system') || [];
+  const unreadTeamCount = teamMsgs.filter((n: any) => n.isRead === false).length;
+  const unreadSystemCount = systemMsgs.filter((n: any) => n.isRead === false).length;
 
   const openChat = (chat: PrivateChat) => {
     const otherUid = (chat.participantIds || []).find(id => id !== user?.uid);
@@ -200,6 +202,11 @@ export default function MessagesScreen() {
               {teamMsgs[0]?.content || 'Official announcements'}
             </Text>
           </View>
+          {unreadTeamCount > 0 && (
+            <View className="w-5 h-5 rounded-full bg-red-500 items-center justify-center mr-2">
+              <Text className="text-white text-[10px] font-bold">{unreadTeamCount > 99 ? '99+' : unreadTeamCount}</Text>
+            </View>
+          )}
           <ChevronRight size={18} color="#94a3b8" />
         </TouchableOpacity>
 
@@ -223,6 +230,11 @@ export default function MessagesScreen() {
               {systemMsgs[0]?.content || 'System notices'}
             </Text>
           </View>
+          {unreadSystemCount > 0 && (
+            <View className="w-5 h-5 rounded-full bg-red-500 items-center justify-center mr-2">
+              <Text className="text-white text-[10px] font-bold">{unreadSystemCount > 99 ? '99+' : unreadSystemCount}</Text>
+            </View>
+          )}
           <ChevronRight size={18} color="#94a3b8" />
         </TouchableOpacity>
 
@@ -1558,6 +1570,21 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
 }
 
 function OfficialPage({ visible, onClose, messages }: { visible: boolean; onClose: () => void; messages: any[] }) {
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  useEffect(() => {
+    if (!visible || !firestore || !user?.uid || messages.length === 0) return;
+    const unread = messages.filter((m: any) => m.isRead === false);
+    if (unread.length === 0) return;
+    const batch = writeBatch(firestore);
+    unread.forEach((m: any) => {
+      const ref = doc(firestore, 'users', user.uid, 'notifications', m.id);
+      batch.update(ref, { isRead: true });
+    });
+    batch.commit().catch(() => {});
+  }, [visible]);
+
   return (
     <Modal visible={visible} transparent animationType="slide">
       <SafeAreaView className="flex-1 bg-white">
@@ -1590,6 +1617,21 @@ function OfficialPage({ visible, onClose, messages }: { visible: boolean; onClos
 }
 
 function SystemPage({ visible, onClose, messages }: { visible: boolean; onClose: () => void; messages: any[] }) {
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  useEffect(() => {
+    if (!visible || !firestore || !user?.uid || messages.length === 0) return;
+    const unread = messages.filter((m: any) => m.isRead === false);
+    if (unread.length === 0) return;
+    const batch = writeBatch(firestore);
+    unread.forEach((m: any) => {
+      const ref = doc(firestore, 'users', user.uid, 'notifications', m.id);
+      batch.update(ref, { isRead: true });
+    });
+    batch.commit().catch(() => {});
+  }, [visible]);
+
   return (
     <Modal visible={visible} transparent animationType="slide">
       <SafeAreaView className="flex-1 bg-white">
