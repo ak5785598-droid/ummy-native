@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, View, Text, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, Switch, FlatList } from 'react-native';
 import {
   ChevronLeft,
