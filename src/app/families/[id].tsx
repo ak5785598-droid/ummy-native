@@ -98,7 +98,12 @@ export default function FamilyDetail() {
     if (!user || !firestore || !family || !id) return;
     try {
       const batch = writeBatch(firestore);
-      batch.update(doc(firestore, 'users', user.uid), { familyId: id, updatedAt: serverTimestamp() });
+      const userRef = doc(firestore, 'users', user.uid);
+      const profileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
+      
+      batch.update(userRef, { familyId: id, updatedAt: serverTimestamp() });
+      batch.update(profileRef, { familyId: id, updatedAt: serverTimestamp() });
+      
       batch.update(familyRef!, {
         members: arrayUnion(user.uid),
         memberCount: increment(1),
@@ -118,7 +123,12 @@ export default function FamilyDetail() {
         text: 'Leave', style: 'destructive', onPress: async () => {
           try {
             const batch = writeBatch(firestore);
-            batch.update(doc(firestore, 'users', user.uid), { familyId: null, updatedAt: serverTimestamp() });
+            const userRef = doc(firestore, 'users', user.uid);
+            const profileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
+            
+            batch.update(userRef, { familyId: null, updatedAt: serverTimestamp() });
+            batch.update(profileRef, { familyId: null, updatedAt: serverTimestamp() });
+            
             batch.update(familyRef!, {
               members: arrayRemove(user.uid),
               memberCount: increment(-1),
@@ -189,7 +199,12 @@ export default function FamilyDetail() {
         text: 'Remove', style: 'destructive', onPress: async () => {
           try {
             const batch = writeBatch(firestore);
-            batch.update(doc(firestore, 'users', memberUid), { familyId: null, updatedAt: serverTimestamp() });
+            const userRef = doc(firestore, 'users', memberUid);
+            const profileRef = doc(firestore, 'users', memberUid, 'profile', memberUid);
+            
+            batch.update(userRef, { familyId: null, updatedAt: serverTimestamp() });
+            batch.update(profileRef, { familyId: null, updatedAt: serverTimestamp() });
+            
             batch.update(familyRef, {
               members: arrayRemove(memberUid),
               memberCount: increment(-1),

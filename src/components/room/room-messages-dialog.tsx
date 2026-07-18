@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { X, Send, MessageCircle } from 'lucide-react-native';
+import { X, Send, MessageCircle, Mic } from 'lucide-react-native';
 import { useFirestore, useUser } from '../../firebase/provider';
-import { collection, query, orderBy, limit, doc, addDoc, serverTimestamp, onSnapshot, where, setDoc, getDocs, getDoc } from '@/firebase/firestore-compat';
+import { collection, query, orderBy, doc, addDoc, serverTimestamp, onSnapshot, where, setDoc, getDocs, getDoc } from '@/firebase/firestore-compat';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { Image } from 'expo-image';
 import { toCDN } from '../../lib/cdn';
@@ -93,7 +93,7 @@ export function RoomMessagesDialog({ visible, onClose, roomId, initialRecipient 
   useEffect(() => {
     if (!selectedChat || !firestore || !user?.uid) return;
     const msgRef = collection(firestore, 'privateChats', selectedChat.id, 'messages');
-    const q = query(msgRef, orderBy('timestamp', 'asc'), limit(100));
+    const q = query(msgRef, orderBy('timestamp', 'asc'));
     const unsub = onSnapshot(q, (snap: any) => {
       setMessages(snap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
     }, (error: any) => {});
@@ -192,14 +192,35 @@ export function RoomMessagesDialog({ visible, onClose, roomId, initialRecipient 
             ) : (
               <View className="flex-1">
                 <ScrollView ref={scrollRef} className="flex-1 px-4 py-2" showsVerticalScrollIndicator={false}>
-                  {sortedMessages.map(msg => (
-                    <View key={msg.id} className={`mb-2 ${msg.senderId === user?.uid ? 'items-end' : 'items-start'}`}>
-                      <View className={`rounded-2xl px-3 py-2 max-w-[80%] ${msg.senderId === user?.uid ? 'bg-purple-600' : 'bg-slate-100'}`}>
-                        <Text className={msg.senderId === user?.uid ? 'text-white text-sm' : 'text-slate-800 text-sm'}>{msg.text}</Text>
+                  {sortedMessages.map(msg => {
+                    const isMe = msg.senderId === user?.uid;
+                    const isRoomInvite = (msg as any).type === 'room_invite';
+                    return (
+                      <View key={msg.id} className={`mb-2 ${isMe ? 'items-end' : 'items-start'}`}>
+                        {isRoomInvite ? (
+                          <View style={{ borderRadius: 14, overflow: 'hidden', width: 180 }}>
+                            {(msg as any).roomCoverUrl ? (
+                              <Image cachePolicy="memory-disk" source={{ uri: toCDN((msg as any).roomCoverUrl) }} style={{ width: '100%', height: 70 }} contentFit="cover" />
+                            ) : (
+                              <View style={{ width: '100%', height: 70, backgroundColor: '#3b82f6', alignItems: 'center', justifyContent: 'center' }}>
+                                <Mic size={20} color="white" />
+                              </View>
+                            )}
+                            <View style={{ backgroundColor: isMe ? '#7c3aed' : '#f1f5f9', padding: 8 }}>
+                              <Text style={{ fontSize: 12, fontWeight: '800', color: isMe ? '#fff' : '#1e293b' }} numberOfLines={1}>{(msg as any).roomName || 'Room'}</Text>
+                              <Text style={{ fontSize: 9, color: isMe ? 'rgba(255,255,255,0.6)' : '#64748b', marginTop: 1 }}>invites you to join</Text>
+                              <Text style={{ fontSize: 9, color: isMe ? 'rgba(255,255,255,0.4)' : '#94a3b8', marginTop: 2 }}>#{(msg as any).roomNumber || ''}</Text>
+                            </View>
+                          </View>
+                        ) : (
+                          <View className={`rounded-2xl px-3 py-2 max-w-[80%] ${isMe ? 'bg-purple-600' : 'bg-slate-100'}`}>
+                            <Text className={isMe ? 'text-white text-sm' : 'text-slate-800 text-sm'}>{msg.text}</Text>
+                          </View>
+                        )}
+                        <Text className="text-slate-400 text-[8px] mt-0.5">{msg.timestamp?.toDate?.()?.toLocaleTimeString?.() || ''}</Text>
                       </View>
-                      <Text className="text-slate-400 text-[8px] mt-0.5">{msg.timestamp?.toDate?.()?.toLocaleTimeString?.() || ''}</Text>
-                    </View>
-                  ))}
+                    );
+                  })}
                 </ScrollView>
                 <View className="flex-row items-center gap-2 pl-0 pr-2 pb-1 pt-0 border-t border-slate-100">
                   <TextInput value={inputText} onChangeText={setInputText} placeholder="Type a message..." placeholderTextColor="#94a3b8" className="flex-1 bg-slate-100 rounded-full px-4 py-2.5 text-slate-800 text-sm" underlineColorAndroid="transparent" />

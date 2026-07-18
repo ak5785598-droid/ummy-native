@@ -20,7 +20,7 @@ const ITEM_TYPES = [
   { label: 'Bubbles', value: 'Bubble' },
   { label: 'Waves', value: 'Wave' },
   { label: 'Entry Effects', value: 'Entry' },
-  { label: 'ID Themes', value: 'ID' },
+  { label: 'ID Themes', value: 'Theme' },
 ];
 
 export function RewardsTab() {
@@ -56,10 +56,14 @@ export function RewardsTab() {
           id: d.id,
           name: d.data().name || d.id,
           category: d.data().category || 'Frame',
+          imageUrl: d.data().imageUrl || null,
         }));
-        setAllItems([...STATIC_FRAMES.map(f => ({ ...f, category: 'Frame' })), ...firestoreItems]);
+        setAllItems([
+          ...STATIC_FRAMES.map(f => ({ ...f, category: 'Frame', imageUrl: null })),
+          ...firestoreItems
+        ]);
       } catch {
-        setAllItems(STATIC_FRAMES.map(f => ({ ...f, category: 'Frame' })));
+        setAllItems(STATIC_FRAMES.map(f => ({ ...f, category: 'Frame', imageUrl: null })));
       }
     };
     loadItems();
@@ -67,7 +71,11 @@ export function RewardsTab() {
 
   const filteredPickerItems = allItems.filter(item => {
     const matchType = item.category === pickerType;
-    const matchSearch = !pickerSearch || item.name.toLowerCase().includes(pickerSearch.toLowerCase()) || item.id.toLowerCase().includes(pickerSearch.toLowerCase());
+    const nameStr = (item.name || '').toLowerCase();
+    const idStr = (item.id || '').toLowerCase();
+    const searchStr = (pickerSearch || '').trim().toLowerCase();
+    
+    const matchSearch = !searchStr || nameStr.includes(searchStr) || idStr.includes(searchStr);
     return matchType && matchSearch;
   });
 
@@ -172,7 +180,7 @@ export function RewardsTab() {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+    <View style={{ padding: 20 }}>
       <Text style={{ fontSize: 16, fontWeight: '800', color: '#1e293b', marginBottom: 12 }}>Rewards Center</Text>
 
       <Text style={{ fontSize: 11, fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6 }}>Recipient ID</Text>
@@ -270,10 +278,32 @@ export function RewardsTab() {
                 renderItem={({ item }) => (
                   <TouchableOpacity
                     onPress={() => { setAssetId(item.id); setShowFramePicker(false); setPickerSearch(''); }}
-                    style={{ paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#f8fafc', backgroundColor: assetId === item.id ? '#f0f9ff' : '#fff' }}
+                    style={{ 
+                      paddingVertical: 10, 
+                      paddingHorizontal: 12, 
+                      borderBottomWidth: 1, 
+                      borderBottomColor: '#f8fafc', 
+                      backgroundColor: assetId === item.id ? '#f0f9ff' : '#fff',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 12
+                    }}
                   >
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#1e293b' }}>{item.name}</Text>
-                    <Text style={{ fontSize: 10, color: '#94a3b8' }}>{item.id}</Text>
+                    {item.imageUrl ? (
+                      <Image 
+                        source={{ uri: item.imageUrl }} 
+                        style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#f1f5f9' }} 
+                        contentFit="contain"
+                      />
+                    ) : (
+                      <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontSize: 10, color: '#94a3b8', fontWeight: '800' }}>IMG</Text>
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: '#1e293b' }}>{item.name}</Text>
+                      <Text style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{item.id}</Text>
+                    </View>
                   </TouchableOpacity>
                 )}
                 ListEmptyComponent={<Text style={{ padding: 16, textAlign: 'center', color: '#94a3b8', fontSize: 12 }}>No items found</Text>}
@@ -299,6 +329,6 @@ export function RewardsTab() {
           </View>
         </View>
       )}
-    </ScrollView>
+    </View>
   );
 }

@@ -29,6 +29,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
   const hasJoinedRef = useRef(false);
   const heartbeatInterval = useRef<any>(null);
   const cleanupInterval = useRef<any>(null);
+  const purgeInterval = useRef<any>(null);
   const presenceRef = useRef<any>(null);
   const latestRoomRef = useRef<{ activeRoomId: string | null; minimizedRoomId: string | null }>({
     activeRoomId: null,
@@ -36,6 +37,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
   });
   const lastSyncMetadata = useRef<string>('');
   const entranceSentForRoom = useRef<string | null>(null);
+  const hasCleanedUpRef = useRef(false);
 
   useEffect(() => {
     const sessionRoom = activeRoom || minimizedRoom;
@@ -135,6 +137,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
     };
 
     if (lastRoomId.current !== roomId || !hasJoinedRef.current) {
+      hasCleanedUpRef.current = false;
       if (!enteredRooms.has(roomId)) {
         enteredRooms.add(roomId);
         performJoin();
@@ -169,8 +172,13 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
         lastSeen: serverTimestamp(),
         accountNumber: userProfile?.accountNumber || '',
       }, { merge: true });
-    }, 60000);
+      // Also update RTDB presence lastSeen for real-time home screen status
+      if (presenceRef.current && !userProfile?.roomInvisible) {
+        update(presenceRef.current, { lastSeen: dbServerTimestamp() }).catch(() => {});
+      }
+    }, 30000);
 
+    // Stats reset: ONLY owner runs this (daily/weekly/monthly gift counters)
     if (isOwner) {
       cleanupInterval.current = setInterval(async () => {
         try {
@@ -202,40 +210,52 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
           if (Object.keys(resetData).length > 0) {
             updateDocumentNonBlocking(roomDocRef, resetData);
           }
+        } catch (error) {
+        }
+      }, 300000);
+    }
 
-          // Ghost purge: delete stale participants (lastSeen > 10 minutes ago)
-          const participantsColRef = collection(firestore, 'chatRooms', roomId, 'participants');
-          const participantsSnap = await getDocs(participantsColRef);
-          const ghostThreshold = Date.now() - 600000; // 10 minutes
-          const purgeBatch = writeBatch(firestore);
-          let activeCount = 0;
-          const roomDocSnap = await getDoc(roomDocRef);
-          const roomOwnerId = roomDocSnap.data()?.ownerId;
+    // Ghost purge: ALL users run this (fixes drift + cleans stale participants in any room)
+    // Owner runs every 5 min, non-owners every 10 min to avoid duplicate writes
+    const purgeIntervalMs = isOwner ? 300000 : 600000;
+    purgeInterval.current = setInterval(async () => {
+      try {
+        const participantsColRef = collection(firestore, 'chatRooms', roomId, 'participants');
+        const participantsSnap = await getDocs(participantsColRef);
+        const ghostThreshold = Date.now() - 900000; // 15 minutes
+        const purgeBatch = writeBatch(firestore);
+        let activeCount = 0;
+        let ghostsFound = 0;
+        const roomDocSnap = await getDoc(roomDocRef);
+        const roomOwnerId = roomDocSnap.data()?.ownerId;
 
-          participantsSnap.forEach((docSnap: any) => {
-            const data = docSnap.data();
-            const lastSeen = data.lastSeen?.toDate?.()?.getTime?.() || 0;
-            if (data.uid === roomOwnerId) {
-              activeCount++;
-              return;
-            }
-            if (lastSeen < ghostThreshold) {
-              purgeBatch.delete(docSnap.ref);
-            } else {
-              activeCount++;
-            }
-          });
+        participantsSnap.forEach((docSnap: any) => {
+          const data = docSnap.data();
+          // NEVER delete owner or current user
+          if (data.uid === roomOwnerId || data.uid === uid) {
+            activeCount++;
+            return;
+          }
+          const lastSeen = data.lastSeen?.toDate?.()?.getTime?.() || 0;
+          if (lastSeen < ghostThreshold) {
+            purgeBatch.delete(docSnap.ref);
+            ghostsFound++;
+          } else {
+            activeCount++;
+          }
+        });
 
+        // Always fix participantCount (corrects drift from missed increments/decrements)
+        if (ghostsFound > 0 || activeCount !== (roomDocSnap.data()?.participantCount || 0)) {
           purgeBatch.update(roomDocRef, {
             participantCount: activeCount,
             updatedAt: serverTimestamp(),
           });
           await purgeBatch.commit();
-          
-        } catch (error) {
         }
-      }, 300000);
-    }
+      } catch (error) {
+      }
+    }, purgeIntervalMs);
 
     const presencePath = `roomPresence/${roomId}/${uid}`;
     presenceRef.current = ref(database, presencePath);
@@ -260,10 +280,13 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
           set(presenceRef.current, null);
         }
       } else if (nextAppState === 'active') {
+        // Update Firestore lastSeen immediately on foreground
+        setDocumentNonBlocking(participantRef, { lastSeen: serverTimestamp() }, { merge: true });
+        // Re-establish RTDB presence on foreground
         if (presenceRef.current && !userProfile?.roomInvisible) {
           set(presenceRef.current, {
             uid,
-          name: userProfile?.username || 'User',
+            name: userProfile?.username || 'User',
             avatarUrl: filterBase64(userProfile?.avatarUrl) || user.photoURL || '',
             joinedAt: dbServerTimestamp(),
             lastSeen: dbServerTimestamp(),
@@ -271,7 +294,6 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
           });
           onDisconnect(presenceRef.current).remove();
         }
-        setDocumentNonBlocking(participantRef, { lastSeen: serverTimestamp() }, { merge: true });
       }
     };
 
@@ -280,6 +302,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
     return () => {
       if (heartbeatInterval.current) clearInterval(heartbeatInterval.current);
       if (cleanupInterval.current) clearInterval(cleanupInterval.current);
+      if (purgeInterval.current) clearInterval(purgeInterval.current);
       subscription.remove();
 
       if (presenceRef.current) {
@@ -296,19 +319,25 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
       if (!currentActive && !currentMinimized) {
         (async () => {
           try {
-            const existingDoc = await getDoc(participantRef);
-            if (existingDoc.exists()) {
-              await deleteDoc(participantRef);
-              updateDocumentNonBlocking(roomDocRef, {
-                participantCount: increment(-1),
+            // Prevent double decrement — handleExit may have already cleaned up
+            if (!hasCleanedUpRef.current) {
+              hasCleanedUpRef.current = true;
+              const existingDoc = await getDoc(participantRef);
+              if (existingDoc.exists()) {
+                await deleteDoc(participantRef);
+                updateDocumentNonBlocking(roomDocRef, {
+                  participantCount: increment(-1),
+                });
+              }
+              updateDocumentNonBlocking(userRef, {
+                currentRoomId: null,
+                isOnline: false,
+              });
+              updateDocumentNonBlocking(profileRef, {
+                currentRoomId: null,
+                isOnline: false,
               });
             }
-            updateDocumentNonBlocking(userRef, {
-              currentRoomId: null,
-            });
-            updateDocumentNonBlocking(profileRef, {
-              currentRoomId: null,
-            });
           } catch (error) {
           }
           hasJoinedRef.current = false;

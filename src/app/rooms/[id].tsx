@@ -54,6 +54,8 @@ import { RoomMessagesDialog } from '../../components/room/room-messages-dialog';
 import { RoomFollowersDialog } from '../../components/room/room-followers-dialog';
 import { RoomGamesDialog } from '../../components/room/room-games-dialog';
 import { RoomGameOverlay } from '../../components/room/room-game-overlay';
+import { GameMiniCard } from '../../components/room/room-game-mini-card';
+
 import { YouTubeDialog } from '../../components/room/youtube-dialog';
 import { NetMirrorDialog } from '../../components/room/net-mirror-dialog';
 import { EntertainmentHubDialog } from '../../components/room/entertainment-hub-dialog';
@@ -125,6 +127,7 @@ export default function RoomScreen() {
   const [showGiftBattle, setShowGiftBattle] = useState(false);
   const [showGames, setShowGames] = useState(false);
   const [activeGame, setActiveGame] = useState<string | null>(null);
+  const [isGameMinimized, setIsGameMinimized] = useState(false);
   const [showYouTube, setShowYouTube] = useState(false);
   const [showNetMirror, setShowNetMirror] = useState(false);
   const [showEntertainmentHub, setShowEntertainmentHub] = useState(false);
@@ -133,6 +136,7 @@ export default function RoomScreen() {
   const [showSports, setShowSports] = useState(false);
   const [showMoviePlayer, setShowMoviePlayer] = useState(false);
   const [moviePlayerData, setMoviePlayerData] = useState<{ tmdbId: string; title: string; posterPath: string; mediaType?: 'movie' | 'tv'; season?: number; episode?: number } | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const [showLootGate, setShowLootGate] = useState(false);
   const [showLevelAnimation, setShowLevelAnimation] = useState(false);
   const [levelAnimationUrl, setLevelAnimationUrl] = useState<string | undefined>(undefined);
@@ -1018,16 +1022,11 @@ export default function RoomScreen() {
     try { router.back(); } catch { router.replace('/'); }
     if (firestore && id && user?.uid) {
       try {
-        const participantRef = doc(firestore, 'chatRooms', id, 'participants', user.uid);
-        const roomRef = doc(firestore, 'chatRooms', id);
         const userRef = doc(firestore, 'users', user.uid);
         const profileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
-        await Promise.all([
-          deleteDoc(participantRef),
-          updateDocumentNonBlocking(roomRef, { participantCount: increment(-1), updatedAt: serverTimestamp() }),
-          updateDocumentNonBlocking(userRef, { currentRoomId: null, isOnline: false, updatedAt: serverTimestamp() }),
-          updateDocumentNonBlocking(profileRef, { currentRoomId: null, isOnline: false, updatedAt: serverTimestamp() }),
-        ]);
+        // Only update user/profile status — participant cleanup is handled by useRoomPresence hook
+        updateDocumentNonBlocking(userRef, { currentRoomId: null, isOnline: false, updatedAt: serverTimestamp() });
+        updateDocumentNonBlocking(profileRef, { currentRoomId: null, isOnline: false, updatedAt: serverTimestamp() });
       } catch (e) {}
     }
   };
@@ -1144,7 +1143,7 @@ export default function RoomScreen() {
     setMoviePlayerData({ tmdbId, title, posterPath });
     setShowMoviePlayer(true);
     if (firestore && id) {
-      updateDocumentNonBlocking(doc(firestore, 'chatRooms', id), { currentMovie: { tmdbId, title, posterPath, startedBy: user?.uid } });
+      updateDocumentNonBlocking(doc(firestore, 'chatRooms', id), { currentMovie: { tmdbId, title, posterPath, startedBy: user?.uid, startedByName: userProfile?.username || 'Admin' } });
     }
   };
 
@@ -1156,6 +1155,12 @@ export default function RoomScreen() {
       setShowMicInvite(true);
     }
   }, [messages, user?.uid]);
+
+  useEffect(() => {
+    if (displayRoom?.currentMovie) {
+      setBannerDismissed(false);
+    }
+  }, [displayRoom?.currentMovie?.tmdbId]);
 
   const renderSeat = useCallback((idx: number) => {
     const occupant = getOccupant(idx);
@@ -1387,10 +1392,13 @@ export default function RoomScreen() {
 
         <RoomTrophyBadge dailyGifts={displayRoom?.stats?.dailyGifts || 0} supporters={safeTopSupporters} onPress={() => setShowTopSupporters(true)} />
 
+        <View style={{ position: 'absolute', top: 130, left: 2, zIndex: 20 }}>
+          <MovieSyncBanner visible={!!displayRoom?.currentMovie && !bannerDismissed} movieTitle={displayRoom?.currentMovie?.title} posterPath={displayRoom?.currentMovie?.posterPath} startedByName={displayRoom?.currentMovie?.startedByName} onJoin={() => { if (displayRoom?.currentMovie) { setMoviePlayerData({ tmdbId: displayRoom.currentMovie.tmdbId, title: displayRoom.currentMovie.title, posterPath: displayRoom.currentMovie.posterPath, mediaType: displayRoom.currentMovie.mediaType, season: displayRoom.currentMovie.season, episode: displayRoom.currentMovie.episode }); setShowMoviePlayer(true); }}} onDismiss={() => setBannerDismissed(true)} />
+        </View>
+
         <View className="flex-1 z-10">
           {/* Seats — fixed, never scroll */}
           <View className="px-2">
-            <MovieSyncBanner visible={!!displayRoom?.currentMovie} movieTitle={displayRoom?.currentMovie?.title} posterPath={displayRoom?.currentMovie?.posterPath} startedBy={displayRoom?.currentMovie?.startedBy} onJoin={() => { if (displayRoom?.currentMovie) { setMoviePlayerData({ tmdbId: displayRoom.currentMovie.tmdbId, title: displayRoom.currentMovie.title, posterPath: displayRoom.currentMovie.posterPath, mediaType: displayRoom.currentMovie.mediaType, season: displayRoom.currentMovie.season, episode: displayRoom.currentMovie.episode }); setShowMoviePlayer(true); }}} onDismiss={() => {}} />
             <View className="items-center w-full mb-1">
               {renderSeat(1)}
             </View>
@@ -1594,9 +1602,12 @@ export default function RoomScreen() {
       <RoomSoundboard visible={showSoundboard} onClose={() => setShowSoundboard(false)} roomId={id} />
       <RoomMessagesDialog visible={isMessagesOpen} onClose={() => { setIsMessagesOpen(false); setMessageRecipient(null); }} roomId={id} initialRecipient={messageRecipient} />
       <RoomFollowersDialog visible={showFollowers} onClose={() => setShowFollowers(false)} roomId={id} />
-      <RoomGamesDialog visible={showGames} onClose={() => setShowGames(false)} onSelectGame={(g, title, coverUrl) => { setActiveGame(g); }} roomId={id} canManage={canManageRoom} />
+      <RoomGamesDialog visible={showGames} onClose={() => setShowGames(false)} onSelectGame={(g, title, coverUrl) => { setActiveGame(g); setIsGameMinimized(false); }} roomId={id} canManage={canManageRoom} />
       <GiftBattleCanvas visible={showGiftBattle} roomId={id} />
-      <RoomGameOverlay visible={!!activeGame} gameId={activeGame} onClose={() => setActiveGame(null)} roomId={id} isAdmin={canManageRoom} />
+      <RoomGameOverlay visible={!!activeGame} isMinimized={isGameMinimized} gameId={activeGame} onClose={() => { setActiveGame(null); setIsGameMinimized(false); }} onMinimize={() => setIsGameMinimized(true)} roomId={id} isAdmin={canManageRoom} />
+      {activeGame && isGameMinimized && (
+        <GameMiniCard gameId={activeGame} onPress={() => setIsGameMinimized(false)} />
+      )}
       <YouTubeDialog visible={showYouTube} onClose={() => setShowYouTube(false)} roomId={id} isHost={isOwner || isModerator} canClose={canManageRoom} />
       <NetMirrorDialog visible={showNetMirror} onClose={() => setShowNetMirror(false)} />
       <EntertainmentHubDialog visible={showEntertainmentHub} onClose={() => setShowEntertainmentHub(false)} roomId={id} isHost={isOwner || isModerator} canManage={canManageRoom} />

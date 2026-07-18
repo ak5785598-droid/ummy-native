@@ -553,7 +553,10 @@ export function FullProfileDialog({
               {profile.tags?.includes('Service') && <SVGA_ServiceTag />}
               {profile.tags?.includes('Host') && <SVGA_HostTag />}
               {/* Banned user tag — shown if globally banned */}
-              {(profile?.isBanned === true || (profile?.bannedUntil && profile.bannedUntil > Date.now())) && (
+              {(profile?.isBanned === true || 
+                profile?.banStatus?.isBanned === true ||
+                (profile?.bannedUntil && (profile.bannedUntil.toMillis?.() || profile.bannedUntil) > Date.now()) ||
+                (profile?.banStatus?.bannedUntil && (profile.banStatus.bannedUntil.toMillis?.() || profile.banStatus.bannedUntil) > Date.now())) && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 3, backgroundColor: '#DC2626', borderRadius: 12, borderWidth: 1, borderColor: '#FF6B6B' }}>
                   <Text style={{ fontSize: 9, fontWeight: '900', color: 'white', textTransform: 'uppercase', letterSpacing: 0.5 }}>🚫 Banned</Text>
                 </View>

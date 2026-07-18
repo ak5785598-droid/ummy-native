@@ -112,6 +112,7 @@ export default function CreateFamilyPage() {
         level: 1,
         totalWealth: 0,
         members: [user.uid],
+        admins: [],
         isVerified: false,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()

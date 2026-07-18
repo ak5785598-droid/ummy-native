@@ -4,6 +4,7 @@ import { X, Film, Tv, Search, Play, StopCircle } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFirestore, useUser } from '../../firebase/provider';
+import { useUserProfile } from '../../hooks/use-user-profile';
 import { doc, updateDoc, serverTimestamp, onSnapshot } from '@/firebase/firestore-compat';
 import { Image } from 'expo-image';
 
@@ -50,6 +51,7 @@ export function EntertainmentHubDialog({ visible, onClose, roomId, isHost, canMa
   const insets = useSafeAreaInsets();
   const firestore = useFirestore();
   const { user } = useUser();
+  const { profile: userProfile } = useUserProfile(user?.uid);
 
   const [tab, setTab] = useState<'movies' | 'series'>('movies');
   const [searchQuery, setSearchQuery] = useState('');
@@ -125,6 +127,7 @@ export function EntertainmentHubDialog({ visible, onClose, roomId, isHost, canMa
                   posterPath: item.poster_path || null,
                   startedAt: serverTimestamp(),
                   startedBy: user.uid,
+                  startedByName: userProfile?.username || 'Admin',
                   mediaType: tab === 'movies' ? 'movie' : 'tv',
                 },
                 updatedAt: serverTimestamp(),

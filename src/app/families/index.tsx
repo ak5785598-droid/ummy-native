@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, StyleSheet, StatusBar, Modal } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, StyleSheet, StatusBar, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Search, Users, Trophy, Flame, ShieldCheck, ChevronRight, Plus, Crown, Swords, Info, X } from 'lucide-react-native';
 import { useCollection, useFirebase, useUser } from '../../firebase/provider';
@@ -10,10 +10,13 @@ import { toCDN } from '@/lib/cdn';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FamilyBackground } from '../../components/families/FamilyBackground';
 
+import { useUserProfile } from '../../hooks/use-user-profile';
+
 export default function FamiliesIndex() {
   const router = useRouter();
   const { firestore, isHydrated } = useFirebase();
   const { user } = useUser();
+  const { profile: userProfile } = useUserProfile(user?.uid);
   const [searchQuery, setSearchQuery] = useState('');
   const [showInfo, setShowInfo] = useState(false);
 
@@ -67,7 +70,19 @@ export default function FamiliesIndex() {
               <Info size={16} color="#fbbf24" />
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => router.push('/families/create')} style={styles.createBtn}>
+            <TouchableOpacity
+              onPress={() => {
+                if (userProfile?.familyId) {
+                  Alert.alert(
+                    'Already in a Family',
+                    'You are already a member of a family. To create a new family, please first leave your current family.'
+                  );
+                } else {
+                  router.push('/families/create');
+                }
+              }}
+              style={styles.createBtn}
+            >
               <LinearGradient
                 colors={['#6366f1', '#8b5cf6', '#a855f7']}
                 start={{ x: 0, y: 0 }}

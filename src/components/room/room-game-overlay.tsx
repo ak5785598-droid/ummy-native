@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Modal, PanResponder, Animated, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
-import { Move, HelpCircle, Volume2, VolumeX, Grid3X3, X, Trophy } from 'lucide-react-native';
+import { Move, HelpCircle, Volume2, VolumeX, Grid3X3, X, Trophy, Minus } from 'lucide-react-native';
 import { useFirestore } from '../../firebase/provider';
 import { collection, query, orderBy, limit, getDocs } from '@/firebase/firestore-compat';
 import { FruitPartyGame } from '../games/fruit-party-game';
@@ -126,13 +126,15 @@ interface RoundPopupData {
 
 interface RoomGameOverlayProps {
   visible: boolean;
+  isMinimized?: boolean;
   gameId: string | null;
   onClose: () => void;
+  onMinimize?: () => void;
   roomId?: string;
   isAdmin?: boolean;
 }
 
-export function RoomGameOverlay({ visible, gameId, onClose, roomId, isAdmin }: RoomGameOverlayProps) {
+export function RoomGameOverlay({ visible, isMinimized, gameId, onClose, onMinimize, roomId, isAdmin }: RoomGameOverlayProps) {
   const firestore = useFirestore();
   const [isMuted, setIsMuted] = useState(false);
   const [showRules, setShowRules] = useState(false);
@@ -160,13 +162,13 @@ export function RoomGameOverlay({ visible, gameId, onClose, roomId, isAdmin }: R
       onPanResponderRelease: (e, gestureState) => {
         pan.flattenOffset();
         if (gestureState.dy > 120) {
-          // Swipe down to dismiss
+          // Swipe down to minimize
           Animated.timing(pan.y, {
             toValue: 800,
             duration: 250,
             useNativeDriver: false,
           }).start(() => {
-            onClose();
+            onMinimize?.();
           });
         } else {
           // Snap back up
@@ -281,14 +283,15 @@ export function RoomGameOverlay({ visible, gameId, onClose, roomId, isAdmin }: R
   const gameProps = { onClose, roomId, onRoundEnd: handleRoundEnd, isMuted, isAdmin };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={s.overlay}>
+    <Modal visible={visible} transparent animationType={isMinimized ? 'none' : 'fade'} onRequestClose={onClose}>
+      <View style={[s.overlay, isMinimized && { backgroundColor: 'transparent' }]} pointerEvents={isMinimized ? 'none' : 'auto'}>
         <Animated.View
           style={[
             s.container,
             isTall && { height: '76%' },
             { backgroundColor: containerBg, borderColor: borderColor },
             { transform: pan.getTranslateTransform() },
+            isMinimized && { opacity: 0, transform: [{ scale: 0.01 }], pointerEvents: 'none' as any },
           ]}
         >
           <View style={[
@@ -330,6 +333,9 @@ export function RoomGameOverlay({ visible, gameId, onClose, roomId, isAdmin }: R
               </TouchableOpacity>
               <TouchableOpacity style={s.headerBtn} onPress={fetchWinnerList}>
                 <Grid3X3 size={13} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.headerBtn, { backgroundColor: 'rgba(251,191,36,0.2)' }]} onPress={() => { onMinimize?.(); }}>
+                <Minus size={13} color="#fbbf24" />
               </TouchableOpacity>
               <TouchableOpacity style={s.headerBtn} onPress={onClose}>
                 <X size={13} color="white" />

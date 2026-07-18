@@ -17,6 +17,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
+const LEVEL_THRESHOLDS = [0, 10000, 50000, 200000, 1000000, 5000000, 20000000, 100000000, 500000000, 2000000000];
+
+function getFamilyLevel(totalWealth: number) {
+  let level = 1;
+  for (let i = 1; i < LEVEL_THRESHOLDS.length; i++) {
+    if (totalWealth >= LEVEL_THRESHOLDS[i]) level = i + 1;
+    else break;
+  }
+  return level;
+}
+
 function AnimatedGiftItem({ gift, isSelected, onPress }: { gift: Gift; isSelected: boolean; onPress: () => void }) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -205,11 +216,24 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
   }, [visible, initialRecipient?.uid, seatedParticipants]);
 
   const toggleRecipient = (uid: string) => {
-    setSelectedUids([uid]);
+    setSelectedUids(prev => {
+      if (prev.includes(uid)) {
+        if (prev.length === 1) return prev; // keep at least one selected
+        return prev.filter(id => id !== uid);
+      } else {
+        return [...prev, uid];
+      }
+    });
   };
 
   const selectAll = () => {
-    setSelectedUids(seatedParticipants.map(p => p.uid));
+    const allUids = seatedParticipants.map(p => p.uid);
+    const isAllSelected = allUids.every(uid => selectedUids.includes(uid));
+    if (isAllSelected && seatedParticipants.length > 0) {
+      setSelectedUids([seatedParticipants[0].uid]);
+    } else {
+      setSelectedUids(allUids);
+    }
   };
 
   // ============ SMART REWARD LOGIC HELPER ============
@@ -376,6 +400,26 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
       };
       batch.update(senderProfileRef, coinUpdate);
       batch.update(senderUserRef, coinUpdate);
+
+      if (userProfile?.familyId) {
+        const familyRef = doc(firestore, 'families', userProfile.familyId);
+        try {
+          const familySnap = await getDoc(familyRef);
+          if (familySnap.exists()) {
+            const currentWealth = familySnap.data()?.totalWealth || 0;
+            const newWealth = currentWealth + totalCost;
+            const newFamilyLevel = getFamilyLevel(newWealth);
+            batch.update(familyRef, {
+              totalWealth: increment(totalCost),
+              [`contributions.${user.uid}`]: increment(totalCost),
+              level: newFamilyLevel,
+              updatedAt: serverTimestamp(),
+            });
+          }
+        } catch (err) {
+          console.log('[Family Gift Update Error]', err);
+        }
+      }
 
       validUids.forEach(uid => {
         const recipientProfileRef = doc(firestore, 'users', uid, 'profile', uid);

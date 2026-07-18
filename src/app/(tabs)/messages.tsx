@@ -21,6 +21,17 @@ import { getCpLevelFromValue } from '../../lib/level-utils';
 import { getLevelFromSpent } from '../../hooks/use-user-level';
 import { calculateLevelUpRewards } from '../../lib/level-rewards';
 
+const LEVEL_THRESHOLDS = [0, 10000, 50000, 200000, 1000000, 5000000, 20000000, 100000000, 500000000, 2000000000];
+
+function getFamilyLevel(totalWealth: number) {
+  let level = 1;
+  for (let i = 1; i < LEVEL_THRESHOLDS.length; i++) {
+    if (totalWealth >= LEVEL_THRESHOLDS[i]) level = i + 1;
+    else break;
+  }
+  return level;
+}
+
 export default function MessagesScreen() {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -987,6 +998,26 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
         'wallet.weeklySpent': increment(totalCost),
         'wallet.monthlySpent': increment(totalCost),
       });
+
+      if (myProfile?.familyId) {
+        const familyRef = doc(firestore, 'families', myProfile.familyId);
+        try {
+          const familySnap = await getDoc(familyRef);
+          if (familySnap.exists()) {
+            const currentWealth = familySnap.data()?.totalWealth || 0;
+            const newWealth = currentWealth + totalCost;
+            const newFamilyLevel = getFamilyLevel(newWealth);
+            batch.update(familyRef, {
+              totalWealth: increment(totalCost),
+              [`contributions.${user.uid}`]: increment(totalCost),
+              level: newFamilyLevel,
+              updatedAt: serverTimestamp(),
+            });
+          }
+        } catch (err) {
+          console.log('[Family Chat Gift Update Error]', err);
+        }
+      }
 
       const recipientProfileRef = doc(firestore, 'users', recipientUid, 'profile', recipientUid);
       const recipientUserRef = doc(firestore, 'users', recipientUid);

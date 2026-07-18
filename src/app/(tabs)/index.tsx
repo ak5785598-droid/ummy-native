@@ -8,6 +8,7 @@ import { collection, query, orderBy, limit, where, doc, getDocs } from '@/fireba
 import { useRouter } from 'expo-router';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { Room } from '../../lib/types';
+import { useRoomContext } from '../../context/room-context';
 import { ChatRoomCard } from '../../components/home/chat-room-card';
 import { RankingCard } from '../../components/home/ranking-card';
 import { FamilyCard } from '../../components/home/family-card';
@@ -34,6 +35,7 @@ export default function HomeScreen() {
   const { firestore, database, isHydrated } = useFirebase();
   const { user } = useUser();
   const router = useRouter();
+  const { activeRoom, minimizedRoom } = useRoomContext();
   const { profile: userProfile } = useUserProfile(user?.uid);
   const [roomsWithUsers, setRoomsWithUsers] = useState<Set<string>>(new Set());
 
@@ -172,14 +174,17 @@ export default function HomeScreen() {
       // Any room with 'help' in name that is NOT the original → HIDE (duplicate)
       const looksLikeHelp = roomName.includes('help');
       if (looksLikeHelp && !isOriginalHelp) return false;
-      if (isOriginalHelp) return !isDecommissioned; // always show, no category filter
+      if (isOriginalHelp) return !isDecommissioned;
 
-      const hasOnlineUsers = roomsWithUsers.has(room.id);
+      const activeRoomId = activeRoom?.id || minimizedRoom?.id;
+
+      // Online status check: check realtime presence OR if it is the current active/minimized background room
+      const hasOnlineUsers = roomsWithUsers.has(room.id) || room.id === activeRoomId;
       const isPinned = room.isPinned === true;
 
       return matchesCategory && (hasOnlineUsers || isPinned) && !isDecommissioned;
     });
-  }, [allRooms, activeCategory, roomsWithUsers]);
+  }, [allRooms, activeCategory, roomsWithUsers, activeRoom, minimizedRoom]);
 
   const followedRoomData = useMemo(() => {
     if (!followedRooms || !allRooms) return [];

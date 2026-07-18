@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { 
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator, 
-  TextInput, FlatList, Alert, Switch 
+  TextInput, FlatList, Alert, Switch, BackHandler 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
@@ -136,6 +136,19 @@ export default function AdminScreen() {
 
     return () => unsub();
   }, [user]);
+
+  useEffect(() => {
+    const onBackPress = () => {
+      if (activeTab !== 'menu') {
+        setActiveTab('menu');
+        return true;
+      }
+      return false;
+    };
+
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [activeTab]);
 
   // Determine page header title based on role
   const pageTitle = useMemo(() => {
