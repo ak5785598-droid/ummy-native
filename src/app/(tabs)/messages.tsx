@@ -1299,11 +1299,11 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
                           <AudioPlayer audioUrl={(msg as any).audioUrl} isMe={isMe} />
                         )}
                         {msg.text && (
-                          <Text className={`text-sm ${isMe ? 'text-white' : 'text-slate-800'}`}>{msg.text}</Text>
+                          <Text style={{ fontSize: 14, color: isMe ? '#ffffff' : '#1e293b' }}>{msg.text}</Text>
                         )}
                         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 4, marginTop: 3 }}>
                           {(msg as any).edited && (
-                            <Text className={`text-[8px] ${isMe ? 'text-white/60' : 'text-slate-400'}`}>edited</Text>
+                            <Text style={{ fontSize: 8, color: isMe ? 'rgba(255,255,255,0.6)' : '#94a3b8' }}>edited</Text>
                           )}
                           <Text style={{ fontSize: 8, fontWeight: '700', color: isMe ? 'rgba(255,255,255,0.6)' : '#94a3b8' }}>
                             {timeStr}

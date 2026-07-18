@@ -116,7 +116,8 @@ export function TagsTab() {
       // Target level
       const targetLevel = getUserLevel(targetUser.tags, targetUser.isAdmin, targetUser.id);
 
-      if (executorLevel <= targetLevel && currentUser.uid !== CREATOR_ID) {
+      const isSelf = targetUser.id === currentUser.uid || targetUser.uid === currentUser.uid;
+      if (executorLevel <= targetLevel && currentUser.uid !== CREATOR_ID && !isSelf) {
         Alert.alert("Unauthorized Action", "Aap apne se barabar ya upar ke rank wale user ko edit nahi kar sakte.");
         setUpdatingTag(null);
         return;
@@ -168,7 +169,8 @@ export function TagsTab() {
             const executorLevel = getUserLevel(execData.tags, execData.isAdmin, currentUser.uid);
             const targetLevel = getUserLevel(targetUser.tags, targetUser.isAdmin, targetUser.id);
 
-            if (executorLevel <= targetLevel && currentUser.uid !== CREATOR_ID) {
+            const isSelf = targetUser.id === currentUser.uid || targetUser.uid === currentUser.uid;
+            if (executorLevel <= targetLevel && currentUser.uid !== CREATOR_ID && !isSelf) {
               Alert.alert("Unauthorized Action", "Aap apne se barabar ya upar ke rank wale user ko edit nahi kar sakte.");
               return;
             }
