@@ -361,12 +361,22 @@ export default function MessagesScreen() {
           setDialogProcessingFollow(true);
           const followId = `${user.uid}_${profileDialogUid}`;
           const followRef = doc(firestore, 'followers', followId);
+          const targetUserRef = doc(firestore, 'users', profileDialogUid);
+          const targetProfileRef = doc(firestore, 'users', profileDialogUid, 'profile', profileDialogUid);
           try {
             if (dialogFollowData) {
               await deleteDoc(followRef);
+              try {
+                await updateDoc(targetUserRef, { 'stats.fans': increment(-1) }).catch(() => {});
+                await updateDoc(targetProfileRef, { 'stats.fans': increment(-1) }).catch(() => {});
+              } catch {}
               setDialogFollowData(null);
             } else {
               await setDoc(followRef, { followerId: user.uid, followingId: profileDialogUid, timestamp: new Date() }, { merge: true });
+              try {
+                await updateDoc(targetUserRef, { 'stats.fans': increment(1) }).catch(() => {});
+                await updateDoc(targetProfileRef, { 'stats.fans': increment(1) }).catch(() => {});
+              } catch {}
               setDialogFollowData({ id: followId, followerId: user.uid, followingId: profileDialogUid });
             }
           } catch (e: any) {}

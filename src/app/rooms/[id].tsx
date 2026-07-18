@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Animated, Modal, Alert, BackHandler, TextInput, KeyboardAvoidingView, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Animated, Modal, Alert, BackHandler, TextInput, KeyboardAvoidingView, ActivityIndicator, PermissionsAndroid, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -650,8 +650,7 @@ export default function RoomScreen() {
       if (msg.senderId === 'SYSTEM_BOT' && (msg.content || msg.text)) {
         const text = (msg.content || msg.text || '') as string;
         const hasHindi = /[\u0900-\u097F]/.test(text);
-        setAiVoiceAnnouncements(prev => [
-          ...prev,
+        setAiVoiceAnnouncements([
           { id: msg.id || `bot-${Date.now()}`, text, lang: hasHindi ? 'hi-IN' : 'en-IN', type: 'system' }
         ]);
       }
@@ -735,16 +734,15 @@ export default function RoomScreen() {
       }
       if (textToSpeak) {
         lastAnnouncedMsgId.current = lastMsg.id;
-        setAiVoiceAnnouncements(prev => {
-          if (prev.some(a => a.id === lastMsg.id)) return prev;
-          return [...prev, {
+        setAiVoiceAnnouncements([
+          {
             id: lastMsg.id,
             text: textToSpeak,
             lang: 'hi',
             type: lastMsg.type,
             timestamp: Date.now()
-          }];
-        });
+          }
+        ]);
       }
     }
   }, [messages]);
@@ -805,11 +803,24 @@ export default function RoomScreen() {
 
     const startSTT = async () => {
       if (!active || !isAIListening) return;
+
+      if (Platform.OS === 'android') {
+        try {
+          const perm = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+          if (perm !== PermissionsAndroid.RESULTS.GRANTED) {
+            console.log('[AI-LISTEN] RECORD_AUDIO permission denied');
+            return;
+          }
+        } catch {}
+      }
+
       try {
         const VoiceModule = require('@react-native-voice/voice').default || require('@react-native-voice/voice');
         if (VoiceModule) {
+          console.log('[AI-LISTEN] Starting native STT...');
           VoiceModule.onSpeechResults = (e: any) => {
             const transcript = e.value?.[0];
+            console.log('[AI-LISTEN] Got result:', transcript);
             if (transcript) {
               handleSendMessage(transcript);
             }
@@ -817,20 +828,27 @@ export default function RoomScreen() {
             const sttTid1 = setTimeout(() => { if (active) startSTT(); }, 800);
             sttTimeoutIds.current.push(sttTid1);
           };
-          VoiceModule.onSpeechError = () => {
+          VoiceModule.onSpeechError = (err: any) => {
+            console.log('[AI-LISTEN] Speech error:', err);
             const sttTid2 = setTimeout(() => { if (active) startSTT(); }, 1000);
             sttTimeoutIds.current.push(sttTid2);
           };
           VoiceModule.onSpeechEnd = () => {
-            // Don't setIsAIListening(false) — restart instead
+            console.log('[AI-LISTEN] Speech ended, restarting...');
             const sttTid3 = setTimeout(() => { if (active) startSTT(); }, 500);
             sttTimeoutIds.current.push(sttTid3);
           };
+          VoiceModule.onSpeechStart = () => {
+            console.log('[AI-LISTEN] Speech started - listening...');
+          };
           await VoiceModule.start('hi-IN');
           aiListenRecognitionRef.current = VoiceModule;
+          console.log('[AI-LISTEN] Native STT started successfully');
           return;
         }
-      } catch {}
+      } catch (err: any) {
+        console.log('[AI-LISTEN] Native STT failed:', err?.message || err);
+      }
 
       // Fallback: Web SpeechRecognition (continuous mode — Expo Go)
       try {
@@ -1697,14 +1715,24 @@ export default function RoomScreen() {
           if (!uid || !firestore || !user?.uid) return;
           const followId = `${user.uid}_${uid}`;
           const followRef = doc(firestore, 'followers', followId);
+          const targetUserRef = doc(firestore, 'users', uid);
+          const targetProfileRef = doc(firestore, 'users', uid, 'profile', uid);
           try {
             const snap = await getDoc(followRef);
             const exists = typeof snap.exists === 'function' ? snap.exists() : snap.exists;
             if (exists) {
               await deleteDoc(followRef);
+              try {
+                await updateDoc(targetUserRef, { 'stats.fans': increment(-1) }).catch(() => {});
+                await updateDoc(targetProfileRef, { 'stats.fans': increment(-1) }).catch(() => {});
+              } catch {}
               Alert.alert('Unfollowed', 'You have unfollowed this user.');
             } else {
               setDocumentNonBlocking(followRef, { followerId: user.uid, followingId: uid, timestamp: new Date() }, { merge: true });
+              try {
+                await updateDoc(targetUserRef, { 'stats.fans': increment(1) }).catch(() => {});
+                await updateDoc(targetProfileRef, { 'stats.fans': increment(1) }).catch(() => {});
+              } catch {}
               Alert.alert('Followed', 'You are now following this user.');
             }
           } catch (e: any) {

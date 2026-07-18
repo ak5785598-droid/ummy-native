@@ -344,12 +344,24 @@ export default function ProfileScreen() {
     if (!firestore || !currentUser || !id || isProcessingFollow) return;
     setIsProcessingFollow(true);
     const fRef = doc(firestore, 'followers', `${currentUser.uid}_${id}`);
+    const targetUserRef = doc(firestore, 'users', id);
+    const targetProfileRef = doc(firestore, 'users', id, 'profile', id);
     try {
       if (isFollowing) {
         await deleteDocumentNonBlocking(fRef);
+        try {
+          const { updateDoc } = await import('../../firebase/firestore-compat');
+          await updateDoc(targetUserRef, { 'stats.fans': increment(-1) }).catch(() => {});
+          await updateDoc(targetProfileRef, { 'stats.fans': increment(-1) }).catch(() => {});
+        } catch {}
         setIsFollowing(false);
       } else {
         await setDocumentNonBlocking(fRef, { followerId: currentUser.uid, followingId: id, timestamp: serverTimestamp() }, { merge: true });
+        try {
+          const { updateDoc } = await import('../../firebase/firestore-compat');
+          await updateDoc(targetUserRef, { 'stats.fans': increment(1) }).catch(() => {});
+          await updateDoc(targetProfileRef, { 'stats.fans': increment(1) }).catch(() => {});
+        } catch {}
         setIsFollowing(true);
       }
     } catch (e) {} finally { setIsProcessingFollow(false); }

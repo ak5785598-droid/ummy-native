@@ -208,9 +208,20 @@ export function RoomProfileCard({
   onEcho, isLocked, onLockSeat, isBanned, onBan
 }: RoomProfileCardProps) {
   const { profile } = useUserProfile(user?.uid);
+  const firestore = useFirestore();
   const [firestoreMedals, setFirestoreMedals] = useState<any[]>([]);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [realTimeFans, setRealTimeFans] = useState(0);
   const cpLevel = profile?.relationship?.level || 0;
+
+  useEffect(() => {
+    if (!visible || !firestore || !user?.uid) return;
+    const fansQ = query(collection(firestore, 'followers'), where('followingId', '==', user.uid));
+    const unsub = require('@/firebase/firestore-compat').onSnapshot(fansQ, (snap: any) => {
+      setRealTimeFans(snap?.docs?.length || 0);
+    }, () => setRealTimeFans(0));
+    return () => unsub();
+  }, [visible, firestore, user?.uid]);
 
   const handleCopyId = () => {
     const displayId = String(user?.accountNumber || profile?.accountNumber || '');
@@ -413,7 +424,7 @@ export function RoomProfileCard({
 
           {/* Fans & Gift */}
           <View className={`flex-row items-center gap-3 mb-1 ${hasMedals ? '-mt-2.5' : (hasTags ? 'mt-1.5' : '-mt-2')}`}>
-            <Text className="text-slate-400 text-[11px] font-black uppercase">{(profile?.stats?.fans || 0).toLocaleString()} FANS</Text>
+            <Text className="text-slate-400 text-[11px] font-black uppercase">{realTimeFans.toLocaleString()} FANS</Text>
             {onSendGift && (
               <TouchableOpacity onPress={() => { onClose(); onSendGift(user.uid); }}
                 style={{ width: 30, height: 30, borderRadius: 15, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
