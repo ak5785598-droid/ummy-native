@@ -321,7 +321,7 @@ export function FullProfileDialog({
     }
   }, [displayId]);
 
-  const hasRelationship = profile?.relationship && (profile.relationship.type === 'CP') || profile?.bestFriend || profile?.besties;
+  const hasRelationship = (profile?.relationship?.type === 'CP') || profile?.bestFriend || profile?.besties;
 
   const handleHeartPressIn = useCallback(() => {
     Animated.spring(heartScale, { toValue: 1.25, useNativeDriver: true, tension: 150, friction: 4 }).start();
@@ -568,7 +568,7 @@ export function FullProfileDialog({
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: '#FDF2F8', borderRadius: 12, borderWidth: 1, borderColor: '#FECDD3' }}>
                   <Heart size={10} color="#EC4899" fill="#EC4899" />
                   <Text style={{ fontSize: 9, fontWeight: '800', color: '#EC4899', textTransform: 'uppercase' }}>
-                    {profile.relationship.type}: {profile.relationship.partnerName}
+                    {profile?.relationship?.type}: {profile?.relationship?.partnerName}
                   </Text>
                 </View>
               )}
@@ -1045,7 +1045,7 @@ export function FullProfileDialog({
                 <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginBottom: 16 }}>
                   You have been {profile?.relationship?.type} for{' '}
                   <Text style={{ color: '#FFF', fontWeight: '800' }}>
-                    {Math.max(1, Math.floor((Date.now() - new Date(profile.relationship.startDate).getTime()) / 86400000))} days
+                    {Math.max(1, Math.floor((Date.now() - new Date(profile?.relationship?.startDate).getTime()) / 86400000))} days
                   </Text>
                 </Text>
               )}
