@@ -698,7 +698,7 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
 
   const messagesQuery = useMemo(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'privateChats', chatId, 'messages'), orderBy('timestamp', 'asc'), limit(100));
+    return query(collection(firestore, 'privateChats', chatId, 'messages'), orderBy('timestamp', 'asc'));
   }, [firestore, chatId]);
 
   const { data: messages, error: messagesError } = useCollection<PrivateMessage>(messagesQuery);
