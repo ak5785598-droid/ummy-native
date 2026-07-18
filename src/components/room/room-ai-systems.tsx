@@ -1,7 +1,6 @@
 ﻿import React, { useEffect, useCallback, useRef, useMemo } from 'react';
-import { useFirestore, useUser, useDatabase } from '../../firebase/provider';
+import { useFirestore, useUser } from '../../firebase/provider';
 import { doc, collection, addDoc, serverTimestamp, getDoc } from '@/firebase/firestore-compat';
-import { ref as databaseRef, set as databaseSet, push as databasePush } from 'firebase/database';
 
 interface RoomAISystemsProps {
   roomId: string;
@@ -26,7 +25,6 @@ export function RoomAISystems({
 }: RoomAISystemsProps) {
   const firestore = useFirestore();
   const { user } = useUser();
-  const database = useDatabase();
 
   // Use refs â€” not state â€” to avoid re-triggering effects
   const lastProcessedMsgId = useRef<string | null>(null);
@@ -49,18 +47,16 @@ export function RoomAISystems({
   }, [user?.uid, participants, ownerId, moderatorIds]);
 
   const addBotMessage = useCallback(async (text: string) => {
-    if (!database || !roomId) return;
-    const msgRef = databasePush(databaseRef(database, `roomMessages/${roomId}`));
-    await databaseSet(msgRef, {
-      id: msgRef.key,
-      type: 'text',
+    if (!firestore || !roomId) return;
+    await addDoc(collection(firestore, 'chatRooms', roomId, 'messages'), {
       content: text,
       senderId: 'SYSTEM_BOT',
       senderName: 'Ummy AI',
       senderAvatar: 'https://img.icons8.com/isometric/512/bot.png',
-      timestamp: Date.now(),
+      timestamp: serverTimestamp(),
+      type: 'text',
     });
-  }, [database, roomId]);
+  }, [firestore, roomId]);
 
   const muteUser = useCallback(async (targetName: string) => {
     if (!firestore || !roomId) return;
@@ -185,8 +181,14 @@ export function RoomAISystems({
           if (res.ok) {
             const data = await res.json();
             if (data.response) await addBotMessage(data.response);
+          } else {
+            const errText = await res.text().catch(() => 'unknown');
+            console.log('[AI-ERROR] API returned', res.status, errText);
+            await addBotMessage(`AI temporarily unavailable (${res.status}). Please try again shortly! 🌐`);
           }
-        } catch (err) {
+        } catch (err: any) {
+          console.log('[AI-ERROR] Fetch failed:', err?.message || err);
+          await addBotMessage('AI is currently warming up. Please try again in a few seconds! ⏳');
         }
       })();
     }

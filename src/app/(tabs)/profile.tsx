@@ -9,9 +9,8 @@ import { ChevronLeft, MoreHorizontal, Pencil, ChevronRight } from 'lucide-react-
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { useUser, useFirestore, useDoc } from '../../firebase/provider';
-import { collection, query, where, orderBy, limit, doc, serverTimestamp, setDoc, updateDoc, onSnapshot } from '@/firebase/firestore-compat';
+import { collection, query, where, orderBy, limit, doc, serverTimestamp, setDoc, updateDoc, onSnapshot, getDocs } from '@/firebase/firestore-compat';
 import { autoAssignMedals } from '../../lib/auto-assign-medals';
-import firestore from '@react-native-firebase/firestore';
 import { PremiumDiamond } from '@/components/PremiumDiamond';
 import { toCDN } from '@/lib/cdn';
 import { isInventoryItemExpired } from '@/lib/types';
@@ -242,12 +241,12 @@ export default function ProfileScreen() {
   // Auto-assign medals based on tags
   const medalAssignedRef = useRef(false);
   useEffect(() => {
-    if (!profileId || !firestore || medalAssignedRef.current) return;
+    if (!profileId || !firestoreDb || medalAssignedRef.current) return;
     if (profile?.tags && profile.tags.length > 0) {
       medalAssignedRef.current = true;
-      autoAssignMedals(firestore, profileId);
+      autoAssignMedals(firestoreDb, profileId);
     }
-  }, [profileId, firestore, profile?.tags]);
+  }, [profileId, firestoreDb, profile?.tags]);
 
   // Auto-restore original ID if special custom ID has expired
   useEffect(() => {
@@ -280,29 +279,29 @@ export default function ProfileScreen() {
   const [visitorsData, setVisitorsData] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!profileId || !firestore) return;
+    if (!profileId || !firestoreDb) return;
 
-    const unsubFans = firestore().collection('followers').where('followingId', '==', profileId)
-      .onSnapshot((snap) => {
-        setFansData(snap ? snap.docs.map(d => ({ id: d.id, ...d.data() })) : []);
-      }, () => {});
+    const fansQuery = query(collection(firestoreDb, 'followers'), where('followingId', '==', profileId));
+    const unsubFans = onSnapshot(fansQuery, (snap) => {
+      setFansData(snap ? snap.docs.map(d => ({ id: d.id, ...d.data() })) : []);
+    }, () => {});
 
-    const unsubFollowing = firestore().collection('followers').where('followerId', '==', profileId)
-      .onSnapshot((snap) => {
-        setFollowingData(snap ? snap.docs.map(d => ({ id: d.id, ...d.data() })) : []);
-      }, () => {});
+    const followingQuery = query(collection(firestoreDb, 'followers'), where('followerId', '==', profileId));
+    const unsubFollowing = onSnapshot(followingQuery, (snap) => {
+      setFollowingData(snap ? snap.docs.map(d => ({ id: d.id, ...d.data() })) : []);
+    }, () => {});
 
-    const unsubVisitors = firestore().collection('users').doc(profileId).collection('profileVisitors').orderBy('timestamp', 'desc').limit(50)
-      .onSnapshot((snap) => {
-        setVisitorsData(snap ? snap.docs.map(d => ({ id: d.id, ...d.data() })) : []);
-      }, () => {});
+    const visitorsQuery = query(collection(firestoreDb, 'users', profileId, 'profileVisitors'), orderBy('timestamp', 'desc'), limit(50));
+    const unsubVisitors = onSnapshot(visitorsQuery, (snap) => {
+      setVisitorsData(snap ? snap.docs.map(d => ({ id: d.id, ...d.data() })) : []);
+    }, () => {});
 
     return () => {
       unsubFans();
       unsubFollowing();
       unsubVisitors();
     };
-  }, [profileId, firestore]);
+  }, [profileId, firestoreDb]);
 
   // ── Computed stats ──────────────────────────────────────────────────────
   const stats = useMemo(() => {

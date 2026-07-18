@@ -445,11 +445,14 @@ export function FullProfileDialog({
     return frames;
   }, [profile?.inventory?.ownedItems, storeItemsMap, (profile as any)?.svipPrivileges?.frameUrl]);
 
-  if (!profile) return null;
-
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={() => onOpenChange(false)}>
       <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+        {!profile ? (
+          <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator size="large" color="#7c3aed" />
+          </SafeAreaView>
+        ) : (
         <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }} edges={[]}>
           <View style={{ flex: 1 }}>
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false} bounces={false}>
@@ -1066,6 +1069,7 @@ export function FullProfileDialog({
         )}
 
       </SafeAreaView>
+        )}
       </View>
     </Modal>
   );

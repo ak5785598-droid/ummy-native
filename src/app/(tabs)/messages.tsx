@@ -999,26 +999,6 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
         'wallet.monthlySpent': increment(totalCost),
       });
 
-      if (myProfile?.familyId) {
-        const familyRef = doc(firestore, 'families', myProfile.familyId);
-        try {
-          const familySnap = await getDoc(familyRef);
-          if (familySnap.exists()) {
-            const currentWealth = familySnap.data()?.totalWealth || 0;
-            const newWealth = currentWealth + totalCost;
-            const newFamilyLevel = getFamilyLevel(newWealth);
-            batch.update(familyRef, {
-              totalWealth: increment(totalCost),
-              [`contributions.${user.uid}`]: increment(totalCost),
-              level: newFamilyLevel,
-              updatedAt: serverTimestamp(),
-            });
-          }
-        } catch (err) {
-          console.log('[Family Chat Gift Update Error]', err);
-        }
-      }
-
       const recipientProfileRef = doc(firestore, 'users', recipientUid, 'profile', recipientUid);
       const recipientUserRef = doc(firestore, 'users', recipientUid);
       const diamondReward = Math.floor(totalCost * 0.4);
@@ -1095,6 +1075,24 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
       setSelectedGiftQty('1');
       setShowGiftPicker(false);
       setShowQtyPopup(false);
+
+      if (myProfile?.familyId) {
+        const familyRef = doc(firestore, 'families', myProfile.familyId);
+        try {
+          const familySnap = await getDoc(familyRef);
+          if (familySnap.exists()) {
+            const currentWealth = familySnap.data()?.totalWealth || 0;
+            const newWealth = currentWealth + totalCost;
+            const newFamilyLevel = getFamilyLevel(newWealth);
+            updateDocumentNonBlocking(familyRef, {
+              totalWealth: increment(totalCost),
+              [`contributions.${user.uid}`]: increment(totalCost),
+              level: newFamilyLevel,
+              updatedAt: serverTimestamp(),
+            });
+          }
+        } catch (err) {}
+      }
     } catch (e) {}
   };
 

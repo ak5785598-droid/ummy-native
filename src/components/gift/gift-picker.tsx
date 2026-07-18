@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFirestore, useUser, useCollection, useMemoFirebase, useDatabase } from '../../firebase/provider';
 import { CosmicExplosion } from './gift-cosmic-explosion';
 import { collection, query, orderBy, doc, serverTimestamp, writeBatch, increment, getDoc, setDoc, Timestamp, arrayUnion } from '@/firebase/firestore-compat';
+import { updateDocumentNonBlocking } from '../../lib/non-blocking-writes';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { getLevelFromSpent } from '../../hooks/use-user-level';
 import { getCpLevelFromValue } from '../../lib/level-utils';
@@ -401,26 +402,6 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
       batch.update(senderProfileRef, coinUpdate);
       batch.update(senderUserRef, coinUpdate);
 
-      if (userProfile?.familyId) {
-        const familyRef = doc(firestore, 'families', userProfile.familyId);
-        try {
-          const familySnap = await getDoc(familyRef);
-          if (familySnap.exists()) {
-            const currentWealth = familySnap.data()?.totalWealth || 0;
-            const newWealth = currentWealth + totalCost;
-            const newFamilyLevel = getFamilyLevel(newWealth);
-            batch.update(familyRef, {
-              totalWealth: increment(totalCost),
-              [`contributions.${user.uid}`]: increment(totalCost),
-              level: newFamilyLevel,
-              updatedAt: serverTimestamp(),
-            });
-          }
-        } catch (err) {
-          console.log('[Family Gift Update Error]', err);
-        }
-      }
-
       validUids.forEach(uid => {
         const recipientProfileRef = doc(firestore, 'users', uid, 'profile', uid);
         const recipientUserRef = doc(firestore, 'users', uid);
@@ -573,6 +554,24 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
       });
 
       await batch.commit();
+
+      if (userProfile?.familyId) {
+        const familyRef = doc(firestore, 'families', userProfile.familyId);
+        try {
+          const familySnap = await getDoc(familyRef);
+          if (familySnap.exists()) {
+            const currentWealth = familySnap.data()?.totalWealth || 0;
+            const newWealth = currentWealth + totalCost;
+            const newFamilyLevel = getFamilyLevel(newWealth);
+            updateDocumentNonBlocking(familyRef, {
+              totalWealth: increment(totalCost),
+              [`contributions.${user.uid}`]: increment(totalCost),
+              level: newFamilyLevel,
+              updatedAt: serverTimestamp(),
+            });
+          }
+        } catch (err) {}
+      }
 
       // ⚡ Write to RTD instantly — all users in room get animation with ~50ms delay
       // This bypasses the slow Firestore listener path for receivers
