@@ -1017,18 +1017,24 @@ export default function RoomScreen() {
   const handleExit = async () => {
     destroyAgoraEngine();
     destroyMusicSound();
-    setActiveRoom(null);
-    setMinimizedRoom(null);
-    try { router.back(); } catch { router.replace('/'); }
     if (firestore && id && user?.uid) {
       try {
+        const participantRef = doc(firestore, 'chatRooms', id, 'participants', user.uid);
+        const roomRef = doc(firestore, 'chatRooms', id);
+        const existingDoc = await getDoc(participantRef);
+        if (existingDoc.exists()) {
+          await deleteDoc(participantRef);
+          await updateDoc(roomRef, { participantCount: increment(-1), updatedAt: serverTimestamp() });
+        }
         const userRef = doc(firestore, 'users', user.uid);
         const profileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
-        // Only update user/profile status — participant cleanup is handled by useRoomPresence hook
         updateDocumentNonBlocking(userRef, { currentRoomId: null, isOnline: false, updatedAt: serverTimestamp() });
         updateDocumentNonBlocking(profileRef, { currentRoomId: null, isOnline: false, updatedAt: serverTimestamp() });
       } catch (e) {}
     }
+    setActiveRoom(null);
+    setMinimizedRoom(null);
+    try { router.back(); } catch { router.replace('/'); }
   };
   const handleMinimize = () => {
     isMinimizingRef.current = true;
