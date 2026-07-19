@@ -176,7 +176,6 @@ function jsHmacSha256(message: string, secret: string): string {
   }
   return b64.replace(/=/g, ""); // strip padding for JWT URL-safe base64
 }
-}
 
 async function requestMicPermission(): Promise<boolean> {
   if (Platform.OS === 'android') {
