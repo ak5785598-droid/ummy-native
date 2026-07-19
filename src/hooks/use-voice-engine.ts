@@ -15,18 +15,6 @@ interface UseVoiceEngineProps {
   keepAlive?: boolean;
 }
 
-const DEFAULT_HOOK_RESULT = {
-  remoteUsers: [] as number[],
-  connectionState: 'DISCONNECTED' as const,
-  engine: undefined,
-  isScreenSharing: false,
-  startScreenShare: async () => {},
-  stopScreenShare: async () => {},
-  speakingUsers: {} as Record<number, number>,
-  getSpeakingIntensity: () => 0,
-  activeProvider: 'agora' as const,
-};
-
 export function useVoiceEngine({
   roomId,
   isInSeat,
@@ -44,6 +32,7 @@ export function useVoiceEngine({
   // ZegoCloud DISABLED — native module crashes React instance in release builds (prefix of null)
   const zegoHook = useZegoCloudVoice(undefined, false, true, undefined, true, false);
 
+  // LiveKit enabled — DOMException polyfilled in use-livekit-voice.ts
   const [livekitEnabled, setLivekitEnabled] = useState(false);
   const livekitHook = useLiveKitVoice(
     livekitEnabled ? roomId : undefined,
@@ -56,15 +45,13 @@ export function useVoiceEngine({
 
   const switchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const switchTimer2Ref = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const switchTimer3Ref = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fallback logic: Agora → LiveKit → WebRTC (ZegoCloud DISABLED — native crash)
+  // Fallback logic: Agora → LiveKit → WebRTC (ZegoCloud disabled — native crash)
   useEffect(() => {
     if (!roomId || !uid) return;
 
     if (switchTimerRef.current) clearTimeout(switchTimerRef.current);
     if (switchTimer2Ref.current) clearTimeout(switchTimer2Ref.current);
-    if (switchTimer3Ref.current) clearTimeout(switchTimer3Ref.current);
 
     console.log(`[VOICE] Agora: ${agoraHook.connectionState} | LiveKit: ${livekitHook.connectionState} | Active: ${activeProvider || 'none'}`);
 
@@ -101,7 +88,6 @@ export function useVoiceEngine({
     return () => {
       if (switchTimerRef.current) clearTimeout(switchTimerRef.current);
       if (switchTimer2Ref.current) clearTimeout(switchTimer2Ref.current);
-      if (switchTimer3Ref.current) clearTimeout(switchTimer3Ref.current);
     };
   }, [agoraHook.connectionState, livekitHook.connectionState, roomId, uid]);
 
