@@ -155,16 +155,12 @@ export function RoomAISystems({
       if (cmdLock) lockSeat(cmdLock[1]);
     }
 
-    // 2. AI Conversational Reply (rate-limited)
+    // 2. AI Conversational Reply — ONLY when explicitly addressed
     const now = Date.now();
     if (now - lastBotReplyTime.current < BOT_COOLDOWN) return;
 
-    const triggerWords = ['ai', 'ummy', 'ummi', 'hello', 'hi', 'hlo', 'umm', 'à¤†à¤ˆ', 'à¤à¤†à¤ˆ', 'à¤‰à¤®à¥à¤®à¥€'];
-    const isTriggered =
-      triggerWords.some(t => {
-        const pattern = new RegExp(`(^|\\s)${t}($|\\s|[.,!?])`, 'i');
-        return pattern.test(content) || content === t || content.startsWith(t + ' ') || content.endsWith(' ' + t);
-      }) || content.endsWith('?');
+    const aiMentionPattern = /(^|\s)@(ai|ummy|ummi)(\s|$|[.,!?])|^(\/ai)\b/i;
+    const isTriggered = aiMentionPattern.test(content);
 
     if (isTriggered) {
       lastBotReplyTime.current = now;

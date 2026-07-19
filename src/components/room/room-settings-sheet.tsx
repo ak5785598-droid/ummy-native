@@ -71,7 +71,7 @@ export function RoomSettingsSheet({ visible, onClose, room, participants }: Room
   const firestore = useFirestore();
   const { user } = useUser();
   const { profile: userProfile } = useUserProfile(user?.uid);
-  const { isBrightMode, setIsBrightMode, isAIVoiceEnabled, toggleAIVoice, isAIListening, setIsAIListening, toggleAIListening, isCaptionsEnabled, setIsCaptionsEnabled, toggleCaptions, isSpeakerMuted, setIsSpeakerMuted } = useRoomContext();
+  const { isBrightMode, setIsBrightMode, isAIListening, setIsAIListening, toggleAIListening, isCaptionsEnabled, setIsCaptionsEnabled, toggleCaptions, isSpeakerMuted, setIsSpeakerMuted } = useRoomContext();
 
   const [page, setPage] = useState<string>('main');
   const [editingName, setEditingName] = useState('');
@@ -312,7 +312,7 @@ export function RoomSettingsSheet({ visible, onClose, room, participants }: Room
               <MainMenu
                 room={room} isOwner={isOwner} canManage={canManage} isUploading={isUploading}
                 isBrightMode={isBrightMode} onToggleBrightMode={() => { setIsBrightMode(!isBrightMode); handleUpdate('isBrightMode', !isBrightMode); }}
-                isAIVoiceEnabled={isAIVoiceEnabled} onToggleAIVoice={() => { toggleAIVoice(!isAIVoiceEnabled); handleUpdate('isAIVoiceEnabled', !isAIVoiceEnabled); }}
+                isAIVoiceEnabled={!!room?.isAIVoiceEnabled} onToggleAIVoice={() => { handleUpdate('isAIVoiceEnabled', !room?.isAIVoiceEnabled); }}
                 isAIListening={isAIListening} onToggleAIListening={() => { toggleAIListening(!isAIListening); handleUpdate('isAIListening', !isAIListening); }}
                 isCaptionsEnabled={isCaptionsEnabled} onToggleCaptions={() => { toggleCaptions(!isCaptionsEnabled); handleUpdate('isCaptionsEnabled', !isCaptionsEnabled); }}
                 onOpenNameEdit={() => setNameEditOpen(true)}
@@ -423,7 +423,9 @@ function MainMenu({
       <MenuItem label="Announcement" value={room?.announcement} onPress={onOpenAnnouncementEdit} icon={<Sparkles size={16} color={iconColor} />} />
       <MenuItem label="Microphone Test" onPress={onOpenMicTest} icon={<Mic size={16} color={iconColor} />} />
 
-      <ToggleItem label="AI Voice Assistant" value={isAIVoiceEnabled} onToggle={onToggleAIVoice} />
+      {canManage && (
+        <ToggleItem label="AI Voice Assistant" value={isAIVoiceEnabled} onToggle={onToggleAIVoice} subtitle="All members will hear" />
+      )}
       <ToggleItem label="AI Listen" value={isAIListening} onToggle={onToggleAIListening} subtitle="Bolo, AI Sunt Hai" />
       <ToggleItem label="Voice Captions" value={isCaptionsEnabled} onToggle={onToggleCaptions} subtitle="Live Subtitles" />
       <ToggleItem label="Super Glow Mode" value={isBrightMode} onToggle={onToggleBrightMode} badge="PRO" />

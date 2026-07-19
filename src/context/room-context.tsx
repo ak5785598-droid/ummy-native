@@ -15,8 +15,6 @@ interface RoomContextType {
   setIsMusicEnabled: (val: boolean) => void;
   isSpeakerMuted: boolean;
   setIsSpeakerMuted: (val: boolean) => void;
-  isAIVoiceEnabled: boolean;
-  toggleAIVoice: (val: boolean) => void;
   isAIListening: boolean;
   setIsAIListening: (val: boolean) => void;
   toggleAIListening: (val: boolean) => void;
@@ -38,17 +36,13 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   const [roomPlaylist, setRoomPlaylist] = useState<any[]>([]);
   const [isMusicEnabled, setIsMusicEnabled] = useState(true);
   const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
-  const [isAIVoiceEnabled, setIsAIVoiceEnabled] = useState(false);
   const [isAIListening, setIsAIListening] = useState(false);
   const [isCaptionsEnabled, setIsCaptionsEnabled] = useState(false);
   const [isBrightMode, setIsBrightMode] = useState(true);
   const [isGiftEffects, setIsGiftEffects] = useState(true);
 
-  // Load persisted AI Voice, Listening & Captions toggles from AsyncStorage
+  // Load persisted toggles from AsyncStorage (AI Voice is now room-level in Firestore)
   useEffect(() => {
-    AsyncStorage.getItem('ummy_ai_voice_enabled').then(v => {
-      if (v === 'true') setIsAIVoiceEnabled(true);
-    }).catch(() => {});
     AsyncStorage.getItem('ummy_ai_listening_enabled').then(v => {
       if (v === 'true') setIsAIListening(true);
     }).catch(() => {});
@@ -56,11 +50,6 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       if (v === 'true') setIsCaptionsEnabled(true);
     }).catch(() => {});
   }, []);
-
-  const toggleAIVoice = (val: boolean) => {
-    setIsAIVoiceEnabled(val);
-    AsyncStorage.setItem('ummy_ai_voice_enabled', String(val)).catch(() => {});
-  };
 
   const toggleAIListening = (val: boolean) => {
     setIsAIListening(val);
@@ -76,13 +65,12 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     activeRoom, setActiveRoom, isMinimized, setIsMinimized, minimizedRoom, setMinimizedRoom,
     roomPlaylist, setRoomPlaylist, isMusicEnabled, setIsMusicEnabled,
     isSpeakerMuted, setIsSpeakerMuted,
-    isAIVoiceEnabled, toggleAIVoice, 
     isAIListening, setIsAIListening, toggleAIListening,
     isCaptionsEnabled, setIsCaptionsEnabled, toggleCaptions,
     isBrightMode, setIsBrightMode,
     isGiftEffects, setIsGiftEffects,
   }), [activeRoom, isMinimized, minimizedRoom, roomPlaylist, isMusicEnabled, isSpeakerMuted,
-      isAIVoiceEnabled, isAIListening, isCaptionsEnabled, isBrightMode, isGiftEffects]);
+      isAIListening, isCaptionsEnabled, isBrightMode, isGiftEffects]);
 
   return (
     <RoomContext.Provider value={value}>

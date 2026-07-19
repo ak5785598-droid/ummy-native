@@ -5,8 +5,8 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useUser, useFirestore, useDatabase } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
-import { doc, updateDoc, increment, addDoc, collection, getDoc, writeBatch } from '@/firebase/firestore-compat';
-import { ref as databaseRef, set as databaseSet, onValue, runTransaction as databaseTransaction } from 'firebase/database';
+import { doc, updateDoc, increment, addDoc, collection, getDoc, writeBatch, serverTimestamp } from '@/firebase/firestore-compat';
+import { ref as databaseRef, set as databaseSet, onValue, runTransaction as databaseTransaction, get as databaseGet } from 'firebase/database';
 
 import { GoldenCoin } from '../GoldenCoin';
 
@@ -58,12 +58,19 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
   const [winnerId, setWinnerId] = useState<string | null>(null);
   const [cardReveal, setCardReveal] = useState<Record<string, { value: string; suit: string }[]>>({});
   const [totalWinAmount, setTotalWinAmount] = useState(0);
+
+  const saveBetsToRTDB = (bets: Record<string, number>) => {
+    if (!database || !roomId || !currentUser) return;
+    const gamePath = `games/teen_patti_${roomId}/playerBets/${currentUser.uid}`;
+    databaseSet(databaseRef(database, gamePath), { bets, timestamp: Date.now(), username: userProfile?.username || 'Guest' }).catch(() => {});
+  };
   const [localCoins, setLocalCoins] = useState(0);
   const [flippedCards, setFlippedCards] = useState<Record<string, boolean>>({});
 
   const spinTimerRef = useRef<any>(null);
   const betTimerRef = useRef<any>(null);
   const revealInitiatedRef = useRef(false); // RTD sync guard
+  const processedRef = useRef(false);
   const myBetsRef = useRef<Record<string, number>>({ WOLF: 0, LION: 0, FISH: 0 });
   const pulseAnim = useRef(new Animated.Value(0.6)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -101,6 +108,48 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
   useEffect(() => {
     if (userProfile?.wallet?.coins !== undefined) setLocalCoins(userProfile.wallet.coins);
   }, [userProfile?.wallet?.coins]);
+
+  // On mount: check RTDB for pending bets from previous exit and credit/refund
+  useEffect(() => {
+    if (!database || !roomId || !currentUser || !firestore) return;
+    const playerBetsPath = `games/teen_patti_${roomId}/playerBets/${currentUser.uid}`;
+    const gamePath = `games/teen_patti_${roomId}`;
+    databaseGet(databaseRef(database, playerBetsPath)).then((snap: any) => {
+      if (!snap.exists()) return;
+      const data = snap.val();
+      if (!data?.bets) return;
+      const betKeys = Object.keys(data.bets);
+      const totalWager = betKeys.reduce((sum: number, k: string) => sum + (data.bets[k] || 0), 0);
+      if (totalWager <= 0) { databaseSet(databaseRef(database, playerBetsPath), null).catch(() => {}); return; }
+      processedRef.current = true;
+      databaseGet(databaseRef(database, gamePath)).then((gameSnap: any) => {
+        const gameData = gameSnap.exists() ? gameSnap.val() : null;
+        const winId = gameData?.winId;
+        if (winId) {
+          const betAmt = data.bets[winId] || 0;
+          const playerWin = Math.floor(betAmt * 1.95);
+          if (playerWin > 0) {
+            const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
+            const userRef = doc(firestore, 'users', currentUser.uid);
+            const winData = { wallet: { coins: increment(playerWin) } };
+            const batch = writeBatch(firestore);
+            batch.set(profileRef, winData, { merge: true });
+            batch.set(userRef, winData, { merge: true });
+            batch.commit().then(() => setLocalCoins(p => p + playerWin)).catch(() => {});
+          }
+        } else {
+          const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
+          const userRef = doc(firestore, 'users', currentUser.uid);
+          const refundData = { wallet: { coins: increment(totalWager) } };
+          const batch = writeBatch(firestore);
+          batch.set(profileRef, refundData, { merge: true });
+          batch.set(userRef, refundData, { merge: true });
+          batch.commit().then(() => setLocalCoins(p => p + totalWager)).catch(() => {});
+        }
+        databaseSet(databaseRef(database, playerBetsPath), null).catch(() => {});
+      }).catch(() => {});
+    }).catch(() => {});
+  }, [database, roomId, currentUser?.uid, firestore]);
 
   // Bug fix: roundStartTime-based countdown — stable interval, not restarted every second
   useEffect(() => {
@@ -148,11 +197,24 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
       batch.set(profileRef, deductData, { merge: true });
       batch.set(doc(firestore, 'users', currentUser.uid), deductData, { merge: true });
       await batch.commit();
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      const statsBatch = writeBatch(firestore);
+      statsBatch.set(doc(firestore, 'jackpots', 'daily'), { totalPool: increment(selectedChip * 0.05) }, { merge: true });
+      statsBatch.set(doc(firestore, 'gameDailyWagers', `${currentUser.uid}_${todayStr}`), {
+        userId: currentUser.uid,
+        username: userProfile?.username || 'User',
+        avatarUrl: userProfile?.avatarUrl || '',
+        coinsPlayed: increment(selectedChip),
+        date: todayStr,
+      }, { merge: true });
+      statsBatch.commit().catch((e) => console.log('[TEEN-PATTI] Stats batch error:', e?.message || e?.code || String(e)));
       setLocalCoins(p => p - selectedChip);
     } catch {}
     setMyBets(prev => {
       const next = { ...prev, [factionId]: (prev[factionId] || 0) + selectedChip };
       myBetsRef.current = next;
+      saveBetsToRTDB(next);
       return next;
     });
     setTotalPots(prev => ({ ...prev, [factionId]: (prev[factionId] || 0) + selectedChip }));
@@ -288,6 +350,35 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
         }).catch(() => {});
       } catch (e) { console.log('Teen Patti win credit failed:', e); }
       setLocalCoins(p => p + winAmount);
+    }
+
+    // Credit ALL players from RTDB (handles users who exited mid-round)
+    if (database && roomId && currentUser) {
+      try {
+        const playerBetsRef = databaseRef(database, `games/teen_patti_${roomId}/playerBets`);
+        const snapshot = await databaseGet(playerBetsRef);
+        const hasLocalBets = Object.keys(myBetsRef.current).length > 0;
+        if (snapshot.exists()) {
+          const allPlayers = snapshot.val();
+          const batch2 = writeBatch(firestore);
+          let hasOtherPlayers = false;
+          Object.entries(allPlayers).forEach(([userId, data]: [string, any]) => {
+            if (userId === currentUser.uid && hasLocalBets) return;
+            if (userId === currentUser.uid && processedRef.current) return;
+            if (!data?.bets) return;
+            const betAmt = data.bets[winId] || 0;
+            const playerWin = Math.floor(betAmt * 1.95);
+            if (playerWin > 0) {
+              hasOtherPlayers = true;
+              batch2.set(doc(firestore, 'users', userId, 'profile', userId), { 'wallet.coins': increment(playerWin) }, { merge: true });
+              batch2.set(doc(firestore, 'users', userId), { 'wallet.coins': increment(playerWin) }, { merge: true });
+            }
+          });
+          if (hasOtherPlayers) await batch2.commit().catch(() => {});
+        }
+        processedRef.current = true;
+        databaseSet(playerBetsRef, null).catch(() => {});
+      } catch {}
     }
 
     // RTD handles reset — local UI only

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Modal, PanResponder, Animated, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
-import { Move, HelpCircle, Volume2, VolumeX, Grid3X3, X, Trophy, Minus } from 'lucide-react-native';
+import { Move, HelpCircle, Volume2, VolumeX, X, Trophy, Minus } from 'lucide-react-native';
 import { useFirestore } from '../../firebase/provider';
 import { collection, query, orderBy, limit, getDocs } from '@/firebase/firestore-compat';
 import { FruitPartyGame } from '../games/fruit-party-game';
@@ -12,6 +12,7 @@ import { ChessGame } from '../games/chess-game';
 import { RouletteGame } from '../games/roulette-game';
 import { TeenPattiGame } from '../games/teen-patti-game';
 import { GoldenCoin } from '../GoldenCoin';
+import { RankingJackpotModal } from '../games/ranking-jackpot-modal';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -138,11 +139,10 @@ export function RoomGameOverlay({ visible, isMinimized, gameId, onClose, onMinim
   const firestore = useFirestore();
   const [isMuted, setIsMuted] = useState(false);
   const [showRules, setShowRules] = useState(false);
-  const [showWinnerList, setShowWinnerList] = useState(false);
-  const [winnerListData, setWinnerListData] = useState<any[]>([]);
   const [roundPopup, setRoundPopup] = useState<RoundPopupData | null>(null);
   const [popupCountdown, setPopupCountdown] = useState(5);
-  const [popupKey, setPopupKey] = useState(0); // used to re-trigger countdown on each new round
+  const [popupKey, setPopupKey] = useState(0);
+  const [showJackpot, setShowJackpot] = useState(false);
 
   const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
 
@@ -187,7 +187,6 @@ export function RoomGameOverlay({ visible, isMinimized, gameId, onClose, onMinim
       pan.setValue({ x: 0, y: 0 });
       setRoundPopup(null);
       setShowRules(false);
-      setShowWinnerList(false);
     }
   }, [visible]);
 
@@ -257,23 +256,6 @@ export function RoomGameOverlay({ visible, isMinimized, gameId, onClose, onMinim
     }, 3000); // Bug fix: increased from 1.5s to 3s to wait for all Firestore writes
   }, [firestore, gameId, roomId]);
 
-  const fetchWinnerList = useCallback(async () => {
-    if (!firestore || !gameId) return;
-    try {
-      const q = query(
-        collection(firestore, 'globalGameWins'),
-        orderBy('timestamp', 'desc'),
-        limit(50)
-      );
-      const snap = await getDocs(q);
-      const all: any[] = [];
-      snap.forEach((d: any) => all.push({ id: d.id, ...d.data() }));
-      const filtered = all.filter(w => w.gameId === gameId);
-      setWinnerListData(filtered);
-      setShowWinnerList(true);
-    } catch (e) {}
-  }, [firestore, gameId]);
-
   const isTall = gameId !== null && TALL_GAMES.includes(gameId);
   const rules = gameId ? GAME_RULES[gameId] : null;
 
@@ -331,8 +313,8 @@ export function RoomGameOverlay({ visible, isMinimized, gameId, onClose, onMinim
               <TouchableOpacity style={s.headerBtn} onPress={() => setIsMuted(!isMuted)}>
                 {isMuted ? <VolumeX size={13} color="#ef4444" /> : <Volume2 size={13} color="white" />}
               </TouchableOpacity>
-              <TouchableOpacity style={s.headerBtn} onPress={fetchWinnerList}>
-                <Grid3X3 size={13} color="white" />
+              <TouchableOpacity style={[s.headerBtn, { backgroundColor: 'rgba(217,70,239,0.2)', borderColor: '#d946ef', borderWidth: 1 }]} onPress={() => setShowJackpot(true)}>
+                <Trophy size={13} color="#d946ef" />
               </TouchableOpacity>
               <TouchableOpacity style={[s.headerBtn, { backgroundColor: 'rgba(251,191,36,0.2)' }]} onPress={() => { onMinimize?.(); }}>
                 <Minus size={13} color="#fbbf24" />
@@ -560,43 +542,7 @@ export function RoomGameOverlay({ visible, isMinimized, gameId, onClose, onMinim
           </Modal>
         )}
 
-        {showWinnerList && (
-          <Modal visible={showWinnerList} transparent animationType="slide" onRequestClose={() => setShowWinnerList(false)}>
-            <View style={s.modalOverlay}>
-              <View style={s.winnerListContainer}>
-                <View style={s.winnerListHeader}>
-                  <Trophy size={20} color="#fbbf24" />
-                  <Text style={s.winnerListTitle}>Recent Winners</Text>
-                  <TouchableOpacity onPress={() => setShowWinnerList(false)}>
-                    <X size={22} color="white" />
-                  </TouchableOpacity>
-                </View>
-                <ScrollView style={s.winnerListScroll} showsVerticalScrollIndicator={false}>
-                  {winnerListData.length === 0 ? (
-                    <Text style={s.noWinnersText}>No winners yet in this room</Text>
-                  ) : (
-                    winnerListData.map((w, i) => (
-                      <View key={w.id || i} style={s.winnerRow}>
-                        <Text style={s.winnerRank}>#{i + 1}</Text>
-                        {w.avatarUrl ? (
-                          <Image source={{ uri: w.avatarUrl }} style={s.winnerListAvatar} contentFit="cover" cachePolicy="memory-disk" />
-                        ) : (
-                          <View style={[s.winnerListAvatar, s.avatarPlaceholderSmall]}>
-                            <Text style={{ fontSize: 14 }}>👤</Text>
-                          </View>
-                        )}
-                        <View style={s.winnerInfo}>
-                          <Text style={s.winnerName} numberOfLines={1}>{w.username}</Text>
-                        </View>
-                        <Text style={s.winnerAmount}>+{w.amount?.toLocaleString()} 🪙</Text>
-                      </View>
-                    ))
-                  )}
-                </ScrollView>
-              </View>
-            </View>
-          </Modal>
-        )}
+        <RankingJackpotModal visible={showJackpot} onClose={() => setShowJackpot(false)} gameId={gameId || undefined} />
       </View>
     </Modal>
   );

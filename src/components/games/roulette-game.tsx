@@ -8,8 +8,8 @@ import { GoldenCoin } from '../GoldenCoin';
 import { useRouter } from 'expo-router';
 import { useUser, useFirestore, useDatabase } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
-import { ref as databaseRef, set as databaseSet, update as databaseUpdate, onValue, runTransaction as databaseTransaction } from 'firebase/database';
-import { doc, increment, runTransaction, writeBatch, getDoc, setDoc, updateDoc, onSnapshot, addDoc, collection } from '@/firebase/firestore-compat';
+import { ref as databaseRef, set as databaseSet, update as databaseUpdate, onValue, runTransaction as databaseTransaction, get as databaseGet } from 'firebase/database';
+import { doc, increment, runTransaction, writeBatch, getDoc, setDoc, updateDoc, onSnapshot, addDoc, collection, serverTimestamp } from '@/firebase/firestore-compat';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -93,6 +93,7 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
   const spinInitiatedRef = useRef(false);
   const myBetsRef = useRef(myBets);
   myBetsRef.current = myBets;
+  const processedRef = useRef(false);
 
   const WHEEL_SIZE = Math.min(SCREEN_WIDTH - 64, 300);
   const CENTER_SIZE = WHEEL_SIZE * 0.32;
@@ -107,6 +108,51 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
     const t = setTimeout(() => setGameState('betting'), 2000);
     return () => clearTimeout(t);
   }, []);
+
+  // On mount: check RTDB for pending bets from previous exit and credit/refund
+  useEffect(() => {
+    if (!database || !roomId || !currentUser || !firestore) return;
+    const playerBetsPath = `games/roulette_${roomId}/playerBets/${currentUser.uid}`;
+    const gamePath = `games/roulette_${roomId}`;
+    databaseGet(databaseRef(database, playerBetsPath)).then((snap: any) => {
+      if (!snap.exists()) return;
+      const data = snap.val();
+      if (!data?.bets) return;
+      const betKeys = Object.keys(data.bets);
+      const totalWager = betKeys.reduce((sum: number, k: string) => sum + (data.bets[k] || 0), 0);
+      if (totalWager <= 0) { databaseSet(databaseRef(database, playerBetsPath), null).catch(() => {}); return; }
+      processedRef.current = true;
+      databaseGet(databaseRef(database, gamePath)).then((gameSnap: any) => {
+        const gameData = gameSnap.exists() ? gameSnap.val() : null;
+        const resultNum = gameData?.winningNumber;
+        if (resultNum !== undefined && resultNum !== null) {
+          let playerWin = 0;
+          BET_TYPES.forEach(bt => {
+            const betAmt = data.bets[bt.id] || 0;
+            if (betAmt > 0 && bt.check(resultNum)) playerWin += betAmt * bt.payout;
+          });
+          if (playerWin > 0) {
+            const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
+            const userRef = doc(firestore, 'users', currentUser.uid);
+            const winData = { wallet: { coins: increment(playerWin) } };
+            const batch = writeBatch(firestore);
+            batch.set(profileRef, winData, { merge: true });
+            batch.set(userRef, winData, { merge: true });
+            batch.commit().then(() => setLocalCoins(p => p + playerWin)).catch(() => {});
+          }
+        } else {
+          const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
+          const userRef = doc(firestore, 'users', currentUser.uid);
+          const refundData = { wallet: { coins: increment(totalWager) } };
+          const batch = writeBatch(firestore);
+          batch.set(profileRef, refundData, { merge: true });
+          batch.set(userRef, refundData, { merge: true });
+          batch.commit().then(() => setLocalCoins(p => p + totalWager)).catch(() => {});
+        }
+        databaseSet(databaseRef(database, playerBetsPath), null).catch(() => {});
+      }).catch(() => {});
+    }).catch(() => {});
+  }, [database, roomId, currentUser?.uid, firestore]);
 
   // Spin/Pulse indicators
   useEffect(() => {
@@ -291,6 +337,12 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
     return () => unsub();
   }, [database, roomId]);
 
+  const saveBetsToRTDB = (bets: Record<string, number>) => {
+    if (!database || !roomId || !currentUser) return;
+    const gamePath = `games/roulette_${roomId}/playerBets/${currentUser.uid}`;
+    databaseSet(databaseRef(database, gamePath), { bets, timestamp: Date.now(), username: userProfile?.username || 'Guest' }).catch(() => {});
+  };
+
   const handlePlaceBet = async (betId: string) => {
     if (gameState !== 'betting' || !currentUser || !firestore) return;
     try {
@@ -303,9 +355,24 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
       batch.set(profileRef, deductData, { merge: true });
       batch.set(doc(firestore, 'users', currentUser.uid), deductData, { merge: true });
       await batch.commit();
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      const statsBatch = writeBatch(firestore);
+      statsBatch.set(doc(firestore, 'jackpots', 'daily'), { totalPool: increment(selectedChip * 0.05) }, { merge: true });
+      statsBatch.set(doc(firestore, 'gameDailyWagers', `${currentUser.uid}_${todayStr}`), {
+        userId: currentUser.uid,
+        username: userProfile?.username || 'User',
+        avatarUrl: userProfile?.avatarUrl || '',
+        coinsPlayed: increment(selectedChip),
+        date: todayStr,
+      }, { merge: true });
+      statsBatch.commit().catch((e) => console.log('[ROULETTE] Stats batch error:', e?.message || e?.code || String(e)));
       setLocalCoins(p => p - selectedChip);
     } catch {}
-    setMyBets(prev => ({ ...prev, [betId]: (prev[betId] || 0) + selectedChip }));
+    const newBets = { ...myBetsRef.current, [betId]: (myBetsRef.current[betId] || 0) + selectedChip };
+    myBetsRef.current = newBets;
+    setMyBets(newBets);
+    saveBetsToRTDB(newBets);
   };
 
   const handleRepeat = async () => {
@@ -321,11 +388,25 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
       batch.set(profileRef, deductData, { merge: true });
       batch.set(doc(firestore, 'users', currentUser.uid), deductData, { merge: true });
       await batch.commit();
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      const statsBatch = writeBatch(firestore);
+      statsBatch.set(doc(firestore, 'jackpots', 'daily'), { totalPool: increment(totalCost * 0.05) }, { merge: true });
+      statsBatch.set(doc(firestore, 'gameDailyWagers', `${currentUser.uid}_${todayStr}`), {
+        userId: currentUser.uid,
+        username: userProfile?.username || 'User',
+        avatarUrl: userProfile?.avatarUrl || '',
+        coinsPlayed: increment(totalCost),
+        date: todayStr,
+      }, { merge: true });
+      statsBatch.commit().catch((e) => console.log('[ROULETTE] Stats batch error:', e?.message || e?.code || String(e)));
       setLocalCoins(p => p - totalCost);
     } catch {}
     setMyBets(prev => {
       const merged = { ...prev };
       Object.entries(lastBets).forEach(([k, v]) => { merged[k] = (merged[k] || 0) + v; });
+      myBetsRef.current = merged;
+      saveBetsToRTDB(merged);
       return merged;
     });
   };
@@ -360,6 +441,38 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
         timestamp: new Date()
       }).catch(() => {});
       setLocalCoins(p => p + totalWin);
+    }
+
+    // Credit ALL players from RTDB (handles users who exited mid-round)
+    if (database && roomId && currentUser) {
+      try {
+        const playerBetsRef = databaseRef(database, `games/roulette_${roomId}/playerBets`);
+        const snapshot = await databaseGet(playerBetsRef);
+        const hasLocalBets = Object.keys(myBetsRef.current).length > 0;
+        if (snapshot.exists()) {
+          const allPlayers = snapshot.val();
+          const batch2 = writeBatch(firestore);
+          let hasOtherPlayers = false;
+          Object.entries(allPlayers).forEach(([userId, data]: [string, any]) => {
+            if (userId === currentUser.uid && hasLocalBets) return;
+            if (userId === currentUser.uid && processedRef.current) return;
+            if (!data?.bets) return;
+            let playerWin = 0;
+            BET_TYPES.forEach(bt => {
+              const betAmt = data.bets[bt.id] || 0;
+              if (betAmt > 0 && bt.check(num)) playerWin += betAmt * bt.payout;
+            });
+            if (playerWin > 0) {
+              hasOtherPlayers = true;
+              batch2.set(doc(firestore, 'users', userId, 'profile', userId), { 'wallet.coins': increment(playerWin) }, { merge: true });
+              batch2.set(doc(firestore, 'users', userId), { 'wallet.coins': increment(playerWin) }, { merge: true });
+            }
+          });
+          if (hasOtherPlayers) await batch2.commit().catch(() => {});
+        }
+        processedRef.current = true;
+        databaseSet(playerBetsRef, null).catch(() => {});
+      } catch {}
     }
 
     const numInfo = ROULETTE_NUMBERS.find(r => r.n === num);

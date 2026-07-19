@@ -220,6 +220,7 @@ export type Room = {
   language?: string;
   tags?: string[];
   isVoiceMuted?: boolean;
+  isAIVoiceEnabled?: boolean;
   mutedSeats?: number[];
   chatClearedAt?: any;
   isPinned?: boolean;

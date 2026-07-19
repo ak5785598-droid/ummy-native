@@ -101,7 +101,7 @@ export default function RoomScreen() {
   const storage = useStorage();
   const database = useDatabase();
   const { profile: userProfile } = useUserProfile(user?.uid);
-  const { setActiveRoom, setIsMinimized, setMinimizedRoom, minimizedRoom, isSpeakerMuted, setIsSpeakerMuted, isAIVoiceEnabled, isAIListening, setIsAIListening, isGiftEffects } = useRoomContext();
+  const { setActiveRoom, setIsMinimized, setMinimizedRoom, minimizedRoom, isSpeakerMuted, setIsSpeakerMuted, isAIListening, setIsAIListening, isGiftEffects } = useRoomContext();
   const [sessionJoinTime] = useState(new Date());
   const isMinimizingRef = useRef(false);
 
@@ -1528,7 +1528,7 @@ export default function RoomScreen() {
          <EntryEffectPlayer visible={!!entryEffect} username={entryEffect?.username} avatarUrl={entryEffect?.avatarUrl} mediaUrl={entryEffect?.mediaUrl} videoUrl={entryEffect?.videoUrl} effect={entryEffect?.effect || 'lion'} onComplete={() => setEntryEffect(null)} />
         <CaptionsOverlay captions={captions} visible={isCaptionsEnabled} />
         <LuckyRainOverlay visible={showLuckyRain} roomId={id} coinAmount={luckyRainAmount} onComplete={() => setShowLuckyRain(false)} />
-        <AiVoiceAnnouncer enabled={isAIVoiceEnabled} language="hi" announcements={aiVoiceAnnouncements} />
+        <AiVoiceAnnouncer enabled={!!room?.isAIVoiceEnabled} language="hi" announcements={aiVoiceAnnouncements} />
 
         {isOwner && (
           <View className="absolute right-2 top-24 z-20 items-center">

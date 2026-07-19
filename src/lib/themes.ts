@@ -32,13 +32,16 @@ export const ROOM_THEMES: RoomTheme[] = [
   { id: 'sunset_shore', name: 'Sunset Shore', url: require('../../assets/images/themes/sunset_shore.jpg'), seatColor: 'rgba(251, 146, 60, 0.25)', accentColor: '#fb923c', category: 'entertainment' },
   { id: 'ummy_love_vibes', name: 'Ummy Love Vibes', url: require('../../assets/images/themes/ummy_love_vibes.jpg'), isOfficial: true, seatColor: 'rgba(251, 146, 60, 0.25)', accentColor: '#fb923c', category: 'entertainment' },
   { id: 'ummy_emoji_party', name: 'Ummy Fun Emoji Party', url: require('../../assets/images/themes/ummy_emoji_party.jpg'), isOfficial: true, seatColor: 'rgba(236, 72, 153, 0.25)', accentColor: '#ec4899', category: 'entertainment' },
-  { id: 'ummy_support_hub', name: 'Ummy Support Center', url: require('../../assets/images/themes/ummy_support_hub.jpg'), isOfficial: true, seatColor: 'rgba(139, 92, 246, 0.25)', accentColor: '#8b5cf6', category: 'help' },
+  { id: 'ummy_support_hub', name: 'Ummy Support Center', url: require('../../assets/images/themes/ummy_support_hub.png'), isOfficial: true, seatColor: 'rgba(139, 92, 246, 0.25)', accentColor: '#8b5cf6', category: 'help' },
   { id: 'ummy_golden_glow', name: 'Ummy Golden Glow', url: require('../../assets/images/themes/ummy_golden_glow.jpg'), isOfficial: true, seatColor: 'rgba(251, 191, 36, 0.25)', accentColor: '#fbbf24', category: 'general' },
   { id: 'ummy_neon_night', name: 'Ummy Neon Night', url: require('../../assets/images/themes/ummy_neon_night.jpg'), isOfficial: true, seatColor: 'rgba(168, 85, 247, 0.25)', accentColor: '#a855f7', category: 'general' },
   { id: 'ummy_galaxy', name: 'Ummy Galaxy', url: require('../../assets/images/themes/ummy_galaxy.jpg'), isOfficial: true, seatColor: 'rgba(99, 102, 241, 0.25)', accentColor: '#6366f1', category: 'general', animationId: 'galaxy' },
   { id: 'ummy_spring_garden', name: 'Ummy Spring Garden', url: require('../../assets/images/themes/ummy_spring_garden.jpg'), isOfficial: true, seatColor: 'rgba(74, 222, 128, 0.25)', accentColor: '#4ade80', category: 'general' },
   { id: 'ummy_help_desk', name: 'Ummy Help Desk', url: require('../../assets/images/themes/ummy_help_desk.jpg'), isOfficial: true, seatColor: 'rgba(20, 184, 166, 0.25)', accentColor: '#14b8a6', category: 'help' },
   { id: 'ummy_help_guide', name: 'Ummy Help Guide', url: require('../../assets/images/themes/ummy_help_guide.jpg'), isOfficial: true, seatColor: 'rgba(167, 139, 250, 0.25)', accentColor: '#a78bfa', category: 'help' },
+  { id: 'support_theme_1', name: 'Support Theme 1', url: require('../../assets/images/themes/support  theme 1.png'), isOfficial: true, seatColor: 'rgba(59, 130, 246, 0.2)', accentColor: '#3b82f6', category: 'help' },
+  { id: 'support_theme_2', name: 'Support Theme 2', url: require('../../assets/images/themes/support theme 2.png'), isOfficial: true, seatColor: 'rgba(139, 92, 246, 0.2)', accentColor: '#8b5cf6', category: 'help' },
+  { id: 'support_theme_3', name: 'Support Theme 3', url: require('../../assets/images/themes/support theme 3.png'), isOfficial: true, seatColor: 'rgba(34, 197, 94, 0.2)', accentColor: '#22c55e', category: 'help' },
 
   // --- PREMIUM SCENIC & SEASONAL COLLECTION ---
   { id: 'scenic_neon_night_v2_new', name: 'Neon Night Scenic', url: require('../../assets/images/themes/neon_night_scenic.jpg'), seatColor: 'rgba(124, 58, 237, 0.2)', accentColor: '#8b5cf6', category: 'general' },

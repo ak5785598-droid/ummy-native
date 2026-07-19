@@ -2,11 +2,12 @@ import React, { useState, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal, Animated, Easing, Alert, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, Sparkles, Dice6, Swords, Gift, X } from 'lucide-react-native';
+import { ArrowLeft, Sparkles, Dice6, Swords, Gift, X, Trophy } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useUser, useFirestore } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { doc, serverTimestamp, increment, writeBatch, getDoc } from '@/firebase/firestore-compat';
+import { RankingJackpotModal } from '../../components/games/ranking-jackpot-modal';
 
 const { width } = Dimensions.get('window');
 const DICE_SIZE = width * 0.25;
@@ -22,9 +23,11 @@ const DICE_FACES: Record<number, string> = { 1: '⚀', 2: '⚁', 3: '⚂', 4: '�
 
 export default function GamesScreen() {
   const router = useRouter();
+  const { profile } = useUserProfile(user?.uid);
   const [showSpin, setShowSpin] = useState(false);
   const [showDice, setShowDice] = useState(false);
   const [showChest, setShowChest] = useState(false);
+  const [showJackpot, setShowJackpot] = useState(false);
 
   const handleGame = (id: string) => {
     switch (id) {
@@ -37,11 +40,22 @@ export default function GamesScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
-      <View className="flex-row items-center px-4 py-3 border-b border-slate-100">
-        <TouchableOpacity onPress={() => router.back()} className="mr-3 p-1">
-          <ArrowLeft size={24} color="#1e293b" />
+      <View className="flex-row items-center justify-between px-4 py-3 border-b border-slate-100">
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={() => router.back()} className="mr-3 p-1">
+            <ArrowLeft size={24} color="#1e293b" />
+          </TouchableOpacity>
+          <Text className="text-xl font-bold text-slate-800">Mini Games</Text>
+        </View>
+
+        <TouchableOpacity 
+          onPress={() => setShowJackpot(true)}
+          className="flex-row items-center gap-1.5 bg-fuchsia-550/10 px-3 py-1.5 rounded-full border border-fuchsia-300"
+          style={{ backgroundColor: 'rgba(217,70,239,0.1)' }}
+        >
+          <Trophy size={14} color="#d946ef" />
+          <Text style={{ color: '#d946ef', fontSize: 11, fontWeight: '800' }}>JACKPOT</Text>
         </TouchableOpacity>
-        <Text className="text-xl font-bold text-slate-800">Mini Games</Text>
       </View>
 
       <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
@@ -69,6 +83,7 @@ export default function GamesScreen() {
       <LuckySpin visible={showSpin} onClose={() => setShowSpin(false)} />
       <DiceDuel visible={showDice} onClose={() => setShowDice(false)} />
       <GoldenChest visible={showChest} onClose={() => setShowChest(false)} />
+      <RankingJackpotModal visible={showJackpot} onClose={() => setShowJackpot(false)} />
     </SafeAreaView>
   );
 }
