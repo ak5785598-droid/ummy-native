@@ -1302,8 +1302,6 @@ export default function RoomScreen() {
     );
   }
 
-
-
   return (
     <View className="flex-1">
       <Image key={displayRoom?.backgroundUrl || displayRoom?.coverUrl || 'default'} source={backgroundSource} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} contentFit="cover" cachePolicy="memory-disk" transition={300} />
@@ -1451,7 +1449,9 @@ export default function RoomScreen() {
               (() => {
                 const clearedAt = displayRoom.chatClearedAt?.toDate?.() || (displayRoom.chatClearedAt?.seconds ? new Date(displayRoom.chatClearedAt.seconds * 1000) : null);
                 if (!clearedAt || clearedAt.getTime() < sessionJoinTime.getTime() - 3000) return null;
-                return (
+
+
+  return (
                   <View className="items-center my-2">
                     <View className="bg-black/35 rounded-full px-4 py-1.5 border border-white/5">
                       <Text className="text-white/90 text-[10px] font-bold text-center">

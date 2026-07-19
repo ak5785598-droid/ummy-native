@@ -41,15 +41,8 @@ export function useVoiceEngine({
   const agoraHook = useAgoraNative(roomId, isInSeat, isMuted, uid, isSpeakerMuted, keepAlive);
   const webrtcHook = useWebRTCVoice(roomId, isInSeat, isMuted, uid, isSpeakerMuted, keepAlive);
 
-  const [zegoEnabled, setZegoEnabled] = useState(false);
-  const zegoHook = useZegoCloudVoice(
-    zegoEnabled ? roomId : undefined,
-    zegoEnabled ? isInSeat : false,
-    zegoEnabled ? isMuted : true,
-    zegoEnabled ? uid : undefined,
-    zegoEnabled ? isSpeakerMuted : true,
-    zegoEnabled ? keepAlive : false
-  );
+  // ZegoCloud DISABLED — native module crashes React instance in release builds (prefix of null)
+  const zegoHook = useZegoCloudVoice(undefined, false, true, undefined, true, false);
 
   const [livekitEnabled, setLivekitEnabled] = useState(false);
   const livekitHook = useLiveKitVoice(
@@ -65,7 +58,7 @@ export function useVoiceEngine({
   const switchTimer2Ref = useRef<ReturnType<typeof setTimeout> | null>(null);
   const switchTimer3Ref = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fallback logic: Agora → ZegoCloud → LiveKit → WebRTC
+  // Fallback logic: Agora → LiveKit → WebRTC (ZegoCloud DISABLED — native crash)
   useEffect(() => {
     if (!roomId || !uid) return;
 
@@ -73,7 +66,7 @@ export function useVoiceEngine({
     if (switchTimer2Ref.current) clearTimeout(switchTimer2Ref.current);
     if (switchTimer3Ref.current) clearTimeout(switchTimer3Ref.current);
 
-    console.log(`[VOICE] Agora: ${agoraHook.connectionState} | Zego: ${zegoHook.connectionState} | LiveKit: ${livekitHook.connectionState} | Active: ${activeProvider || 'none'}`);
+    console.log(`[VOICE] Agora: ${agoraHook.connectionState} | LiveKit: ${livekitHook.connectionState} | Active: ${activeProvider || 'none'}`);
 
     if (agoraHook.connectionState === 'CONNECTED') {
       if (activeProvider !== 'agora') console.log('[VOICE] >>> Switching to AGORA');
@@ -83,36 +76,22 @@ export function useVoiceEngine({
     }
 
     if (agoraHook.connectionState === 'DISCONNECTED') {
-      if (!zegoEnabled) console.log('[VOICE] Agora failed — enabling ZegoCloud...');
-      setZegoEnabled(true);
+      if (!livekitEnabled) console.log('[VOICE] Agora failed — enabling LiveKit...');
+      setLivekitEnabled(true);
 
       switchTimerRef.current = setTimeout(() => {
-        if (zegoHook.connectionState === 'CONNECTED') {
-          if (activeProvider !== 'zego') console.log('[VOICE] >>> Switching to ZEGO');
-          setActiveProvider('zego');
+        if (livekitHook.connectionState === 'CONNECTED') {
+          if (activeProvider !== 'livekit') console.log('[VOICE] >>> Switching to LIVEKIT');
+          setActiveProvider('livekit');
           setProviderError(null);
           return;
         }
 
-        if (zegoHook.connectionState === 'DISCONNECTED') {
-          if (!livekitEnabled) console.log('[VOICE] ZegoCloud failed — enabling LiveKit...');
-          setLivekitEnabled(true);
-
+        if (livekitHook.connectionState === 'DISCONNECTED') {
           switchTimer2Ref.current = setTimeout(() => {
-            if (livekitHook.connectionState === 'CONNECTED') {
-              if (activeProvider !== 'livekit') console.log('[VOICE] >>> Switching to LIVEKIT');
-              setActiveProvider('livekit');
-              setProviderError(null);
-              return;
-            }
-
-            if (livekitHook.connectionState === 'DISCONNECTED') {
-              switchTimer3Ref.current = setTimeout(() => {
-                if (activeProvider !== 'webrtc') console.log('[VOICE] >>> Switching to WEBRTC (final fallback)');
-                setActiveProvider('webrtc');
-                setProviderError('Agora & ZegoCloud & LiveKit failed → WebRTC fallback active');
-              }, 5000);
-            }
+            if (activeProvider !== 'webrtc') console.log('[VOICE] >>> Switching to WEBRTC (final fallback)');
+            setActiveProvider('webrtc');
+            setProviderError('Agora & LiveKit failed → WebRTC fallback active');
           }, 5000);
         }
       }, 5000);
@@ -124,7 +103,7 @@ export function useVoiceEngine({
       if (switchTimer2Ref.current) clearTimeout(switchTimer2Ref.current);
       if (switchTimer3Ref.current) clearTimeout(switchTimer3Ref.current);
     };
-  }, [agoraHook.connectionState, zegoHook.connectionState, livekitHook.connectionState, roomId, uid]);
+  }, [agoraHook.connectionState, livekitHook.connectionState, roomId, uid]);
 
   useEffect(() => {
     if (agoraHook.connectionState === 'CONNECTED' && activeProvider !== 'agora') {
