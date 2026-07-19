@@ -108,10 +108,6 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
           seatIndex: 0,
         }, { merge: true });
 
-        // Clear stale ban doc on rejoin
-        const banRef = doc(firestore, 'chatRooms', roomId, 'bans', uid);
-        batch.delete(banRef);
-
         batch.set(roomDocRef, {
           participantCount: increment(1),
           updatedAt: serverTimestamp(),
@@ -138,6 +134,9 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
         });
 
         await batch.commit();
+
+        // Clear stale ban doc AFTER batch (non-blocking, won't break join if fails)
+        deleteDoc(doc(firestore, 'chatRooms', roomId, 'bans', uid)).catch(() => {});
       } catch (error) {
       }
     };
