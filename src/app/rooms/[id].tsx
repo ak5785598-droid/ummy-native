@@ -551,7 +551,7 @@ export default function RoomScreen() {
       }
       isMinimizingRef.current = false;
     };
-  }, [room, setActiveRoom, setIsMinimized]);
+  }, [room?.id, setActiveRoom, setIsMinimized]);
 
   const backStateRef = useRef({
     showExitDialog, showProfileCard, showFullProfile, isGiftPickerOpen, showGames, showYouTube, showNetMirror,
@@ -669,7 +669,7 @@ export default function RoomScreen() {
   const { data: banData } = useDoc(banDocRef);
 
   useEffect(() => {
-    if (banData) {
+    if (banData && !isOwner) {
       const bannedUntil = banData.bannedUntil;
       const bannedUntilMs = bannedUntil?.toDate ? bannedUntil.toDate().getTime() : (typeof bannedUntil === 'string' ? new Date(bannedUntil).getTime() : bannedUntil);
       if (bannedUntilMs && bannedUntilMs > Date.now()) {
@@ -677,10 +677,10 @@ export default function RoomScreen() {
         handleExit();
       }
     }
-  }, [banData]);
+  }, [banData, isOwner]);
 
   useEffect(() => {
-    if (currentUserParticipant && currentUserParticipant.kickedUntil) {
+    if (currentUserParticipant && currentUserParticipant.kickedUntil && !isOwner) {
       const exp = currentUserParticipant.kickedUntil;
       const expMs = exp?.toDate ? exp.toDate().getTime() : (typeof exp === 'string' ? new Date(exp).getTime() : exp);
       if (expMs > Date.now()) {
@@ -688,7 +688,7 @@ export default function RoomScreen() {
         handleExit();
       }
     }
-  }, [currentUserParticipant]);
+  }, [currentUserParticipant, isOwner]);
   // isInSeat derived directly — no useState delay
   const isInSeat = (currentUserParticipant?.seatIndex ?? 0) > 0;
 

@@ -104,7 +104,13 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
           gender: userProfile?.gender || null,
           relationship: userProfile?.relationship || null,
           bestFriend: userProfile?.bestFriend || null,
+          kickedUntil: null,
+          seatIndex: 0,
         }, { merge: true });
+
+        // Clear stale ban doc on rejoin
+        const banRef = doc(firestore, 'chatRooms', roomId, 'bans', uid);
+        batch.delete(banRef);
 
         batch.set(roomDocRef, {
           participantCount: increment(1),
@@ -317,7 +323,8 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
       const currentActive = latestRoomRef.current.activeRoomId;
       const currentMinimized = latestRoomRef.current.minimizedRoomId;
       
-      if (!currentActive && !currentMinimized) {
+      // NEVER auto-delete owner's participant doc — owner immunity
+      if (!currentActive && !currentMinimized && !isOwner) {
         (async () => {
           try {
             // Prevent double decrement — handleExit may have already cleaned up
