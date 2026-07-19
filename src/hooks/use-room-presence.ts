@@ -42,13 +42,14 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
   useEffect(() => {
     const sessionRoom = activeRoom || minimizedRoom;
     const roomId = sessionRoom?.id;
-    
+
+    if (!firestore || !user?.uid || !roomId || !database) return;
+
+    // Update latestRoomRef ONLY after confirming valid roomId — prevents false cleanup during brief null transitions
     latestRoomRef.current = {
       activeRoomId: activeRoom?.id || null,
       minimizedRoomId: minimizedRoom?.id || null,
     };
-
-    if (!firestore || !user?.uid || !roomId || !database) return;
 
     const uid = user.uid;
     const isOwner = sessionRoom?.ownerId === uid;

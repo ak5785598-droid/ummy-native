@@ -551,7 +551,7 @@ export default function RoomScreen() {
       }
       isMinimizingRef.current = false;
     };
-  }, [room?.id, setActiveRoom, setIsMinimized]);
+  }, [room, setActiveRoom, setIsMinimized]);
 
   const backStateRef = useRef({
     showExitDialog, showProfileCard, showFullProfile, isGiftPickerOpen, showGames, showYouTube, showNetMirror,
