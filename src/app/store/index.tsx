@@ -147,7 +147,7 @@ export default function StoreScreen() {
   const checkIdAvailability = async () => {
     if (!firestore) return;
     const trimmed = customIdInput.trim();
-    if (trimmed.length < 1 || trimmed.length > 8) {
+    if (trimmed.length < 1 || trimmed.length > 8 || !/^\d+$/.test(trimmed)) {
       setIdAvailability('invalid');
       return;
     }
@@ -819,13 +819,14 @@ export default function StoreScreen() {
                 <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
                   <TextInput
                     style={{ flex: 1, height: 44, borderRadius: 10, borderWidth: 1, borderColor: '#cbd5e1', paddingHorizontal: 12, color: '#0f172a', fontSize: 15 }}
-                    placeholder="Enter ID (1-8 chars)"
+                    placeholder="Enter ID (1-8 digits only)"
                     placeholderTextColor="#94a3b8"
                     value={customIdInput}
                     onChangeText={(val) => {
-                      setCustomIdInput(val.replace(/[^A-Za-z0-9_]/g, ''));
+                      setCustomIdInput(val.replace(/[^0-9]/g, ''));
                       setIdAvailability('none');
                     }}
+                    keyboardType="number-pad"
                     maxLength={8}
                     autoCapitalize="none"
                   />

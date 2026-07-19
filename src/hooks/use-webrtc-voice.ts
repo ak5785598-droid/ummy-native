@@ -10,7 +10,7 @@ import {
   RTCIceCandidate,
   MediaStreamTrack,
   mediaDevices,
-} from 'react-native-webrtc';
+} from '@livekit/react-native-webrtc';
 
 function hashUidToNumber(uid: string): number {
   if (!uid) return 0;

@@ -13,7 +13,9 @@ import { calculateLevelUpRewards } from '../../lib/level-rewards';
 import { Gift, RoomParticipant } from '../../lib/types';
 import { Image } from 'expo-image';
 import { GoldenCoin } from '../GoldenCoin';
+import Svg, { Circle } from 'react-native-svg';
 import { toCDN } from '../../lib/cdn';
+import { getCachedFile } from '../../lib/cache-manager';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
@@ -100,6 +102,10 @@ interface GiftPickerProps {
 const CATEGORIES = ['Hot', 'Lucky', 'Luxury', 'Event', 'Customized'];
 const QUANTITIES = ['1', '10', '99', '520', '1314'];
 
+let globalGiftsCache: Gift[] | null = null;
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
 export function GiftPicker({ visible, onClose, roomId, participants, initialRecipient, onGiftSent, onLocalGiftEvent }: GiftPickerProps) {
   const firestore = useFirestore();
   const database = useDatabase();
@@ -169,10 +175,22 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
 
   const { data: dbGifts } = useCollection<Gift>(giftsQuery);
 
+  // Sync cache and preload urls in background
+  useEffect(() => {
+    if (dbGifts && dbGifts.length > 0) {
+      globalGiftsCache = dbGifts;
+      dbGifts.forEach(g => {
+        if (g.videoUrl) getCachedFile(g.videoUrl).catch(() => {});
+        if (g.imageUrl) getCachedFile(g.imageUrl).catch(() => {});
+      });
+    }
+  }, [dbGifts]);
+
   const groupedGifts = useMemo(() => {
-    if (!dbGifts) return {};
+    const list = dbGifts || globalGiftsCache;
+    if (!list) return {};
     const groups: Record<string, Gift[]> = { Hot: [], Lucky: [], Luxury: [], Event: [], Customized: [] };
-    dbGifts.forEach((g) => {
+    list.forEach((g) => {
       const cat = g.category || 'Hot';
       if (groups[cat]) groups[cat].push({ ...g, id: g.id });
       else groups['Event'].push({ ...g, id: g.id });
@@ -194,6 +212,17 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
     }
     return all;
   }, [participants, initialRecipient]);
+
+  const comboProgressAnim = React.useRef(new Animated.Value(1)).current;
+  const triggerProgressAnimation = () => {
+    comboProgressAnim.setValue(1);
+    Animated.timing(comboProgressAnim, {
+      toValue: 0,
+      duration: 5000,
+      useNativeDriver: true,
+      easing: Easing.linear,
+    }).start();
+  };
 
   const hasInitialized = React.useRef(false);
   const lastRecipientUid = React.useRef<string | null>(null);
@@ -679,6 +708,7 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
   const startComboTimer = (gift: Gift, multiplier: number, totalWinAmount: number, isLucky: boolean) => {
     if (comboTimerRef.current) clearTimeout(comboTimerRef.current);
     setComboState({ active: true, multiplier, gift, totalWinAmount, isLucky });
+    triggerProgressAnimation();
     
     comboTimerRef.current = setTimeout(() => {
       setComboState(null);
@@ -738,6 +768,7 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
       });
       
       if (comboTimerRef.current) clearTimeout(comboTimerRef.current);
+      triggerProgressAnimation();
       comboTimerRef.current = setTimeout(() => {
         setComboState(null);
         comboClicksRef.current = 1;
@@ -748,6 +779,8 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
 
   const totalCost = selectedGift ? selectedGift.price * (parseInt(quantity) || 1) * selectedUids.length : 0;
   const userCoins = userProfile?.wallet?.coins || 0;
+
+  if (!visible) return null;
 
   return (
     <>
@@ -885,17 +918,69 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
       {comboState?.active && (
         <TouchableOpacity 
           onPress={handleComboPress}
-          className="absolute bottom-32 right-6 z-50"
+          className="absolute bottom-44 right-6 z-50"
+          style={{ width: 80, height: 80, alignItems: 'center', justifyContent: 'center' }}
         >
+          {/* Circular Countdown Progress Ring */}
+          <Svg style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }} width={80} height={80}>
+            <AnimatedCircle
+              cx={40}
+              cy={40}
+              r={38}
+              stroke={comboState.isLucky ? '#FFF0A0' : '#ff007f'}
+              strokeWidth={3}
+              fill="transparent"
+              strokeDasharray={239}
+              strokeDashoffset={comboProgressAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [239, 0]
+              })}
+              strokeLinecap="round"
+            />
+          </Svg>
+
           <LinearGradient
-            colors={comboState.isLucky ? ['#FFF0A0', '#E6C14A', '#C99A2E'] : ['#fbbf24', '#eab308']}
-            className="w-16 h-16 rounded-full items-center justify-center shadow-lg border-2 border-yellow-400"
+            colors={comboState.isLucky ? ['#FFF0A0', '#E6C14A', '#C99A2E'] : ['#ff007f', '#ffaa00']}
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: 36,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 2,
+              borderColor: comboState.isLucky ? '#FFF' : '#ffe4e6',
+              shadowColor: comboState.isLucky ? '#d97706' : '#ff007f',
+              shadowOffset: { width: 0, height: 5 },
+              shadowOpacity: 0.6,
+              shadowRadius: 10,
+              elevation: 10,
+            }}
           >
-            <Text style={{ color: comboState.isLucky ? '#5C3D0E' : 'white', fontWeight: '900', fontSize: 18 }}>
+            <Text style={{ 
+              color: comboState.isLucky ? '#5C3D0E' : 'white', 
+              fontWeight: '950', 
+              fontSize: 22, 
+              textShadowColor: 'rgba(0,0,0,0.3)', 
+              textShadowOffset: { width: 1, height: 1 }, 
+              textShadowRadius: 3 
+            }}>
               x{comboState.multiplier}
             </Text>
+            <Text style={{ 
+              color: comboState.isLucky ? 'rgba(92,61,14,0.7)' : 'rgba(255,255,255,0.9)', 
+              fontSize: 8, 
+              fontWeight: '900', 
+              textTransform: 'uppercase', 
+              letterSpacing: 1,
+              marginTop: -2,
+              textShadowColor: 'rgba(0,0,0,0.2)',
+              textShadowOffset: { width: 0.5, height: 0.5 },
+              textShadowRadius: 1
+            }}>
+              Combo
+            </Text>
             {comboState.isLucky && (comboState.totalWinAmount || 0) > 0 && (
-              <Text style={{ color: '#5C3D0E', fontWeight: 'bold', fontSize: 9, marginTop: -2 }}>
+              <Text style={{ color: '#5C3D0E', fontWeight: 'bold', fontSize: 9, marginTop: 1 }}>
                 +{comboState.totalWinAmount}
               </Text>
             )}

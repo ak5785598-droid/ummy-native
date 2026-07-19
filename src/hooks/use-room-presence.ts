@@ -215,14 +215,14 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
       }, 300000);
     }
 
-    // Ghost purge: ALL users run this (fixes drift + cleans stale participants in any room)
-    // Owner runs every 20s, non-owners every 25s — ghosts cleaned within 30s
-    const purgeIntervalMs = isOwner ? 20000 : 25000;
+    // Ghost purge: ONLY room owner runs this to prevent false kicks from clock skew / background throttling
+    // 120s threshold gives generous buffer for app background/foreground transitions, calls, notifications etc.
+    if (isOwner) {
     purgeInterval.current = setInterval(async () => {
       try {
         const participantsColRef = collection(firestore, 'chatRooms', roomId, 'participants');
         const participantsSnap = await getDocs(participantsColRef);
-        const ghostThreshold = Date.now() - 30000; // 30 seconds
+        const ghostThreshold = Date.now() - 120000; // 120 seconds (2 min) — generous for background transitions
         const purgeBatch = writeBatch(firestore);
         let activeCount = 0;
         let ghostsFound = 0;
@@ -255,7 +255,8 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
         }
       } catch (error) {
       }
-    }, purgeIntervalMs);
+    }, 20000);
+    } // end owner-only ghost purge
 
     const presencePath = `roomPresence/${roomId}/${uid}`;
     presenceRef.current = ref(database, presencePath);

@@ -265,15 +265,14 @@ export function RoomGameOverlay({ visible, isMinimized, gameId, onClose, onMinim
   const gameProps = { onClose, roomId, onRoundEnd: handleRoundEnd, isMuted, isAdmin };
 
   return (
-    <Modal visible={visible} transparent animationType={isMinimized ? 'none' : 'fade'} onRequestClose={onClose}>
-      <View style={[s.overlay, isMinimized && { backgroundColor: 'transparent' }]} pointerEvents={isMinimized ? 'none' : 'auto'}>
+    <Modal visible={visible && !isMinimized} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={s.overlay}>
         <Animated.View
           style={[
             s.container,
             isTall && { height: '76%' },
             { backgroundColor: containerBg, borderColor: borderColor },
             { transform: pan.getTranslateTransform() },
-            isMinimized && { opacity: 0, transform: [{ scale: 0.01 }], pointerEvents: 'none' as any },
           ]}
         >
           <View style={[

@@ -188,15 +188,8 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
   const handlePlaceBet = async (factionId: string) => {
     if (gameState !== 'betting' || !currentUser || !firestore) return;
     try {
-      const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
-      const snap = await getDoc(profileRef);
-      const freshCoins = snap.exists() ? ((snap.data() as any)?.wallet?.coins ?? (userProfile?.wallet?.coins ?? 0)) : (userProfile?.wallet?.coins ?? 0);
-      if (freshCoins < selectedChip) return;
-      const batch = writeBatch(firestore);
-      const deductData = { wallet: { coins: increment(-selectedChip) } };
-      batch.set(profileRef, deductData, { merge: true });
-      batch.set(doc(firestore, 'users', currentUser.uid), deductData, { merge: true });
-      await batch.commit();
+      if (localCoins < selectedChip) return;
+      await updateDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { wallet: { coins: increment(-selectedChip) } });
 
       const todayStr = new Date().toISOString().split('T')[0];
       const statsBatch = writeBatch(firestore);

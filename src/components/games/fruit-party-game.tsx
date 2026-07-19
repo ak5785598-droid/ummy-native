@@ -80,37 +80,40 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
   const pulseAnim = useRef(new Animated.Value(0.6)).current;
   const spinAnim = useRef(new Animated.Value(0)).current;
 
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const tickSoundRef = useRef<Audio.Sound | null>(null);
+  const spinSoundRef = useRef<Audio.Sound | null>(null);
+  const winSoundRef = useRef<Audio.Sound | null>(null);
   const processedRef = useRef(false);
 
   const playSoundEffect = async (type: 'tick' | 'spin' | 'win') => {
     if (isMuted) return;
     try {
-      if (soundRef.current) {
-        await soundRef.current.unloadAsync().catch(() => {});
+      const sound = type === 'tick' ? tickSoundRef.current : type === 'spin' ? spinSoundRef.current : winSoundRef.current;
+      if (sound) {
+        await sound.setVolumeAsync(type === 'tick' ? 0.35 : 0.75).catch(() => {});
+        await sound.replayAsync().catch(() => {});
       }
-      let url = '';
-      if (type === 'tick') {
-        url = 'https://github.com/wesbos/JavaScript30/raw/master/01%20-%20JavaScript%20Drum%20Kit/sounds/tink.wav'; // Crisp tick
-      } else if (type === 'spin') {
-        url = 'https://github.com/wesbos/JavaScript30/raw/master/01%20-%20JavaScript%20Drum%20Kit/sounds/hihat.wav'; // Spin/ticking click
-      } else if (type === 'win') {
-        url = 'https://github.com/wesbos/JavaScript30/raw/master/01%20-%20JavaScript%20Drum%20Kit/sounds/openhat.wav'; // Open hat celebratory jingle
-      }
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: url },
-        { shouldPlay: true, volume: type === 'tick' ? 0.35 : 0.75 }
-      );
-      soundRef.current = sound;
-    } catch (e) {
-    }
+    } catch (e) {}
   };
 
   useEffect(() => {
+    const loadSounds = async () => {
+      try {
+        const [tick, spin, win] = await Promise.all([
+          Audio.Sound.createAsync({ uri: 'https://github.com/wesbos/JavaScript30/raw/master/01%20-%20JavaScript%20Drum%20Kit/sounds/tink.wav' }),
+          Audio.Sound.createAsync({ uri: 'https://github.com/wesbos/JavaScript30/raw/master/01%20-%20JavaScript%20Drum%20Kit/sounds/hihat.wav' }),
+          Audio.Sound.createAsync({ uri: 'https://github.com/wesbos/JavaScript30/raw/master/01%20-%20JavaScript%20Drum%20Kit/sounds/openhat.wav' }),
+        ]);
+        tickSoundRef.current = tick.sound;
+        spinSoundRef.current = spin.sound;
+        winSoundRef.current = win.sound;
+      } catch (e) {}
+    };
+    loadSounds();
     return () => {
-      if (soundRef.current) {
-        soundRef.current.unloadAsync().catch(() => {});
-      }
+      tickSoundRef.current?.unloadAsync().catch(() => {});
+      spinSoundRef.current?.unloadAsync().catch(() => {});
+      winSoundRef.current?.unloadAsync().catch(() => {});
     };
   }, []);
 
@@ -268,18 +271,6 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
 
       const data = snap.val() as any;
 
-      // Self-heal missing fields
-      if (data.status === undefined || data.roundStartTime === undefined) {
-        databaseUpdate(databaseRef(database, gamePath), {
-          status: data.status || 'betting',
-          winningId: data.winningId || null,
-          groupType: data.groupType || 'none',
-          history: data.history || ['watermelon', 'banana', 'strawberry', 'peach', 'cherry', 'orange', 'cherry', 'lemon'],
-          roundStartTime: data.roundStartTime || Date.now(),
-          updatedAt: Date.now()
-        }).catch(() => {});
-      }
-
       // Only sync display data — NO setGameState, NO startSpin calls
       if (data.history) setHistory(data.history);
       if (data.roundStartTime) setRoundStartTime(data.roundStartTime);
@@ -324,15 +315,8 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
   const handlePlaceBet = async (fruitId: string) => {
     if (gameState !== 'betting' || !currentUser || !firestore) return;
     try {
-      const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
-      const snap = await getDoc(profileRef);
-      const freshCoins = snap.exists() ? ((snap.data() as any)?.wallet?.coins ?? (userProfile?.wallet?.coins ?? 0)) : (userProfile?.wallet?.coins ?? 0);
-      if (freshCoins < selectedChip) { handleGoToWallet(); return; }
-      const batch = writeBatch(firestore);
-      const deductData = { wallet: { coins: increment(-selectedChip) } };
-      batch.set(profileRef, deductData, { merge: true });
-      batch.set(doc(firestore, 'users', currentUser.uid), deductData, { merge: true });
-      await batch.commit();
+      if (localCoins < selectedChip) { handleGoToWallet(); return; }
+      await updateDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { wallet: { coins: increment(-selectedChip) } });
 
       const todayStr = new Date().toISOString().split('T')[0];
       const statsBatch = writeBatch(firestore);
@@ -351,22 +335,15 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
     myBetsRef.current = newBets;
     setMyBets(newBets);
     saveBetsToRTDB(newBets);
-    setDroppedChips(prev => [...prev, { id: `${Date.now()}-${Math.random()}`, fruitId, label: formatChipLabel(selectedChip) }]);
+    setDroppedChips(prev => [...prev.slice(-90), { id: `${Date.now()}-${Math.random()}`, fruitId, label: formatChipLabel(selectedChip) }]);
   };
 
   const handleRepeat = async () => {
     if (gameState !== 'betting' || Object.keys(lastBets).length === 0 || !currentUser || !firestore) return;
     const totalCost = Object.values(lastBets).reduce((s, v) => s + v, 0);
     try {
-      const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
-      const snap = await getDoc(profileRef);
-      const freshCoins = snap.exists() ? ((snap.data() as any)?.wallet?.coins ?? (userProfile?.wallet?.coins ?? 0)) : (userProfile?.wallet?.coins ?? 0);
-      if (freshCoins < totalCost) { handleGoToWallet(); return; }
-      const batch = writeBatch(firestore);
-      const deductData = { wallet: { coins: increment(-totalCost) } };
-      batch.set(profileRef, deductData, { merge: true });
-      batch.set(doc(firestore, 'users', currentUser.uid), deductData, { merge: true });
-      await batch.commit();
+      if (localCoins < totalCost) { handleGoToWallet(); return; }
+      await updateDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { wallet: { coins: increment(-totalCost) } });
 
       const todayStr = new Date().toISOString().split('T')[0];
       const statsBatch = writeBatch(firestore);
@@ -387,7 +364,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
         newDrops.push({ id: `${Date.now()}-${Math.random()}-${i}`, fruitId, label: formatChipLabel(selectedChip) });
       }
     });
-    setDroppedChips(prev => [...prev, ...newDrops]);
+    setDroppedChips(prev => [...prev.slice(-90), ...newDrops]);
     setMyBets(prev => {
       const merged = { ...prev };
       Object.entries(lastBets).forEach(([k, v]) => { merged[k] = (merged[k] || 0) + v; });

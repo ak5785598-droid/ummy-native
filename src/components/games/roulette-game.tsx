@@ -306,18 +306,6 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
 
       const data = snap.val() as any;
 
-      // Self-heal missing fields
-      if (data.status === undefined || data.roundStartTime === undefined) {
-        databaseUpdate(databaseRef(database, gamePath), {
-          status: data.status || 'betting',
-          winningNumber: data.winningNumber || null,
-          rotation: data.rotation || 0,
-          history: data.history || [14, 31, 22, 0, 17, 5, 29, 8],
-          roundStartTime: data.roundStartTime || Date.now(),
-          updatedAt: Date.now()
-        }).catch(() => {});
-      }
-
       // Only sync display data — NO setGameState calls
       if (data.history) setHistory(data.history);
       if (data.roundStartTime) setRoundStartTime(data.roundStartTime);
@@ -346,15 +334,8 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
   const handlePlaceBet = async (betId: string) => {
     if (gameState !== 'betting' || !currentUser || !firestore) return;
     try {
-      const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
-      const snap = await getDoc(profileRef);
-      const freshCoins = snap.exists() ? ((snap.data() as any)?.wallet?.coins ?? (userProfile?.wallet?.coins ?? 0)) : (userProfile?.wallet?.coins ?? 0);
-      if (freshCoins < selectedChip) return;
-      const batch = writeBatch(firestore);
-      const deductData = { wallet: { coins: increment(-selectedChip) } };
-      batch.set(profileRef, deductData, { merge: true });
-      batch.set(doc(firestore, 'users', currentUser.uid), deductData, { merge: true });
-      await batch.commit();
+      if (localCoins < selectedChip) return;
+      await updateDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { wallet: { coins: increment(-selectedChip) } });
 
       const todayStr = new Date().toISOString().split('T')[0];
       const statsBatch = writeBatch(firestore);
@@ -379,15 +360,8 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
     if (gameState !== 'betting' || Object.keys(lastBets).length === 0 || !currentUser || !firestore) return;
     const totalCost = Object.values(lastBets).reduce((s, v) => s + v, 0);
     try {
-      const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
-      const snap = await getDoc(profileRef);
-      const freshCoins = snap.exists() ? ((snap.data() as any)?.wallet?.coins ?? (userProfile?.wallet?.coins ?? 0)) : (userProfile?.wallet?.coins ?? 0);
-      if (freshCoins < totalCost) return;
-      const batch = writeBatch(firestore);
-      const deductData = { wallet: { coins: increment(-totalCost) } };
-      batch.set(profileRef, deductData, { merge: true });
-      batch.set(doc(firestore, 'users', currentUser.uid), deductData, { merge: true });
-      await batch.commit();
+      if (localCoins < totalCost) return;
+      await updateDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { wallet: { coins: increment(-totalCost) } });
 
       const todayStr = new Date().toISOString().split('T')[0];
       const statsBatch = writeBatch(firestore);
