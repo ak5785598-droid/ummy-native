@@ -82,11 +82,16 @@ export function useUserProfile(uid: string | undefined | null) {
         totalSpent: Math.max(0, baseWallet.totalSpent ?? subWallet.totalSpent ?? 0),
       };
 
+      const mergedLevel = {
+        rich: Number(base?.level?.rich ?? sub?.level?.rich ?? 1),
+        charm: Number(base?.level?.charm ?? sub?.level?.charm ?? 1),
+      };
+
       setProfile({
         ...(sub || {}),
         ...(base || {}),
         wallet: mergedWallet,
-        level: Number(base?.level ?? sub?.level ?? 1),
+        level: mergedLevel,
         xp: Number(base?.xp ?? sub?.xp ?? 0),
         vip: base?.vip ?? sub?.vip ?? 0,
         accountNumber: bestAccNum,
