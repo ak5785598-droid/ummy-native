@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { Languages, Trash2 } from 'lucide-react-native';
 import { Message } from '../../lib/types';
@@ -20,9 +20,39 @@ interface RoomChatAreaProps {
   onMentionPress?: (username: string) => void;
 }
 
+const MemoizedChatRow = React.memo(function MemoizedChatRow({ msg, canManage, onDeleteMessage, onMessagePress, onAvatarPress, onImagePress, onMentionPress, onTranslateMsg, translationText, isTranslating }: {
+  msg: Message; canManage?: boolean; onDeleteMessage?: (id: string) => void;
+  onMessagePress?: (msg: Message) => void; onAvatarPress?: (userId: string) => void;
+  onImagePress?: (url: string) => void; onMentionPress?: (username: string) => void;
+  onTranslateMsg?: (msgId: string, content: string) => void;
+  translationText?: string; isTranslating?: boolean;
+}) {
+  const handlePress = useCallback(() => onMessagePress?.(msg), [onMessagePress, msg]);
+  const handleAvatarPress = useCallback(() => onAvatarPress?.(msg.senderId), [onAvatarPress, msg.senderId]);
+  const handleTranslate = useCallback(() => {
+    onTranslateMsg?.(msg.id, msg.content || (msg as any).text || '');
+  }, [onTranslateMsg, msg.id, msg.content]);
+  return (
+    <ChatMessageRow
+      message={msg}
+      canManage={canManage}
+      onDeleteMessage={onDeleteMessage}
+      onPress={handlePress}
+      onAvatarPress={handleAvatarPress}
+      onTranslate={handleTranslate}
+      translationText={translationText}
+      isTranslating={isTranslating}
+      onImagePress={onImagePress}
+      onMentionPress={onMentionPress}
+    />
+  );
+});
+
 export function RoomChatArea({ messages, chatClearedAt, onMessagePress, onAvatarPress, onImagePress, targetLanguage, sourceLanguage, canManage, onDeleteMessage, onMentionPress }: RoomChatAreaProps) {
   const scrollViewRef = useRef<ScrollView>(null);
   const [translatedTexts, setTranslatedTexts] = useState<Record<string, string>>({});
+  const translatedTextsRef = useRef(translatedTexts);
+  translatedTextsRef.current = translatedTexts;
   const { translateMessage, translating } = useTranslation();
 
   useEffect(() => {
@@ -36,9 +66,9 @@ export function RoomChatArea({ messages, chatClearedAt, onMessagePress, onAvatar
     return msgTime > clearedTime;
   }), [messages, chatClearedAt]);
 
-  const handleTranslate = async (msgId: string, content: string) => {
-    if (translatedTexts[msgId]) {
-      const copy = { ...translatedTexts };
+  const handleTranslate = useCallback(async (msgId: string, content: string) => {
+    if (translatedTextsRef.current[msgId]) {
+      const copy = { ...translatedTextsRef.current };
       delete copy[msgId];
       setTranslatedTexts(copy);
       return;
@@ -48,7 +78,7 @@ export function RoomChatArea({ messages, chatClearedAt, onMessagePress, onAvatar
     if (result) {
       setTranslatedTexts(prev => ({ ...prev, [msgId]: result }));
     }
-  };
+  }, [translateMessage, targetLanguage, sourceLanguage]);
 
   return (
     <View style={styles.container}>
@@ -59,18 +89,18 @@ export function RoomChatArea({ messages, chatClearedAt, onMessagePress, onAvatar
         onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: false })}
       >
         {filteredMessages.map((msg) => (
-          <ChatMessageRow
+          <MemoizedChatRow
             key={msg.id}
-            message={msg}
+            msg={msg}
             canManage={canManage}
             onDeleteMessage={onDeleteMessage}
-            onPress={() => onMessagePress?.(msg)}
-            onAvatarPress={() => onAvatarPress?.(msg.senderId)}
-            onTranslate={() => handleTranslate(msg.id, msg.content || msg.text || '')}
-            translationText={translatedTexts[msg.id]}
-            isTranslating={!!translating[msg.id]}
+            onMessagePress={onMessagePress}
+            onAvatarPress={onAvatarPress}
             onImagePress={onImagePress}
             onMentionPress={onMentionPress}
+            onTranslateMsg={handleTranslate}
+            translationText={translatedTexts[msg.id]}
+            isTranslating={!!translating[msg.id]}
           />
         ))}
       </ScrollView>

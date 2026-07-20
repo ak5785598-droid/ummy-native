@@ -10,7 +10,7 @@ interface UserRowProps {
   onPress?: (uid: string) => void;
 }
 
-export function UserRow({ p, isOwner, isModerator, onPress }: UserRowProps) {
+export const UserRow = React.memo(function UserRow({ p, isOwner, isModerator, onPress }: UserRowProps) {
   return (
     <TouchableOpacity
       onPress={() => onPress?.(p.uid)}
@@ -38,4 +38,4 @@ export function UserRow({ p, isOwner, isModerator, onPress }: UserRowProps) {
       )}
     </TouchableOpacity>
   );
-}
+});

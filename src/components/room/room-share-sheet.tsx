@@ -225,6 +225,9 @@ export function RoomShareSheet({ visible, onClose, room, onShare }: RoomShareShe
                 data={filteredContacts}
                 keyExtractor={(item) => item.id}
                 showsVerticalScrollIndicator={false}
+                removeClippedSubviews={true}
+                initialNumToRender={8}
+                maxToRenderPerBatch={8}
                 renderItem={({ item }) => {
                   const status = sendingStatus[item.id] || 'idle';
                   return (

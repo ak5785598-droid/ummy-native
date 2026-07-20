@@ -149,7 +149,9 @@ export function useRoomTasks(roomId: string, participants: RoomParticipant[], ro
       if (micTimerRef.current) { clearInterval(micTimerRef.current); micTimerRef.current = null; }
     }
     prevIsMeOnMic.current = isMeOnMic;
-    // Bug fix: No cleanup return here — cleanup only when user leaves mic, not on every participants render
+    return () => {
+      if (micTimerRef.current) { clearInterval(micTimerRef.current); micTimerRef.current = null; }
+    };
   }, [participants, user?.uid, updateTask]);
 
   useEffect(() => {
@@ -168,7 +170,9 @@ export function useRoomTasks(roomId: string, participants: RoomParticipant[], ro
       if (simMicTimerRef.current) { clearInterval(simMicTimerRef.current); simMicTimerRef.current = null; }
     }
     prevHasThreeOnMic.current = hasThreeOnMic;
-    // Bug fix: No cleanup return — timer should persist across participants re-renders
+    return () => {
+      if (simMicTimerRef.current) { clearInterval(simMicTimerRef.current); simMicTimerRef.current = null; }
+    };
   }, [participants, updateTask]);
 
   useEffect(() => {

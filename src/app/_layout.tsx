@@ -16,7 +16,16 @@ import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } f
 import { Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outfit_700Bold } from '@expo-google-fonts/outfit';
 import * as SplashScreen from 'expo-splash-screen';
 
+import { AutoUpdater } from '../components/update/auto-updater';
+
 SplashScreen.preventAutoHideAsync();
+
+if (!__DEV__) {
+  console.log = () => {};
+  console.info = () => {};
+  console.warn = () => {};
+  console.error = () => {};
+}
 
 export default function RootLayout() {
   const [firebaseServices, setFirebaseServices] = useState<any>(null);
@@ -61,6 +70,7 @@ export default function RootLayout() {
           <GlobalBackHandler />
           <GlobalPresenceManager />
           <GlobalBanGuard />
+          <AutoUpdater />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
             <Stack.Screen name="(auth)" />

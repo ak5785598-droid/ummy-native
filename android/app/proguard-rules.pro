@@ -11,4 +11,16 @@
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.facebook.react.turbomodule.** { *; }
 
-# Add any project specific keep options here:
+# Agora RTC SDK Keep Rules
+-keep class io.agora.** { *; }
+-keep class com.agora.** { *; }
+
+# Zego Express SDK Keep Rules
+-keep class im.zego.** { *; }
+-keep class com.zego.** { *; }
+
+# Firebase Keep Rules
+-keep class com.google.firebase.** { *; }
+-keep class io.invertase.firebase.** { *; }
+-dontwarn io.invertase.firebase.**
+

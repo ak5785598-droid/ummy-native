@@ -902,8 +902,9 @@ export default function StoreScreen() {
               columnWrapperStyle={{ gap: 12 }}
               ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
               showsVerticalScrollIndicator={false}
-              windowSize={5}
-              maxToRenderPerBatch={10}
+              initialNumToRender={6}
+              maxToRenderPerBatch={4}
+              windowSize={3}
               removeClippedSubviews
             />
           )

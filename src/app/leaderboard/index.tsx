@@ -49,7 +49,7 @@ const LOCAL_THEMES: Record<string, any> = {
   'ummy_prime.jpg': require('../../../assets/images/themes/ummy_prime.jpg'),
   'ummy_spring_garden.jpg': require('../../../assets/images/themes/ummy_spring_garden.jpg'),
   'ummy_spring_garden_v2.jpg': require('../../../assets/images/themes/ummy_spring_garden_v2.jpg'),
-  'ummy_support_hub.jpg': require('../../../assets/images/themes/ummy_support_hub.jpg'),
+  'ummy_support_hub.jpg': require('../../../assets/images/themes/ummy_support_hub.png'),
 };
 
 function formatValue(val: number): string {

@@ -31,55 +31,66 @@ function getFamilyLevel(totalWealth: number) {
   return level;
 }
 
-function AnimatedGiftItem({ gift, isSelected, onPress }: { gift: Gift; isSelected: boolean; onPress: () => void }) {
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+const AnimatedGiftItem = React.memo(
+  function AnimatedGiftItem({ gift, isSelected, onPress }: { gift: Gift; isSelected: boolean; onPress: () => void }) {
+    const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  useEffect(() => {
-    if (isSelected) {
-      const loop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.06, duration: 250, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 250, easing: Easing.in(Easing.ease), useNativeDriver: true }),
-        ])
-      );
-      loop.start();
-      return () => { loop.stop(); pulseAnim.setValue(1); };
-    } else {
-      pulseAnim.setValue(1);
-    }
-  }, [isSelected]);
+    useEffect(() => {
+      if (isSelected) {
+        const loop = Animated.loop(
+          Animated.sequence([
+            Animated.timing(pulseAnim, { toValue: 1.06, duration: 250, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+            Animated.timing(pulseAnim, { toValue: 1, duration: 250, easing: Easing.in(Easing.ease), useNativeDriver: true }),
+          ])
+        );
+        loop.start();
+        return () => { loop.stop(); pulseAnim.setValue(1); };
+      } else {
+        pulseAnim.setValue(1);
+      }
+    }, [isSelected]);
 
-  const giftBoxSize = (width - 64) / 4;
+    const giftBoxSize = (width - 64) / 4;
 
-  return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-      <Animated.View style={{
-        width: giftBoxSize,
-        aspectRatio: 0.65,
-        borderRadius: 14,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 4,
-        overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: isSelected ? '#22d3ee' : 'rgba(255,255,255,0.1)',
-      }}>
-        {gift.imageUrl ? (
-          <Animated.View style={{ width: giftBoxSize, height: giftBoxSize, transform: [{ scale: pulseAnim }] }}>
-            <Image cachePolicy="memory-disk" source={{ uri: toCDN(gift.imageUrl) }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
-          </Animated.View>
-        ) : (
-          <Animated.Text style={{ fontSize: 32, transform: [{ scale: pulseAnim }] }}>🎁</Animated.Text>
-        )}
-        <Text style={{ color: 'white', fontSize: 10, fontWeight: '700', marginTop: 2 }} numberOfLines={1}>{gift.name}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 1 }}>
-          <GoldenCoin size={12} />
-          <Text style={{ color: '#fbbf24', fontSize: 10, fontWeight: '800' }}>{gift.price}</Text>
-        </View>
-      </Animated.View>
-    </TouchableOpacity>
-  );
-}
+    return (
+      <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+        <Animated.View style={{
+          width: giftBoxSize,
+          aspectRatio: 0.65,
+          borderRadius: 14,
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 4,
+          overflow: 'hidden',
+          borderWidth: 1,
+          borderColor: isSelected ? '#22d3ee' : 'rgba(255,255,255,0.1)',
+        }}>
+          {gift.imageUrl ? (
+            <Animated.View style={{ width: giftBoxSize, height: giftBoxSize, transform: [{ scale: pulseAnim }] }}>
+              <Image cachePolicy="memory-disk" source={{ uri: toCDN(gift.imageUrl) }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
+            </Animated.View>
+          ) : (
+            <Animated.Text style={{ fontSize: 32, transform: [{ scale: pulseAnim }] }}>🎁</Animated.Text>
+          )}
+          <Text style={{ color: 'white', fontSize: 10, fontWeight: '700', marginTop: 2 }} numberOfLines={1}>{gift.name}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 1 }}>
+            <GoldenCoin size={12} />
+            <Text style={{ color: '#fbbf24', fontSize: 10, fontWeight: '800' }}>{gift.price}</Text>
+          </View>
+        </Animated.View>
+      </TouchableOpacity>
+    );
+  },
+  (prevProps, nextProps) => {
+    return (
+      prevProps.isSelected === nextProps.isSelected &&
+      prevProps.gift.id === nextProps.gift.id &&
+      prevProps.gift.price === nextProps.gift.price &&
+      prevProps.gift.name === nextProps.gift.name &&
+      prevProps.gift.imageUrl === nextProps.gift.imageUrl
+    );
+  }
+);
 
 function getISOWeek(d: Date): number {
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));

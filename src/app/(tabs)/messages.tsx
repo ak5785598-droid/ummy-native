@@ -1560,6 +1560,10 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
               style={{ maxHeight: 280 }}
               contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 8 }}
               columnWrapperStyle={{ justifyContent: 'flex-start', gap: 8 }}
+              initialNumToRender={8}
+              maxToRenderPerBatch={8}
+              windowSize={3}
+              removeClippedSubviews
               renderItem={({ item }: any) => (
                 <TouchableOpacity onPress={() => setSelectedGift(item)}
                   style={{ width: (Dimensions.get('window').width - 64) / 4, alignItems: 'center', padding: 8, borderRadius: 12, borderWidth: 1.5, borderColor: selectedGift?.id === item.id ? '#22d3ee' : 'rgba(255,255,255,0.08)', backgroundColor: selectedGift?.id === item.id ? 'rgba(34,211,238,0.1)' : 'rgba(255,255,255,0.05)' }}>
