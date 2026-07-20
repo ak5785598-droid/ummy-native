@@ -41,12 +41,14 @@ export const AutoUpdater = () => {
     }
   };
 
-  const openDownload = async () => {
+  const DOWNLOAD_PAGE_URL = 'https://ummy-ota.ak5785598.workers.dev/download';
+
+const openDownload = async () => {
     if (!updateInfo) return;
     try {
-      await Linking.openURL(updateInfo.apkUrl);
+      await Linking.openURL(DOWNLOAD_PAGE_URL);
     } catch {
-      Alert.alert('Error', 'Unable to open download link. Please copy the URL manually.');
+      Alert.alert('Error', 'Unable to open download link. Please visit:\n' + DOWNLOAD_PAGE_URL);
     }
   };
 
