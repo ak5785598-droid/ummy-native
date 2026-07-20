@@ -160,7 +160,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
           if (playerWin > 0) {
             const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
             const userRef = doc(firestore, 'users', currentUser.uid);
-            const winData = { wallet: { coins: increment(playerWin) } };
+            const winData = { 'wallet.coins': increment(playerWin) };
             const batch = writeBatch(firestore);
             batch.set(profileRef, winData, { merge: true });
             batch.set(userRef, winData, { merge: true });
@@ -169,7 +169,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
         } else {
           const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
           const userRef = doc(firestore, 'users', currentUser.uid);
-          const refundData = { wallet: { coins: increment(totalWager) } };
+          const refundData = { 'wallet.coins': increment(totalWager) };
           const batch = writeBatch(firestore);
           batch.set(profileRef, refundData, { merge: true });
           batch.set(userRef, refundData, { merge: true });
@@ -316,7 +316,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
     if (gameState !== 'betting' || !currentUser || !firestore) return;
     try {
       if (localCoins < selectedChip) { handleGoToWallet(); return; }
-      await updateDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { wallet: { coins: increment(-selectedChip) } });
+      await updateDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { 'wallet.coins': increment(-selectedChip) });
 
       const todayStr = new Date().toISOString().split('T')[0];
       const statsBatch = writeBatch(firestore);
@@ -343,7 +343,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
     const totalCost = Object.values(lastBets).reduce((s, v) => s + v, 0);
     try {
       if (localCoins < totalCost) { handleGoToWallet(); return; }
-      await updateDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { wallet: { coins: increment(-totalCost) } });
+      await updateDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { 'wallet.coins': increment(-totalCost) });
 
       const todayStr = new Date().toISOString().split('T')[0];
       const statsBatch = writeBatch(firestore);
@@ -431,7 +431,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
     if (winAmount > 0 && currentUser && firestore) {
       try {
         const batch = writeBatch(firestore);
-        const winData = { wallet: { coins: increment(winAmount) } };
+        const winData = { 'wallet.coins': increment(winAmount) };
         batch.set(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), winData, { merge: true });
         batch.set(doc(firestore, 'users', currentUser.uid), winData, { merge: true });
         await batch.commit();

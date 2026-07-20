@@ -74,9 +74,21 @@ export function useUserProfile(uid: string | undefined | null) {
         }
       }
 
+      const baseWallet = (base as any)?.wallet || {};
+      const subWallet = (sub as any)?.wallet || {};
+      const mergedWallet = {
+        coins: Math.max(0, baseWallet.coins ?? subWallet.coins ?? 0),
+        diamonds: Math.max(0, baseWallet.diamonds ?? subWallet.diamonds ?? 0),
+        totalSpent: Math.max(0, baseWallet.totalSpent ?? subWallet.totalSpent ?? 0),
+      };
+
       setProfile({
-        ...(base || {}),
         ...(sub || {}),
+        ...(base || {}),
+        wallet: mergedWallet,
+        level: Number(base?.level ?? sub?.level ?? 1),
+        xp: Number(base?.xp ?? sub?.xp ?? 0),
+        vip: base?.vip ?? sub?.vip ?? 0,
         accountNumber: bestAccNum,
         id: uid,
       } as User);

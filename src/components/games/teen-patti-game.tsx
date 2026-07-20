@@ -131,7 +131,7 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
           if (playerWin > 0) {
             const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
             const userRef = doc(firestore, 'users', currentUser.uid);
-            const winData = { wallet: { coins: increment(playerWin) } };
+            const winData = { 'wallet.coins': increment(playerWin) };
             const batch = writeBatch(firestore);
             batch.set(profileRef, winData, { merge: true });
             batch.set(userRef, winData, { merge: true });
@@ -140,7 +140,7 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
         } else {
           const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
           const userRef = doc(firestore, 'users', currentUser.uid);
-          const refundData = { wallet: { coins: increment(totalWager) } };
+          const refundData = { 'wallet.coins': increment(totalWager) };
           const batch = writeBatch(firestore);
           batch.set(profileRef, refundData, { merge: true });
           batch.set(userRef, refundData, { merge: true });
@@ -189,7 +189,7 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
     if (gameState !== 'betting' || !currentUser || !firestore) return;
     try {
       if (localCoins < selectedChip) return;
-      await updateDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { wallet: { coins: increment(-selectedChip) } });
+      await updateDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { 'wallet.coins': increment(-selectedChip) });
 
       const todayStr = new Date().toISOString().split('T')[0];
       const statsBatch = writeBatch(firestore);
@@ -324,11 +324,11 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
         const batch = writeBatch(firestore);
         const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
         batch.set(profileRef, {
-          wallet: { coins: increment(winAmount) },
+          'wallet.coins': increment(winAmount),
           stats: { dailyGameWins: increment(winAmount) },
         }, { merge: true });
         batch.set(doc(firestore, 'users', currentUser.uid), {
-          wallet: { coins: increment(winAmount) }
+          'wallet.coins': increment(winAmount)
         }, { merge: true });
         await batch.commit();
         addDoc(collection(firestore, 'globalGameWins'), {

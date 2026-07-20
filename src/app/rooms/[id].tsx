@@ -12,6 +12,8 @@ import { useMusicSync, destroyMusicSound } from '../../hooks/use-music-sync';
 import { useRoomContext } from '../../context/room-context';
 import { useAgoraNative, destroyAgoraEngine } from '../../hooks/use-agora-native';
 import { useVoiceEngine } from '../../hooks/use-voice-engine';
+import { destroyZegoEngine } from '../../hooks/use-zegocloud-voice';
+import { destroyLiveKitRoom } from '../../hooks/use-livekit-voice';
 import { useRoomTasks } from '../../hooks/use-room-tasks';
 import { Room, Message, RoomParticipant, MusicTrack, TopSupporter, isInventoryItemExpired } from '../../lib/types';
 import { ROOM_THEMES } from '../../lib/themes';
@@ -552,6 +554,16 @@ export default function RoomScreen() {
       isMinimizingRef.current = false;
     };
   }, [room, setActiveRoom, setIsMinimized]);
+
+  // CRITICAL: Destroy ALL voice engines + music on unmount (direct room-to-room navigation)
+  useEffect(() => {
+    return () => {
+      destroyAgoraEngine();
+      destroyZegoEngine();
+      destroyLiveKitRoom();
+      destroyMusicSound();
+    };
+  }, []);
 
   const backStateRef = useRef({
     showExitDialog, showProfileCard, showFullProfile, isGiftPickerOpen, showGames, showYouTube, showNetMirror,
