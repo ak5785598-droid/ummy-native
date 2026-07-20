@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, Modal, TouchableOpacity, ActivityIndicator } from 'react-native';
-import * as FileSystem from 'expo-file-system';
-import * as IntentLauncher from 'expo-intent-launcher';
+import { StyleSheet, View, Text, Modal, TouchableOpacity, Linking, Alert } from 'react-native';
 import * as Application from 'expo-application';
-import Constants from 'expo-constants';
-import { ShieldAlert, Download, CheckCircle, RefreshCw } from 'lucide-react-native';
+import { ShieldAlert, Download, CheckCircle, ExternalLink } from 'lucide-react-native';
 
 // Remote configuration update check endpoint URL
 // In production, update this endpoint link to point to your backend API or github raw JSON config file.
@@ -21,10 +18,6 @@ interface UpdateConfig {
 export const AutoUpdater = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<UpdateConfig | null>(null);
-  const [downloading, setDownloading] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
-  const [downloadComplete, setDownloadComplete] = useState(false);
-  const [localApkUri, setLocalApkUri] = useState<string | null>(null);
 
   useEffect(() => {
     checkAppUpdate();
@@ -48,62 +41,12 @@ export const AutoUpdater = () => {
     }
   };
 
-  const startApkDownload = async () => {
+  const openDownload = async () => {
     if (!updateInfo) return;
     try {
-      setDownloading(true);
-      setDownloadProgress(0);
-
-      const filename = `ummy-update-${updateInfo.versionName}.apk`;
-      const localUri = `${FileSystem.cacheDirectory}${filename}`;
-
-      const downloadResumable = FileSystem.createDownloadResumable(
-        updateInfo.apkUrl,
-        localUri,
-        {
-          headers: {
-            'Accept': 'application/vnd.android.package-archive',
-          },
-        },
-        (downloadProgressData) => {
-          if (downloadProgressData.totalBytesExpectedToWrite > 0) {
-            const progress = downloadProgressData.totalBytesWritten / downloadProgressData.totalBytesExpectedToWrite;
-            setDownloadProgress(Math.round(progress * 100));
-          }
-        }
-      );
-
-      const downloadResult = await downloadResumable.downloadAsync();
-      
-      if (downloadResult && downloadResult.uri) {
-        setLocalApkUri(downloadResult.uri);
-        setDownloadComplete(true);
-        setDownloading(false);
-        installApk(downloadResult.uri);
-      } else {
-        throw new Error('No URI returned');
-      }
-    } catch (error: any) {
-      console.error('APK Download failed:', error?.message || error);
-      setDownloading(false);
-      alert('Download failed! Please check your network connection.\n\nURL: ' + (updateInfo?.apkUrl || 'unknown'));
-    }
-  };
-
-  const installApk = async (uri: string) => {
-    try {
-      // Fetch content provider URI format
-      const contentUri = await FileSystem.getContentUriAsync(uri);
-      
-      // Start android installation intent
-      await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
-        data: contentUri,
-        flags: 1, // Intent.FLAG_GRANT_READ_URI_PERMISSION
-        type: 'application/vnd.android.package-archive',
-      });
-    } catch (error) {
-      alert('Unable to initiate APK installation. Please install the file manually from your downloads folder.');
-      console.error('Install intent failed:', error);
+      await Linking.openURL(updateInfo.apkUrl);
+    } catch {
+      Alert.alert('Error', 'Unable to open download link. Please copy the URL manually.');
     }
   };
 
@@ -139,41 +82,23 @@ export const AutoUpdater = () => {
             </View>
           ) : null}
 
-          {downloading ? (
-            <View style={styles.progressContainer}>
-              <ActivityIndicator size="small" color="#FF6C22" style={{ marginBottom: 8 }} />
-              <Text style={styles.progressText}>Downloading update: {downloadProgress}%</Text>
-              <View style={styles.progressBarBg}>
-                <View style={[styles.progressBarFill, { width: `${downloadProgress}%` }]} />
-              </View>
-            </View>
-          ) : downloadComplete ? (
-            <TouchableOpacity 
-              style={styles.actionButton} 
-              onPress={() => localApkUri && installApk(localApkUri)}
-            >
-              <CheckCircle size={18} color="#FFF" style={{ marginRight: 8 }} />
-              <Text style={styles.buttonText}>Install Update Now</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.buttonsRow}>
-              {!updateInfo.forceUpdate && (
-                <TouchableOpacity 
-                  style={styles.cancelButton} 
-                  onPress={() => setModalVisible(false)}
-                >
-                  <Text style={styles.cancelButtonText}>Later</Text>
-                </TouchableOpacity>
-              )}
+          <View style={styles.buttonsRow}>
+            {!updateInfo.forceUpdate && (
               <TouchableOpacity 
-                style={[styles.actionButton, updateInfo.forceUpdate && { width: '100%' }]} 
-                onPress={startApkDownload}
+                style={styles.cancelButton} 
+                onPress={() => setModalVisible(false)}
               >
-                <Download size={18} color="#FFF" style={{ marginRight: 8 }} />
-                <Text style={styles.buttonText}>Update Now</Text>
+                <Text style={styles.cancelButtonText}>Later</Text>
               </TouchableOpacity>
-            </View>
-          )}
+            )}
+            <TouchableOpacity 
+              style={[styles.actionButton, updateInfo.forceUpdate && { width: '100%' }]} 
+              onPress={openDownload}
+            >
+              <ExternalLink size={18} color="#FFF" style={{ marginRight: 8 }} />
+              <Text style={styles.buttonText}>Download Update</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </Modal>
@@ -244,28 +169,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#E0D8DA',
     lineHeight: 18,
-  },
-  progressContainer: {
-    width: '100%',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  progressText: {
-    fontSize: 14,
-    color: '#FFF',
-    marginBottom: 8,
-  },
-  progressBarBg: {
-    height: 6,
-    backgroundColor: '#2A141D',
-    borderRadius: 3,
-    width: '100%',
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#FF6C22',
-    borderRadius: 3,
   },
   buttonsRow: {
     flexDirection: 'row',
