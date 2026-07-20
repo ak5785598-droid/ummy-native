@@ -16,9 +16,6 @@ import com.facebook.react.defaults.DefaultReactNativeHost
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ReactNativeHostWrapper
 
-import com.livekit.reactnative.LiveKitReactNative
-import com.livekit.reactnative.audio.AudioType
-
 class MainApplication : Application(), ReactApplication {
 
   override val reactNativeHost: ReactNativeHost = ReactNativeHostWrapper(
@@ -48,7 +45,6 @@ class MainApplication : Application(), ReactApplication {
     } catch (e: IllegalArgumentException) {
       ReleaseLevel.STABLE
     }
-    LiveKitReactNative.setup(this, AudioType.CommunicationAudioType())
     loadReactNative(this)
     ApplicationLifecycleDispatcher.onApplicationCreate(this)
   }

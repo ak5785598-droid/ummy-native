@@ -11,23 +11,26 @@
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.facebook.react.turbomodule.** { *; }
 
-# Agora RTC SDK Keep Rules
+# Agora RTC SDK
 -keep class io.agora.** { *; }
 -keep class com.agora.** { *; }
 
-# Zego Express SDK Keep Rules
+# Zego Express SDK
 -keep class im.zego.** { *; }
 -keep class com.zego.** { *; }
 
-# Firebase Keep Rules
+# Firebase
 -keep class com.google.firebase.** { *; }
 -keep class io.invertase.firebase.** { *; }
 -dontwarn io.invertase.firebase.**
 
-# LiveKit Keep Rules
+# LiveKit
 -keep class io.livekit.** { *; }
 -keep class com.livekit.** { *; }
 
-# WebRTC Keep Rules
+# WebRTC
 -keep class org.webrtc.** { *; }
 
+# Google Sign-In
+-keep class com.google.android.gms.auth.** { *; }
+-keep class com.google.android.gms.common.** { *; }

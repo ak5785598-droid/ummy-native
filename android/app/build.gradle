@@ -161,6 +161,7 @@ android {
 }
 
 configurations.all {
+    exclude group: 'com.android.support'
     exclude group: 'org.jitsi', module: 'webrtc'
 }
 
