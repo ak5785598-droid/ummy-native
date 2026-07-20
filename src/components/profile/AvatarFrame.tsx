@@ -200,24 +200,21 @@ export const AvatarFrame = memo(function AvatarFrame({
   const lottieRef = useRef<LottieView>(null);
   const [cachedFrameUrl, setCachedFrameUrl] = useState<string | null>(null);
 
-  const hasFrame = frameMediaUrl && frameMediaUrl !== 'None' && frameMediaUrl !== '' && typeof frameMediaUrl === 'string';
-
-  const frameSize = size * 1.55;
-  const frameOffset = (size - frameSize) / 2;
-
-  const isLocalAsset = hasFrame && !!(LOCAL_FRAME_ASSETS as any)[frameMediaUrl!];
-  const isHttpUrl = hasFrame && !isLocalAsset && (frameMediaUrl!.startsWith('http://') || frameMediaUrl!.startsWith('https://'));
+  const hasFrame = !!frameMediaUrl && frameMediaUrl !== 'None' && frameMediaUrl !== '';
+  const isLocalNumber = typeof frameMediaUrl === 'number';
+  const isLocalAsset = isLocalNumber || (typeof frameMediaUrl === 'string' && !!(LOCAL_FRAME_ASSETS as any)[frameMediaUrl]);
+  const isHttpUrl = typeof frameMediaUrl === 'string' && !isLocalAsset && (frameMediaUrl.startsWith('http://') || frameMediaUrl.startsWith('https://'));
 
   const isVideo = isHttpUrl && (
-    frameMediaUrl!.includes('.mp4') ||
-    frameMediaUrl!.includes('.mov') ||
-    frameMediaUrl!.includes('.webm') ||
-    frameMediaUrl!.includes('video/')
+    frameMediaUrl.includes('.mp4') ||
+    frameMediaUrl.includes('.mov') ||
+    frameMediaUrl.includes('.webm') ||
+    frameMediaUrl.includes('video/')
   );
 
   const isLottie = isHttpUrl && (
-    frameMediaUrl!.includes('.json') ||
-    frameMediaUrl!.includes('lottie')
+    frameMediaUrl.includes('.json') ||
+    frameMediaUrl.includes('lottie')
   );
 
   useEffect(() => {
@@ -259,9 +256,14 @@ export const AvatarFrame = memo(function AvatarFrame({
     }
   }, [isLottie, cachedFrameUrl]);
 
-  const resolvedSource = isLocalAsset
-    ? (LOCAL_FRAME_ASSETS as any)[frameMediaUrl!]
-    : (cachedFrameUrl || (isHttpUrl ? frameMediaUrl : null));
+  const frameSize = size * 1.55;
+  const frameOffset = (size - frameSize) / 2;
+
+  const resolvedSource = isLocalNumber
+    ? frameMediaUrl
+    : (isLocalAsset
+        ? (LOCAL_FRAME_ASSETS as any)[frameMediaUrl as string]
+        : (cachedFrameUrl || (isHttpUrl ? frameMediaUrl : null)));
 
   return (
     <View style={[{ width: size, height: size, alignItems: 'center', justifyContent: 'center', position: 'relative' }, containerStyle]}>
