@@ -87,11 +87,28 @@ export function useUserProfile(uid: string | undefined | null) {
         charm: Number(base?.level?.charm ?? sub?.level?.charm ?? 1),
       };
 
+      const baseInventory = (base as any)?.inventory || {};
+      const subInventory = (sub as any)?.inventory || {};
+      const mergedOwnedItems = Array.from(new Set([
+        ...(baseInventory.ownedItems || []),
+        ...(subInventory.ownedItems || [])
+      ]));
+      const mergedInventory = {
+        ...subInventory,
+        ...baseInventory,
+        ownedItems: mergedOwnedItems,
+        expiries: {
+          ...(subInventory.expiries || {}),
+          ...(baseInventory.expiries || {})
+        }
+      };
+
       setProfile({
         ...(sub || {}),
         ...(base || {}),
         wallet: mergedWallet,
         level: mergedLevel,
+        inventory: mergedInventory,
         xp: Number(base?.xp ?? sub?.xp ?? 0),
         vip: base?.vip ?? sub?.vip ?? 0,
         accountNumber: bestAccNum,

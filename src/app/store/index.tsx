@@ -84,6 +84,8 @@ const STATIC_FRAME_ITEMS = [
   // CP King & Queen Frames — Top CP Pair (Not for Sale, earned via CP ranking)
   { id: 'cp_king_frame', name: 'CP King Frame', type: 'Frame', price: 0, durationDays: 30, description: 'Exclusive CP King Frame — Awarded to Top 1 CP Pair.', videoUrl: require('../../../assets/animations/frame_cp_king_1-ezgif.com-effects.gif'), imageUrl: require('../../../assets/animations/frame_cp_king_1-ezgif.com-effects.gif'), notForSale: true, eventBased: true },
   { id: 'cp_queen_frame', name: 'CP Queen Frame', type: 'Frame', price: 0, durationDays: 30, description: 'Exclusive CP Queen Frame — Awarded to Top 1 CP Pair.', videoUrl: require('../../../assets/animations/frame_cp_queen-ezgif.com-effects.gif'), imageUrl: require('../../../assets/animations/frame_cp_queen-ezgif.com-effects.gif'), notForSale: true, eventBased: true },
+  { id: 'super_admin_zoro_frame', name: 'Super Admin Zoro Frame', type: 'Frame', price: 0, durationDays: 9999, description: 'Exclusive Super Admin Zoro Frame.', imageUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Fsuper_admin_zoro.png?alt=media', notForSale: true },
+  { id: 'super_admin_arya_frame', name: 'Super Admin Arya Frame', type: 'Frame', price: 0, durationDays: 9999, description: 'Exclusive Super Admin Arya Frame.', imageUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Fsuper_admin_arya.png?alt=media', notForSale: true },
 ];
 
 const STATIC_ID_ITEMS = [
@@ -428,17 +430,21 @@ export default function StoreScreen() {
           updateData['inventory.activeEntryVideoUrl'] = entryVideo;
         }
         batch.update(profileRef, updateData);
+        batch.update(userRef, updateData);
       }
 
-      const userUpdates: any = { 'wallet.coins': increment(-finalPrice), updatedAt: serverTimestamp() };
       if (previewItem.type === 'ID') {
-        userUpdates.accountNumber = checkedId;
+        const userUpdates: any = { 
+          'wallet.coins': increment(-finalPrice), 
+          accountNumber: checkedId,
+          updatedAt: serverTimestamp() 
+        };
         const originalId = userProfile?.originalAccountNumber || userProfile?.accountNumber || '';
         if (!userProfile?.originalAccountNumber) {
           userUpdates.originalAccountNumber = originalId;
         }
+        batch.update(userRef, userUpdates);
       }
-      batch.update(userRef, userUpdates);
       await batch.commit();
       Alert.alert('✅ Purchase Successful!', `${previewItem.name} added to your inventory.`);
       setPreviewItem(null);
