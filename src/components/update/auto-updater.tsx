@@ -32,24 +32,32 @@ export const AutoUpdater = () => {
 
   const checkAppUpdate = async () => {
     try {
-      const response = await fetch(UPDATE_CONFIG_URL);
-      if (!response.ok) { alert('Fetch failed: ' + response.status); return; }
+      // 1. Fetch remote version configurations metadata with no-cache headers
+      const response = await fetch(UPDATE_CONFIG_URL, {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      if (!response.ok) {
+        alert('Server check failed with response status: ' + response.status);
+        return;
+      }
       const config: UpdateConfig = await response.json();
 
+      // 2. Lookup local native configurations
       const currentVersionCodeStr = Application.nativeBuildVersion || '1';
       const currentVersionCode = parseInt(currentVersionCodeStr, 10);
 
       // If remote version code is higher than local, show update modal dialog prompt
-      // For local testing, force show the modal directly:
-      setUpdateInfo(config);
-      setModalVisible(true);
-      
       if (config.versionCode > currentVersionCode) {
         setUpdateInfo(config);
         setModalVisible(true);
       }
-    } catch (error) {
-      alert('Update check error: ' + String(error));
+    } catch (error: any) {
+      alert('Update check error: ' + error.message);
+      console.log('Update configuration check bypassed:', error);
     }
   };
 
