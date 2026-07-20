@@ -1,7 +1,7 @@
 {
   "versionCode": 3,
   "versionName": "1.2.0",
-  "apkUrl": "https://example.com/downloads/ummy-v1.2.0-release.apk",
-  "forceUpdate": false,
-  "changelog": "Added ZegoCloud fallback support, compressed graphics resources to save 172MB memory, and integrated automatic updates."
+  "apkUrl": "https://github.com/ak5785598-droid/ummy-native/releases/download/v1.2.0/app-arm64-v8a-release.apk",
+  "forceUpdate": true,
+  "changelog": "ZegoCloud voice fallback, performance optimizations, auto-update system, compressed resources."
 }
