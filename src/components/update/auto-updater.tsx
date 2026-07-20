@@ -57,14 +57,19 @@ export const AutoUpdater = () => {
       const filename = `ummy-update-${updateInfo.versionName}.apk`;
       const localUri = `${FileSystem.cacheDirectory}${filename}`;
 
-      // Create download task resumable reference with updates progress callbacks
       const downloadResumable = FileSystem.createDownloadResumable(
         updateInfo.apkUrl,
         localUri,
-        {},
+        {
+          headers: {
+            'Accept': 'application/vnd.android.package-archive',
+          },
+        },
         (downloadProgressData) => {
-          const progress = downloadProgressData.totalBytesWritten / downloadProgressData.totalBytesExpectedToWrite;
-          setDownloadProgress(Math.round(progress * 100));
+          if (downloadProgressData.totalBytesExpectedToWrite > 0) {
+            const progress = downloadProgressData.totalBytesWritten / downloadProgressData.totalBytesExpectedToWrite;
+            setDownloadProgress(Math.round(progress * 100));
+          }
         }
       );
 
@@ -74,13 +79,14 @@ export const AutoUpdater = () => {
         setLocalApkUri(downloadResult.uri);
         setDownloadComplete(true);
         setDownloading(false);
-        // Automatically launch intent dialog to install the newly downloaded APK
         installApk(downloadResult.uri);
+      } else {
+        throw new Error('No URI returned');
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('APK Download failed:', error?.message || error);
       setDownloading(false);
-      alert('Download failed! Please check your network connection.');
-      console.error('APK Download failed:', error);
+      alert('Download failed! Please check your network connection.\n\nURL: ' + (updateInfo?.apkUrl || 'unknown'));
     }
   };
 
