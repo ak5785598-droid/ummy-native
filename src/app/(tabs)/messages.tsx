@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Modal, TextInput, FlatList, RefreshControl, Keyboard, Platform, LayoutAnimation, UIManager, Alert, BackHandler, Dimensions, Vibration } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Modal, TextInput, FlatList, RefreshControl, Keyboard, Platform, LayoutAnimation, UIManager, Alert, BackHandler, Dimensions, Vibration, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Search, Shield, Heart, ChevronRight, Send, X, Image as ImageIcon, MoreHorizontal, Loader, Check, CheckCheck, Gift, Mic, Smile, Plus, Play, Pause, ChevronDown } from 'lucide-react-native';
@@ -1645,11 +1645,27 @@ function OfficialPage({ visible, onClose, messages }: { visible: boolean; onClos
     batch.commit().catch(() => {});
   }, [visible]);
 
+  const renderMessageContent = (text: string) => {
+    if (!text) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    return parts.map((part, i) => {
+      if (part.match(urlRegex)) {
+        return (
+          <Text key={i} style={{ color: '#2563eb', fontWeight: '600', textDecorationLine: 'underline' }} onPress={() => Linking.openURL(part)}>
+            {part}
+          </Text>
+        );
+      }
+      return <Text key={i}>{part}</Text>;
+    });
+  };
+
   return (
     <Modal visible={visible} transparent animationType="slide">
       <SafeAreaView className="flex-1 bg-white">
         <View className="flex-row items-center justify-between px-4 py-3 border-b border-slate-100">
-          <Text className="text-lg font-bold text-slate-800">Ummy Team</Text>
+          <Text style={{ color: '#1e293b' }} className="text-lg font-bold">Ummy Team</Text>
           <TouchableOpacity onPress={onClose} className="p-2">
             <X size={20} color="#64748b" />
           </TouchableOpacity>
@@ -1657,7 +1673,7 @@ function OfficialPage({ visible, onClose, messages }: { visible: boolean; onClos
         <ScrollView className="flex-1 px-4 py-2">
           {messages.length > 0 ? messages.map((msg: any, i: number) => (
             <View key={i} className="bg-blue-50 rounded-2xl p-4 mb-3">
-              <Text className="text-sm text-slate-800">{msg.content || msg.text}</Text>
+              <Text style={{ color: '#1e293b' }} className="text-sm">{renderMessageContent(msg.content || msg.text)}</Text>
               <Text className="text-[10px] text-slate-400 mt-2">
                 {msg.timestamp?.toDate?.()?.toLocaleString() || ''}
               </Text>
