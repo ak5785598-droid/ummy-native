@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal, TextInput, FlatList, RefreshControl, Keyboard, Platform, LayoutAnimation, UIManager, Alert, BackHandler, Dimensions, Vibration, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Search, Shield, Heart, ChevronRight, Send, X, Image as ImageIcon, MoreHorizontal, Loader, Check, CheckCheck, Gift, Mic, Smile, Plus, Play, Pause, ChevronDown } from 'lucide-react-native';
+import { Search, Shield, Heart, ChevronRight, Send, X, Image as ImageIcon, MoreHorizontal, Loader, Check, CheckCheck, Gift, Mic, Smile, Plus, Play, Pause, ChevronDown, Download } from 'lucide-react-native';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc, useStorage } from '../../firebase/provider';
 import { collection, query, where, orderBy, limit, doc, setDoc, serverTimestamp, deleteDoc, updateDoc, arrayUnion, arrayRemove, runTransaction, onSnapshot, getDoc, increment, writeBatch } from '@/firebase/firestore-compat';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -1649,16 +1649,39 @@ function OfficialPage({ visible, onClose, messages }: { visible: boolean; onClos
     if (!text) return null;
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const parts = text.split(urlRegex);
-    return parts.map((part, i) => {
-      if (part.match(urlRegex)) {
-        return (
-          <Text key={i} style={{ color: '#2563eb', fontWeight: '600', textDecorationLine: 'underline' }} onPress={() => Linking.openURL(part)}>
-            {part}
-          </Text>
-        );
-      }
-      return <Text key={i}>{part}</Text>;
-    });
+    return (
+      <>
+        {parts.map((part, i) => {
+          if (part.match(urlRegex)) {
+            return (
+              <TouchableOpacity
+                key={i}
+                onPress={() => Linking.openURL(part)}
+                style={{
+                  backgroundColor: '#FF6C22',
+                  borderRadius: 20,
+                  paddingVertical: 10,
+                  paddingHorizontal: 20,
+                  marginTop: 12,
+                  alignSelf: 'flex-start',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  shadowColor: '#FF6C22',
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 6,
+                  elevation: 4,
+                }}
+              >
+                <Download size={16} color="#FFF" style={{ marginRight: 8 }} />
+                <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>Download Now</Text>
+              </TouchableOpacity>
+            );
+          }
+          return <Text key={i} style={{ color: '#1e293b', fontSize: 14, lineHeight: 20 }}>{part}</Text>;
+        })}
+      </>
+    );
   };
 
   return (
@@ -1671,14 +1694,47 @@ function OfficialPage({ visible, onClose, messages }: { visible: boolean; onClos
           </TouchableOpacity>
         </View>
         <ScrollView className="flex-1 px-4 py-2">
-          {messages.length > 0 ? messages.map((msg: any, i: number) => (
-            <View key={i} className="bg-blue-50 rounded-2xl p-4 mb-3">
-              <Text style={{ color: '#1e293b' }} className="text-sm">{renderMessageContent(msg.content || msg.text)}</Text>
-              <Text className="text-[10px] text-slate-400 mt-2">
-                {msg.timestamp?.toDate?.()?.toLocaleString() || ''}
-              </Text>
-            </View>
-          )) : (
+          {messages.length > 0 ? messages.map((msg: any, i: number) => {
+            const text = msg.content || msg.text || '';
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            const hasUrl = urlRegex.test(text);
+            const textWithoutUrl = text.replace(urlRegex, '').trim();
+            return (
+              <View key={i} className="bg-blue-50 rounded-2xl p-4 mb-3">
+                {textWithoutUrl ? <Text style={{ color: '#1e293b', fontSize: 14, lineHeight: 20 }}>{textWithoutUrl}</Text> : null}
+                {hasUrl ? (() => {
+                  const urlMatch = text.match(urlRegex);
+                  const url = urlMatch ? urlMatch[0] : '';
+                  return (
+                    <TouchableOpacity
+                      onPress={() => Linking.openURL(url)}
+                      style={{
+                        backgroundColor: '#FF6C22',
+                        borderRadius: 20,
+                        paddingVertical: 10,
+                        paddingHorizontal: 20,
+                        marginTop: textWithoutUrl ? 12 : 0,
+                        alignSelf: 'flex-start',
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        shadowColor: '#FF6C22',
+                        shadowOffset: { width: 0, height: 3 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 6,
+                        elevation: 4,
+                      }}
+                    >
+                      <Download size={16} color="#FFF" style={{ marginRight: 8 }} />
+                      <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>Download Now</Text>
+                    </TouchableOpacity>
+                  );
+                })() : null}
+                <Text className="text-[10px] text-slate-400 mt-2">
+                  {msg.timestamp?.toDate?.()?.toLocaleString() || ''}
+                </Text>
+              </View>
+            );
+          }) : (
             <View className="py-10 items-center">
               <Text className="text-slate-400 text-sm">No messages</Text>
             </View>
