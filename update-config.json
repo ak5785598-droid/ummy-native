@@ -1,7 +1,7 @@
 {
   "versionCode": 3,
   "versionName": "1.2.0",
-  "apkUrl": "https://github.com/ak5785598-droid/ummy-native/releases/download/v1.2.0/app-arm64-v8a-release.apk",
+  "apkUrl": "https://storage.googleapis.com/studio-7826224327-e0efc.firebasestorage.app/releases%2Fv1.2.0%2Fapp-arm64-v8a-release.apk",
   "forceUpdate": true,
   "changelog": "ZegoCloud voice fallback, performance optimizations, auto-update system, compressed resources."
 }
