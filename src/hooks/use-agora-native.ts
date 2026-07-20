@@ -94,7 +94,7 @@ export function useAgoraNative(
       };
     }
 
-    // Destroy any stale engine from different room
+    // CRITICAL: Always destroy old engine when roomId changes
     if (singletonEngine) {
       try { singletonEngine.leaveChannel(); singletonEngine.release(); } catch {}
       singletonEngine = null;

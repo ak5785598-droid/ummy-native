@@ -52,6 +52,22 @@ export function useVoiceEngine({
   const switchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const switchTimer2Ref = useRef<ReturnType<typeof setTimeout> | null>(null);
   const switchTimer3Ref = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevRoomIdRef = useRef<string | undefined>(roomId);
+
+  // CRITICAL: When roomId changes, destroy ALL providers immediately
+  useEffect(() => {
+    if (prevRoomIdRef.current !== roomId && prevRoomIdRef.current) {
+      console.log('[VOICE] Room changed — destroying all providers');
+      destroyAgoraEngine();
+      destroyZegoEngine();
+      destroyLiveKitRoom();
+      setActiveProvider(null);
+      setZegoEnabled(false);
+      setLivekitEnabled(false);
+      setProviderError(null);
+    }
+    prevRoomIdRef.current = roomId;
+  }, [roomId]);
 
   // Fallback logic: Agora → ZegoCloud → LiveKit → WebRTC
   useEffect(() => {

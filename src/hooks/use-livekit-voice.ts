@@ -221,7 +221,7 @@ export function useLiveKitVoice(
 
   useEffect(() => {
     if (!LIVEKIT_URL || !LIVEKIT_API_KEY || !LIVEKIT_API_SECRET || !roomId || !uid) return;
-    if (connectionState === 'CONNECTED' || connectionState === 'CONNECTING') return;
+    // Remove early return guard — room change needs to re-join
 
     let cancelled = false;
 
@@ -239,6 +239,13 @@ export function useLiveKitVoice(
         if (!lk || cancelled) {
           setConnectionState('DISCONNECTED');
           return;
+        }
+
+        // Disconnect from old room first if exists
+        if (roomRef.current) {
+          try { roomRef.current.disconnect(); } catch {}
+          roomRef.current = null;
+          lkRoom = null;
         }
 
         const roomName = `room_${roomId.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 60)}`;
@@ -345,18 +352,6 @@ export function useLiveKitVoice(
       roomRef.current.localParticipant?.setMicrophoneEnabled(!isMuted && !isSpeakerMuted);
     } catch {}
   }, [isMuted, isSpeakerMuted, connectionState]);
-
-  useEffect(() => {
-    return () => {
-      if (!keepAliveRef.current && roomRef.current) {
-        try {
-          roomRef.current.disconnect();
-        } catch {}
-        roomRef.current = null;
-        lkRoom = null;
-      }
-    };
-  }, [roomId]);
 
   const startScreenShare = useCallback(async () => {}, []);
   const stopScreenShare = useCallback(async () => {}, []);
