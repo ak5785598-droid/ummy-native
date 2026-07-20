@@ -164,9 +164,29 @@ export default function RoomScreen() {
     let subData: any = {};
     
     const updateMergedData = () => {
+      const baseWallet = baseData?.wallet || {};
+      const subWallet = subData?.wallet || {};
+      const mergedWallet = {
+        coins: Math.max(0, baseWallet.coins ?? subWallet.coins ?? 0),
+        diamonds: Math.max(0, baseWallet.diamonds ?? subWallet.diamonds ?? 0),
+        totalSpent: Math.max(0, baseWallet.totalSpent ?? subWallet.totalSpent ?? 0),
+        dailySpent: Math.max(0, baseWallet.dailySpent ?? subWallet.dailySpent ?? 0),
+        weeklySpent: Math.max(0, baseWallet.weeklySpent ?? subWallet.weeklySpent ?? 0),
+        monthlySpent: Math.max(0, baseWallet.monthlySpent ?? subWallet.monthlySpent ?? 0),
+      };
+
+      const mergedLevel = {
+        rich: Number(baseData?.level?.rich ?? subData?.level?.rich ?? 1),
+        charm: Number(baseData?.level?.charm ?? subData?.level?.charm ?? 1),
+      };
+
       setFullProfileData({
-        ...baseData,
-        ...subData,
+        ...(subData || {}),
+        ...(baseData || {}),
+        wallet: mergedWallet,
+        level: mergedLevel,
+        xp: Number(baseData?.xp ?? subData?.xp ?? 0),
+        vip: baseData?.vip ?? subData?.vip ?? 0,
         id: fullProfileUid
       });
     };
