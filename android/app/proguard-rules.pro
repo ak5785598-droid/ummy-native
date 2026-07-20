@@ -24,3 +24,10 @@
 -keep class io.invertase.firebase.** { *; }
 -dontwarn io.invertase.firebase.**
 
+# LiveKit Keep Rules
+-keep class io.livekit.** { *; }
+-keep class com.livekit.** { *; }
+
+# WebRTC Keep Rules
+-keep class org.webrtc.** { *; }
+
