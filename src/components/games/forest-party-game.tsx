@@ -72,13 +72,14 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
   const [timeLeft, setTimeLeft] = useState(30);
   const [roundStartTime, setRoundStartTime] = useState<number | null>(null);
   const spinInitiatedRef = useRef(false);
+  const isDealerRef = useRef(false);
   const myBetsRef = useRef<Record<string, number>>({});
 
   const [selectedChip, setSelectedChip] = useState(1000);
   const [myBets, setMyBets] = useState<Record<string, number>>({});
   const [lastBets, setLastBets] = useState<Record<string, number>>({});
   const [highlightIdx, setHighlightIdx] = useState<number | null>(null);
-  const [history, setHistory] = useState<string[]>(['rabbit', 'dog', 'panda', 'rabbit', 'sheep', 'cat', 'rabbit', 'tiger']);
+  const [history, setHistory] = useState<string[]>([]);
   const [winnerData, setWinnerData] = useState<{ id: string; win: number; multiplier: number } | null>(null);
   const [shiningGroup, setShiningGroup] = useState<'none' | 'left' | 'right'>('none');
   const [localCoins, setLocalCoins] = useState(0);
@@ -200,7 +201,7 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
     return () => clearInterval(iv);
   }, [gameState, roundStartTime]);
 
-  // Timer hits 0 → DIRECT spin trigger (web app style — no RTD dependency)
+  // Timer hits 0 → SHARED WINNER via RTDB transaction (all players see same result)
   useEffect(() => {
     if (gameState !== 'betting') return;
     if (spinInitiatedRef.current) return;
@@ -208,13 +209,41 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
     spinInitiatedRef.current = true;
 
     (async () => {
-      let winningId = ANIMALS[Math.floor(Math.random() * ANIMALS.length)].id;
+      let winningId = '';
       let groupType: 'none' | 'left' | 'right' = 'none';
-      const chance = Math.random();
-      if (chance < 0.025) groupType = 'left';
-      else if (chance < 0.05) groupType = 'right';
+      isDealerRef.current = false;
 
-      if (firestore) {
+      if (database && roomId) {
+        const gamePath = `games/forest_party_${roomId}`;
+        try {
+          await databaseTransaction(databaseRef(database, gamePath), (currentData: any) => {
+            if (!currentData || currentData.status !== 'betting') return;
+            if (currentData.winningId) {
+              winningId = currentData.winningId;
+              groupType = currentData.groupType || 'none';
+              return;
+            }
+            isDealerRef.current = true;
+            let pickedId = ANIMALS[Math.floor(Math.random() * ANIMALS.length)].id;
+            const c = Math.random();
+            if (c < 0.025) groupType = 'left';
+            else if (c < 0.05) groupType = 'right';
+            if (groupType === 'left') { const ids = ['panda', 'bear', 'tiger', 'lion']; pickedId = ids[Math.floor(Math.random() * ids.length)]; }
+            else if (groupType === 'right') { const ids = ['rabbit', 'cat', 'dog', 'sheep']; pickedId = ids[Math.floor(Math.random() * ids.length)]; }
+            winningId = pickedId;
+            currentData.status = 'spinning';
+            currentData.winningId = pickedId;
+            currentData.groupType = groupType;
+            currentData.updatedAt = Date.now();
+            return currentData;
+          });
+        } catch (e) { winningId = ANIMALS[Math.floor(Math.random() * ANIMALS.length)].id; }
+      } else {
+        winningId = ANIMALS[Math.floor(Math.random() * ANIMALS.length)].id;
+        isDealerRef.current = true;
+      }
+
+      if (isDealerRef.current && firestore) {
         try {
           const oracleSnap = await getDoc(doc(firestore, 'gameOracle', 'forest-party'));
           if (oracleSnap.exists() && (oracleSnap.data() as any).isActive) {
@@ -222,40 +251,18 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
             if (ANIMALS.some(a => a.id === forced)) winningId = forced;
             updateDoc(doc(firestore, 'gameOracle', 'forest-party'), { isActive: false }).catch(() => {});
             groupType = 'none';
+            if (database && roomId) {
+              databaseUpdate(databaseRef(database, `games/forest_party_${roomId}`), { winningId, groupType: 'none' }).catch(() => {});
+            }
           }
         } catch {}
       }
 
-      if (groupType === 'left') {
-        const leftIds = ['panda', 'bear', 'tiger', 'lion'];
-        winningId = leftIds[Math.floor(Math.random() * leftIds.length)];
-      } else if (groupType === 'right') {
-        const rightIds = ['rabbit', 'cat', 'dog', 'sheep'];
-        winningId = rightIds[Math.floor(Math.random() * rightIds.length)];
-      }
-
-      // RTDB sync for other players (non-blocking, best-effort)
-      const gamePath = `games/forest_party_${roomId || 'global'}`;
-      if (database) {
-        databaseTransaction(databaseRef(database, gamePath), (currentData) => {
-          if (currentData && currentData.status !== 'betting') return;
-          if (!currentData) {
-            return { status: 'spinning', winningId, groupType, updatedAt: Date.now(), history: ['rabbit', 'dog', 'panda', 'rabbit', 'sheep', 'cat', 'rabbit', 'tiger'], roundStartTime: Date.now() };
-          }
-          currentData.status = 'spinning';
-          currentData.winningId = winningId;
-          currentData.groupType = groupType;
-          currentData.updatedAt = Date.now();
-          return currentData;
-        }).catch(() => {});
-      }
-
-      // DIRECT spin (like web app) — no waiting for RTD listener
-      startSpin(winningId, groupType);
+      if (winningId) startSpin(winningId, groupType);
     })();
   }, [timeLeft]);
 
-  // RTD Sync — ONLY syncs roundStartTime + history for other players. NO state transitions.
+  // RTD Sync — shared history, roundStartTime for all players
   useEffect(() => {
     if (!database) return;
     const gamePath = `games/forest_party_${roomId || 'global'}`;
@@ -264,15 +271,12 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
       if (!snap.exists()) {
         databaseSet(databaseRef(database, gamePath), {
           status: 'betting', winningId: null, groupType: 'none',
-          history: ['rabbit', 'dog', 'panda', 'rabbit', 'sheep', 'cat', 'rabbit', 'tiger'],
-          roundStartTime: Date.now(), updatedAt: Date.now()
+          history: [], roundStartTime: Date.now(), updatedAt: Date.now()
         }).catch(() => {});
         return;
       }
 
       const data = snap.val() as any;
-
-      // Only sync display data — NO setGameState, NO startSpin calls
       if (data.history) setHistory(data.history);
       if (data.roundStartTime) setRoundStartTime(data.roundStartTime);
     });
@@ -423,7 +427,6 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
     });
 
     const winItem = ANIMALS.find(a => a.id === id);
-    setHistory(prev => [id, ...prev].slice(0, 15));
     setWinnerData({ id, win: winAmount, multiplier: winItem?.multiplier || 0 });
     setGameState('result');
 
@@ -505,7 +508,7 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
       }
     }
 
-    // Local reset after 6s (web app style — no RTD dependency)
+    // Local reset after 6s
     setTimeout(() => {
       setWinnerData(null);
       setShiningGroup('none');
@@ -514,24 +517,28 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
       myBetsRef.current = {};
       setHighlightIdx(null);
       setDroppedChips([]);
-      // Reset local state for next round (like web app)
       setGameState('betting');
-      setRoundStartTime(Date.now());
-      setTimeLeft(30);
       spinInitiatedRef.current = false;
-      // Sync new round to RTDB (non-blocking)
       if (database) {
         const gamePath = `games/forest_party_${roomId || 'global'}`;
+        const newRoundStart = Date.now();
+        setRoundStartTime(newRoundStart);
+        setTimeLeft(30);
         databaseTransaction(databaseRef(database, gamePath), (cur) => {
           if (!cur) return cur;
           cur.status = 'betting';
           cur.winningId = null;
           cur.groupType = 'none';
-          cur.history = [id, ...(cur.history || [])].slice(0, 15);
-          cur.roundStartTime = Date.now();
+          if (isDealerRef.current) {
+            cur.history = [id, ...(cur.history || [])].slice(0, 15);
+          }
+          cur.roundStartTime = newRoundStart;
           cur.updatedAt = Date.now();
           return cur;
         }).catch(() => {});
+      } else {
+        setRoundStartTime(Date.now());
+        setTimeLeft(30);
       }
     }, 6000);
   };

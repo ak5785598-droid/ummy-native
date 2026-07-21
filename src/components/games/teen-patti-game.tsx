@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useUser, useFirestore, useDatabase } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { doc, updateDoc, increment, addDoc, collection, getDoc, writeBatch, serverTimestamp } from '@/firebase/firestore-compat';
-import { ref as databaseRef, set as databaseSet, onValue, runTransaction as databaseTransaction, get as databaseGet } from 'firebase/database';
+import { ref as databaseRef, set as databaseSet, update as databaseUpdate, onValue, runTransaction as databaseTransaction, get as databaseGet } from 'firebase/database';
 
 import { GoldenCoin } from '../GoldenCoin';
 
@@ -54,7 +54,7 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
   const [selectedChip, setSelectedChip] = useState(10000);
   const [myBets, setMyBets] = useState<Record<string, number>>({ WOLF: 0, LION: 0, FISH: 0 });
   const [totalPots, setTotalPots] = useState<Record<string, number>>({ WOLF: 0, LION: 650000, FISH: 800000 });
-  const [history, setHistory] = useState<string[]>(['WOLF', 'LION', 'FISH', 'WOLF']);
+  const [history, setHistory] = useState<string[]>([]);
   const [winnerId, setWinnerId] = useState<string | null>(null);
   const [cardReveal, setCardReveal] = useState<Record<string, { value: string; suit: string }[]>>({});
   const [totalWinAmount, setTotalWinAmount] = useState(0);
@@ -70,6 +70,7 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
   const spinTimerRef = useRef<any>(null);
   const betTimerRef = useRef<any>(null);
   const revealInitiatedRef = useRef(false); // RTD sync guard
+  const isDealerRef = useRef(false);
   const processedRef = useRef(false);
   const myBetsRef = useRef<Record<string, number>>({ WOLF: 0, LION: 0, FISH: 0 });
   const pulseAnim = useRef(new Animated.Value(0.6)).current;
@@ -216,8 +217,9 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
   const startReveal = useCallback(async () => {
     if (revealInitiatedRef.current) return;
     revealInitiatedRef.current = true;
+    isDealerRef.current = false;
 
-    // Generate cards and winner
+    // Generate cards locally (same for all — just visual)
     const newCards: Record<string, { value: string; suit: string }[]> = {};
     FACTIONS.forEach(f => {
       newCards[f.id] = [
@@ -227,22 +229,49 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
       ];
     });
 
-    let winId = FACTIONS[Math.floor(Math.random() * FACTIONS.length)].id;
-    if (firestore) {
+    // SHARED WINNER via RTDB transaction
+    let winId = '';
+    if (database && roomId) {
+      const gamePath = `games/teen_patti_${roomId}`;
+      try {
+        await databaseTransaction(databaseRef(database, gamePath), (currentData: any) => {
+          if (!currentData || currentData.status !== 'betting') return;
+          if (currentData.winId) {
+            winId = currentData.winId;
+            return;
+          }
+          isDealerRef.current = true;
+          winId = FACTIONS[Math.floor(Math.random() * FACTIONS.length)].id;
+          currentData.status = 'reveal';
+          currentData.winId = winId;
+          currentData.cards = newCards;
+          currentData.roundStartTime = currentData?.roundStartTime || Date.now();
+          currentData.updatedAt = Date.now();
+          return currentData;
+        });
+      } catch (e) { winId = FACTIONS[Math.floor(Math.random() * FACTIONS.length)].id; }
+    } else {
+      winId = FACTIONS[Math.floor(Math.random() * FACTIONS.length)].id;
+      isDealerRef.current = true;
+    }
+
+    if (isDealerRef.current && firestore) {
       try {
         const oracleSnap = await getDoc(doc(firestore, 'gameOracle', 'teen-patti'));
         if (oracleSnap.exists() && (oracleSnap.data() as any).isActive) {
           const forced = (oracleSnap.data() as any).forcedResult;
           if (FACTIONS.some(f => f.id === forced)) winId = forced;
           updateDoc(doc(firestore, 'gameOracle', 'teen-patti'), { isActive: false }).catch(() => {});
+          if (database && roomId) {
+            databaseUpdate(databaseRef(database, `games/teen_patti_${roomId}`), { winId }).catch(() => {});
+          }
         }
       } catch {}
     }
 
-    // DIRECT reveal (like web app) — no RTD dependency
+    // Start reveal for all players
     setCardReveal(newCards);
     setGameState('reveal');
-    // Flip cards with animation
     FACTIONS.forEach((f, fi) => {
       [0, 1, 2].forEach((ci) => {
         setTimeout(() => {
@@ -251,23 +280,13 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
       });
     });
 
-    // RTDB sync for other players (non-blocking)
-    if (database) {
-      const gamePath = `games/teen_patti_${roomId || 'global'}`;
-      databaseTransaction(databaseRef(database, gamePath), (currentData) => {
-        if (currentData && currentData.status !== 'betting') return;
-        return { status: 'reveal', winId, cards: newCards, roundStartTime: currentData?.roundStartTime || Date.now(), updatedAt: Date.now() };
-      }).catch(() => {});
-    }
-
-    // After 2.5s → finalize result (local)
+    // After 2.5s → finalize result
     setTimeout(() => finalizeRound(winId), 2500);
 
-    // After 8s total → reset to betting (local)
+    // After 8s total → reset to betting
     setTimeout(() => {
       setGameState('betting');
       setTimeLeft(20);
-      setRoundStartTime(Date.now());
       setMyBets({ WOLF: 0, LION: 0, FISH: 0 });
       myBetsRef.current = { WOLF: 0, LION: 0, FISH: 0 };
       setTotalPots({ WOLF: 0, LION: 0, FISH: 0 });
@@ -276,18 +295,29 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
       setFlippedCards({});
       setTotalWinAmount(0);
       revealInitiatedRef.current = false;
-      // RTDB sync
       if (database) {
         const gamePath = `games/teen_patti_${roomId || 'global'}`;
-        databaseTransaction(databaseRef(database, gamePath), (currentData) => {
+        const newRoundStart = Date.now();
+        setRoundStartTime(newRoundStart);
+        databaseTransaction(databaseRef(database, gamePath), (currentData: any) => {
           if (!currentData || currentData.status !== 'result') return;
-          return { status: 'betting', winId: null, cards: null, roundStartTime: Date.now(), updatedAt: Date.now() };
+          currentData.status = 'betting';
+          currentData.winId = null;
+          currentData.cards = null;
+          if (isDealerRef.current) {
+            currentData.history = [winId, ...(currentData.history || [])].slice(0, 8);
+          }
+          currentData.roundStartTime = newRoundStart;
+          currentData.updatedAt = Date.now();
+          return currentData;
         }).catch(() => {});
+      } else {
+        setRoundStartTime(Date.now());
       }
     }, 8000);
   }, [firestore, database, roomId]);
 
-  // RTD Sync — ONLY syncs data for other players. NO state transitions.
+  // RTD Sync — shared history, roundStartTime, cards for all players
   useEffect(() => {
     if (!database) return;
     const gamePath = `games/teen_patti_${roomId || 'global'}`;
@@ -296,14 +326,13 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
       if (!snap.exists()) {
         databaseSet(databaseRef(database, gamePath), {
           status: 'betting', winId: null, cards: null,
-          roundStartTime: Date.now(), updatedAt: Date.now()
+          history: [], roundStartTime: Date.now(), updatedAt: Date.now()
         }).catch(() => {});
         return;
       }
 
       const data = snap.val() as any;
-
-      // Only sync display data — NO setGameState calls
+      if (data.history) setHistory(data.history);
       if (data.roundStartTime) setRoundStartTime(data.roundStartTime);
       if (data.cards) setCardReveal(data.cards);
     });
@@ -313,7 +342,6 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
 
   const finalizeRound = async (winId: string) => {
     setWinnerId(winId);
-    setHistory(prev => [winId, ...prev].slice(0, 8));
     setGameState('result');
 
     const winAmount = Math.floor((myBetsRef.current[winId] || 0) * 1.95);

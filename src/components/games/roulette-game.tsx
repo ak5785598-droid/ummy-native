@@ -80,7 +80,7 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
   const [lastBets, setLastBets] = useState<Record<string, number>>({});
   const [winningNumber, setWinningNumber] = useState<number | null>(null);
   const [resultMessage, setResultMessage] = useState<string | null>(null);
-  const [history, setHistory] = useState<number[]>([14, 31, 22, 0, 17, 5, 29, 8]);
+  const [history, setHistory] = useState<number[]>([]);
   const [localCoins, setLocalCoins] = useState(0);
   const [isMuted, setIsMuted] = useState(initialMuted || false);
   const [roundStartTime, setRoundStartTime] = useState<number | null>(null);
@@ -91,6 +91,7 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
   const wheelRotationAnim = useRef(new Animated.Value(0)).current;
 
   const spinInitiatedRef = useRef(false);
+  const isDealerRef = useRef(false);
   const myBetsRef = useRef(myBets);
   myBetsRef.current = myBets;
   const processedRef = useRef(false);
@@ -200,7 +201,7 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
     return () => clearInterval(iv);
   }, [gameState, roundStartTime]);
 
-  // Timer hits 0 → DIRECT spin trigger (web app style — no RTD dependency)
+  // Timer hits 0 → SHARED WINNER via RTDB transaction (all players see same result)
   useEffect(() => {
     if (gameState !== 'betting') return;
     if (spinInitiatedRef.current) return;
@@ -208,24 +209,50 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
     spinInitiatedRef.current = true;
 
     (async () => {
-      let targetNum = ROULETTE_NUMBERS[Math.floor(Math.random() * ROULETTE_NUMBERS.length)].n;
-      try {
-        const oracleSnap = await getDoc(doc(firestore, 'gameOracle', 'roulette'));
-        if (oracleSnap.exists() && (oracleSnap.data() as any).isActive) {
-          const forced = (oracleSnap.data() as any).forcedResult;
-          if (typeof forced === 'number' && forced >= 0 && forced <= 36) {
-            targetNum = forced;
+      let targetNum = 0;
+      isDealerRef.current = false;
+
+      if (database && roomId) {
+        const gamePath = `games/roulette_${roomId}`;
+        try {
+          await databaseTransaction(databaseRef(database, gamePath), (currentData: any) => {
+            if (!currentData || currentData.status !== 'betting') return;
+            if (currentData.winningNumber !== undefined && currentData.winningNumber !== null) {
+              targetNum = currentData.winningNumber;
+              return;
+            }
+            isDealerRef.current = true;
+            targetNum = ROULETTE_NUMBERS[Math.floor(Math.random() * ROULETTE_NUMBERS.length)].n;
+            currentData.status = 'spinning';
+            currentData.winningNumber = targetNum;
+            currentData.updatedAt = Date.now();
+            return currentData;
+          });
+        } catch (e) { targetNum = ROULETTE_NUMBERS[Math.floor(Math.random() * ROULETTE_NUMBERS.length)].n; }
+      } else {
+        targetNum = ROULETTE_NUMBERS[Math.floor(Math.random() * ROULETTE_NUMBERS.length)].n;
+        isDealerRef.current = true;
+      }
+
+      if (isDealerRef.current && firestore) {
+        try {
+          const oracleSnap = await getDoc(doc(firestore, 'gameOracle', 'roulette'));
+          if (oracleSnap.exists() && (oracleSnap.data() as any).isActive) {
+            const forced = (oracleSnap.data() as any).forcedResult;
+            if (typeof forced === 'number' && forced >= 0 && forced <= 36) targetNum = forced;
+            updateDoc(doc(firestore, 'gameOracle', 'roulette'), { isActive: false }).catch(() => {});
+            if (database && roomId) {
+              databaseUpdate(databaseRef(database, `games/roulette_${roomId}`), { winningNumber: targetNum }).catch(() => {});
+            }
           }
-          updateDoc(doc(firestore, 'gameOracle', 'roulette'), { isActive: false }).catch(() => {});
-        }
-      } catch {}
+        } catch {}
+      }
 
       const targetIdx = ROULETTE_NUMBERS.findIndex(r => r.n === targetNum);
       const rotationStep = 360 / ROULETTE_NUMBERS.length;
       const extraSpins = 5 + Math.floor(Math.random() * 5);
       const newRotation = syncedRotation + (extraSpins * 360) + (targetIdx * rotationStep);
 
-      // DIRECT spin (like web app) — no RTD dependency
       setGameState('spinning');
       setSyncedRotation(newRotation);
       Animated.timing(wheelRotationAnim, {
@@ -235,65 +262,44 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
         useNativeDriver: true,
       }).start();
 
-      // RTDB sync for other players (non-blocking)
-      if (database) {
-        databaseTransaction(databaseRef(database, `games/roulette_${roomId || 'global'}`), (currentData) => {
-          if (currentData && currentData.status !== 'betting') return;
-          if (!currentData) {
-            return { status: 'spinning', winningNumber: targetNum, rotation: newRotation, updatedAt: Date.now(), history: [14, 31, 22, 0, 17, 5, 29, 8], roundStartTime: Date.now() };
-          }
-          currentData.status = 'spinning';
-          currentData.winningNumber = targetNum;
-          currentData.rotation = newRotation;
-          currentData.updatedAt = Date.now();
-          return currentData;
-        }).catch(() => {});
-      }
-
-      // After 5s spin → result (local)
+      // After 5s spin → result
       setTimeout(() => {
         setGameState('result');
         setWinningNumber(targetNum);
         finalizeResult(targetNum);
-        // RTDB sync
-        if (database) {
-          databaseTransaction(databaseRef(database, `games/roulette_${roomId || 'global'}`), (currentData) => {
-            if (!currentData || currentData.status !== 'spinning') return;
-            currentData.status = 'result';
-            currentData.winningNumber = targetNum;
-            currentData.updatedAt = Date.now();
-            return currentData;
-          }).catch(() => {});
-        }
       }, 5000);
 
-      // After 10s total → reset to betting (local)
+      // After 10s total → reset to betting
       setTimeout(() => {
         setGameState('betting');
-        setRoundStartTime(Date.now());
         setTimeLeft(15);
         setWinningNumber(null);
         setResultMessage(null);
         setMyBets({});
         spinInitiatedRef.current = false;
-        // RTDB sync
         if (database) {
-          databaseTransaction(databaseRef(database, `games/roulette_${roomId || 'global'}`), (currentData) => {
+          const newRoundStart = Date.now();
+          setRoundStartTime(newRoundStart);
+          databaseTransaction(databaseRef(database, `games/roulette_${roomId || 'global'}`), (currentData: any) => {
             if (!currentData || currentData.status !== 'result') return;
             currentData.status = 'betting';
             currentData.winningNumber = null;
-            currentData.history = [targetNum, ...(currentData.history || [])].slice(0, 15);
-            currentData.roundStartTime = Date.now();
+            if (isDealerRef.current) {
+              currentData.history = [targetNum, ...(currentData.history || [])].slice(0, 15);
+            }
+            currentData.roundStartTime = newRoundStart;
             currentData.updatedAt = Date.now();
             return currentData;
           }).catch(() => {});
+        } else {
+          setRoundStartTime(Date.now());
         }
       }, 10000);
 
     })();
-  }, [timeLeft]); // Bug fix: removed firestore/database/roomId/syncedRotation - re-subscribing caused race conditions
+  }, [timeLeft]);
 
-  // RTD Sync — ONLY syncs data for other players. NO state transitions.
+  // RTD Sync — shared history, roundStartTime, rotation for all players
   useEffect(() => {
     if (!database) return;
     const gamePath = `games/roulette_${roomId || 'global'}`;
@@ -302,20 +308,16 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
       if (!snap.exists()) {
         databaseSet(databaseRef(database, gamePath), {
           status: 'betting', winningNumber: null, rotation: 0,
-          history: [14, 31, 22, 0, 17, 5, 29, 8],
-          roundStartTime: Date.now(), updatedAt: Date.now()
+          history: [], roundStartTime: Date.now(), updatedAt: Date.now()
         }).catch(() => {});
         return;
       }
 
       const data = snap.val() as any;
-
-      // Only sync display data — NO setGameState calls
       if (data.history) setHistory(data.history);
       if (data.roundStartTime) setRoundStartTime(data.roundStartTime);
       if (data.rotation !== undefined && data.rotation !== null) {
         setSyncedRotation(data.rotation);
-        // Only animate wheel if not already spinning locally
         if (gameState !== 'spinning') {
           Animated.timing(wheelRotationAnim, {
             toValue: data.rotation,
