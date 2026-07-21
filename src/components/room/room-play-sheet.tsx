@@ -83,17 +83,36 @@ export function RoomPlaySheet({ visible, onClose, roomId, room, participants, on
             setIsClearingChat(true);
             try {
               const currentName = userProfile?.username || 'Admin';
-              if (database) {
-                await databaseRemove(databaseRef(database, `roomMessages/${roomId}`));
-                const sysMsgRef = databasePush(databaseRef(database, `roomMessages/${roomId}`));
-                await databaseSet(sysMsgRef, {
-                  id: sysMsgRef.key,
-                  content: `${currentName} cleared the chat`,
-                  type: 'system',
-                  timestamp: Date.now()
-                });
+              
+              // 1. Try RTDB deletion
+              try {
+                if (database) {
+                  await databaseRemove(databaseRef(database, `roomMessages/${roomId}`));
+                  const sysMsgRef = databasePush(databaseRef(database, `roomMessages/${roomId}`));
+                  await databaseSet(sysMsgRef, {
+                    id: sysMsgRef.key,
+                    content: `${currentName} cleared the chat`,
+                    type: 'system',
+                    timestamp: Date.now()
+                  });
+                }
+              } catch (dbErr: any) {
+                console.log("[CLEAR CHAT DB ERROR]", dbErr);
+                throw new Error(`RealtimeDB failed: ${dbErr.message || dbErr}`);
               }
-              await updateDoc(doc(firestore, 'chatRooms', roomId), { chatClearedAt: serverTimestamp(), chatClearedBy: currentName, updatedAt: serverTimestamp() });
+
+              // 2. Try Firestore update
+              try {
+                await updateDoc(doc(firestore, 'chatRooms', roomId), { 
+                  chatClearedAt: serverTimestamp(), 
+                  chatClearedBy: currentName, 
+                  updatedAt: serverTimestamp() 
+                });
+              } catch (fsErr: any) {
+                console.log("[CLEAR CHAT FIRESTORE ERROR]", fsErr);
+                // Non-blocking: If Firestore fails but RTDB succeeds, we can still proceed!
+              }
+
               Alert.alert('Success', 'Chat history cleared.');
               onClose();
             } catch (e: any) {

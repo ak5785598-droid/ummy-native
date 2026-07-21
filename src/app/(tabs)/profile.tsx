@@ -181,8 +181,8 @@ export default function ProfileScreen() {
         setIsBudgetId(d?.isBudgetId || false);
         if (d?.wallet) {
           setWallet(w => ({
-            coins: Math.max(0, d.wallet.coins ?? w.coins),
-            diamonds: Math.max(0, d.wallet.diamonds ?? w.diamonds),
+            coins: d.wallet.coins ?? w.coins,
+            diamonds: d.wallet.diamonds ?? w.diamonds,
           }));
         }
       }
@@ -194,8 +194,8 @@ export default function ProfileScreen() {
         const d = snap.data() as any;
         if (d?.wallet) {
           setWallet(w => ({
-            coins: Math.max(0, d.wallet.coins ?? w.coins),
-            diamonds: Math.max(0, d.wallet.diamonds ?? w.diamonds),
+            coins: d.wallet.coins ?? w.coins,
+            diamonds: d.wallet.diamonds ?? w.diamonds,
           }));
         }
       }
