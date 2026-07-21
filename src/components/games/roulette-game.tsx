@@ -105,7 +105,10 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
 
   // Entrance loader
   useEffect(() => {
-    const t = setTimeout(() => setGameState('betting'), 2000);
+    const t = setTimeout(() => {
+      setGameState('betting');
+      setRoundStartTime(Date.now());
+    }, 2000);
     return () => clearTimeout(t);
   }, []);
 
@@ -267,6 +270,7 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
       // After 10s total → reset to betting (local)
       setTimeout(() => {
         setGameState('betting');
+        setRoundStartTime(Date.now());
         setTimeLeft(15);
         setWinningNumber(null);
         setResultMessage(null);

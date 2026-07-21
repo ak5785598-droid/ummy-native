@@ -125,7 +125,10 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
   }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => setGameState('betting'), 2000);
+    const t = setTimeout(() => {
+      setGameState('betting');
+      setRoundStartTime(Date.now());
+    }, 2000);
     return () => clearTimeout(t);
   }, []);
 
@@ -513,6 +516,7 @@ export function ForestPartyGame({ onClose, roomId, onRoundEnd, isMuted }: Forest
       setDroppedChips([]);
       // Reset local state for next round (like web app)
       setGameState('betting');
+      setRoundStartTime(Date.now());
       setTimeLeft(30);
       spinInitiatedRef.current = false;
       // Sync new round to RTDB (non-blocking)

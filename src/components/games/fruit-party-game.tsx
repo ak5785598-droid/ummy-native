@@ -118,7 +118,10 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
   }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => setGameState('betting'), 2000);
+    const t = setTimeout(() => {
+      setGameState('betting');
+      setRoundStartTime(Date.now());
+    }, 2000);
     return () => clearTimeout(t);
   }, []);
 
@@ -515,6 +518,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
       setDroppedChips([]);
       // Reset local state for next round (like web app)
       setGameState('betting');
+      setRoundStartTime(Date.now());
       setTimeLeft(30);
       spinInitiatedRef.current = false;
       // Sync new round to RTDB (non-blocking)
