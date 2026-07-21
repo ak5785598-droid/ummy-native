@@ -1312,23 +1312,40 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
                     />
                   )}
                   {(msg as any).type === 'room_invite' ? (
-                    <View style={{ width: 220, borderRadius: 16, overflow: 'hidden', backgroundColor: isMe ? '#7c3aed' : '#f1f5f9', marginBottom: 4 }}>
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        const targetRoomId = (msg as any).roomId || (msg as any).roomNumber;
+                        if (targetRoomId) {
+                          router.push(`/rooms/${targetRoomId}`);
+                        }
+                      }}
+                      style={{ width: 220, borderRadius: 16, overflow: 'hidden', backgroundColor: isMe ? '#7c3aed' : '#ffffff', marginBottom: 4, borderWidth: 1, borderColor: isMe ? '#6d28d9' : '#e2e8f0', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 }}
+                    >
                       {(msg as any).roomCoverUrl ? (
-                        <Image cachePolicy="memory-disk" source={{ uri: toCDN((msg as any).roomCoverUrl) }} style={{ width: '100%', height: 90 }} contentFit="cover" />
+                        <Image cachePolicy="memory-disk" source={{ uri: toCDN((msg as any).roomCoverUrl) }} style={{ width: '100%', height: 95 }} contentFit="cover" />
                       ) : (
-                        <View style={{ width: '100%', height: 70, backgroundColor: '#3b82f6', alignItems: 'center', justifyContent: 'center' }}>
-                          <Mic size={24} color="white" />
+                        <View style={{ width: '100%', height: 75, backgroundColor: '#6366f1', alignItems: 'center', justifyContent: 'center' }}>
+                          <Mic size={28} color="white" />
                         </View>
                       )}
                       <View style={{ padding: 10 }}>
-                        <Text style={{ fontSize: 12, fontWeight: '800', color: isMe ? '#fff' : '#1e293b' }} numberOfLines={1}>{(msg as any).roomName || 'Room'}</Text>
-                        <Text style={{ fontSize: 9, color: isMe ? 'rgba(255,255,255,0.6)' : '#64748b', marginTop: 2 }}>invites you to join</Text>
-                        <Text style={{ fontSize: 9, color: isMe ? 'rgba(255,255,255,0.4)' : '#94a3b8', marginTop: 1 }}>#{(msg as any).roomNumber || ''}</Text>
+                        <Text style={{ fontSize: 13, fontWeight: '800', color: isMe ? '#fff' : '#0f172a' }} numberOfLines={1}>{(msg as any).roomName || 'Voice Room'}</Text>
+                        <Text style={{ fontSize: 10, color: isMe ? 'rgba(255,255,255,0.7)' : '#64748b', marginTop: 2 }}>Invites you to join their room</Text>
+                        {(msg as any).roomNumber && (
+                          <Text style={{ fontSize: 9, fontWeight: '700', color: isMe ? 'rgba(255,255,255,0.5)' : '#94a3b8', marginTop: 1 }}>ID: #{(msg as any).roomNumber}</Text>
+                        )}
+                        
+                        {/* Join Room Action Button */}
+                        <View style={{ marginTop: 10, backgroundColor: isMe ? '#ffffff' : '#6366f1', borderRadius: 10, paddingVertical: 7, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 }}>
+                          <Mic size={12} color={isMe ? '#7c3aed' : '#ffffff'} />
+                          <Text style={{ fontSize: 11, fontWeight: '900', color: isMe ? '#7c3aed' : '#ffffff' }}>Join Room</Text>
+                        </View>
                       </View>
-                      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 10, paddingBottom: 8 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 10, paddingBottom: 6 }}>
                         <Text style={{ fontSize: 8, fontWeight: '700', color: isMe ? 'rgba(255,255,255,0.5)' : '#94a3b8' }}>{timeStr}</Text>
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   ) : (
                   <View className={`max-w-[75%] rounded-2xl px-4 py-2 ${
                     (msg as any).type === 'gift' ? 'bg-gradient-to-br from-pink-500 to-purple-600' : isMe ? 'bg-cyan-500 rounded-br-none' : 'bg-slate-100 rounded-bl-none'
