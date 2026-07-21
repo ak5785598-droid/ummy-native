@@ -9,6 +9,7 @@ import { ChevronLeft, MoreHorizontal, Pencil, ChevronRight } from 'lucide-react-
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { useUser, useFirestore, useDoc } from '../../firebase/provider';
+import { useUserProfile } from '../../hooks/use-user-profile';
 import { collection, query, where, orderBy, limit, doc, serverTimestamp, setDoc, updateDoc, onSnapshot, getDocs } from '@/firebase/firestore-compat';
 import { autoAssignMedals } from '../../lib/auto-assign-medals';
 import { PremiumDiamond } from '@/components/PremiumDiamond';
@@ -156,13 +157,11 @@ export default function ProfileScreen() {
   const firestoreDb = useFirestore();
 
   const profileId = currentUser?.uid;
+  const { profile: myProfile } = useUserProfile(profileId);
   const userDocRef = profileId && firestoreDb ? doc(firestoreDb, 'users', profileId) : null;
   const { data: baseProfile } = useDoc(userDocRef);
 
   // ── Real profile doc: wallet + idColor + isBudgetId ───────────────────
-  const [wallet, setWallet] = useState<{ coins: number; diamonds: number }>({ coins: 0, diamonds: 0 });
-  const [idColor, setIdColor] = useState<string>('none');
-  const [isBudgetId, setIsBudgetId] = useState(false);
   const [profileSubData, setProfileSubData] = useState<any>(null);
 
   useEffect(() => {
@@ -170,40 +169,17 @@ export default function ProfileScreen() {
     
     // Use the standard web/compat onSnapshot to prevent React Native Firebase native instance conflicts
     const subRef = doc(firestoreDb, `users/${profileId}/profile/${profileId}`);
-    const baseRef = doc(firestoreDb, `users/${profileId}`);
 
     const unsubSub = onSnapshot(subRef, (snap: any) => {
       const docExists = typeof snap.exists === 'function' ? snap.exists() : snap.exists;
       if (docExists) {
         const d = snap.data() as any;
         setProfileSubData(d);
-        setIdColor(d?.idColor || 'none');
-        setIsBudgetId(d?.isBudgetId || false);
-        if (d?.wallet) {
-          setWallet(w => ({
-            coins: d.wallet.coins ?? w.coins,
-            diamonds: d.wallet.diamonds ?? w.diamonds,
-          }));
-        }
-      }
-    }, () => {});
-
-    const unsubBase = onSnapshot(baseRef, (snap: any) => {
-      const docExists = typeof snap.exists === 'function' ? snap.exists() : snap.exists;
-      if (docExists) {
-        const d = snap.data() as any;
-        if (d?.wallet) {
-          setWallet(w => ({
-            coins: d.wallet.coins ?? w.coins,
-            diamonds: d.wallet.diamonds ?? w.diamonds,
-          }));
-        }
       }
     }, () => {});
 
     return () => {
       unsubSub();
-      unsubBase();
     };
   }, [profileId, firestoreDb]);
 
@@ -446,9 +422,9 @@ export default function ProfileScreen() {
                     <SVGA_GlossyID label={`ID: ${displayID}`} />
                   ) : profile.activeIdBadge ? (
                     <ActiveIDBadge badgeData={profile.activeIdBadge} fallbackNumber={displayID} />
-                  ) : (profile.isAdmin || (isBudgetId && idColor && idColor !== 'none')) ? (
+                  ) : (profile.isAdmin || (myProfile?.isBudgetId && myProfile?.idColor && myProfile.idColor !== 'none')) ? (
                     <SovereignIDBadge
-                      color={profile.isAdmin ? 'gold' : idColor}
+                      color={profile.isAdmin ? 'gold' : (myProfile?.idColor || '#1e293b')}
                       number={displayID}
                     />
                   ) : (
@@ -502,7 +478,7 @@ export default function ProfileScreen() {
                 numberOfLines={1} 
                 style={{ position: 'absolute', bottom: 12, left: 16, right: 16, fontSize: 18, fontWeight: '900', color: '#422E00', letterSpacing: -0.5 }}
               >
-                {wallet.coins?.toLocaleString() || '0'}
+                {myProfile?.wallet?.coins?.toLocaleString() || '0'}
               </Text>
             </TouchableOpacity>
 
@@ -517,7 +493,7 @@ export default function ProfileScreen() {
                 numberOfLines={1} 
                 style={{ position: 'absolute', bottom: 12, left: 16, right: 16, fontSize: 18, fontWeight: '900', color: '#ffffff', letterSpacing: -0.5 }}
               >
-                {wallet.diamonds?.toLocaleString() || '0'}
+                {myProfile?.wallet?.diamonds?.toLocaleString() || '0'}
               </Text>
             </TouchableOpacity>
           </View>
