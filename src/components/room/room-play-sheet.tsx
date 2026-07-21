@@ -17,7 +17,7 @@ const ICON_SCREEN = require('../../../assets/images/play-icons/icon_screen.png')
 const ICON_MULTIMOVIES = require('../../../assets/images/play-icons/icon_movie.png');
 
 import { useFirestore, useUser, useCollection, useMemoFirebase, useDatabase } from '../../firebase/provider';
-import { ref as databaseRef, set as databaseSet, push as databasePush } from 'firebase/database';
+import { ref as databaseRef, set as databaseSet, push as databasePush, remove as databaseRemove } from 'firebase/database';
 import { doc, serverTimestamp, collection, query, orderBy, addDoc, deleteDoc, updateDoc, writeBatch, getDocs } from '@/firebase/firestore-compat';
 import rnfbStorage from '@react-native-firebase/storage';
 import { useRoomContext } from '../../context/room-context';
@@ -84,7 +84,7 @@ export function RoomPlaySheet({ visible, onClose, roomId, room, participants, on
             try {
               const currentName = userProfile?.username || 'Admin';
               if (database) {
-                await databaseSet(databaseRef(database, `roomMessages/${roomId}`), null);
+                await databaseRemove(databaseRef(database, `roomMessages/${roomId}`));
                 const sysMsgRef = databasePush(databaseRef(database, `roomMessages/${roomId}`));
                 await databaseSet(sysMsgRef, {
                   id: sysMsgRef.key,
