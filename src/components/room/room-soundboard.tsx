@@ -38,7 +38,7 @@ export function RoomSoundboard({ visible, onClose, roomId }: RoomSoundboardProps
         id: msgRef.key,
         text: `triggered ${sfxId}`,
         senderId: user.uid,
-        senderName: userProfile.username,
+        senderName: userProfile.username, senderChatColor: userProfile?.nobility?.chatColor || null,
         senderAvatar: cleanAvatar,
         type: 'emoji',
         isSfx: true,

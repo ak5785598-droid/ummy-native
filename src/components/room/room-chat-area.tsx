@@ -170,7 +170,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({ message, onPress, on
           <Image cachePolicy="memory-disk" source={{ uri: toCDN(message.senderAvatar) || 'https://picsum.photos/100' }} style={styles.avatar} />
         </TouchableOpacity>
         <TouchableOpacity onPress={onPress} style={styles.msgContentWrapper}>
-          <Text style={styles.giftSenderName}>{message.senderName}</Text>
+          <Text style={[styles.giftSenderName, (message as any).senderChatColor ? { color: (message as any).senderChatColor } : undefined]}>{message.senderName}</Text>
           <View style={styles.giftMessageBubble}>
             <View style={styles.giftInnerRow}>
               {message.imageUrl ? (
@@ -233,7 +233,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({ message, onPress, on
       </TouchableOpacity>
       <TouchableOpacity onPress={onPress} style={styles.msgContentWrapper}>
         <View style={styles.nameHeaderRow}>
-          <Text style={styles.senderName}>{message.senderName}</Text>
+          <Text style={[styles.senderName, (message as any).senderChatColor ? { color: (message as any).senderChatColor } : undefined]}>{message.senderName}</Text>
           {onTranslate && message.type === 'text' && (message.content || message.text) && (
             <TouchableOpacity onPress={onTranslate} style={styles.translateBtn} disabled={isTranslating}>
               {isTranslating ? (

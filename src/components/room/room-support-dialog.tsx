@@ -21,6 +21,7 @@ interface RoomSupportDialogProps {
     lastWeekRewardsDistributed?: boolean;
   };
   visitorCount?: number;
+  uniqueVisitorCount?: number;
   levelPoints?: number;
   roomId?: string;
   isOwner?: boolean;
@@ -78,6 +79,7 @@ export function RoomSupportDialog({
   onClose,
   roomStats,
   visitorCount = 0,
+  uniqueVisitorCount = 0,
   levelPoints = 0,
   roomId,
   isOwner = false,
@@ -186,7 +188,7 @@ export function RoomSupportDialog({
                   <Text className="text-[10px] font-bold text-blue-400 flex-1">This Week</Text>
                   <Text className="text-[10px] font-bold text-white w-12 text-center">{roomLevel}</Text>
                   <Text className="text-[10px] font-bold text-yellow-400 w-16 text-center">{roomLevel > 0 ? `🎁` : '0'}</Text>
-                  <Text className="text-[10px] font-bold text-white w-16 text-center">{visitorCount}</Text>
+                  <Text className="text-[10px] font-bold text-white w-16 text-center">{uniqueVisitorCount}</Text>
                   <Text className="text-[10px] font-bold text-cyan-400 w-20 text-right">{roomCoins.toLocaleString()}</Text>
                 </View>
 

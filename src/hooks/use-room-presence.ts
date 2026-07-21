@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useFirestore, useUser, useDatabase } from '../firebase/provider';
-import { doc, getDoc, setDoc, deleteDoc, serverTimestamp, writeBatch, increment, collection, getDocs, query, where } from '@/firebase/firestore-compat';
+import { doc, getDoc, setDoc, deleteDoc, serverTimestamp, writeBatch, increment, collection, getDocs, query, where, arrayUnion } from '@/firebase/firestore-compat';
 import { ref, set, onDisconnect, onValue, remove, push, serverTimestamp as dbServerTimestamp, query as dbQuery, orderByChild, limitToFirst, get, update } from 'firebase/database';
 import { AppState, AppStateStatus } from 'react-native';
 import { setDocumentNonBlocking, updateDocumentNonBlocking, addDocumentNonBlocking } from '../lib/non-blocking-writes';
@@ -111,6 +111,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
 
         batch.set(roomDocRef, {
           participantCount: increment(1),
+          'stats.uniqueVisitorUids': arrayUnion(uid),
           updatedAt: serverTimestamp(),
         }, { merge: true });
 

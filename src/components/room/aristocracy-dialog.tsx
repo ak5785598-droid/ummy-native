@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, Modal, ScrollView, ActivityIndicator } from 'react-native';
-import { X, Award, Shield, Check, Gift } from 'lucide-react-native';
+import { X, Award, Shield, Check, Gift, TrendingUp, Gem, Coins, Palette } from 'lucide-react-native';
 import { useUser, useFirestore } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { doc, updateDoc, increment, serverTimestamp, arrayUnion } from '@/firebase/firestore-compat';
@@ -21,9 +21,13 @@ const RANKS = [
     title: 'Elite Tier I',
     color: ['#3b82f6', '#1d4ed8'] as const,
     dailySalary: 15000,
+    dailyExp: 1000,
+    dailyDiamonds: 2000,
+    dailyGiftCredit: 5000,
+    chatColor: '#3b82f6',
     frameName: 'Knight Royal Crest',
     frameId: 'aristocracy_knight_frame',
-    frameUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_knight_frame.png?alt=media',
+    frameUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_knight_frame_v2.png?alt=media',
     pricing: {
       3: 30000,
       7: 60000,
@@ -37,9 +41,13 @@ const RANKS = [
     title: 'Elite Tier II',
     color: ['#8b5cf6', '#6d28d9'] as const,
     dailySalary: 30000,
+    dailyExp: 2500,
+    dailyDiamonds: 5000,
+    dailyGiftCredit: 12000,
+    chatColor: '#8b5cf6',
     frameName: 'Royal Duke Crest',
     frameId: 'aristocracy_duke_frame',
-    frameUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_duke_frame.png?alt=media',
+    frameUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_duke_frame_v2.png?alt=media',
     pricing: {
       3: 80000,
       7: 150000,
@@ -53,9 +61,13 @@ const RANKS = [
     title: 'Elite Tier III',
     color: ['#fbbf24', '#d97706'] as const,
     dailySalary: 70000,
+    dailyExp: 5000,
+    dailyDiamonds: 10000,
+    dailyGiftCredit: 25000,
+    chatColor: '#fbbf24',
     frameName: 'Legendary Golden Crown',
     frameId: 'aristocracy_king_frame',
-    frameUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_king_frame.png?alt=media',
+    frameUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_king_frame_v2.png?alt=media',
     pricing: {
       3: 200000,
       7: 380000,
@@ -69,9 +81,13 @@ const RANKS = [
     title: 'Elite Tier IV',
     color: ['#ec4899', '#be185d'] as const,
     dailySalary: 100000,
+    dailyExp: 10000,
+    dailyDiamonds: 20000,
+    dailyGiftCredit: 50000,
+    chatColor: '#ec4899',
     frameName: 'Imperial Emperor Crown',
     frameId: 'aristocracy_emperor_frame',
-    frameUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_emperor_frame.png?alt=media',
+    frameUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_emperor_frame_v2.png?alt=media',
     pricing: {
       3: 400000,
       7: 800000,
@@ -135,6 +151,7 @@ export function AristocracyDialog({ visible, onClose }: AristocracyDialogProps) 
         'nobility.rank': currentRank.id,
         'nobility.expiresAt': expireTime,
         'nobility.purchasedAt': Date.now(),
+        'nobility.chatColor': currentRank.chatColor,
         ...frameData,
         updatedAt: serverTimestamp()
       });
@@ -167,14 +184,16 @@ export function AristocracyDialog({ visible, onClose }: AristocracyDialogProps) 
     try {
       const userRef = doc(firestore, 'users', user.uid);
       await updateDoc(userRef, {
-        'wallet.coins': increment(currentRank.dailySalary),
+        'wallet.coins': increment(currentRank.dailySalary + currentRank.dailyGiftCredit),
+        'wallet.diamonds': increment(currentRank.dailyDiamonds),
+        'wallet.totalSpent': increment(currentRank.dailyExp),
         'nobility.lastClaimedAt': Date.now(),
         updatedAt: serverTimestamp()
       });
 
       Alert.alert(
         'Salary Claimed 🪙',
-        `Successfully claimed your daily salary of ${currentRank.dailySalary} coins!`
+        `Claimed ${currentRank.dailySalary} coins, ${currentRank.dailyDiamonds} diamonds, ${currentRank.dailyGiftCredit} gift credits & +${currentRank.dailyExp.toLocaleString()} EXP!`
       );
     } catch (error) {
       Alert.alert('Claim Failed', 'Unable to claim coins. Please try again.');
@@ -294,6 +313,46 @@ export function AristocracyDialog({ visible, onClose }: AristocracyDialogProps) 
                     <Text style={styles.benefitDesc}>Exclusive `{currentRank.frameName}` equipped instantly</Text>
                   </View>
                 </View>
+
+                <View style={styles.benefitRow}>
+                  <View style={styles.benefitIconBox}>
+                    <TrendingUp size={16} color="#fff" />
+                  </View>
+                  <View style={styles.benefitTextCol}>
+                    <Text style={styles.benefitTitle}>Daily Level Increase</Text>
+                    <Text style={styles.benefitDesc}>+{currentRank.dailyExp.toLocaleString()} EXP every 24 hours</Text>
+                  </View>
+                </View>
+
+                <View style={styles.benefitRow}>
+                  <View style={styles.benefitIconBox}>
+                    <Gem size={16} color="#fff" />
+                  </View>
+                  <View style={styles.benefitTextCol}>
+                    <Text style={styles.benefitTitle}>Daily Diamonds</Text>
+                    <Text style={styles.benefitDesc}>{currentRank.dailyDiamonds.toLocaleString()} diamonds every 24 hours</Text>
+                  </View>
+                </View>
+
+                <View style={styles.benefitRow}>
+                  <View style={styles.benefitIconBox}>
+                    <Coins size={16} color="#fff" />
+                  </View>
+                  <View style={styles.benefitTextCol}>
+                    <Text style={styles.benefitTitle}>Gift Credit</Text>
+                    <Text style={styles.benefitDesc}>{currentRank.dailyGiftCredit.toLocaleString()} coins for free gifts daily</Text>
+                  </View>
+                </View>
+
+                <View style={styles.benefitRow}>
+                  <View style={styles.benefitIconBox}>
+                    <Palette size={16} color="#fff" />
+                  </View>
+                  <View style={styles.benefitTextCol}>
+                    <Text style={styles.benefitTitle}>Exclusive Chat Color</Text>
+                    <Text style={styles.benefitDesc}>Your name shows in {currentRank.name} rank color</Text>
+                  </View>
+                </View>
               </View>
             </LinearGradient>
 
@@ -302,7 +361,7 @@ export function AristocracyDialog({ visible, onClose }: AristocracyDialogProps) 
               <View style={styles.salarySection}>
                 <View style={styles.salaryInfoCol}>
                   <Text style={styles.salaryTitle}>Claim Salary</Text>
-                  <Text style={styles.salaryDesc}>Get your daily {currentRank.dailySalary} coins</Text>
+                  <Text style={styles.salaryDesc}>{currentRank.dailySalary} coins · {currentRank.dailyDiamonds} diamonds · {currentRank.dailyExp.toLocaleString()} EXP</Text>
                 </View>
                 <TouchableOpacity
                   onPress={handleClaimSalary}
@@ -659,7 +718,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
     fontSize: 9,
     fontWeight: '800',
-    marginTop: 6,
+    marginTop: 18,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   }

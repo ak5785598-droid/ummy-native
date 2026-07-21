@@ -1046,7 +1046,7 @@ export default function RoomScreen() {
     const bubbleToSend = inventoryBubble;
     // Also send the bubble media URL for image-backed custom bubbles
     const bubbleMediaUrl = (userProfile?.inventory as any)?.activeBubbleMediaUrl || null;
-    await addDocumentNonBlocking(collection(firestore, 'chatRooms', id, 'messages'), { content: text, imageUrl: imageUrl || null, senderId: user.uid, senderName: userProfile.username, senderAvatar: userProfile.avatarUrl || null, senderBubble: bubbleToSend, senderBubbleMediaUrl: bubbleMediaUrl, chatRoomId: id, timestamp: serverTimestamp(), type: 'text' });
+    await addDocumentNonBlocking(collection(firestore, 'chatRooms', id, 'messages'), { content: text, imageUrl: imageUrl || null, senderId: user.uid, senderName: userProfile.username, senderAvatar: userProfile.avatarUrl || null, senderChatColor: userProfile?.nobility?.chatColor || null, senderBubble: bubbleToSend, senderBubbleMediaUrl: bubbleMediaUrl, chatRoomId: id, timestamp: serverTimestamp(), type: 'text' });
   };
 
   const handleImageUpload = async (uri: string): Promise<string | null> => {
@@ -1707,6 +1707,7 @@ export default function RoomScreen() {
         onClose={() => setShowSupportDialog(false)} 
         roomStats={room?.stats}
         visitorCount={participants?.length || 0}
+        uniqueVisitorCount={(room?.stats?.uniqueVisitorUids as any)?.length || 0}
         levelPoints={room?.levelPoints || 0}
         roomId={id}
         isOwner={isOwner}

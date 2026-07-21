@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal, TextInput, FlatList, RefreshControl, Keyboard, Platform, LayoutAnimation, UIManager, Alert, BackHandler, Dimensions, Vibration, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Search, Shield, Heart, ChevronRight, Send, X, Image as ImageIcon, MoreHorizontal, Loader, Check, CheckCheck, Gift, Mic, Smile, Plus, Play, Pause, ChevronDown, Download } from 'lucide-react-native';
+import { Search, Shield, Heart, ChevronRight, Send, X, Image as ImageIcon, MoreHorizontal, Loader, Check, CheckCheck, Gift, Mic, Smile, Plus, Play, Pause, ChevronDown, Download, Settings, Share2, Copy } from 'lucide-react-native';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc, useStorage } from '../../firebase/provider';
 import { collection, query, where, orderBy, limit, doc, setDoc, serverTimestamp, deleteDoc, updateDoc, arrayUnion, arrayRemove, runTransaction, onSnapshot, getDoc, increment, writeBatch } from '@/firebase/firestore-compat';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -1311,6 +1311,25 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
                       style={{ width: 28, height: 28, borderRadius: 14, marginRight: 6, marginTop: 2 }}
                     />
                   )}
+                  {(msg as any).type === 'room_invite' ? (
+                    <View style={{ width: 220, borderRadius: 16, overflow: 'hidden', backgroundColor: isMe ? '#7c3aed' : '#f1f5f9', marginBottom: 4 }}>
+                      {(msg as any).roomCoverUrl ? (
+                        <Image cachePolicy="memory-disk" source={{ uri: toCDN((msg as any).roomCoverUrl) }} style={{ width: '100%', height: 90 }} contentFit="cover" />
+                      ) : (
+                        <View style={{ width: '100%', height: 70, backgroundColor: '#3b82f6', alignItems: 'center', justifyContent: 'center' }}>
+                          <Mic size={24} color="white" />
+                        </View>
+                      )}
+                      <View style={{ padding: 10 }}>
+                        <Text style={{ fontSize: 12, fontWeight: '800', color: isMe ? '#fff' : '#1e293b' }} numberOfLines={1}>{(msg as any).roomName || 'Room'}</Text>
+                        <Text style={{ fontSize: 9, color: isMe ? 'rgba(255,255,255,0.6)' : '#64748b', marginTop: 2 }}>invites you to join</Text>
+                        <Text style={{ fontSize: 9, color: isMe ? 'rgba(255,255,255,0.4)' : '#94a3b8', marginTop: 1 }}>#{(msg as any).roomNumber || ''}</Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 10, paddingBottom: 8 }}>
+                        <Text style={{ fontSize: 8, fontWeight: '700', color: isMe ? 'rgba(255,255,255,0.5)' : '#94a3b8' }}>{timeStr}</Text>
+                      </View>
+                    </View>
+                  ) : (
                   <View className={`max-w-[75%] rounded-2xl px-4 py-2 ${
                     (msg as any).type === 'gift' ? 'bg-gradient-to-br from-pink-500 to-purple-600' : isMe ? 'bg-cyan-500 rounded-br-none' : 'bg-slate-100 rounded-bl-none'
                   }`}>
@@ -1319,7 +1338,7 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
                         {(msg as any).imageUrl ? (
                           <Image cachePolicy="memory-disk" source={{ uri: toCDN((msg as any).imageUrl) }} style={{ width: 80, height: 80 }} contentFit="contain" />
                         ) : (
-                          <Text style={{ fontSize: 40 }}>🎁</Text>
+                          <Text style={{ fontSize: 40 }}>{String.fromCodePoint(0x1F381)}</Text>
                         )}
                         <Text style={{ color: 'white', fontSize: 11, fontWeight: '800', marginTop: 4 }}>{(msg as any).giftName || 'Gift'}</Text>
                         <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 9, marginTop: 2 }}>Tap to view</Text>
@@ -1351,6 +1370,7 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
                       </View>
                     )}
                   </View>
+                )}
                   {isMe && (
                     <Image
                       cachePolicy="memory-disk"
