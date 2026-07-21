@@ -97,7 +97,8 @@ export function RoomPlaySheet({ visible, onClose, roomId, room, participants, on
               Alert.alert('Success', 'Chat history cleared.');
               onClose();
             } catch (e: any) {
-              Alert.alert('Error', 'Failed to clear chat.');
+              console.log("[CLEAR CHAT ERROR]", e);
+              Alert.alert('Error', `Failed to clear chat: ${e.message || e}`);
             } finally {
               setIsClearingChat(false);
             }
