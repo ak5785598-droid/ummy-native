@@ -637,6 +637,7 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
   const firestore = useFirestore();
   const storage = useStorage();
   const navigation = useNavigation();
+  const router = useRouter();
   const { profile: otherUser } = useUserProfile(recipientUid);
   const { profile: myProfile } = useUserProfile(user?.uid);
   
