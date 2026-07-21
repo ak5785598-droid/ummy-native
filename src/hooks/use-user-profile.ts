@@ -103,12 +103,27 @@ export function useUserProfile(uid: string | undefined | null) {
         }
       };
 
+      const baseStats = (base as any)?.stats || {};
+      const subStats = (sub as any)?.stats || {};
+      const mergedStats: Record<string, any> = {};
+      const allStatsKeys = new Set([...Object.keys(baseStats), ...Object.keys(subStats)]);
+      for (const key of allStatsKeys) {
+        const bv = baseStats[key];
+        const sv = subStats[key];
+        if (bv !== undefined && typeof bv === 'object' && bv !== null && !Array.isArray(bv) && sv !== undefined && typeof sv === 'object' && sv !== null && !Array.isArray(sv)) {
+          mergedStats[key] = { ...sv, ...bv };
+        } else {
+          mergedStats[key] = bv !== undefined ? bv : sv;
+        }
+      }
+
       setProfile({
         ...(sub || {}),
         ...(base || {}),
         wallet: mergedWallet,
         level: mergedLevel,
         inventory: mergedInventory,
+        stats: mergedStats,
         xp: Number(base?.xp ?? sub?.xp ?? 0),
         vip: base?.vip ?? sub?.vip ?? 0,
         accountNumber: bestAccNum,

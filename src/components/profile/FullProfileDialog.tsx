@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { Modal, View, Text, TouchableOpacity, Dimensions, StyleSheet, ScrollView, StatusBar, ActivityIndicator, Clipboard, Platform, Animated, TextInput, Alert, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Heart, MessageCircle, MoreHorizontal, Calendar, Star, Sparkles, MapPin, Copy, CheckCircle, Search, X, UserPlus, Unlink } from 'lucide-react-native';
@@ -15,10 +15,10 @@ import { isInventoryItemExpired } from '../../lib/types';
 import { ActiveIDBadge, SovereignIDBadge } from '@/components/native-id-badge';
 
 const ARISTOCRACY_FRAME_URLS: Record<string, string> = {
-  aristocracy_knight_frame: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_knight_frame.png?alt=media',
-  aristocracy_duke_frame: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_duke_frame.png?alt=media',
-  aristocracy_king_frame: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_king_frame.png?alt=media',
-  aristocracy_emperor_frame: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_emperor_frame.png?alt=media',
+  aristocracy_knight_frame: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_knight_frame_v2.png?alt=media',
+  aristocracy_duke_frame: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_duke_frame_v2.png?alt=media',
+  aristocracy_king_frame: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_king_frame_v2.png?alt=media',
+  aristocracy_emperor_frame: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_emperor_frame_v2.png?alt=media',
 };
 import { getLevelFromSpent } from '../../hooks/use-user-level';
 import {

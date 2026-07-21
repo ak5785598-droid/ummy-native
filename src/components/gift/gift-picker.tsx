@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+﻿import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, Vibration, Dimensions, Alert, Animated, Easing, TextInput, ActivityIndicator } from 'react-native';
 import { X, ChevronDown, Zap, Send } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -791,7 +791,6 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
   const totalCost = selectedGift ? selectedGift.price * (parseInt(quantity) || 1) * selectedUids.length : 0;
   const userCoins = userProfile?.wallet?.coins || 0;
 
-  if (!visible) return null;
 
   return (
     <>

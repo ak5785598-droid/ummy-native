@@ -180,11 +180,32 @@ export default function RoomScreen() {
         charm: Number(baseData?.level?.charm ?? subData?.level?.charm ?? 1),
       };
 
+      const baseStats = baseData?.stats || {};
+      const subStats = subData?.stats || {};
+      const mergedStats: Record<string, any> = {};
+      const allStatsKeys = new Set([...Object.keys(baseStats), ...Object.keys(subStats)]);
+      for (const key of allStatsKeys) {
+        const bv = baseStats[key];
+        const sv = subStats[key];
+        if (bv !== undefined && sv !== undefined) {
+          if (typeof bv === 'number' && typeof sv === 'number') {
+            mergedStats[key] = bv;
+          } else if (typeof bv === 'object' && bv !== null && typeof sv === 'object' && sv !== null && !Array.isArray(bv) && !Array.isArray(sv)) {
+            mergedStats[key] = { ...sv, ...bv };
+          } else {
+            mergedStats[key] = bv !== undefined ? bv : sv;
+          }
+        } else {
+          mergedStats[key] = bv !== undefined ? bv : sv;
+        }
+      }
+
       setFullProfileData({
         ...(subData || {}),
         ...(baseData || {}),
         wallet: mergedWallet,
         level: mergedLevel,
+        stats: mergedStats,
         xp: Number(baseData?.xp ?? subData?.xp ?? 0),
         vip: baseData?.vip ?? subData?.vip ?? 0,
         id: fullProfileUid
