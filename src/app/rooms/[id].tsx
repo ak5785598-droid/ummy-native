@@ -1498,23 +1498,7 @@ export default function RoomScreen() {
                 )}
               </View>
             )}
-            {displayRoom?.chatClearedBy && displayRoom?.chatClearedAt && (
-              (() => {
-                const clearedAt = displayRoom.chatClearedAt?.toDate?.() || (displayRoom.chatClearedAt?.seconds ? new Date(displayRoom.chatClearedAt.seconds * 1000) : null);
-                if (!clearedAt || clearedAt.getTime() < sessionJoinTime.getTime() - 3000) return null;
 
-
-  return (
-                  <View className="items-center my-2">
-                    <View className="bg-black/35 rounded-full px-4 py-1.5 border border-white/5">
-                      <Text className="text-white/90 text-[10px] font-bold text-center">
-                        {displayRoom.chatClearedBy.toUpperCase()} HAS CLEARED THE CHAT MSG
-                      </Text>
-                    </View>
-                  </View>
-                );
-              })()
-            )}
             <View className="mt-2" style={{ flex: 1 }}>
               <RoomChatArea 
                 messages={filteredMessages} 

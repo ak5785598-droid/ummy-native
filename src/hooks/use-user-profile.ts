@@ -48,88 +48,111 @@ export function useUserProfile(uid: string | undefined | null) {
     const userRef = doc(firestore, 'users', uid);
 
     const mergeAndSet = () => {
-      const { base, sub } = dataRef.current;
-      if (!base && !sub) return;
-
-      const baseAccNum = base?.accountNumber;
-      const subAccNum = sub?.accountNumber;
-
-      // Prioritize baseAccNum (Admin source of truth) if it exists, otherwise fallback to subAccNum
-      let bestAccNum: any = baseAccNum || subAccNum;
-
-      const isOwner = uid === user?.uid;
-      const canEdit = isOwner || isOfficial;
-
-      if (canEdit) {
-        if (baseAccNum && subAccNum && baseAccNum !== subAccNum) {
-          bestAccNum = baseAccNum;
-          setDoc(profileRef, { accountNumber: baseAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
-        } else if (!isValidAccNum(subAccNum) && isValidAccNum(baseAccNum)) {
-          bestAccNum = baseAccNum;
-          setDoc(profileRef, { accountNumber: bestAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
-          setDoc(userRef, { accountNumber: bestAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
-        } else if (isValidAccNum(subAccNum) && !isValidAccNum(baseAccNum)) {
-          bestAccNum = subAccNum;
-          setDoc(userRef, { accountNumber: subAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
+      try {
+        const { base, sub } = dataRef.current;
+        if (!base && !sub) {
+          setIsLoading(false);
+          return;
         }
+
+        const baseAccNum = base?.accountNumber;
+        const subAccNum = sub?.accountNumber;
+
+        // Prioritize baseAccNum (Admin source of truth) if it exists, otherwise fallback to subAccNum
+        let bestAccNum: any = baseAccNum || subAccNum;
+
+        const isOwner = uid === user?.uid;
+        const canEdit = isOwner || isOfficial;
+
+        if (canEdit) {
+          if (baseAccNum && subAccNum && baseAccNum !== subAccNum) {
+            bestAccNum = baseAccNum;
+            setDoc(profileRef, { accountNumber: baseAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
+          } else if (!isValidAccNum(subAccNum) && isValidAccNum(baseAccNum)) {
+            bestAccNum = baseAccNum;
+            setDoc(profileRef, { accountNumber: bestAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
+            setDoc(userRef, { accountNumber: bestAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
+          } else if (isValidAccNum(subAccNum) && !isValidAccNum(baseAccNum)) {
+            bestAccNum = subAccNum;
+            setDoc(userRef, { accountNumber: subAccNum, accountNumberLocked: true }, { merge: true }).catch(() => {});
+          }
+        }
+
+        const baseWallet = (base as any)?.wallet || {};
+        const subWallet = (sub as any)?.wallet || {};
+        const mergedWallet = {
+          coins: baseWallet.coins ?? subWallet.coins ?? 0,
+          diamonds: baseWallet.diamonds ?? subWallet.diamonds ?? 0,
+          totalSpent: baseWallet.totalSpent ?? subWallet.totalSpent ?? 0,
+        };
+
+        const mergedLevel = {
+          rich: Number(base?.level?.rich ?? sub?.level?.rich ?? 1),
+          charm: Number(base?.level?.charm ?? sub?.level?.charm ?? 1),
+        };
+
+        const baseInventory = (base as any)?.inventory || {};
+        const subInventory = (sub as any)?.inventory || {};
+        
+        // Safe arrays spread
+        const baseOwned = Array.isArray(baseInventory.ownedItems) ? baseInventory.ownedItems : [];
+        const subOwned = Array.isArray(subInventory.ownedItems) ? subInventory.ownedItems : [];
+        const mergedOwnedItems = Array.from(new Set([
+          ...baseOwned,
+          ...subOwned
+        ]));
+
+        const mergedInventory = {
+          ...subInventory,
+          ...baseInventory,
+          ownedItems: mergedOwnedItems,
+          expiries: {
+            ...(subInventory.expiries || {}),
+            ...(baseInventory.expiries || {})
+          }
+        };
+
+        const baseStats = (base as any)?.stats || {};
+        const subStats = (sub as any)?.stats || {};
+        const mergedStats: Record<string, any> = {};
+        const allStatsKeys = new Set([...Object.keys(baseStats), ...Object.keys(subStats)]);
+        for (const key of allStatsKeys) {
+          const bv = baseStats[key];
+          const sv = subStats[key];
+          if (bv !== undefined && typeof bv === 'object' && bv !== null && !Array.isArray(bv) && sv !== undefined && typeof sv === 'object' && sv !== null && !Array.isArray(sv)) {
+            mergedStats[key] = { ...sv, ...bv };
+          } else {
+            mergedStats[key] = bv !== undefined ? bv : sv;
+          }
+        }
+
+        setProfile({
+          ...(sub || {}),
+          ...(base || {}),
+          wallet: mergedWallet,
+          level: mergedLevel,
+          inventory: mergedInventory,
+          stats: mergedStats,
+          xp: Number(base?.xp ?? sub?.xp ?? 0),
+          vip: base?.vip ?? sub?.vip ?? 0,
+          accountNumber: bestAccNum,
+          id: uid,
+        } as User);
+        setIsLoading(false);
+      } catch (err) {
+        console.error("[useUserProfile MERGE ERROR]", err);
+        // Robust Fallback: Set whatever raw data is loaded to prevent page loader freeze
+        const fallback = dataRef.current.base || dataRef.current.sub;
+        if (fallback) {
+          setProfile({
+            ...fallback,
+            wallet: fallback.wallet || { coins: 0, diamonds: 0, totalSpent: 0 },
+            inventory: fallback.inventory || { ownedItems: [], expiries: {} },
+            id: uid
+          } as User);
+        }
+        setIsLoading(false);
       }
-
-      const baseWallet = (base as any)?.wallet || {};
-      const subWallet = (sub as any)?.wallet || {};
-      const mergedWallet = {
-        coins: baseWallet.coins ?? subWallet.coins ?? 0,
-        diamonds: baseWallet.diamonds ?? subWallet.diamonds ?? 0,
-        totalSpent: baseWallet.totalSpent ?? subWallet.totalSpent ?? 0,
-      };
-
-      const mergedLevel = {
-        rich: Number(base?.level?.rich ?? sub?.level?.rich ?? 1),
-        charm: Number(base?.level?.charm ?? sub?.level?.charm ?? 1),
-      };
-
-      const baseInventory = (base as any)?.inventory || {};
-      const subInventory = (sub as any)?.inventory || {};
-      const mergedOwnedItems = Array.from(new Set([
-        ...(baseInventory.ownedItems || []),
-        ...(subInventory.ownedItems || [])
-      ]));
-      const mergedInventory = {
-        ...subInventory,
-        ...baseInventory,
-        ownedItems: mergedOwnedItems,
-        expiries: {
-          ...(subInventory.expiries || {}),
-          ...(baseInventory.expiries || {})
-        }
-      };
-
-      const baseStats = (base as any)?.stats || {};
-      const subStats = (sub as any)?.stats || {};
-      const mergedStats: Record<string, any> = {};
-      const allStatsKeys = new Set([...Object.keys(baseStats), ...Object.keys(subStats)]);
-      for (const key of allStatsKeys) {
-        const bv = baseStats[key];
-        const sv = subStats[key];
-        if (bv !== undefined && typeof bv === 'object' && bv !== null && !Array.isArray(bv) && sv !== undefined && typeof sv === 'object' && sv !== null && !Array.isArray(sv)) {
-          mergedStats[key] = { ...sv, ...bv };
-        } else {
-          mergedStats[key] = bv !== undefined ? bv : sv;
-        }
-      }
-
-      setProfile({
-        ...(sub || {}),
-        ...(base || {}),
-        wallet: mergedWallet,
-        level: mergedLevel,
-        inventory: mergedInventory,
-        stats: mergedStats,
-        xp: Number(base?.xp ?? sub?.xp ?? 0),
-        vip: base?.vip ?? sub?.vip ?? 0,
-        accountNumber: bestAccNum,
-        id: uid,
-      } as User);
-      setIsLoading(false);
     };
 
     // Listen to profile subcollection

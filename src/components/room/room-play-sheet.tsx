@@ -18,7 +18,7 @@ const ICON_MULTIMOVIES = require('../../../assets/images/play-icons/icon_movie.p
 
 import { useFirestore, useUser, useCollection, useMemoFirebase, useDatabase } from '../../firebase/provider';
 import { ref as databaseRef, set as databaseSet, push as databasePush, remove as databaseRemove } from 'firebase/database';
-import { doc, serverTimestamp, collection, query, orderBy, addDoc, deleteDoc, updateDoc, writeBatch, getDocs } from '@/firebase/firestore-compat';
+import { doc, serverTimestamp, collection, query, orderBy, addDoc, deleteDoc, updateDoc, setDoc, writeBatch, getDocs } from '@/firebase/firestore-compat';
 import rnfbStorage from '@react-native-firebase/storage';
 import { useRoomContext } from '../../context/room-context';
 import { Room, RoomParticipant } from '../../lib/types';
@@ -84,26 +84,22 @@ export function RoomPlaySheet({ visible, onClose, roomId, room, participants, on
             try {
               const currentName = userProfile?.username || 'Admin';
               
-              // 1. Update Firestore room document with chatClearedAt
+              if (database) {
+                await databaseRemove(databaseRef(database, `roomMessages/${roomId}`));
+              }
+
               await updateDoc(doc(firestore, 'chatRooms', roomId), { 
                 chatClearedAt: serverTimestamp(), 
                 chatClearedBy: currentName, 
                 updatedAt: serverTimestamp() 
               });
 
-              // 2. Add system message to Firestore room messages
-              const msgsRef = collection(firestore, 'chatRooms', roomId, 'messages');
-              await addDoc(msgsRef, {
-                content: `${currentName} cleared the chat`,
-                type: 'system',
-                timestamp: serverTimestamp()
-              });
-
               Alert.alert('Success', 'Chat history cleared.');
               onClose();
             } catch (e: any) {
-              console.log("[CLEAR CHAT ERROR]", e);
-              Alert.alert('Error', `Failed to clear chat: ${e.message || e}`);
+              const errStr = typeof e === 'string' ? e : (e?.message || e?.code || JSON.stringify(e) || 'Unknown error');
+              console.warn('[CLEAR CHAT ERROR]', errStr, e);
+              Alert.alert('Chat Clean Failed', errStr);
             } finally {
               setIsClearingChat(false);
             }
