@@ -79,7 +79,7 @@ export default function WalletScreen() {
       .doc(user.uid)
       .collection('transactions')
       .orderBy('timestamp', 'desc')
-      .limit(30)
+      .limit(200)
       .onSnapshot(snap => {
         if (snap) {
           setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -177,6 +177,7 @@ export default function WalletScreen() {
         amount: coinsAmount + bonusAmount,
         currency: 'coins',
         type: 'recharge',
+        source: 'Manual Recharge',
         description: `Coins Recharge (Pending: UTR ${utrNumber.trim()})`,
         timestamp: firestore.FieldValue.serverTimestamp()
       });
@@ -239,15 +240,16 @@ export default function WalletScreen() {
         amount: resCoins,
         currency: 'coins',
         type: 'exchange',
+        source: 'Diamond Exchange',
         description: `Exchanged ${reqDiamonds.toLocaleString()} Diamonds for Coins`,
         timestamp: firestore.FieldValue.serverTimestamp()
       });
-
       const txDiamondsRef = firestore().collection('users').doc(user.uid).collection('transactions').doc();
       await txDiamondsRef.set({
         amount: -reqDiamonds,
         currency: 'diamonds',
         type: 'exchange',
+        source: 'Diamond Exchange',
         description: `Exchanged Diamonds for ${resCoins.toLocaleString()} Coins`,
         timestamp: firestore.FieldValue.serverTimestamp()
       });
@@ -576,7 +578,7 @@ export default function WalletScreen() {
                     <View style={{ flex: 1, marginRight: 12 }}>
                       <Text style={{ fontSize: 13, fontWeight: '800', color: '#1e293b' }}>{tx.description || 'Transaction'}</Text>
                       <Text style={{ fontSize: 9, color: '#94a3b8', fontWeight: '800', marginTop: 4, textTransform: 'uppercase' }}>
-                        {tx.type} • {tx.timestamp ? formatTimeAgo(tx.timestamp) : 'Just now'}
+                        {tx.source ? `[${tx.source}] ` : ''}{tx.type} • {tx.timestamp ? formatTimeAgo(tx.timestamp) : 'Just now'}
                       </Text>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>

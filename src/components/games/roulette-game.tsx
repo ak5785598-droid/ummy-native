@@ -92,6 +92,7 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
 
   const spinInitiatedRef = useRef(false);
   const isDealerRef = useRef(false);
+  const locallyUpdatedCoinsRef = useRef(false);
   const myBetsRef = useRef(myBets);
   myBetsRef.current = myBets;
   const processedRef = useRef(false);
@@ -101,7 +102,9 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
 
   // Sync coins
   useEffect(() => {
-    if (userProfile?.wallet?.coins !== undefined) setLocalCoins(userProfile.wallet.coins);
+    if (userProfile?.wallet?.coins !== undefined && !locallyUpdatedCoinsRef.current) {
+      setLocalCoins(userProfile.wallet.coins);
+    }
   }, [userProfile?.wallet?.coins]);
 
   // Entrance loader
@@ -137,20 +140,16 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
           });
           if (playerWin > 0) {
             const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
-            const userRef = doc(firestore, 'users', currentUser.uid);
             const winData = { 'wallet.coins': increment(playerWin) };
             const batch = writeBatch(firestore);
             batch.set(profileRef, winData, { merge: true });
-            batch.set(userRef, winData, { merge: true });
             batch.commit().then(() => setLocalCoins(p => p + playerWin)).catch(() => {});
           }
         } else {
           const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
-          const userRef = doc(firestore, 'users', currentUser.uid);
           const refundData = { 'wallet.coins': increment(totalWager) };
           const batch = writeBatch(firestore);
           batch.set(profileRef, refundData, { merge: true });
-          batch.set(userRef, refundData, { merge: true });
           batch.commit().then(() => setLocalCoins(p => p + totalWager)).catch(() => {});
         }
         databaseSet(databaseRef(database, playerBetsPath), null).catch(() => {});
@@ -358,6 +357,7 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
         date: todayStr,
       }, { merge: true });
       statsBatch.commit().catch((e) => console.log('[ROULETTE] Stats batch error:', e?.message || e?.code || String(e)));
+      locallyUpdatedCoinsRef.current = true;
       setLocalCoins(p => p - selectedChip);
     } catch {}
     const newBets = { ...myBetsRef.current, [betId]: (myBetsRef.current[betId] || 0) + selectedChip };
@@ -384,6 +384,7 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
         date: todayStr,
       }, { merge: true });
       statsBatch.commit().catch((e) => console.log('[ROULETTE] Stats batch error:', e?.message || e?.code || String(e)));
+      locallyUpdatedCoinsRef.current = true;
       setLocalCoins(p => p - totalCost);
     } catch {}
     setMyBets(prev => {
@@ -409,21 +410,24 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
     // Credit winnings
     if (totalWin > 0 && currentUser && firestore) {
       try {
+        console.log('[ROULETTE] WIN: Writing', totalWin, 'to subcollection for', currentUser.uid);
         const batch = writeBatch(firestore);
         const winData = { 'wallet.coins': increment(totalWin) };
         batch.set(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), winData, { merge: true });
         await batch.commit();
-      } catch {}
-      addDoc(collection(firestore, 'globalGameWins'), {
-        gameId: 'roulette',
-        roomId: roomId || null,
-        userId: currentUser.uid,
-        username: userProfile?.username || 'Guest',
-        amount: totalWin,
-        betAmount: totalBet,
-        timestamp: new Date()
-      }).catch(() => {});
+        console.log('[ROULETTE] WIN: Firestore write SUCCESS');
+        locallyUpdatedCoinsRef.current = true;
       setLocalCoins(p => p + totalWin);
+        addDoc(collection(firestore, 'globalGameWins'), {
+          gameId: 'roulette',
+          roomId: roomId || null,
+          userId: currentUser.uid,
+          username: userProfile?.username || 'Guest',
+          amount: totalWin,
+          betAmount: totalBet,
+          timestamp: new Date()
+        }).catch(() => {});
+      } catch (e) { console.log('[ROULETTE] WIN FAILED:', e?.message || e?.code || String(e)); }
     }
 
     // Credit ALL players from RTDB (handles users who exited mid-round)

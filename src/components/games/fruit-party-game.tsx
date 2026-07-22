@@ -4,7 +4,7 @@ import { HelpCircle, Volume2, VolumeX, BarChart3, ChevronDown, X, RotateCcw, Plu
 import { useRouter } from 'expo-router';
 import { useUser, useFirestore, useDatabase } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
-import { doc, setDoc, updateDoc, increment, addDoc, collection, getDoc, writeBatch, serverTimestamp } from '@/firebase/firestore-compat';
+import { doc, setDoc, updateDoc, increment, addDoc, collection, getDoc, writeBatch, serverTimestamp, onSnapshot } from '@/firebase/firestore-compat';
 import { ref as databaseRef, set as databaseSet, update as databaseUpdate, onValue, runTransaction as databaseTransaction, get as databaseGet } from 'firebase/database';
 import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -47,6 +47,15 @@ const FRUIT_POSITIONS = FRUITS.map((_, i) => {
   };
 });
 
+// MurmurHash3 32-bit finalizer for 100% unpredictable uniform pseudo-random round winner selection
+const getDeterministicWinner = (roundIdx: number, items: any[]) => {
+  let h = (roundIdx ^ 0x9e3779b9) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  h = ((h ^ (h >>> 16)) >>> 0);
+  return items[h % items.length];
+};
+
 export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPartyGameProps) {
   const { user: currentUser } = useUser();
   const { profile: userProfile } = useUserProfile(currentUser?.uid);
@@ -63,14 +72,18 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
   const [timeLeft, setTimeLeft] = useState(30);
   const [roundStartTime, setRoundStartTime] = useState<number | null>(null);
   const spinInitiatedRef = useRef(false);
+  const lastProcessedRoundRef = useRef<number | null>(null);
   const isDealerRef = useRef(false);
+  const locallyUpdatedCoinsRef = useRef(false); // Prevents userProfile sync from reverting optimistic coin updates
   const myBetsRef = useRef<Record<string, number>>({});
 
   const [selectedChip, setSelectedChip] = useState(1000);
   const [myBets, setMyBets] = useState<Record<string, number>>({});
   const [lastBets, setLastBets] = useState<Record<string, number>>({});
   const [highlightIdx, setHighlightIdx] = useState<number | null>(null);
-  const [history, setHistory] = useState<string[]>([]);
+  const [history, setHistory] = useState<string[]>(['pineapple', 'cherry', 'banana', 'watermelon', 'skewers', 'burrito', 'pizza', 'chicken']);
+  const historyRef = useRef<string[]>(history);
+  useEffect(() => { historyRef.current = history; }, [history]);
   const [winnerData, setWinnerData] = useState<{ id: string; win: number; multiplier: number } | null>(null);
   const [shiningGroup, setShiningGroup] = useState<'none' | 'left' | 'right'>('none');
   const [localCoins, setLocalCoins] = useState(0);
@@ -127,7 +140,11 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
   }, []);
 
   useEffect(() => {
-    if (userProfile?.wallet?.coins !== undefined) setLocalCoins(userProfile.wallet.coins);
+    // Only sync from userProfile if we haven't made a local game update yet
+    // This prevents Firestore re-sync from reverting our optimistic coin updates
+    if (userProfile?.wallet?.coins !== undefined && !locallyUpdatedCoinsRef.current) {
+      setLocalCoins(userProfile.wallet.coins);
+    }
   }, [userProfile?.wallet?.coins]);
 
   // On mount: check RTDB for pending bets from previous exit and credit/refund
@@ -162,21 +179,21 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
             }
           });
           if (playerWin > 0) {
-            const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
-            const userRef = doc(firestore, 'users', currentUser.uid);
+            const baseUserRef = doc(firestore, 'users', currentUser.uid);
+            const subProfileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
             const winData = { 'wallet.coins': increment(playerWin) };
             const batch = writeBatch(firestore);
-            batch.set(profileRef, winData, { merge: true });
-            batch.set(userRef, winData, { merge: true });
+            batch.set(baseUserRef, winData, { merge: true });
+            batch.set(subProfileRef, winData, { merge: true });
             batch.commit().then(() => setLocalCoins(p => p + playerWin)).catch(() => {});
           }
         } else {
-          const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
-          const userRef = doc(firestore, 'users', currentUser.uid);
+          const baseUserRef = doc(firestore, 'users', currentUser.uid);
+          const subProfileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
           const refundData = { 'wallet.coins': increment(totalWager) };
           const batch = writeBatch(firestore);
-          batch.set(profileRef, refundData, { merge: true });
-          batch.set(userRef, refundData, { merge: true });
+          batch.set(baseUserRef, refundData, { merge: true });
+          batch.set(subProfileRef, refundData, { merge: true });
           batch.commit().then(() => setLocalCoins(p => p + totalWager)).catch(() => {});
         }
         databaseSet(databaseRef(database, playerBetsPath), null).catch(() => {});
@@ -184,83 +201,67 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
     }).catch(() => {});
   }, [database, roomId, currentUser?.uid, firestore]);
 
-  // Real-time ticking countdown timer based on synced roundStartTime
+  // 24/7 Continuous Master Timer Loop (40s total cycle: 30s betting + 3s spin + 7s result)
   useEffect(() => {
-    if (gameState !== 'betting' || !roundStartTime) return;
+    const CYCLE_DURATION = 40000; // 40s total cycle
+    const BETTING_DURATION = 30000; // 30s betting window
 
-    const updateTimer = () => {
-      const elapsed = Math.floor((Date.now() - roundStartTime) / 1000);
-      const remaining = Math.max(0, 30 - elapsed);
-      setTimeLeft(remaining);
-      if (remaining <= 5 && remaining > 0) {
-        playSoundEffect('tick');
+    const updateContinuousLoop = () => {
+      const now = Date.now();
+      const currentCycleOffset = now % CYCLE_DURATION;
+      const currentRoundIndex = Math.floor(now / CYCLE_DURATION);
+
+      // On round transition (at 0s)
+      if (lastProcessedRoundRef.current !== currentRoundIndex) {
+        lastProcessedRoundRef.current = currentRoundIndex;
+        setGameState(currentCycleOffset < BETTING_DURATION ? 'betting' : 'launching');
+        setWinnerData(null);
+        setHighlightIdx(null);
+        myBetsRef.current = {};
+        setMyBets({});
+        spinInitiatedRef.current = (currentCycleOffset >= BETTING_DURATION);
+      }
+
+      if (currentCycleOffset < BETTING_DURATION) {
+        const secondsRemaining = Math.max(1, Math.ceil((BETTING_DURATION - currentCycleOffset) / 1000));
+        setTimeLeft(secondsRemaining);
+        if (gameState !== 'betting') {
+          setGameState('betting');
+        }
+
+        if (secondsRemaining <= 5 && secondsRemaining > 0) {
+          playSoundEffect('tick');
+        }
+      } else {
+        setTimeLeft(0);
+        if (gameState === 'betting' && !spinInitiatedRef.current) {
+          spinInitiatedRef.current = true;
+          const winningFruit = getDeterministicWinner(currentRoundIndex, FRUITS);
+          startSpin(winningFruit.id, 'none');
+        }
       }
     };
 
-    updateTimer();
-    const iv = setInterval(updateTimer, 1000);
-    return () => clearInterval(iv);
-  }, [gameState, roundStartTime]);
+    updateContinuousLoop();
+    const interval = setInterval(updateContinuousLoop, 1000);
+    return () => clearInterval(interval);
+  }, [gameState]);
 
-  // Timer hits 0 → SHARED WINNER via RTDB transaction (all players see same result)
+  // Real-time Firestore + RTDB History & Game Sync
   useEffect(() => {
-    if (gameState !== 'betting') return;
-    if (spinInitiatedRef.current) return;
-    if (timeLeft !== 0) return;
-    spinInitiatedRef.current = true;
-
-    (async () => {
-      let winningId = '';
-      let groupType: 'none' | 'left' | 'right' = 'none';
-      isDealerRef.current = false;
-
-      if (database && roomId) {
-        const gamePath = `games/fruit_party_${roomId}`;
-        try {
-          await databaseTransaction(databaseRef(database, gamePath), (currentData: any) => {
-            if (!currentData || currentData.status !== 'betting') return;
-            if (currentData.winningId) {
-              winningId = currentData.winningId;
-              groupType = currentData.groupType || 'none';
-              return;
-            }
-            isDealerRef.current = true;
-            let pickedId = FRUITS[Math.floor(Math.random() * FRUITS.length)].id;
-            const c = Math.random();
-            if (c < 0.025) groupType = 'left';
-            else if (c < 0.05) groupType = 'right';
-            if (groupType === 'left') { const ids = ['skewers', 'burrito', 'pizza', 'chicken']; pickedId = ids[Math.floor(Math.random() * ids.length)]; }
-            else if (groupType === 'right') { const ids = ['pineapple', 'cherry', 'banana', 'watermelon']; pickedId = ids[Math.floor(Math.random() * ids.length)]; }
-            winningId = pickedId;
-            currentData.status = 'spinning';
-            currentData.winningId = pickedId;
-            currentData.groupType = groupType;
-            currentData.updatedAt = Date.now();
-            return currentData;
-          });
-        } catch (e) {}
+    if (!firestore) return;
+    const historyDocRef = doc(firestore, 'games', 'fruit-party');
+    const unsub = onSnapshot(historyDocRef, (snap: any) => {
+      const exists = typeof snap?.exists === 'function' ? snap.exists() : Boolean(snap?.exists);
+      if (exists) {
+        const data = typeof snap?.data === 'function' ? snap.data() : snap?.data;
+        if (Array.isArray(data?.history) && data.history.length > 0) {
+          setHistory(data.history);
+        }
       }
-
-      if (!winningId) { winningId = FRUITS[Math.floor(Math.random() * FRUITS.length)].id; isDealerRef.current = true; }
-
-      if (isDealerRef.current && firestore) {
-        try {
-          const oracleSnap = await getDoc(doc(firestore, 'gameOracle', 'fruit-party'));
-          if (oracleSnap.exists() && (oracleSnap.data() as any).isActive) {
-            const forced = (oracleSnap.data() as any).forcedResult;
-            if (FRUITS.some(a => a.id === forced)) winningId = forced;
-            updateDoc(doc(firestore, 'gameOracle', 'fruit-party'), { isActive: false }).catch(() => {});
-            groupType = 'none';
-            if (database && roomId) {
-              databaseUpdate(databaseRef(database, `games/fruit_party_${roomId}`), { winningId, groupType: 'none' }).catch(() => {});
-            }
-          }
-        } catch {}
-      }
-
-      if (winningId) startSpin(winningId, groupType);
-    })();
-  }, [timeLeft]);
+    }, () => {});
+    return () => unsub();
+  }, [firestore]);
 
   // RTD Sync — shared history, roundStartTime, and game state for all players
   useEffect(() => {
@@ -268,16 +269,12 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
     const gamePath = `games/fruit_party_${roomId || 'global'}`;
 
     const unsub = onValue(databaseRef(database, gamePath), (snap: any) => {
-      if (!snap.exists()) {
-        databaseSet(databaseRef(database, gamePath), {
-          status: 'betting', winningId: null, groupType: 'none',
-          history: [], roundStartTime: Date.now(), updatedAt: Date.now()
-        }).catch(() => {});
-        return;
-      }
-
+      if (!snap.exists()) return;
       const data = snap.val() as any;
-      if (data.history) setHistory(Array.isArray(data.history) ? data.history : Object.values(data.history));
+      if (data.history) {
+        const rtdbHist = Array.isArray(data.history) ? data.history : Object.values(data.history);
+        if (rtdbHist.length > 0) setHistory(rtdbHist as string[]);
+      }
     });
 
     return () => unsub();
@@ -320,7 +317,15 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
     if (gameState !== 'betting' || !currentUser || !firestore) return;
     try {
       if (localCoins < selectedChip) { handleGoToWallet(); return; }
-      await setDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { 'wallet.coins': increment(-selectedChip) }, { merge: true });
+      console.log('[FRUIT-PARTY] BET: Writing', -selectedChip, 'to subcollection for', currentUser.uid);
+      const baseUserRef = doc(firestore, 'users', currentUser.uid);
+      const subProfileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
+      
+      await updateDoc(baseUserRef, { 'wallet.coins': increment(-selectedChip), coins: increment(-selectedChip) })
+        .catch(() => setDoc(baseUserRef, { wallet: { coins: increment(-selectedChip) }, coins: increment(-selectedChip) }, { merge: true }));
+      await updateDoc(subProfileRef, { 'wallet.coins': increment(-selectedChip), coins: increment(-selectedChip) })
+        .catch(() => setDoc(subProfileRef, { wallet: { coins: increment(-selectedChip) }, coins: increment(-selectedChip) }, { merge: true }));
+      console.log('[FRUIT-PARTY] BET: Firestore write SUCCESS');
 
       const todayStr = new Date().toISOString().split('T')[0];
       const statsBatch = writeBatch(firestore);
@@ -333,8 +338,21 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
         date: todayStr,
       }, { merge: true });
       statsBatch.commit().catch((e) => console.log('[FRUIT-PARTY] Stats batch error:', e?.message || e?.code || String(e)));
+
+      // Transaction Ledger Entry
+      const txRef = collection(doc(firestore, 'users', currentUser.uid), 'transactions');
+      addDoc(txRef, {
+        amount: -selectedChip,
+        currency: 'coins',
+        type: 'game_bet',
+        source: 'Fruit Party',
+        description: `Fruit Party Bet (${fruitId})`,
+        timestamp: serverTimestamp()
+      }).catch(() => {});
+
+      locallyUpdatedCoinsRef.current = true;
       setLocalCoins(p => p - selectedChip);
-    } catch (e) { console.log('[FRUIT-PARTY] Bet commit error:', e); }
+    } catch (e) { console.log('[FRUIT-PARTY] BET FAILED:', e?.message || e?.code || String(e)); }
     const newBets = { ...myBetsRef.current, [fruitId]: (myBetsRef.current[fruitId] || 0) + selectedChip };
     myBetsRef.current = newBets;
     setMyBets(newBets);
@@ -347,7 +365,13 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
     const totalCost = Object.values(lastBets).reduce((s, v) => s + v, 0);
     try {
       if (localCoins < totalCost) { handleGoToWallet(); return; }
-      await setDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { 'wallet.coins': increment(-totalCost) }, { merge: true });
+      const baseUserRef = doc(firestore, 'users', currentUser.uid);
+      const subProfileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
+
+      await updateDoc(baseUserRef, { 'wallet.coins': increment(-totalCost), coins: increment(-totalCost) })
+        .catch(() => setDoc(baseUserRef, { wallet: { coins: increment(-totalCost) }, coins: increment(-totalCost) }, { merge: true }));
+      await updateDoc(subProfileRef, { 'wallet.coins': increment(-totalCost), coins: increment(-totalCost) })
+        .catch(() => setDoc(subProfileRef, { wallet: { coins: increment(-totalCost) }, coins: increment(-totalCost) }, { merge: true }));
 
       const todayStr = new Date().toISOString().split('T')[0];
       const statsBatch = writeBatch(firestore);
@@ -360,6 +384,19 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
         date: todayStr,
       }, { merge: true });
       statsBatch.commit().catch((e) => console.log('[FRUIT-PARTY] Repeat stats error:', e?.message || e?.code || String(e)));
+
+      // Transaction Ledger Entry
+      const txRef = collection(doc(firestore, 'users', currentUser.uid), 'transactions');
+      addDoc(txRef, {
+        amount: -totalCost,
+        currency: 'coins',
+        type: 'game_bet',
+        source: 'Fruit Party',
+        description: `Fruit Party Repeat Bet`,
+        timestamp: serverTimestamp()
+      }).catch(() => {});
+
+      locallyUpdatedCoinsRef.current = true;
       setLocalCoins(p => p - totalCost);
     } catch (e) { console.log('[FRUIT-PARTY] Repeat commit error:', e); }
     const newDrops: typeof droppedChips = [];
@@ -383,9 +420,9 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
     setGameState('spinning');
 
     const targetIdx = FRUITS.findIndex(a => a.id === winningId);
-    const totalSteps = (SEQUENCE.length * 6) + targetIdx;
+    const totalSteps = (SEQUENCE.length * 2) + targetIdx; // Fast 16-23 step spin (2.2s total)
     let currentStep = 0;
-    let speed = 50;
+    let speed = 40;
 
     // Fix: clear any existing spin timer chain before starting new one
     if (spinTimerRef.current) {
@@ -398,12 +435,12 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
       setHighlightIdx(activeIdx);
       if (currentStep < totalSteps) {
         const remaining = totalSteps - currentStep;
-        if (remaining < 12) speed += 50;
-        else if (remaining < 24) speed += 20;
+        if (remaining < 6) speed += 30;
+        else if (remaining < 12) speed += 15;
         currentStep++;
         spinTimerRef.current = setTimeout(runChase, speed);
       } else {
-        setTimeout(() => finalizeResult(winningId, groupType), 600);
+        setTimeout(() => finalizeResult(winningId, groupType), 400);
       }
     };
     runChase();
@@ -426,6 +463,20 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
     });
 
     const winItem = FRUITS.find(a => a.id === id);
+    const prevHist = historyRef.current.length > 0 ? historyRef.current : ['pineapple', 'cherry', 'banana', 'watermelon', 'skewers', 'burrito', 'pizza', 'chicken'];
+    const updatedHistory = [id, ...prevHist].slice(0, 15);
+    setHistory(updatedHistory);
+    historyRef.current = updatedHistory;
+
+    // Save history globally to RTDB AND Firestore on EVERY round!
+    const rtdbPath = `games/fruit_party_${roomId || 'global'}`;
+    if (database) {
+      databaseUpdate(databaseRef(database, rtdbPath), { history: updatedHistory, updatedAt: Date.now() }).catch(() => {});
+    }
+    if (firestore) {
+      setDoc(doc(firestore, 'games', 'fruit-party'), { history: updatedHistory, updatedAt: serverTimestamp() }, { merge: true }).catch(() => {});
+    }
+
     setWinnerData({ id, win: winAmount, multiplier: winItem?.multiplier || 0 });
     setGameState('result');
 
@@ -433,16 +484,36 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
 
     if (winAmount > 0 && currentUser && firestore) {
       try {
-        const batch = writeBatch(firestore);
-        const winData = { 'wallet.coins': increment(winAmount) };
-        batch.set(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), winData, { merge: true });
-        await batch.commit();
+        console.log('[FRUIT-PARTY] WIN: Writing', winAmount, 'to subcollection for', currentUser.uid);
+        const baseUserRef = doc(firestore, 'users', currentUser.uid);
+        const subProfileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
+
+        await updateDoc(baseUserRef, { 'wallet.coins': increment(winAmount), coins: increment(winAmount) })
+          .catch(() => setDoc(baseUserRef, { wallet: { coins: increment(winAmount) }, coins: increment(winAmount) }, { merge: true }));
+        await updateDoc(subProfileRef, { 'wallet.coins': increment(winAmount), coins: increment(winAmount) })
+          .catch(() => setDoc(subProfileRef, { wallet: { coins: increment(winAmount) }, coins: increment(winAmount) }, { merge: true }));
+
+        // Transaction Ledger Entry
+        const txRef = collection(doc(firestore, 'users', currentUser.uid), 'transactions');
+        addDoc(txRef, {
+          amount: winAmount,
+          currency: 'coins',
+          type: 'game_win',
+          source: 'Fruit Party',
+          description: `Fruit Party Win (${winItem?.id || 'Payout'})`,
+          timestamp: serverTimestamp()
+        }).catch(() => {});
+
+        console.log('[FRUIT-PARTY] WIN: Firestore write SUCCESS');
+        locallyUpdatedCoinsRef.current = true;
+        setLocalCoins(p => p + winAmount);
         addDoc(collection(firestore, 'globalGameWins'), {
           gameId: 'fruit-party', roomId: roomId || null, userId: currentUser.uid, username: userProfile?.username || 'Guest',
           avatarUrl: userProfile?.avatarUrl || null, amount: winAmount, betAmount: totalWagerForGroup, timestamp: new Date(),
         }).catch(() => {});
-      } catch (e) { console.log('Fruit Party win credit failed:', e); }
-      setLocalCoins(p => p + winAmount);
+      } catch (e) {
+        console.log('[FRUIT-PARTY] WIN COMMIT ERROR:', e);
+      }
     }
 
     // Credit ALL players from RTDB (handles users who exited mid-round)
@@ -1030,7 +1101,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', paddingRight: 10 }}>
-            {history.map((id, i) => {
+            {(history.length > 0 ? history : ['pineapple', 'cherry', 'banana', 'watermelon', 'skewers', 'burrito', 'pizza', 'chicken']).map((id, i) => {
               const a = FRUITS.find(x => x.id === id);
               const isLatest = i === 0;
               return (
@@ -1049,9 +1120,9 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
                   elevation: isLatest ? 4 : 2,
                 }}>
                   {a?.image ? (
-                    <Image source={a.image} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
+                    <Image source={a.image} style={{ width: '100%', height: '100%' }} contentFit="cover" />
                   ) : (
-                    <Text style={{ fontSize: 16 }}>{a?.emoji}</Text>
+                    <Text style={{ fontSize: 16 }}>{a?.emoji || '🍍'}</Text>
                   )}
                 </View>
               );

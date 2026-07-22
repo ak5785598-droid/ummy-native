@@ -71,6 +71,7 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
   const betTimerRef = useRef<any>(null);
   const revealInitiatedRef = useRef(false); // RTD sync guard
   const isDealerRef = useRef(false);
+  const locallyUpdatedCoinsRef = useRef(false);
   const processedRef = useRef(false);
   const myBetsRef = useRef<Record<string, number>>({ WOLF: 0, LION: 0, FISH: 0 });
   const pulseAnim = useRef(new Animated.Value(0.6)).current;
@@ -107,7 +108,9 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
   }, []);
 
   useEffect(() => {
-    if (userProfile?.wallet?.coins !== undefined) setLocalCoins(userProfile.wallet.coins);
+    if (userProfile?.wallet?.coins !== undefined && !locallyUpdatedCoinsRef.current) {
+      setLocalCoins(userProfile.wallet.coins);
+    }
   }, [userProfile?.wallet?.coins]);
 
   // On mount: check RTDB for pending bets from previous exit and credit/refund
@@ -131,20 +134,16 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
           const playerWin = Math.floor(betAmt * 1.95);
           if (playerWin > 0) {
             const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
-            const userRef = doc(firestore, 'users', currentUser.uid);
             const winData = { 'wallet.coins': increment(playerWin) };
             const batch = writeBatch(firestore);
             batch.set(profileRef, winData, { merge: true });
-            batch.set(userRef, winData, { merge: true });
             batch.commit().then(() => setLocalCoins(p => p + playerWin)).catch(() => {});
           }
         } else {
           const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
-          const userRef = doc(firestore, 'users', currentUser.uid);
           const refundData = { 'wallet.coins': increment(totalWager) };
           const batch = writeBatch(firestore);
           batch.set(profileRef, refundData, { merge: true });
-          batch.set(userRef, refundData, { merge: true });
           batch.commit().then(() => setLocalCoins(p => p + totalWager)).catch(() => {});
         }
         databaseSet(databaseRef(database, playerBetsPath), null).catch(() => {});
@@ -203,6 +202,7 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
         date: todayStr,
       }, { merge: true });
       statsBatch.commit().catch((e) => console.log('[TEEN-PATTI] Stats batch error:', e?.message || e?.code || String(e)));
+      locallyUpdatedCoinsRef.current = true;
       setLocalCoins(p => p - selectedChip);
     } catch {}
     setMyBets(prev => {
@@ -354,6 +354,7 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
 
     if (winAmount > 0 && currentUser && firestore) {
       try {
+        console.log('[TEEN-PATTI] WIN: Writing', winAmount, 'to subcollection for', currentUser.uid);
         const batch = writeBatch(firestore);
         const profileRef = doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid);
         batch.set(profileRef, {
@@ -361,6 +362,9 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
           stats: { dailyGameWins: increment(winAmount) },
         }, { merge: true });
         await batch.commit();
+        console.log('[TEEN-PATTI] WIN: Firestore write SUCCESS');
+        locallyUpdatedCoinsRef.current = true;
+      setLocalCoins(p => p + winAmount);
         addDoc(collection(firestore, 'globalGameWins'), {
           gameId: 'teen-patti',
           roomId: roomId || null,
@@ -371,8 +375,7 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
           betAmount: myBetsRef.current[winId] || 0,
           timestamp: new Date(),
         }).catch(() => {});
-      } catch (e) { console.log('Teen Patti win credit failed:', e); }
-      setLocalCoins(p => p + winAmount);
+      } catch (e) { console.log('[TEEN-PATTI] WIN FAILED:', e?.message || e?.code || String(e)); }
     }
 
     // Credit ALL players from RTDB (handles users who exited mid-round)

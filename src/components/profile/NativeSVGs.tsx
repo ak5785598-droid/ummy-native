@@ -113,11 +113,11 @@ export const SVGA_SuperAdminTag = React.memo(() => (
           <Stop offset="70%" stopColor="#581c87" />
           <Stop offset="100%" stopColor="#881337" />
         </SvgLinearGradient>
-        <RadialGradient id="satRadialGold" cx="30%" cy="30%" rx="70%" ry="70%" fx="30%" fy="30%">
-          <Stop offset="0%" stopColor="#fffbeb" />
-          <Stop offset="30%" stopColor="#fef08a" />
-          <Stop offset="70%" stopColor="#eab308" />
-          <Stop offset="100%" stopColor="#854d0e" />
+        <RadialGradient id="satRadialPurple" cx="30%" cy="30%" rx="70%" ry="70%" fx="30%" fy="30%">
+          <Stop offset="0%" stopColor="#a855f7" />
+          <Stop offset="40%" stopColor="#6b21a8" />
+          <Stop offset="75%" stopColor="#4c1d95" />
+          <Stop offset="100%" stopColor="#1e1b4b" />
         </RadialGradient>
         <SvgLinearGradient id="satLetterGold" x1="0%" y1="0%" x2="0%" y2="100%">
           <Stop offset="0%" stopColor="#ffffff" />
@@ -129,29 +129,39 @@ export const SVGA_SuperAdminTag = React.memo(() => (
 
       {/* Main Royal Velvet capsule with gold border */}
       <Rect x="8" y="1.0" width="88" height="18" rx="9.0" fill="url(#satRoyalInner)" />
+      
+      {/* 3D Glass Gloss Reflection Overlay */}
+      <Path d="M8 1 L96 1 L86 8 L18 8 Z" fill="rgba(255,255,255,0.18)" />
+      <Path d="M8 10 L18 10 L28 17 L8 17 Z" fill="rgba(255,255,255,0.06)" />
+
       <Rect x="6.5" y="0.0" width="91" height="20" rx="10.0" fill="none" stroke="url(#satGoldBorder)" strokeWidth="1.8" />
 
       {/* Bottom subtle shadow line */}
       <Rect x="20" y="18" width="60" height="0.8" rx="0.4" fill="black" opacity="0.45" />
 
-      {/* Medallion (Large Gold Shield) */}
+      {/* Medallion (Large Gold Shield) - Purple background matching the pill */}
       <Circle cx="12.2" cy="11.2" r="16.0" fill="black" opacity="0.3" />
-      <Circle cx="11" cy="10" r="16.0" fill="#78350f" />
+      <Circle cx="11" cy="10" r="16.0" fill="#3b0764" />
       <Circle cx="11" cy="10" r="14.8" fill="url(#satGoldBorder)" />
-      <Circle cx="11" cy="10" r="13.2" fill="#311005" />
-      <Circle cx="11" cy="10" r="12.2" fill="url(#satRadialGold)" />
-      <Circle cx="11" cy="10" r="10.8" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="0.8" />
+      <Circle cx="11" cy="10" r="13.2" fill="#1e1b4b" />
+      <Circle cx="11" cy="10" r="12.2" fill="url(#satRadialPurple)" />
+      <Circle cx="11" cy="10" r="10.8" fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth="0.8" />
 
-      {/* Crown symbol inside Medallion */}
-      <G transform="translate(6.5, 5.5) scale(0.55)">
-        {/* Crown SVG path */}
-        <Path d="M2 13 L3 4 L6 8 L8 3 L10 8 L13 4 L14 13 Z" fill="#78350f" />
-        <Path d="M2.5 12 L3.5 5 L6 8.5 L8 4 L10 8.5 L12.5 5 L13.5 12 Z" fill="#ffffff" />
+      {/* S Letter inside Medallion */}
+      <G transform="translate(11, 10) scale(-1.35, 0.95) translate(-11, -10)">
+        <SvgText x="11.8" y="16.7" fontSize="16" fontWeight="900" fill="#311005" stroke="#311005" strokeWidth="1.0" textAnchor="middle" fontFamily={serifFont}>S</SvgText>
+        <SvgText x="10.8" y="15.7" fontSize="16" fontWeight="900" fill="url(#satLetterGold)" textAnchor="middle" fontFamily={serifFont}>S</SvgText>
       </G>
 
-      {/* Super Admin Text - Bold Glowing Gold */}
-      <SvgText x="56" y="14.5" fontSize="9.8" fontWeight="900" fill="#4c0519" stroke="#4c0519" strokeWidth="1.2" textAnchor="middle" fontFamily="System" letterSpacing="0.2">SUPER ADMIN</SvgText>
-      <SvgText x="55.5" y="13.8" fontSize="9.8" fontWeight="900" fill="url(#satLetterGold)" stroke="url(#satLetterGold)" strokeWidth="0.5" textAnchor="middle" fontFamily="System" letterSpacing="0.2">SUPER ADMIN</SvgText>
+      {/* Sparkles (Glowing Stars Effect) */}
+      {/* Star 1 near Medallion */}
+      <Path d="M26 3 L27 5.2 L29.2 5.5 L27.5 7 L28 9.2 L26 8 L24 9.2 L24.5 7 L22.8 5.5 L25 5.2 Z" fill="#fbbf24" opacity="0.9" />
+      {/* Star 2 at the right end */}
+      <Path d="M91 12 L91.8 13.8 L93.6 14 L92.2 15.2 L92.6 17 L91 16 L89.4 17 L89.8 15.2 L88.4 14 L90.2 13.8 Z" fill="#fbbf24" opacity="0.8" />
+
+      {/* Super Admin Text - Bold Glowing Gold shifted to x="60" to avoid medallion overlap */}
+      <SvgText x="58" y="14.5" fontSize="9.4" fontWeight="900" fill="#4c0519" stroke="#4c0519" strokeWidth="1.2" textAnchor="middle" fontFamily="System" letterSpacing="0.2">SUPER ADMIN</SvgText>
+      <SvgText x="57.5" y="13.8" fontSize="9.4" fontWeight="900" fill="url(#satLetterGold)" stroke="url(#satLetterGold)" strokeWidth="0.5" textAnchor="middle" fontFamily="System" letterSpacing="0.2">SUPER ADMIN</SvgText>
     </Svg>
   </View>
 ));

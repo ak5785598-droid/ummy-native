@@ -80,8 +80,12 @@ export function useUserProfile(uid: string | undefined | null) {
 
         const baseWallet = (base as any)?.wallet || {};
         const subWallet = (sub as any)?.wallet || {};
+        const subCoins = subWallet.coins ?? (sub as any)?.coins;
+        const baseCoins = baseWallet.coins ?? (base as any)?.coins;
+        const finalCoins = subCoins !== undefined ? subCoins : (baseCoins !== undefined ? baseCoins : 0);
+
         const mergedWallet = {
-          coins: subWallet.coins ?? baseWallet.coins ?? 0,
+          coins: finalCoins,
           diamonds: subWallet.diamonds ?? baseWallet.diamonds ?? 0,
           totalSpent: subWallet.totalSpent ?? baseWallet.totalSpent ?? 0,
         };
@@ -130,6 +134,7 @@ export function useUserProfile(uid: string | undefined | null) {
           ...(sub || {}),
           ...(base || {}),
           wallet: mergedWallet,
+          coins: finalCoins,
           level: mergedLevel,
           inventory: mergedInventory,
           stats: mergedStats,

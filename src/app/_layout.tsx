@@ -20,6 +20,21 @@ import { AutoUpdater } from '../components/update/auto-updater';
 
 SplashScreen.preventAutoHideAsync();
 
+// Global Exception Handler: Prevents native module missing errors from crashing the app
+if ((global as any).ErrorUtils) {
+  const previousHandler = (global as any).ErrorUtils.getGlobalHandler();
+  (global as any).ErrorUtils.setGlobalHandler((error: any, isFatal?: boolean) => {
+    const errorStr = String(error?.message || error || '');
+    if (errorStr.includes('ExpoIntentLauncher') || errorStr.includes('Cannot find native module')) {
+      console.warn('[Global Exception Guard] Ignored missing native module error:', errorStr);
+      return;
+    }
+    if (previousHandler) {
+      previousHandler(error, isFatal);
+    }
+  });
+}
+
 if (!__DEV__) {
   console.log = () => {};
   console.info = () => {};
