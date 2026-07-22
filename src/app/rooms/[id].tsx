@@ -167,12 +167,12 @@ export default function RoomScreen() {
       const baseWallet = baseData?.wallet || {};
       const subWallet = subData?.wallet || {};
       const mergedWallet = {
-        coins: baseWallet.coins ?? subWallet.coins ?? 0,
-        diamonds: baseWallet.diamonds ?? subWallet.diamonds ?? 0,
-        totalSpent: baseWallet.totalSpent ?? subWallet.totalSpent ?? 0,
-        dailySpent: baseWallet.dailySpent ?? subWallet.dailySpent ?? 0,
-        weeklySpent: baseWallet.weeklySpent ?? subWallet.weeklySpent ?? 0,
-        monthlySpent: baseWallet.monthlySpent ?? subWallet.monthlySpent ?? 0,
+        coins: subWallet.coins ?? baseWallet.coins ?? 0,
+        diamonds: subWallet.diamonds ?? baseWallet.diamonds ?? 0,
+        totalSpent: subWallet.totalSpent ?? baseWallet.totalSpent ?? 0,
+        dailySpent: subWallet.dailySpent ?? baseWallet.dailySpent ?? 0,
+        weeklySpent: subWallet.weeklySpent ?? baseWallet.weeklySpent ?? 0,
+        monthlySpent: subWallet.monthlySpent ?? baseWallet.monthlySpent ?? 0,
       };
 
       const mergedLevel = {

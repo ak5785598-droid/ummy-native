@@ -345,7 +345,7 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
     if (gameState !== 'betting' || !currentUser || !firestore) return;
     try {
       if (localCoins < selectedChip) return;
-      await updateDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { 'wallet.coins': increment(-selectedChip) });
+      await setDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { 'wallet.coins': increment(-selectedChip) }, { merge: true });
 
       const todayStr = new Date().toISOString().split('T')[0];
       const statsBatch = writeBatch(firestore);
@@ -371,7 +371,7 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
     const totalCost = Object.values(lastBets).reduce((s, v) => s + v, 0);
     try {
       if (localCoins < totalCost) return;
-      await updateDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { 'wallet.coins': increment(-totalCost) });
+      await setDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { 'wallet.coins': increment(-totalCost) }, { merge: true });
 
       const todayStr = new Date().toISOString().split('T')[0];
       const statsBatch = writeBatch(firestore);
@@ -412,7 +412,6 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
         const batch = writeBatch(firestore);
         const winData = { 'wallet.coins': increment(totalWin) };
         batch.set(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), winData, { merge: true });
-        batch.set(doc(firestore, 'users', currentUser.uid), winData, { merge: true });
         await batch.commit();
       } catch {}
       addDoc(collection(firestore, 'globalGameWins'), {
@@ -449,7 +448,6 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
             if (playerWin > 0) {
               hasOtherPlayers = true;
               batch2.set(doc(firestore, 'users', userId, 'profile', userId), { 'wallet.coins': increment(playerWin) }, { merge: true });
-              batch2.set(doc(firestore, 'users', userId), { 'wallet.coins': increment(playerWin) }, { merge: true });
             }
           });
           if (hasOtherPlayers) await batch2.commit().catch(() => {});

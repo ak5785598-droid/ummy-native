@@ -81,9 +81,9 @@ export function useUserProfile(uid: string | undefined | null) {
         const baseWallet = (base as any)?.wallet || {};
         const subWallet = (sub as any)?.wallet || {};
         const mergedWallet = {
-          coins: baseWallet.coins ?? subWallet.coins ?? 0,
-          diamonds: baseWallet.diamonds ?? subWallet.diamonds ?? 0,
-          totalSpent: baseWallet.totalSpent ?? subWallet.totalSpent ?? 0,
+          coins: subWallet.coins ?? baseWallet.coins ?? 0,
+          diamonds: subWallet.diamonds ?? baseWallet.diamonds ?? 0,
+          totalSpent: subWallet.totalSpent ?? baseWallet.totalSpent ?? 0,
         };
 
         const mergedLevel = {

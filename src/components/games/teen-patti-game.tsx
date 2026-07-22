@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useUser, useFirestore, useDatabase } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
-import { doc, updateDoc, increment, addDoc, collection, getDoc, writeBatch, serverTimestamp } from '@/firebase/firestore-compat';
+import { doc, setDoc, updateDoc, increment, addDoc, collection, getDoc, writeBatch, serverTimestamp } from '@/firebase/firestore-compat';
 import { ref as databaseRef, set as databaseSet, update as databaseUpdate, onValue, runTransaction as databaseTransaction, get as databaseGet } from 'firebase/database';
 
 import { GoldenCoin } from '../GoldenCoin';
@@ -190,7 +190,7 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
     if (gameState !== 'betting' || !currentUser || !firestore) return;
     try {
       if (localCoins < selectedChip) return;
-      await updateDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { 'wallet.coins': increment(-selectedChip) });
+      await setDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { 'wallet.coins': increment(-selectedChip) }, { merge: true });
 
       const todayStr = new Date().toISOString().split('T')[0];
       const statsBatch = writeBatch(firestore);
@@ -360,9 +360,6 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
           'wallet.coins': increment(winAmount),
           stats: { dailyGameWins: increment(winAmount) },
         }, { merge: true });
-        batch.set(doc(firestore, 'users', currentUser.uid), {
-          'wallet.coins': increment(winAmount)
-        }, { merge: true });
         await batch.commit();
         addDoc(collection(firestore, 'globalGameWins'), {
           gameId: 'teen-patti',
@@ -397,7 +394,6 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
             if (playerWin > 0) {
               hasOtherPlayers = true;
               batch2.set(doc(firestore, 'users', userId, 'profile', userId), { 'wallet.coins': increment(playerWin) }, { merge: true });
-              batch2.set(doc(firestore, 'users', userId), { 'wallet.coins': increment(playerWin) }, { merge: true });
             }
           });
           if (hasOtherPlayers) await batch2.commit().catch(() => {});

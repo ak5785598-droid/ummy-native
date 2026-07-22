@@ -4,7 +4,7 @@ import { HelpCircle, Volume2, VolumeX, BarChart3, ChevronDown, X, RotateCcw, Plu
 import { useRouter } from 'expo-router';
 import { useUser, useFirestore, useDatabase } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
-import { doc, updateDoc, increment, addDoc, collection, getDoc, writeBatch, serverTimestamp } from '@/firebase/firestore-compat';
+import { doc, setDoc, updateDoc, increment, addDoc, collection, getDoc, writeBatch, serverTimestamp } from '@/firebase/firestore-compat';
 import { ref as databaseRef, set as databaseSet, update as databaseUpdate, onValue, runTransaction as databaseTransaction, get as databaseGet } from 'firebase/database';
 import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -320,7 +320,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
     if (gameState !== 'betting' || !currentUser || !firestore) return;
     try {
       if (localCoins < selectedChip) { handleGoToWallet(); return; }
-      await updateDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { 'wallet.coins': increment(-selectedChip) });
+      await setDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { 'wallet.coins': increment(-selectedChip) }, { merge: true });
 
       const todayStr = new Date().toISOString().split('T')[0];
       const statsBatch = writeBatch(firestore);
@@ -347,7 +347,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
     const totalCost = Object.values(lastBets).reduce((s, v) => s + v, 0);
     try {
       if (localCoins < totalCost) { handleGoToWallet(); return; }
-      await updateDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { 'wallet.coins': increment(-totalCost) });
+      await setDoc(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), { 'wallet.coins': increment(-totalCost) }, { merge: true });
 
       const todayStr = new Date().toISOString().split('T')[0];
       const statsBatch = writeBatch(firestore);
@@ -436,7 +436,6 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
         const batch = writeBatch(firestore);
         const winData = { 'wallet.coins': increment(winAmount) };
         batch.set(doc(firestore, 'users', currentUser.uid, 'profile', currentUser.uid), winData, { merge: true });
-        batch.set(doc(firestore, 'users', currentUser.uid), winData, { merge: true });
         await batch.commit();
         addDoc(collection(firestore, 'globalGameWins'), {
           gameId: 'fruit-party', roomId: roomId || null, userId: currentUser.uid, username: userProfile?.username || 'Guest',
@@ -469,7 +468,6 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
             if (playerWin > 0) {
               hasOtherPlayers = true;
               batch2.set(doc(firestore, 'users', userId, 'profile', userId), { 'wallet.coins': increment(playerWin) }, { merge: true });
-              batch2.set(doc(firestore, 'users', userId), { 'wallet.coins': increment(playerWin) }, { merge: true });
             }
           });
           if (hasOtherPlayers) await batch2.commit().catch(() => {});

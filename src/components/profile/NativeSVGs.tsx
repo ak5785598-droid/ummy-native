@@ -97,58 +97,61 @@ SVGA_OfficialTag.displayName = 'SVGA_OfficialTag';
 // SUPER ADMIN TAG — Indigo capsule + Platinum border + Crown Medallion
 // ============================================================
 export const SVGA_SuperAdminTag = React.memo(() => (
-  <View style={{ height: 19, width: 70, marginLeft: 2, flexDirection: 'row', alignItems: 'center', overflow: 'visible', transform: [{ scale: 0.82 }] }}>
+  <View style={{ height: 19, width: 72, marginLeft: 2, flexDirection: 'row', alignItems: 'center', overflow: 'visible', transform: [{ scale: 0.82 }] }}>
     {/* @ts-ignore */}
-    <Svg width="95" height="34" viewBox="-5 -7 100 34" overflow="visible" style={{ position: 'absolute', top: -8 }}>
+    <Svg width="105" height="34" viewBox="-5 -7 110 34" overflow="visible" style={{ position: 'absolute', top: -8 }}>
       <Defs>
-        <SvgLinearGradient id="satSilverBorder" x1="0%" y1="0%" x2="0%" y2="100%">
-          <Stop offset="0%" stopColor="#ffffff" />
-          <Stop offset="30%" stopColor="#e2e8f0" />
-          <Stop offset="70%" stopColor="#cbd5e1" />
-          <Stop offset="100%" stopColor="#94a3b8" />
+        <SvgLinearGradient id="satGoldBorder" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#fffbeb" />
+          <Stop offset="30%" stopColor="#fbbf24" />
+          <Stop offset="70%" stopColor="#d97706" />
+          <Stop offset="100%" stopColor="#78350f" />
         </SvgLinearGradient>
-        <SvgLinearGradient id="satIndigoInner" x1="0%" y1="0%" x2="0%" y2="100%">
-          <Stop offset="0%" stopColor="#4f46e5" />
-          <Stop offset="30%" stopColor="#4338ca" />
-          <Stop offset="70%" stopColor="#3730a3" />
-          <Stop offset="100%" stopColor="#312e81" />
+        <SvgLinearGradient id="satRoyalInner" x1="0%" y1="0%" x2="100%" y2="0%">
+          <Stop offset="0%" stopColor="#6b21a8" />
+          <Stop offset="30%" stopColor="#4c1d95" />
+          <Stop offset="70%" stopColor="#581c87" />
+          <Stop offset="100%" stopColor="#881337" />
         </SvgLinearGradient>
-        <RadialGradient id="satRadialSilver" cx="30%" cy="30%" rx="70%" ry="70%" fx="30%" fy="30%">
-          <Stop offset="0%" stopColor="#ffffff" />
-          <Stop offset="40%" stopColor="#e2e8f0" />
-          <Stop offset="75%" stopColor="#94a3b8" />
-          <Stop offset="100%" stopColor="#475569" />
+        <RadialGradient id="satRadialGold" cx="30%" cy="30%" rx="70%" ry="70%" fx="30%" fy="30%">
+          <Stop offset="0%" stopColor="#fffbeb" />
+          <Stop offset="30%" stopColor="#fef08a" />
+          <Stop offset="70%" stopColor="#eab308" />
+          <Stop offset="100%" stopColor="#854d0e" />
         </RadialGradient>
-        <SvgLinearGradient id="satLetterSilver" x1="0%" y1="0%" x2="0%" y2="100%">
+        <SvgLinearGradient id="satLetterGold" x1="0%" y1="0%" x2="0%" y2="100%">
           <Stop offset="0%" stopColor="#ffffff" />
-          <Stop offset="50%" stopColor="#cbd5e1" />
-          <Stop offset="100%" stopColor="#94a3b8" />
+          <Stop offset="40%" stopColor="#fef08a" />
+          <Stop offset="80%" stopColor="#fbbf24" />
+          <Stop offset="100%" stopColor="#d97706" />
         </SvgLinearGradient>
       </Defs>
 
-      {/* Main Indigo capsule with silver border */}
-      <Rect x="8" y="1.0" width="81" height="18" rx="9.0" fill="url(#satIndigoInner)" />
-      <Rect x="6.5" y="0.0" width="84" height="20" rx="10.0" fill="none" stroke="url(#satSilverBorder)" strokeWidth="1.8" />
+      {/* Main Royal Velvet capsule with gold border */}
+      <Rect x="8" y="1.0" width="88" height="18" rx="9.0" fill="url(#satRoyalInner)" />
+      <Rect x="6.5" y="0.0" width="91" height="20" rx="10.0" fill="none" stroke="url(#satGoldBorder)" strokeWidth="1.8" />
 
       {/* Bottom subtle shadow line */}
-      <Rect x="20" y="18" width="55" height="0.8" rx="0.4" fill="black" opacity="0.3" />
+      <Rect x="20" y="18" width="60" height="0.8" rx="0.4" fill="black" opacity="0.45" />
 
-      {/* Medallion */}
-      <Circle cx="12.2" cy="11.2" r="15.5" fill="black" opacity="0.22" />
-      <Circle cx="11" cy="10" r="15.5" fill="#334155" />
-      <Circle cx="11" cy="10" r="14.7" fill="#cbd5e1" />
-      <Circle cx="11" cy="10" r="13.4" fill="#1e293b" />
-      <Circle cx="11" cy="10" r="12.5" fill="url(#satRadialSilver)" />
-      <Circle cx="11" cy="10" r="11.1" fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth="0.6" />
+      {/* Medallion (Large Gold Shield) */}
+      <Circle cx="12.2" cy="11.2" r="16.0" fill="black" opacity="0.3" />
+      <Circle cx="11" cy="10" r="16.0" fill="#78350f" />
+      <Circle cx="11" cy="10" r="14.8" fill="url(#satGoldBorder)" />
+      <Circle cx="11" cy="10" r="13.2" fill="#311005" />
+      <Circle cx="11" cy="10" r="12.2" fill="url(#satRadialGold)" />
+      <Circle cx="11" cy="10" r="10.8" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="0.8" />
 
-      {/* Star symbol inside Medallion */}
-      <G transform="translate(6, 5) scale(0.65)">
-        <Path d="M8 0 L10 5 L16 6 L12 10 L13 16 L8 13 L3 16 L4 10 L0 6 L6 5 Z" fill="#eab308" />
+      {/* Crown symbol inside Medallion */}
+      <G transform="translate(6.5, 5.5) scale(0.55)">
+        {/* Crown SVG path */}
+        <Path d="M2 13 L3 4 L6 8 L8 3 L10 8 L13 4 L14 13 Z" fill="#78350f" />
+        <Path d="M2.5 12 L3.5 5 L6 8.5 L8 4 L10 8.5 L12.5 5 L13.5 12 Z" fill="#ffffff" />
       </G>
 
-      {/* Super Admin Text */}
-      <SvgText x="54" y="14.3" fontSize="10.2" fontWeight="900" fill="#1e1b4b" stroke="#1e1b4b" strokeWidth="1.0" textAnchor="middle" fontFamily="Georgia" letterSpacing="0.1">SuperAdmin</SvgText>
-      <SvgText x="53.5" y="13.7" fontSize="10.2" fontWeight="900" fill="url(#satLetterSilver)" stroke="url(#satLetterSilver)" strokeWidth="0.6" textAnchor="middle" fontFamily="Georgia" letterSpacing="0.1">SuperAdmin</SvgText>
+      {/* Super Admin Text - Bold Glowing Gold */}
+      <SvgText x="56" y="14.5" fontSize="9.8" fontWeight="900" fill="#4c0519" stroke="#4c0519" strokeWidth="1.2" textAnchor="middle" fontFamily="System" letterSpacing="0.2">SUPER ADMIN</SvgText>
+      <SvgText x="55.5" y="13.8" fontSize="9.8" fontWeight="900" fill="url(#satLetterGold)" stroke="url(#satLetterGold)" strokeWidth="0.5" textAnchor="middle" fontFamily="System" letterSpacing="0.2">SUPER ADMIN</SvgText>
     </Svg>
   </View>
 ));
