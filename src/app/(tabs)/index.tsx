@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, FlatList, Dimensions, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, FlatList, Dimensions, Alert, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Search, Plus, Sparkles, Trophy, Heart, Users, Activity, Crown, Castle } from 'lucide-react-native';
+import { Search, Plus, Sparkles, Trophy, Heart, Users, Activity, Crown, Castle, Lock } from 'lucide-react-native';
 import { useCollection, useFirebase, useUser, useDoc } from '../../firebase/provider';
 import { collection, query, orderBy, limit, where, doc, getDocs } from '@/firebase/firestore-compat';
 import { useRouter } from 'expo-router';
@@ -31,6 +31,11 @@ export default function HomeScreen() {
   const [showCreateRoom, setShowCreateRoom] = useState(false);
   const [showSupportDialog, setShowSupportDialog] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Password Lock Modal States
+  const [lockedRoomTarget, setLockedRoomTarget] = useState<Room | null>(null);
+  const [enteredPin, setEnteredPin] = useState('');
+  const [showPassModal, setShowPassModal] = useState(false);
   
   const { firestore, database, isHydrated } = useFirebase();
   const { user } = useUser();
@@ -211,6 +216,17 @@ export default function HomeScreen() {
   }, [recentVisits, allRooms]);
 
   const enterRoom = useCallback((room: Room) => {
+    // Password Lock Gate: Check if room has password and user is not owner/moderator
+    const isOwner = user?.uid && room.ownerId === user.uid;
+    const isMod = user?.uid && room.moderatorIds?.includes(user.uid);
+
+    if (room.password && !isOwner && !isMod) {
+      setLockedRoomTarget(room);
+      setEnteredPin('');
+      setShowPassModal(true);
+      return;
+    }
+
     router.push({
       pathname: `/rooms/${room.id}` as any,
       params: {
@@ -221,7 +237,29 @@ export default function HomeScreen() {
         hasPassword: room.password ? 'true' : 'false'
       }
     });
-  }, [router]);
+  }, [router, user?.uid]);
+
+  const handleUnlockAndEnter = () => {
+    if (!lockedRoomTarget) return;
+    if (enteredPin.trim() === lockedRoomTarget.password) {
+      const r = lockedRoomTarget;
+      setShowPassModal(false);
+      setLockedRoomTarget(null);
+      setEnteredPin('');
+      router.push({
+        pathname: `/rooms/${r.id}` as any,
+        params: {
+          name: r.name || r.title || 'Room',
+          coverUrl: r.coverUrl || '',
+          backgroundUrl: r.backgroundUrl || '',
+          roomThemeId: r.roomThemeId || '',
+          hasPassword: 'true'
+        }
+      });
+    } else {
+      Alert.alert('Access Denied', 'Incorrect Room Password PIN. Please try again.');
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -408,7 +446,71 @@ export default function HomeScreen() {
       </TouchableOpacity>
 
       <DailyRewardsModal visible={showRewardsModal} onClose={() => setShowRewardsModal(false)} />
-      <CreateRoomSheet visible={showCreateRoom} onClose={() => setShowCreateRoom(false)} />
+      <CreateRoomSheet 
+        visible={showCreateRoom} 
+        onClose={() => setShowCreateRoom(false)} 
+      />
+
+      {/* Password Lock Verification Modal */}
+      <Modal
+        visible={showPassModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowPassModal(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ width: '100%', maxWidth: 340, backgroundColor: '#fff', borderRadius: 24, padding: 24, alignItems: 'center', elevation: 10 }}>
+            <View style={{ width: 56, h: 56, height: 56, borderRadius: 28, backgroundColor: '#fef2f2', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+              <Lock size={28} color="#ef4444" />
+            </View>
+            <Text style={{ fontSize: 18, fontWeight: '900', color: '#0f172a', marginBottom: 6, textAlign: 'center' }}>
+              Locked Room
+            </Text>
+            <Text style={{ fontSize: 12, color: '#64748b', fontWeight: '600', textAlign: 'center', marginBottom: 20 }}>
+              This voice room is private. Please enter the 4-digit room password PIN to enter.
+            </Text>
+
+            <TextInput
+              value={enteredPin}
+              onChangeText={setEnteredPin}
+              placeholder="Enter Room PIN"
+              keyboardType="number-pad"
+              secureTextEntry={true}
+              maxLength={10}
+              style={{
+                width: '100%',
+                height: 50,
+                borderWidth: 1.5,
+                borderColor: '#e2e8f0',
+                borderRadius: 14,
+                textAlign: 'center',
+                fontSize: 18,
+                fontWeight: '800',
+                letterSpacing: 4,
+                color: '#0f172a',
+                backgroundColor: '#f8fafc',
+                marginBottom: 20
+              }}
+            />
+
+            <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+              <TouchableOpacity
+                onPress={() => setShowPassModal(false)}
+                style={{ flex: 1, height: 48, borderRadius: 14, backgroundColor: '#f1f5f9', justifyContent: 'center', alignItems: 'center' }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#64748b' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleUnlockAndEnter}
+                style={{ flex: 1, height: 48, borderRadius: 14, backgroundColor: '#7c3aed', justifyContent: 'center', alignItems: 'center' }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#fff' }}>Unlock & Join</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {hasOwnRoom && myRoom && (
         <RoomSupportDialog 
           visible={showSupportDialog} 
