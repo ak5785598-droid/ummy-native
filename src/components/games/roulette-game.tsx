@@ -228,11 +228,10 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
             currentData.updatedAt = Date.now();
             return currentData;
           });
-        } catch (e) { targetNum = ROULETTE_NUMBERS[Math.floor(Math.random() * ROULETTE_NUMBERS.length)].n; }
-      } else {
-        targetNum = ROULETTE_NUMBERS[Math.floor(Math.random() * ROULETTE_NUMBERS.length)].n;
-        isDealerRef.current = true;
+        } catch (e) {}
       }
+
+      if (!targetNum) { targetNum = ROULETTE_NUMBERS[Math.floor(Math.random() * ROULETTE_NUMBERS.length)].n; isDealerRef.current = true; }
 
       if (isDealerRef.current && firestore) {
         try {
@@ -281,15 +280,21 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
           const newRoundStart = Date.now();
           setRoundStartTime(newRoundStart);
           databaseTransaction(databaseRef(database, `games/roulette_${roomId || 'global'}`), (currentData: any) => {
-            if (!currentData || currentData.status !== 'result') return;
-            currentData.status = 'betting';
-            currentData.winningNumber = null;
+            const data = currentData || {
+              status: 'betting',
+              winningNumber: null,
+              history: [],
+              roundStartTime: newRoundStart,
+              updatedAt: Date.now()
+            };
+            data.status = 'betting';
+            data.winningNumber = null;
             if (isDealerRef.current) {
-              currentData.history = [targetNum, ...(currentData.history || [])].slice(0, 15);
+              data.history = [targetNum, ...(data.history || [])].slice(0, 15);
             }
-            currentData.roundStartTime = newRoundStart;
-            currentData.updatedAt = Date.now();
-            return currentData;
+            data.roundStartTime = newRoundStart;
+            data.updatedAt = Date.now();
+            return data;
           }).catch(() => {});
         } else {
           setRoundStartTime(Date.now());
@@ -314,8 +319,7 @@ export function RouletteGame({ onClose, roomId, onRoundEnd, isMuted: initialMute
       }
 
       const data = snap.val() as any;
-      if (data.history) setHistory(data.history);
-      if (data.roundStartTime) setRoundStartTime(data.roundStartTime);
+      if (data.history) setHistory(Array.isArray(data.history) ? data.history : Object.values(data.history));
       if (data.rotation !== undefined && data.rotation !== null) {
         setSyncedRotation(data.rotation);
         if (gameState !== 'spinning') {

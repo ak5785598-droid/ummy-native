@@ -85,14 +85,20 @@ export function RoomPlaySheet({ visible, onClose, roomId, room, participants, on
               const currentName = userProfile?.username || 'Admin';
               
               if (database) {
-                await databaseRemove(databaseRef(database, `roomMessages/${roomId}`));
+                await databaseRemove(databaseRef(database, `roomMessages/${roomId}`)).catch(() => {});
               }
 
-              await updateDoc(doc(firestore, 'chatRooms', roomId), { 
+              await setDoc(doc(firestore, 'chatRooms', roomId), { 
                 chatClearedAt: serverTimestamp(), 
                 chatClearedBy: currentName, 
                 updatedAt: serverTimestamp() 
-              });
+              }, { merge: true });
+
+              await addDoc(collection(firestore, 'chatRooms', roomId, 'messages'), {
+                content: `${currentName} cleared the chat`,
+                type: 'system',
+                timestamp: serverTimestamp()
+              }).catch(() => {});
 
               Alert.alert('Success', 'Chat history cleared.');
               onClose();

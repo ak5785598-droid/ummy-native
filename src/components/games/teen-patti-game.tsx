@@ -249,11 +249,10 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
           currentData.updatedAt = Date.now();
           return currentData;
         });
-      } catch (e) { winId = FACTIONS[Math.floor(Math.random() * FACTIONS.length)].id; }
-    } else {
-      winId = FACTIONS[Math.floor(Math.random() * FACTIONS.length)].id;
-      isDealerRef.current = true;
+      } catch (e) {}
     }
+
+      if (!winId) { winId = FACTIONS[Math.floor(Math.random() * FACTIONS.length)].id; isDealerRef.current = true; }
 
     if (isDealerRef.current && firestore) {
       try {
@@ -300,16 +299,23 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
         const newRoundStart = Date.now();
         setRoundStartTime(newRoundStart);
         databaseTransaction(databaseRef(database, gamePath), (currentData: any) => {
-          if (!currentData || currentData.status !== 'result') return;
-          currentData.status = 'betting';
-          currentData.winId = null;
-          currentData.cards = null;
+          const data = currentData || {
+            status: 'betting',
+            winId: null,
+            cards: null,
+            history: [],
+            roundStartTime: newRoundStart,
+            updatedAt: Date.now()
+          };
+          data.status = 'betting';
+          data.winId = null;
+          data.cards = null;
           if (isDealerRef.current) {
-            currentData.history = [winId, ...(currentData.history || [])].slice(0, 8);
+            data.history = [winId, ...(data.history || [])].slice(0, 8);
           }
-          currentData.roundStartTime = newRoundStart;
-          currentData.updatedAt = Date.now();
-          return currentData;
+          data.roundStartTime = newRoundStart;
+          data.updatedAt = Date.now();
+          return data;
         }).catch(() => {});
       } else {
         setRoundStartTime(Date.now());
@@ -332,8 +338,7 @@ export function TeenPattiGame({ onClose, roomId, onRoundEnd, isMuted }: TeenPatt
       }
 
       const data = snap.val() as any;
-      if (data.history) setHistory(data.history);
-      if (data.roundStartTime) setRoundStartTime(data.roundStartTime);
+      if (data.history) setHistory(Array.isArray(data.history) ? data.history : Object.values(data.history));
       if (data.cards) setCardReveal(data.cards);
     });
 

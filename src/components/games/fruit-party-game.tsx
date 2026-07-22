@@ -238,11 +238,10 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
             currentData.updatedAt = Date.now();
             return currentData;
           });
-        } catch (e) { winningId = FRUITS[Math.floor(Math.random() * FRUITS.length)].id; }
-      } else {
-        winningId = FRUITS[Math.floor(Math.random() * FRUITS.length)].id;
-        isDealerRef.current = true;
+        } catch (e) {}
       }
+
+      if (!winningId) { winningId = FRUITS[Math.floor(Math.random() * FRUITS.length)].id; isDealerRef.current = true; }
 
       if (isDealerRef.current && firestore) {
         try {
@@ -278,8 +277,7 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
       }
 
       const data = snap.val() as any;
-      if (data.history) setHistory(data.history);
-      if (data.roundStartTime) setRoundStartTime(data.roundStartTime);
+      if (data.history) setHistory(Array.isArray(data.history) ? data.history : Object.values(data.history));
     });
 
     return () => unsub();
@@ -526,16 +524,23 @@ export function FruitPartyGame({ onClose, roomId, onRoundEnd, isMuted }: FruitPa
         setRoundStartTime(newRoundStart);
         setTimeLeft(30);
         databaseTransaction(databaseRef(database, gamePath), (cur) => {
-          if (!cur) return cur;
-          cur.status = 'betting';
-          cur.winningId = null;
-          cur.groupType = 'none';
+          const data = cur || {
+            status: 'betting',
+            winningId: null,
+            groupType: 'none',
+            history: [],
+            roundStartTime: newRoundStart,
+            updatedAt: Date.now()
+          };
+          data.status = 'betting';
+          data.winningId = null;
+          data.groupType = 'none';
           if (isDealerRef.current) {
-            cur.history = [id, ...(cur.history || [])].slice(0, 15);
+            data.history = [id, ...(data.history || [])].slice(0, 15);
           }
-          cur.roundStartTime = newRoundStart;
-          cur.updatedAt = Date.now();
-          return cur;
+          data.roundStartTime = newRoundStart;
+          data.updatedAt = Date.now();
+          return data;
         }).catch(() => {});
       } else {
         setRoundStartTime(Date.now());
