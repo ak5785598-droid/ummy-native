@@ -1,9 +1,23 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import createAgoraRtcEngine, { IRtcEngine, ChannelProfileType, ClientRoleType, VideoSourceType } from 'react-native-agora';
-import { Platform, PermissionsAndroid, AppState, AppStateStatus } from 'react-native';
+import { Platform, PermissionsAndroid, AppState, AppStateStatus, NativeModules } from 'react-native';
 import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
 import { doc, setDoc, deleteDoc, serverTimestamp } from '@/firebase/firestore-compat';
 import { useFirestore } from '../firebase/provider';
+
+const { VoiceForegroundService } = NativeModules;
+
+function startVoiceService() {
+  if (Platform.OS === 'android' && VoiceForegroundService) {
+    try { VoiceForegroundService.startService(); } catch {}
+  }
+}
+
+function stopVoiceService() {
+  if (Platform.OS === 'android' && VoiceForegroundService) {
+    try { VoiceForegroundService.stopService(); } catch {}
+  }
+}
 
 const APP_ID = process.env.EXPO_PUBLIC_AGORA_APP_ID || '619919c1721449c1874fb9395fe6da31';
 
@@ -54,6 +68,7 @@ export function destroyAgoraEngine() {
     } catch {}
     singletonEngine = null;
     singletonRoomId = null;
+    stopVoiceService();
   }
 }
 
@@ -160,6 +175,7 @@ export function useAgoraNative(
 
         const numericUid = hashUidToNumber(uid);
         engine.joinChannel('', roomId, numericUid, {});
+        startVoiceService();
       } catch (e) {
         console.error('[Agora] Initialization error:', e);
         if (isMounted) setConnectionState('DISCONNECTED');

@@ -7,6 +7,11 @@
   <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
   <uses-permission android:name="android.permission.VIBRATE"/>
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+  <uses-permission android:name="android.permission.WAKE_LOCK"/>
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
   <queries>
     <intent>
       <action android:name="android.intent.action.VIEW"/>
@@ -47,5 +52,9 @@
         <data android:scheme="@string/fb_login_protocol_scheme"/>
       </intent-filter>
     </activity>
+    <service
+      android:name=".VoiceForegroundService"
+      android:exported="false"
+      android:foregroundServiceType="microphone|mediaPlayback" />
   </application>
 </manifest>
