@@ -290,23 +290,21 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
     }
 
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      if (nextAppState === 'background') {
-        if (presenceRef.current) {
-          set(presenceRef.current, null);
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        // Keep presence alive in background — update lastSeen instead of deleting
+        if (presenceRef.current && !userProfile?.roomInvisible) {
+          update(presenceRef.current, { lastSeen: dbServerTimestamp(), isBackground: true }).catch(() => {});
         }
       } else if (nextAppState === 'active') {
         // Update Firestore lastSeen immediately on foreground
         setDocumentNonBlocking(participantRef, { lastSeen: serverTimestamp() }, { merge: true });
         // Re-establish RTDB presence on foreground
         if (presenceRef.current && !userProfile?.roomInvisible) {
-          set(presenceRef.current, {
-            uid,
-            name: userProfile?.username || 'User',
-            avatarUrl: filterBase64(userProfile?.avatarUrl) || user.photoURL || '',
-            joinedAt: dbServerTimestamp(),
+          update(presenceRef.current, {
             lastSeen: dbServerTimestamp(),
             isOnline: true,
-          });
+            isBackground: false,
+          }).catch(() => {});
           onDisconnect(presenceRef.current).remove();
         }
       }

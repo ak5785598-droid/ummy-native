@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import createAgoraRtcEngine, { IRtcEngine, ChannelProfileType, ClientRoleType, VideoSourceType } from 'react-native-agora';
-import { Platform, PermissionsAndroid } from 'react-native';
-import { Audio } from 'expo-av';
+import { Platform, PermissionsAndroid, AppState, AppStateStatus } from 'react-native';
+import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
 import { doc, setDoc, deleteDoc, serverTimestamp } from '@/firebase/firestore-compat';
 import { useFirestore } from '../firebase/provider';
 
@@ -113,6 +113,9 @@ export function useAgoraNative(
           playsInSilentModeIOS: true,
           staysActiveInBackground: true,
           allowsRecordingIOS: true,
+          interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+          shouldDuckAndroid: false,
+          interruptionModeIOS: InterruptionModeIOS.DoNotMix,
         }).catch(() => {});
 
         engine.registerEventHandler({
@@ -212,6 +215,36 @@ export function useAgoraNative(
     if (!engine) return;
     engine.muteAllRemoteAudioStreams(isSpeakerMuted);
   }, [isSpeakerMuted]);
+
+  // AppState resilience: maintain audio capture & playback when screen locks or app backgrounded
+  useEffect(() => {
+    const handleAppStateChange = async (nextState: AppStateStatus) => {
+      if (nextState === 'background' || nextState === 'inactive') {
+        console.log('[Agora] Background/Lock — re-asserting continuous background audio');
+        try {
+          await Audio.setAudioModeAsync({
+            playsInSilentModeIOS: true,
+            staysActiveInBackground: true,
+            allowsRecordingIOS: true,
+            interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+            shouldDuckAndroid: false,
+            interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+          });
+        } catch {}
+        if (engineRef.current) {
+          engineRef.current.enableAudio();
+          if (isInSeat) {
+            engineRef.current.setClientRole(ClientRoleType.ClientRoleBroadcaster);
+            engineRef.current.muteLocalAudioStream(isMuted);
+            engineRef.current.enableLocalAudio(!isMuted);
+          }
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, [isInSeat, isMuted]);
 
   const startScreenShare = useCallback(async () => {
     if (!engineRef.current || !roomId) return;
