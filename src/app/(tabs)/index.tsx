@@ -181,20 +181,27 @@ export default function HomeScreen() {
       return matchesCategory && !isDecommissioned;
     });
 
-    // Map each room with live online count (combining RTDB presence, Firestore participantCount, and activeRoom status)
+    // Map each room with STRICT real-time RTDB online count (ignoring stale Firestore participantCount)
     const mapped = filtered.map(room => {
       const rtdbCount = roomsWithUsersMap[room.id] || 0;
       const isCurrentActive = room.id === activeRoomId ? 1 : 0;
-      const firestoreCount = Number(room.participantCount || 0);
-      const liveOnlineCount = Math.max(rtdbCount, firestoreCount, isCurrentActive);
+      const liveOnlineCount = Math.max(rtdbCount, isCurrentActive);
       return {
         ...room,
         participantCount: liveOnlineCount,
       };
     });
 
-    // Sort: 1. Official Help room -> 2. Pinned rooms -> 3. Active rooms (highest live count first) -> 4. Most recently updated
-    return mapped.sort((a, b) => {
+    // Display ONLY rooms that REALLY have active online users right now (liveOnlineCount > 0) OR Pinned/Help room
+    const activeRoomsOnly = mapped.filter(room => {
+      const isOriginalHelp = room.id === ORIGINAL_HELP_ID || (room.name || room.title || '').toLowerCase().trim() === 'ummy help';
+      const isPinned = room.isPinned === true;
+      const hasLiveUsers = (room.participantCount || 0) > 0;
+      return hasLiveUsers || isPinned || isOriginalHelp;
+    });
+
+    // Sort: 1. Official Help room -> 2. Pinned rooms -> 3. Active rooms (highest live count first)
+    return activeRoomsOnly.sort((a, b) => {
       const aHelp = a.id === ORIGINAL_HELP_ID ? 1 : 0;
       const bHelp = b.id === ORIGINAL_HELP_ID ? 1 : 0;
       if (aHelp !== bHelp) return bHelp - aHelp;
@@ -205,11 +212,7 @@ export default function HomeScreen() {
 
       const aCount = a.participantCount || 0;
       const bCount = b.participantCount || 0;
-      if (aCount !== bCount) return bCount - aCount;
-
-      const aTime = a.updatedAt?.toDate?.()?.getTime?.() || 0;
-      const bTime = b.updatedAt?.toDate?.()?.getTime?.() || 0;
-      return bTime - aTime;
+      return bCount - aCount;
     });
   }, [allRooms, activeCategory, roomsWithUsersMap, activeRoom, minimizedRoom]);
 
