@@ -38,7 +38,15 @@ class VoiceForegroundService : Service() {
             }
             ACTION_START -> {
                 acquireWakeLock()
-                startForeground(NOTIFICATION_ID, buildNotification())
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    var type = android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        type = type or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                    }
+                    startForeground(NOTIFICATION_ID, buildNotification(), type)
+                } else {
+                    startForeground(NOTIFICATION_ID, buildNotification())
+                }
             }
         }
         return START_STICKY
