@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { Modal, View, Text, TouchableOpacity, Dimensions, StyleSheet, ScrollView, StatusBar, ActivityIndicator, Clipboard, Platform, Animated, TextInput, Alert, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Heart, MessageCircle, MoreHorizontal, Calendar, Star, Sparkles, MapPin, Copy, CheckCircle, Search, X, UserPlus, Unlink } from 'lucide-react-native';
@@ -251,6 +251,40 @@ export function FullProfileDialog({
   const firestore = useFirestore();
   const { profile: ownProfile } = useUserProfile(user?.uid);
 
+  // Query cpPairs to resolve active CP pair from Firestore if profile.relationship is incomplete
+  const [activeCpPair, setActiveCpPair] = useState<any>(null);
+  const targetUid = profile?.id || profile?.uid;
+
+  useEffect(() => {
+    if (!open || !targetUid) return;
+    let unsub: (() => void) | undefined;
+    try {
+      const db = require('@react-native-firebase/firestore').default;
+      unsub = db()
+        .collection('cpPairs')
+        .where('participantIds', 'array-contains', targetUid)
+        .limit(1)
+        .onSnapshot((snap: any) => {
+          if (snap && !snap.empty) {
+            setActiveCpPair({ id: snap.docs[0].id, ...snap.docs[0].data() });
+          } else {
+            setActiveCpPair(null);
+          }
+        }, (err: any) => {});
+    } catch (e) {}
+    return () => { if (unsub) unsub(); };
+  }, [open, targetUid]);
+
+  const resolvedPartnerUid = useMemo(() => {
+    if (profile?.relationship?.partnerUid) return profile.relationship.partnerUid;
+    if (activeCpPair?.participantIds) {
+      return activeCpPair.participantIds.find((id: string) => id !== targetUid);
+    }
+    return null;
+  }, [profile?.relationship?.partnerUid, activeCpPair, targetUid]);
+
+  const { profile: fetchedPartnerProfile } = useUserProfile(resolvedPartnerUid || undefined);
+
   const [copiedId, setCopiedId] = useState(false);
   const [activeTab, setActiveTab] = useState<'gift' | 'medal' | 'entry' | 'frame'>('gift');
   const [activeRelationTab, setActiveRelationTab] = useState(0);
@@ -321,7 +355,12 @@ export function FullProfileDialog({
     }
   }, [displayId]);
 
-  const hasRelationship = (profile?.relationship?.type === 'CP') || profile?.bestFriend || profile?.besties;
+  const hasRelationship = Boolean(
+    activeCpPair ||
+    (profile?.relationship && profile.relationship.type && profile.relationship.type !== 'None') ||
+    profile?.bestFriend ||
+    profile?.besties
+  );
 
   const handleHeartPressIn = useCallback(() => {
     Animated.spring(heartScale, { toValue: 1.25, useNativeDriver: true, tension: 150, friction: 4 }).start();
@@ -564,14 +603,6 @@ export function FullProfileDialog({
                   <Text style={{ fontSize: 9, fontWeight: '900', color: 'white', textTransform: 'uppercase', letterSpacing: 0.5 }}>🚫 Banned</Text>
                 </View>
               )}
-              {hasRelationship && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: '#FDF2F8', borderRadius: 12, borderWidth: 1, borderColor: '#FECDD3' }}>
-                  <Heart size={10} color="#EC4899" fill="#EC4899" />
-                  <Text style={{ fontSize: 9, fontWeight: '800', color: '#EC4899', textTransform: 'uppercase' }}>
-                    {profile?.relationship?.type}: {profile?.relationship?.partnerName}
-                  </Text>
-                </View>
-              )}
             </View>
 
             {/* Stats Bar */}
@@ -659,8 +690,12 @@ export function FullProfileDialog({
                   let partners: any[] = [];
                   if (isCP) {
                     const relData = profile?.relationship;
-                    if (relData && relData.type && relData.type !== 'None') {
-                      partners = [{ name: relData.partnerName, avatarUrl: relData.partnerAvatar, uid: relData.partnerUid }];
+                    const partnerName = relData?.partnerName || fetchedPartnerProfile?.username || (activeCpPair?.user1Uid === targetUid ? activeCpPair?.user2Name : activeCpPair?.user1Name) || '';
+                    const partnerAvatar = relData?.partnerAvatar || fetchedPartnerProfile?.avatarUrl || (activeCpPair?.user1Uid === targetUid ? activeCpPair?.user2Avatar : activeCpPair?.user1Avatar) || '';
+                    const pUid = relData?.partnerUid || resolvedPartnerUid || '';
+
+                    if (pUid || partnerName || partnerAvatar) {
+                      partners = [{ name: partnerName || 'Partner', avatarUrl: partnerAvatar, uid: pUid }];
                     }
                   } else if (isBF) {
                     const bfData = profile?.bestFriends || (profile?.bestFriend ? [profile.bestFriend] : []);

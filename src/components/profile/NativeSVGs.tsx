@@ -107,17 +107,17 @@ export const SVGA_SuperAdminTag = React.memo(() => (
           <Stop offset="70%" stopColor="#d97706" />
           <Stop offset="100%" stopColor="#78350f" />
         </SvgLinearGradient>
-        <SvgLinearGradient id="satRoyalInner" x1="0%" y1="0%" x2="100%" y2="0%">
-          <Stop offset="0%" stopColor="#6b21a8" />
-          <Stop offset="30%" stopColor="#4c1d95" />
-          <Stop offset="70%" stopColor="#581c87" />
-          <Stop offset="100%" stopColor="#881337" />
+        <SvgLinearGradient id="satRoyalInner" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#b91c1c" />
+          <Stop offset="30%" stopColor="#991b1b" />
+          <Stop offset="70%" stopColor="#7f1d1d" />
+          <Stop offset="100%" stopColor="#450a0a" />
         </SvgLinearGradient>
         <RadialGradient id="satRadialPurple" cx="30%" cy="30%" rx="70%" ry="70%" fx="30%" fy="30%">
-          <Stop offset="0%" stopColor="#a855f7" />
-          <Stop offset="40%" stopColor="#6b21a8" />
-          <Stop offset="75%" stopColor="#4c1d95" />
-          <Stop offset="100%" stopColor="#1e1b4b" />
+          <Stop offset="0%" stopColor="#fffae0" />
+          <Stop offset="25%" stopColor="#ffd859" />
+          <Stop offset="65%" stopColor="#fca01a" />
+          <Stop offset="100%" stopColor="#a35200" />
         </RadialGradient>
         <SvgLinearGradient id="satLetterGold" x1="0%" y1="0%" x2="0%" y2="100%">
           <Stop offset="0%" stopColor="#ffffff" />
@@ -457,6 +457,8 @@ export const SVGA_AdminTag = React.memo(() => (
   </View>
 ));
 SVGA_AdminTag.displayName = 'SVGA_AdminTag';
+
+
 
 // ============================================================
 // CS LEADER TAG — Nebula capsule + Rose gold border + Crown Medallion

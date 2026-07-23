@@ -596,13 +596,15 @@ export default function RoomScreen() {
     };
   }, [room, setActiveRoom, setIsMinimized]);
 
-  // CRITICAL: Destroy ALL voice engines + music on unmount (direct room-to-room navigation)
+  // CRITICAL: Destroy ALL voice engines + music on unmount ONLY if not minimizing
   useEffect(() => {
     return () => {
-      destroyAgoraEngine();
-      destroyZegoEngine();
-      destroyLiveKitRoom();
-      destroyMusicSound();
+      if (!isMinimizingRef.current) {
+        destroyAgoraEngine();
+        destroyZegoEngine();
+        destroyLiveKitRoom();
+        destroyMusicSound();
+      }
     };
   }, []);
 

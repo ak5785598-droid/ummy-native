@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, Modal, TouchableOpacity, Clipboard, Alert, Animated, Easing } from 'react-native';
 import { X, Heart, MessageCircle, Shield, Crown, Mic, MicOff, Gift, AtSign, UserX, Star, Zap, Sparkles, UserPlus, MoreVertical, Copy } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -212,7 +212,6 @@ export function RoomProfileCard({
   const [firestoreMedals, setFirestoreMedals] = useState<any[]>([]);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [realTimeFans, setRealTimeFans] = useState(0);
-  const cpLevel = profile?.relationship?.level || 0;
 
   useEffect(() => {
     if (!visible || !firestore || !user?.uid) return;
@@ -245,6 +244,40 @@ export function RoomProfileCard({
     }
   }, [visible]);
 
+  const [activeCpPair, setActiveCpPair] = useState<any>(null);
+  const targetUid = user?.uid || profile?.id || profile?.uid;
+
+  useEffect(() => {
+    if (!visible || !targetUid) return;
+    let unsub: (() => void) | undefined;
+    try {
+      const db = require('@react-native-firebase/firestore').default;
+      unsub = db()
+        .collection('cpPairs')
+        .where('participantIds', 'array-contains', targetUid)
+        .limit(1)
+        .onSnapshot((snap: any) => {
+          if (snap && !snap.empty) {
+            setActiveCpPair({ id: snap.docs[0].id, ...snap.docs[0].data() });
+          } else {
+            setActiveCpPair(null);
+          }
+        }, (err: any) => {});
+  } catch (e) {}
+    return () => { if (unsub) unsub(); };
+  }, [visible, targetUid]);
+
+  const resolvedPartnerUid = useMemo(() => {
+    if (profile?.relationship?.partnerUid) return profile.relationship.partnerUid;
+    if (activeCpPair?.participantIds) {
+      return activeCpPair.participantIds.find((id: string) => id !== targetUid);
+    }
+    return null;
+  }, [profile?.relationship?.partnerUid, activeCpPair, targetUid]);
+
+  const cpLevel = activeCpPair?.level || profile?.relationship?.level || 1;
+  const hasCpPartner = Boolean(resolvedPartnerUid);
+
   const hasTags = profile?.tags?.includes('Official') || 
                   profile?.tags?.some((t: string) => ['Seller', 'Seller center', 'Coin Seller'].includes(t)) || 
                   profile?.tags?.includes('CS Leader') || 
@@ -265,10 +298,10 @@ export function RoomProfileCard({
         <View className="bg-white rounded-t-[3rem] w-full pb-8 items-center relative" style={{ overflow: 'visible', paddingTop: 52 }}>
           {/* Overlapping Avatar — Dual for CP, Single otherwise */}
           <View className="absolute top-[-48] left-0 right-0 z-50" style={{ alignItems: 'center' }}>
-            {profile?.relationship && profile.relationship.type !== 'None' && profile.relationship.partnerUid ? (
+            {hasCpPartner && resolvedPartnerUid ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', width: 180 }}>
                 {/* User Avatar — Center */}
-                <TouchableOpacity style={{ zIndex: 2, marginLeft: 30 }} onPress={() => { onClose(); onViewProfile?.(user.uid); }} activeOpacity={0.8}>
+                <TouchableOpacity style={{ zIndex: 2, marginLeft: 30 }} onPress={() => { onClose(); onViewProfile?.(targetUid); }} activeOpacity={0.8}>
                   <AvatarFrame
                     frameMediaUrl={isInventoryItemExpired(profile?.inventory || {}, profile?.inventory?.activeFrame) ? null : ((profile as any)?.activeFrameMediaUrl || (profile as any)?.inventory?.activeFrameMediaUrl || null)}
                     size={80}
@@ -284,8 +317,8 @@ export function RoomProfileCard({
                   <CpHeartBadge level={cpLevel} />
                 </View>
                 {/* Partner Avatar — Right */}
-                <TouchableOpacity style={{ zIndex: 1, marginLeft: 2 }} onPress={() => { onClose(); onViewProfile?.(profile.relationship.partnerUid); }} activeOpacity={0.8}>
-                  <PartnerAvatar partnerUid={profile.relationship.partnerUid} />
+                <TouchableOpacity style={{ zIndex: 1, marginLeft: 2 }} onPress={() => { onClose(); onViewProfile?.(resolvedPartnerUid); }} activeOpacity={0.8}>
+                  <PartnerAvatar partnerUid={resolvedPartnerUid} />
                 </TouchableOpacity>
               </View>
             ) : (
