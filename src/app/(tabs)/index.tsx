@@ -55,11 +55,18 @@ export default function HomeScreen() {
       const unsubscribe = onValue(presenceRef, (snapshot: any) => {
         const allPresence = snapshot.val() || {};
         const countsMap: Record<string, number> = {};
+        const now = Date.now();
         
         Object.keys(allPresence).forEach(roomId => {
           const usersInRoom = allPresence[roomId];
           if (usersInRoom && typeof usersInRoom === 'object') {
-            const onlineCount = Object.values(usersInRoom).filter((u: any) => u && typeof u === 'object').length;
+            const onlineCount = Object.values(usersInRoom).filter((u: any) => {
+              if (!u || typeof u !== 'object') return false;
+              if (u.isOnline === false) return false;
+              if (u.lastSeen && (now - Number(u.lastSeen) > 120000)) return false;
+              return true;
+            }).length;
+
             if (onlineCount > 0) {
               countsMap[roomId] = onlineCount;
             }
@@ -160,7 +167,7 @@ export default function HomeScreen() {
     const ORIGINAL_HELP_ID = '901piBzTQ0VzCtAvlyyobwvAaTs1';
     const activeRoomId = activeRoom?.id || minimizedRoom?.id;
 
-    // Filter and map rooms with live online counts
+    // Filter categories & decommissioned rooms
     const filtered = (allRooms as Room[]).filter(room => {
       const cat = room.category || 'Chat';
       const matchesCategory = activeCategory === 'All' || cat === activeCategory;
@@ -174,19 +181,27 @@ export default function HomeScreen() {
       return matchesCategory && !isDecommissioned;
     });
 
-    // Map each room with real-time online user count
+    // Map each room with STRICT real-time RTDB online count (ignoring stale Firestore participantCount)
     const mapped = filtered.map(room => {
       const rtdbCount = roomsWithUsersMap[room.id] || 0;
       const isCurrentActive = room.id === activeRoomId ? 1 : 0;
-      const liveOnlineCount = Math.max(rtdbCount, Number(room.participantCount || 0), isCurrentActive);
+      const liveOnlineCount = Math.max(rtdbCount, isCurrentActive);
       return {
         ...room,
         participantCount: liveOnlineCount,
       };
     });
 
-    // Sort: Pinned & Help room first -> Active rooms with online users (highest count first) -> Other rooms
-    return mapped.sort((a, b) => {
+    // STRICT ACTIVE ROOM FILTER: Only show rooms with active live users (liveOnlineCount > 0) OR Pinned/Help room
+    const activeOnly = mapped.filter(room => {
+      const isOriginalHelp = room.id === ORIGINAL_HELP_ID;
+      const isPinned = room.isPinned === true;
+      const hasLiveOnlineUsers = (room.participantCount || 0) > 0;
+      return hasLiveOnlineUsers || isPinned || isOriginalHelp;
+    });
+
+    // Sort: Pinned & Help room first -> Active rooms with highest live count first
+    return activeOnly.sort((a, b) => {
       const aHelp = a.id === ORIGINAL_HELP_ID ? 1 : 0;
       const bHelp = b.id === ORIGINAL_HELP_ID ? 1 : 0;
       if (aHelp !== bHelp) return bHelp - aHelp;
