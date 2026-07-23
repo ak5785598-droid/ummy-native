@@ -42,9 +42,9 @@ export default function HomeScreen() {
   const router = useRouter();
   const { activeRoom, minimizedRoom } = useRoomContext();
   const { profile: userProfile } = useUserProfile(user?.uid);
-  const [roomsWithUsers, setRoomsWithUsers] = useState<Set<string>>(new Set());
+  const [roomsWithUsersMap, setRoomsWithUsersMap] = useState<Record<string, number>>({});
 
-  // REALTIME DATABASE PRESENCE: Track which rooms have online users (only when tab focused)
+  // REALTIME DATABASE PRESENCE: Track real-time online user count per room
   useEffect(() => {
     if (!isHydrated || !database) return;
     
@@ -54,16 +54,19 @@ export default function HomeScreen() {
       
       const unsubscribe = onValue(presenceRef, (snapshot: any) => {
         const allPresence = snapshot.val() || {};
-        const roomIds = new Set<string>();
+        const countsMap: Record<string, number> = {};
         
         Object.keys(allPresence).forEach(roomId => {
           const usersInRoom = allPresence[roomId];
-          if (usersInRoom && Object.keys(usersInRoom).length > 0) {
-            roomIds.add(roomId);
+          if (usersInRoom && typeof usersInRoom === 'object') {
+            const onlineCount = Object.values(usersInRoom).filter((u: any) => u && typeof u === 'object').length;
+            if (onlineCount > 0) {
+              countsMap[roomId] = onlineCount;
+            }
           }
         });
         
-        setRoomsWithUsers(roomIds);
+        setRoomsWithUsersMap(countsMap);
       }, (error: any) => {
         console.error('[RTDB] Error:', error?.message);
       });
@@ -77,9 +80,10 @@ export default function HomeScreen() {
 
   const HELP_ROOM_ID = '901piBzTQ0VzCtAvlyyobwvAaTs1';
 
+  // Fetch all chat rooms without restrictive orderBy constraint that drops rooms lacking participantCount
   const chatRoomsQuery = useMemo(() => {
     if (!firestore || !isHydrated) return null;
-    return query(collection(firestore, 'chatRooms'), orderBy('participantCount', 'desc'), limit(50));
+    return query(collection(firestore, 'chatRooms'), limit(100));
   }, [firestore, isHydrated]);
 
   const helpRoomRef = useMemo(() => {
@@ -154,30 +158,48 @@ export default function HomeScreen() {
     if (!allRooms || allRooms.length === 0) return [];
 
     const ORIGINAL_HELP_ID = '901piBzTQ0VzCtAvlyyobwvAaTs1';
-    let rooms = [...allRooms] as Room[];
+    const activeRoomId = activeRoom?.id || minimizedRoom?.id;
 
-    return rooms.filter(room => {
+    // Filter and map rooms with live online counts
+    const filtered = (allRooms as Room[]).filter(room => {
       const cat = room.category || 'Chat';
       const matchesCategory = activeCategory === 'All' || cat === activeCategory;
       const isDecommissioned = room.title?.includes('SYNCHRONIZING') || room.name?.includes('SYNCHRONIZING');
-
       const roomName = (room.name || room.title || '').toLowerCase().trim();
 
-      // Original help room — match by ID OR exact name
       const isOriginalHelp = room.id === ORIGINAL_HELP_ID || roomName === 'ummy help';
       const looksLikeHelp = roomName.includes('help');
       if (looksLikeHelp && !isOriginalHelp) return false;
-      if (isOriginalHelp) return !isDecommissioned;
 
-      const activeRoomId = activeRoom?.id || minimizedRoom?.id;
-
-      // Online status check: check realtime presence OR if it is the current active/minimized background room
-      const hasOnlineUsers = roomsWithUsers.has(room.id) || room.id === activeRoomId;
-      const isPinned = room.isPinned === true;
-
-      return matchesCategory && (hasOnlineUsers || isPinned) && !isDecommissioned;
+      return matchesCategory && !isDecommissioned;
     });
-  }, [allRooms, activeCategory, roomsWithUsers, activeRoom, minimizedRoom]);
+
+    // Map each room with real-time online user count
+    const mapped = filtered.map(room => {
+      const rtdbCount = roomsWithUsersMap[room.id] || 0;
+      const isCurrentActive = room.id === activeRoomId ? 1 : 0;
+      const liveOnlineCount = Math.max(rtdbCount, Number(room.participantCount || 0), isCurrentActive);
+      return {
+        ...room,
+        participantCount: liveOnlineCount,
+      };
+    });
+
+    // Sort: Pinned & Help room first -> Active rooms with online users (highest count first) -> Other rooms
+    return mapped.sort((a, b) => {
+      const aHelp = a.id === ORIGINAL_HELP_ID ? 1 : 0;
+      const bHelp = b.id === ORIGINAL_HELP_ID ? 1 : 0;
+      if (aHelp !== bHelp) return bHelp - aHelp;
+
+      const aPinned = a.isPinned ? 1 : 0;
+      const bPinned = b.isPinned ? 1 : 0;
+      if (aPinned !== bPinned) return bPinned - aPinned;
+
+      const aCount = a.participantCount || 0;
+      const bCount = b.participantCount || 0;
+      return bCount - aCount;
+    });
+  }, [allRooms, activeCategory, roomsWithUsersMap, activeRoom, minimizedRoom]);
 
   const followedRoomData = useMemo(() => {
     if (!followedRooms || !allRooms) return [];
