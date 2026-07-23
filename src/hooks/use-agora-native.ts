@@ -168,7 +168,7 @@ export function useAgoraNative(
 
     init();
 
-    // Restore audio session when app comes back from background
+    // Restore full audio session when app comes back from background (foreground)
     const { AppState } = require('react-native');
     const sub = AppState.addEventListener('change', (nextState: string) => {
       if (nextState === 'active') {
@@ -176,7 +176,16 @@ export function useAgoraNative(
           playsInSilentModeIOS: true,
           staysActiveInBackground: true,
           allowsRecordingIOS: true,
+          interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+          shouldDuckAndroid: false,
+          interruptionModeIOS: InterruptionModeIOS.DoNotMix,
         }).catch(() => {});
+        // Re-assert local audio capture in case it was suspended
+        if (engineRef.current && isInSeat) {
+          engineRef.current.enableAudio();
+          engineRef.current.enableLocalAudio(!isMuted);
+          engineRef.current.muteLocalAudioStream(isMuted);
+        }
       }
     });
 
@@ -221,6 +230,7 @@ export function useAgoraNative(
     const handleAppStateChange = async (nextState: AppStateStatus) => {
       if (nextState === 'background' || nextState === 'inactive') {
         console.log('[Agora] Background/Lock — re-asserting continuous background audio');
+        // 1) Re-assert audio session mode
         try {
           await Audio.setAudioModeAsync({
             playsInSilentModeIOS: true,
@@ -231,13 +241,28 @@ export function useAgoraNative(
             interruptionModeIOS: InterruptionModeIOS.DoNotMix,
           });
         } catch {}
+        // 2) Re-enable Agora engine audio + local mic capture
         if (engineRef.current) {
-          engineRef.current.enableAudio();
-          if (isInSeat) {
-            engineRef.current.setClientRole(ClientRoleType.ClientRoleBroadcaster);
-            engineRef.current.muteLocalAudioStream(isMuted);
-            engineRef.current.enableLocalAudio(!isMuted);
-          }
+          try {
+            engineRef.current.enableAudio();
+            if (isInSeat) {
+              engineRef.current.setClientRole(ClientRoleType.ClientRoleBroadcaster);
+              engineRef.current.enableLocalAudio(!isMuted);
+              engineRef.current.muteLocalAudioStream(isMuted);
+            }
+          } catch {}
+          // 3) Delayed retry — Android may suspend briefly; re-assert after 1s
+          setTimeout(() => {
+            if (engineRef.current) {
+              try {
+                engineRef.current.enableAudio();
+                if (isInSeat) {
+                  engineRef.current.enableLocalAudio(!isMuted);
+                  engineRef.current.muteLocalAudioStream(isMuted);
+                }
+              } catch {}
+            }
+          }, 1000);
         }
       }
     };

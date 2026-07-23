@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Platform, PermissionsAndroid } from 'react-native';
-import { Audio } from 'expo-av';
+import { Platform, PermissionsAndroid, AppState, AppStateStatus } from 'react-native';
+import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
 import { useDatabase } from '../firebase/provider';
 import { WebRTCSignaling, RTC_CONFIG, SignalingOffer, SignalingAnswer, SignalingCandidate } from '../lib/webrtc-signaling';
 
@@ -146,6 +146,9 @@ export function useWebRTCVoice(
           playsInSilentModeIOS: true,
           staysActiveInBackground: true,
           allowsRecordingIOS: true,
+          interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+          shouldDuckAndroid: false,
+          interruptionModeIOS: InterruptionModeIOS.DoNotMix,
         }).catch(() => {});
 
         signalingCleanupsRef.current = [unsubUsers, unsubOffers, unsubAnswers, unsubCandidates];
@@ -163,13 +166,56 @@ export function useWebRTCVoice(
           playsInSilentModeIOS: true,
           staysActiveInBackground: true,
           allowsRecordingIOS: true,
+          interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+          shouldDuckAndroid: false,
+          interruptionModeIOS: InterruptionModeIOS.DoNotMix,
         }).catch(() => {});
+        // Re-enable local audio when coming back to foreground
+        if (localStreamRef.current) {
+          localStreamRef.current.getTracks().forEach((track: any) => {
+            if (track.kind === 'audio') track.enabled = true;
+          });
+        }
       }
     });
+
+    // Background handler: keep audio session active when screen locks or app minimized
+    const handleAppStateChange = async (nextState: AppStateStatus) => {
+      if (nextState === 'background' || nextState === 'inactive') {
+        console.log('[WebRTC] Background/Lock — re-asserting continuous background audio');
+        try {
+          await Audio.setAudioModeAsync({
+            playsInSilentModeIOS: true,
+            staysActiveInBackground: true,
+            allowsRecordingIOS: true,
+            interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+            shouldDuckAndroid: false,
+            interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+          });
+        } catch {}
+        // Ensure local audio tracks stay enabled in background
+        if (localStreamRef.current) {
+          localStreamRef.current.getTracks().forEach((track: any) => {
+            if (track.kind === 'audio') track.enabled = true;
+          });
+        }
+        // Delayed retry — Android may suspend briefly
+        setTimeout(() => {
+          if (localStreamRef.current) {
+            localStreamRef.current.getTracks().forEach((track: any) => {
+              if (track.kind === 'audio') track.enabled = true;
+            });
+          }
+        }, 1000);
+      }
+    };
+
+    const bgSubscription = AppState.addEventListener('change', handleAppStateChange);
 
     return () => {
       isMountedRef.current = false;
       sub.remove();
+      bgSubscription.remove();
       signalingCleanupsRef.current.forEach((unsub) => unsub());
       signalingCleanupsRef.current = [];
     };
