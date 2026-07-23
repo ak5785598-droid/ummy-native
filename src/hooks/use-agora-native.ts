@@ -62,8 +62,7 @@ export function useAgoraNative(
   isInSeat: boolean, 
   isMuted: boolean, 
   uid: string | undefined, 
-  isSpeakerMuted: boolean = false,
-  keepAlive: boolean = false
+  isSpeakerMuted: boolean = false
 ) {
   const firestore = useFirestore();
   const [remoteUsers, setRemoteUsers] = useState<number[]>([]);
@@ -73,8 +72,6 @@ export function useAgoraNative(
   const engineRef = useRef<IRtcEngine | null>(null);
   const speakingUsersRef = useRef<Record<number, number>>({});
   const lastSpeakingUpdateRef = useRef(0);
-  const keepAliveRef = useRef(keepAlive);
-  keepAliveRef.current = keepAlive;
 
   useEffect(() => {
     if (!APP_ID || !roomId || !uid || APP_ID === 'dummy_id_replace_me') return;
@@ -87,10 +84,6 @@ export function useAgoraNative(
       setConnectionState('CONNECTED');
       return () => {
         isMounted = false;
-        if (!keepAliveRef.current) {
-          destroyAgoraEngine();
-          engineRef.current = null;
-        }
       };
     }
 
@@ -114,6 +107,13 @@ export function useAgoraNative(
         engine.setChannelProfile(ChannelProfileType.ChannelProfileLiveBroadcasting);
         engine.setClientRole(isInSeat ? ClientRoleType.ClientRoleBroadcaster : ClientRoleType.ClientRoleAudience);
         engine.enableAudioVolumeIndication(200, 3, true);
+
+        // Keep audio active in background on Expo/Android/iOS
+        Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: true,
+          allowsRecordingIOS: true,
+        }).catch(() => {});
 
         engine.registerEventHandler({
           onUserJoined: (connection, remoteUid) => {
@@ -149,34 +149,16 @@ export function useAgoraNative(
               const now = Date.now();
               if (now - lastSpeakingUpdateRef.current >= 500) {
                 lastSpeakingUpdateRef.current = now;
-                setSpeakingUsers({...map});
-              } else {
                 speakingUsersRef.current = map;
               }
             }
-          }
+          },
         });
-
-        engine.enableAudio();
-
-        // Configure audio session for background — user ki voice room me jaye jab app background ho
-        Audio.setAudioModeAsync({
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: true,
-          allowsRecordingIOS: true,
-        }).catch(() => {});
 
         const numericUid = hashUidToNumber(uid);
-        
-        engine.muteLocalAudioStream(isMuted);
-
-        engine.joinChannel('', roomId, numericUid, {
-            clientRoleType: isInSeat ? ClientRoleType.ClientRoleBroadcaster : ClientRoleType.ClientRoleAudience
-        });
-
-        setConnectionState('CONNECTING');
+        engine.joinChannel('', roomId, numericUid, {});
       } catch (e) {
-        console.log('[Agora] Init error:', e);
+        console.error('[Agora] Initialization error:', e);
         if (isMounted) setConnectionState('DISCONNECTED');
       }
     };
@@ -187,7 +169,6 @@ export function useAgoraNative(
     const { AppState } = require('react-native');
     const sub = AppState.addEventListener('change', (nextState: string) => {
       if (nextState === 'active') {
-        // App foreground me aaya — audio session restore karo
         Audio.setAudioModeAsync({
           playsInSilentModeIOS: true,
           staysActiveInBackground: true,
@@ -199,10 +180,6 @@ export function useAgoraNative(
     return () => {
       isMounted = false;
       sub.remove();
-      if (!keepAliveRef.current) {
-        destroyAgoraEngine();
-        engineRef.current = null;
-      }
     };
   }, [roomId, uid]);
 

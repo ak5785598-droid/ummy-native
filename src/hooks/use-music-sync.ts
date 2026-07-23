@@ -23,7 +23,6 @@ interface UseMusicSyncProps {
   canManageRoom: boolean;
   userId: string | undefined;
   isSpeakerMuted: boolean;
-  keepAlive?: boolean;
 }
 
 interface MusicState {
@@ -32,7 +31,7 @@ interface MusicState {
   progress: number;
 }
 
-export function useMusicSync({ room, canManageRoom, userId, isSpeakerMuted, keepAlive = false }: UseMusicSyncProps) {
+export function useMusicSync({ room, canManageRoom, userId, isSpeakerMuted }: UseMusicSyncProps) {
   const firestore = useFirestore();
   const database = useDatabase();
   
@@ -49,8 +48,6 @@ export function useMusicSync({ room, canManageRoom, userId, isSpeakerMuted, keep
   const soundRef = useRef<Audio.Sound | null>(null);
   const pendingSeekTime = useRef<number | null>(null);
   const currentUrlRef = useRef<string | null>(null);
-  const keepAliveRef = useRef(keepAlive);
-  keepAliveRef.current = keepAlive;
   const musicStateRef = useRef<MusicState>({ duration: 0, currentTime: 0, progress: 0 });
   const [roomMusicLibrary, setRoomMusicLibrary] = useState<MusicTrack[]>([]);
 
@@ -409,12 +406,7 @@ export function useMusicSync({ room, canManageRoom, userId, isSpeakerMuted, keep
 
   useEffect(() => {
     return () => {
-      if (!keepAliveRef.current && soundRef.current) {
-        soundRef.current.unloadAsync();
-        soundRef.current = null;
-        singletonSound = null;
-        singletonUrl = null;
-      }
+      // Sound persistence is handled by component-level cleanup in [id].tsx
     };
   }, []);
 

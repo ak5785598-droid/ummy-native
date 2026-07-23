@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, PanResponder, Animated, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { X, Users } from 'lucide-react-native';
@@ -6,23 +6,42 @@ import { useRouter } from 'expo-router';
 import { useRoomContext } from '../context/room-context';
 import { destroyAgoraEngine } from '../hooks/use-agora-native';
 import { destroyMusicSound } from '../hooks/use-music-sync';
+import { useVoiceEngine } from '../hooks/use-voice-engine';
 import { Image } from 'expo-image';
 import { toCDN } from '../lib/cdn';
 import { doc, deleteDoc, increment, getDoc } from '@/firebase/firestore-compat';
-import { useFirestore } from '../firebase/provider';
-import { useUser } from '../firebase/provider';
+import { useFirestore, useUser, useDoc } from '../firebase/provider';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const BAR_SIZE = 64;
 const PADDING = 16;
 
 export function FloatingRoomBar() {
-  const { activeRoom, isMinimized, setIsMinimized, setActiveRoom, minimizedRoom, setMinimizedRoom } = useRoomContext();
+  const { activeRoom, isMinimized, setIsMinimized, setActiveRoom, minimizedRoom, setMinimizedRoom, isSpeakerMuted } = useRoomContext();
   const router = useRouter();
   const firestore = useFirestore();
   const { user } = useUser();
 
   const room = activeRoom || minimizedRoom;
+
+  const participantRef = useMemo(() => {
+    if (!firestore || !room?.id || !user?.uid || !isMinimized) return null;
+    return doc(firestore, 'chatRooms', room.id, 'participants', user.uid);
+  }, [firestore, room?.id, user?.uid, isMinimized]);
+  const { data: myParticipant } = useDoc<any>(participantRef);
+
+  const isInSeat = (myParticipant?.seatIndex || 0) > 0;
+  const isMuted = myParticipant?.isMuted ?? false;
+
+  // PERSISTENT BACKGROUND VOICE STREAM: Holds voice audio 100% active when room is minimized
+  useVoiceEngine({
+    roomId: (isMinimized && room?.id) ? room.id : undefined,
+    isInSeat,
+    isMuted,
+    uid: user?.uid,
+    isSpeakerMuted,
+    keepAlive: true,
+  });
   
   const pan = useRef(new Animated.ValueXY({ x: SCREEN_W - BAR_SIZE - PADDING, y: SCREEN_H - 200 })).current;
   const isDragging = useRef(false);
@@ -82,13 +101,19 @@ export function FloatingRoomBar() {
 
   if (!room || !isMinimized) return null;
 
-  // Let useRoomPresence hook's cleanup handler manage Firestore deletes
-  // to avoid double decrement race conditions
-  const handleExitRoom = () => {
+  // Clean exit when closing from floating bar
+  const handleExitRoom = async () => {
     destroyAgoraEngine();
     destroyMusicSound();
+    if (firestore && room?.id && user?.uid) {
+      try {
+        const pRef = doc(firestore, 'chatRooms', room.id, 'participants', user.uid);
+        await deleteDoc(pRef);
+      } catch {}
+    }
     setActiveRoom(null);
     setMinimizedRoom(null);
+    setIsMinimized(false);
   };
 
   return (

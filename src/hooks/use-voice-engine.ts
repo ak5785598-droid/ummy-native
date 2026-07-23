@@ -12,7 +12,6 @@ interface UseVoiceEngineProps {
   isMuted: boolean;
   uid: string | undefined;
   isSpeakerMuted?: boolean;
-  keepAlive?: boolean;
 }
 
 export function useVoiceEngine({
@@ -21,13 +20,12 @@ export function useVoiceEngine({
   isMuted,
   uid,
   isSpeakerMuted = false,
-  keepAlive = false,
 }: UseVoiceEngineProps) {
   const [activeProvider, setActiveProvider] = useState<VoiceProvider | null>(null);
   const [providerError, setProviderError] = useState<string | null>(null);
 
-  const agoraHook = useAgoraNative(roomId, isInSeat, isMuted, uid, isSpeakerMuted, keepAlive);
-  const webrtcHook = useWebRTCVoice(roomId, isInSeat, isMuted, uid, isSpeakerMuted, keepAlive);
+  const agoraHook = useAgoraNative(roomId, isInSeat, isMuted, uid, isSpeakerMuted);
+  const webrtcHook = useWebRTCVoice(roomId, isInSeat, isMuted, uid, isSpeakerMuted);
 
   const [zegoEnabled, setZegoEnabled] = useState(false);
   const zegoHook = useZegoCloudVoice(
@@ -35,8 +33,7 @@ export function useVoiceEngine({
     zegoEnabled ? isInSeat : false,
     zegoEnabled ? isMuted : true,
     zegoEnabled ? uid : undefined,
-    zegoEnabled ? isSpeakerMuted : true,
-    zegoEnabled ? keepAlive : false
+    zegoEnabled ? isSpeakerMuted : true
   );
 
   const [livekitEnabled, setLivekitEnabled] = useState(false);
@@ -45,8 +42,7 @@ export function useVoiceEngine({
     livekitEnabled ? isInSeat : false,
     livekitEnabled ? isMuted : true,
     livekitEnabled ? uid : undefined,
-    livekitEnabled ? isSpeakerMuted : true,
-    livekitEnabled ? keepAlive : false
+    livekitEnabled ? isSpeakerMuted : true
   );
 
   const switchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

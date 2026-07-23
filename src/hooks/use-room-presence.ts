@@ -7,6 +7,7 @@ import { setDocumentNonBlocking, updateDocumentNonBlocking, addDocumentNonBlocki
 import { Room, User, isInventoryItemExpired } from '../lib/types';
 
 const enteredRooms = new Set<string>();
+const entranceSentForRooms = new Set<string>();
 
 const filterBase64 = (url: string | null | undefined): string | null => {
   if (!url) return null;
@@ -36,7 +37,6 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
     minimizedRoomId: null,
   });
   const lastSyncMetadata = useRef<string>('');
-  const entranceSentForRoom = useRef<string | null>(null);
   const hasCleanedUpRef = useRef(false);
 
   useEffect(() => {
@@ -44,6 +44,10 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
     const roomId = sessionRoom?.id;
 
     if (!firestore || !user?.uid || !roomId || !database) return;
+
+    // Diagnostic: confirm effect runs and RTDB write works
+    const diagRef = ref(database, `roomPresence/_diag`);
+    set(diagRef, { ts: Date.now(), uid: user.uid, roomId }).catch(() => {});
 
     // Update latestRoomRef ONLY after confirming valid roomId — prevents false cleanup during brief null transitions
     latestRoomRef.current = {
@@ -89,7 +93,12 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
         const frameMediaUrlToSend = isInventoryItemExpired(inventory || {}, frame) ? null : (inventory?.activeFrameMediaUrl || null);
         const bubbleToSend = isInventoryItemExpired(inventory || {}, bubble) ? null : bubble;
 
-        // Use set+merge directly — no need for getDoc check
+        const existingData = partSnap.exists() ? partSnap.data() : null;
+        const existingIsMuted = existingData?.isMuted ?? false;
+
+        // Use set+merge — DO NOT write seatIndex here! merge:true preserves existing seatIndex from Firestore.
+        // Writing seatIndex here causes a race condition where performJoin's batch can overwrite
+        // a handleTakeSeat write that happens milliseconds later, kicking the user off their seat.
         batch.set(participantRef, {
           uid,
           name: userProfile?.username || 'User',
@@ -100,13 +109,12 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
           activeBubble: bubbleToSend,
           activeIdBadge: null,
           lastSeen: serverTimestamp(),
-          isMuted: false,
+          isMuted: existingIsMuted,
           accountNumber: userProfile?.accountNumber || '',
           gender: userProfile?.gender || null,
           relationship: userProfile?.relationship || null,
           bestFriend: userProfile?.bestFriend || null,
           kickedUntil: null,
-          seatIndex: 0,
         }, { merge: true });
 
         batch.set(roomDocRef, {
@@ -225,44 +233,43 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
     // Ghost purge: ONLY room owner runs this to prevent false kicks from clock skew / background throttling
     // 120s threshold gives generous buffer for app background/foreground transitions, calls, notifications etc.
     if (isOwner) {
-    purgeInterval.current = setInterval(async () => {
-      try {
-        const participantsColRef = collection(firestore, 'chatRooms', roomId, 'participants');
-        const participantsSnap = await getDocs(participantsColRef);
-        const ghostThreshold = Date.now() - 120000; // 120 seconds (2 min) — generous for background transitions
-        const purgeBatch = writeBatch(firestore);
-        let activeCount = 0;
-        let ghostsFound = 0;
-        const roomDocSnap = await getDoc(roomDocRef);
-        const roomOwnerId = roomDocSnap.data()?.ownerId;
+      purgeInterval.current = setInterval(async () => {
+        try {
+          const participantsColRef = collection(firestore, 'chatRooms', roomId, 'participants');
+          const participantsSnap = await getDocs(participantsColRef);
+          const ghostThreshold = Date.now() - 120000; // 120 seconds (2 min) — generous for background transitions
+          const purgeBatch = writeBatch(firestore);
+          let activeCount = 0;
+          let ghostsFound = 0;
+          const roomDocSnap = await getDoc(roomDocRef);
+          const roomOwnerId = roomDocSnap.data()?.ownerId;
 
-        participantsSnap.forEach((docSnap: any) => {
-          const data = docSnap.data();
-          // NEVER delete owner or current user
-          if (data.uid === roomOwnerId || data.uid === uid) {
-            activeCount++;
-            return;
-          }
-          const lastSeen = data.lastSeen?.toDate?.()?.getTime?.() || 0;
-          if (lastSeen < ghostThreshold) {
-            purgeBatch.delete(docSnap.ref);
-            ghostsFound++;
-          } else {
-            activeCount++;
-          }
-        });
-
-        // Always fix participantCount (corrects drift from missed increments/decrements)
-        if (ghostsFound > 0 || activeCount !== (roomDocSnap.data()?.participantCount || 0)) {
-          purgeBatch.update(roomDocRef, {
-            participantCount: activeCount,
-            updatedAt: serverTimestamp(),
+          participantsSnap.forEach((docSnap: any) => {
+            const data = docSnap.data();
+            // NEVER delete owner, current user, or anyone currently sitting on a mic seat!
+            if (data.uid === roomOwnerId || data.uid === uid || (typeof data.seatIndex === 'number' && data.seatIndex >= 0)) {
+              activeCount++;
+              return;
+            }
+            const lastSeen = data.lastSeen?.toDate?.()?.getTime?.() || 0;
+            if (lastSeen < ghostThreshold) {
+              purgeBatch.delete(docSnap.ref);
+              ghostsFound++;
+            } else {
+              activeCount++;
+            }
           });
-          await purgeBatch.commit();
-        }
-      } catch (error) {
-      }
-    }, 20000);
+
+          // Always fix participantCount (corrects drift from missed increments/decrements)
+          if (ghostsFound > 0 || activeCount !== (roomDocSnap.data()?.participantCount || 0)) {
+            purgeBatch.update(roomDocRef, {
+              participantCount: activeCount,
+              updatedAt: serverTimestamp(),
+            });
+            await purgeBatch.commit();
+          }
+        } catch (error) {}
+      }, 20000);
     } // end owner-only ghost purge
 
     const presencePath = `roomPresence/${roomId}/${uid}`;
@@ -313,22 +320,41 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
       if (purgeInterval.current) clearInterval(purgeInterval.current);
       subscription.remove();
 
+      // Only clean up if room is TRULY exited (both active and minimized are null)
+      // When room is merely minimized, keep RTDB presence and entrance cache alive
+      const currentActive = latestRoomRef.current.activeRoomId;
+      const currentMinimized = latestRoomRef.current.minimizedRoomId;
+      const isStillInRoom = !!(currentActive || currentMinimized);
+
+      if (isStillInRoom) {
+        // Room is just being minimized — do NOT delete RTDB presence or clear entrance cache
+        // Re-establish RTDB presence if needed
+        if (presenceRef.current && !userProfile?.roomInvisible) {
+          set(presenceRef.current, {
+            uid,
+            name: userProfile?.username || 'User',
+            avatarUrl: filterBase64(userProfile?.avatarUrl) || user.photoURL || '',
+            joinedAt: dbServerTimestamp(),
+            lastSeen: dbServerTimestamp(),
+            isOnline: true,
+          }).catch(() => {});
+        }
+        return;
+      }
+
+      // Truly exited — clean everything up
       if (presenceRef.current) {
         set(presenceRef.current, null);
       }
 
-      // Always allow re-entry notification for this room
+      // Allow re-entry notification only when truly leaving
       enteredRooms.delete(roomId);
+      entranceSentForRooms.delete(roomId);
 
-      // Immediate cleanup - no delay to prevent ghost participants
-      const currentActive = latestRoomRef.current.activeRoomId;
-      const currentMinimized = latestRoomRef.current.minimizedRoomId;
-      
-      // NEVER auto-delete owner's participant doc — owner immunity
-      if (!currentActive && !currentMinimized && !isOwner) {
+      // Immediate cleanup — delete participant doc only if truly left
+      if (!isOwner) {
         (async () => {
           try {
-            // Prevent double decrement — handleExit may have already cleaned up
             if (!hasCleanedUpRef.current) {
               hasCleanedUpRef.current = true;
               const existingDoc = await getDoc(participantRef);
@@ -347,8 +373,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
                 isOnline: false,
               });
             }
-          } catch (error) {
-          }
+          } catch (error) {}
           hasJoinedRef.current = false;
           lastRoomId.current = null;
         })();
@@ -361,9 +386,10 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
     const roomId = (activeRoom || minimizedRoom)?.id;
     if (!firestore || !roomId || !user?.uid || !database) return;
     if (!userProfile?.username || userProfile?.roomInvisible) return;
-    if (entranceSentForRoom.current === roomId) return;
+    // Module-level Set persists across unmount/remount (unlike useRef which resets)
+    if (entranceSentForRooms.has(roomId)) return;
 
-    entranceSentForRoom.current = roomId;
+    entranceSentForRooms.add(roomId);
     const uid = user.uid;
 
     const inventoryEntryType = userProfile?.inventory?.activeEntryEffect || null;

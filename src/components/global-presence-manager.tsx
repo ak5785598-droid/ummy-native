@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { useFirestore, useUser, useDatabase } from '../firebase/provider';
+import { useRoomContext } from '../context/room-context';
+import { useUserProfile } from '../hooks/use-user-profile';
+import { useRoomPresence } from '../hooks/use-room-presence';
 import { ref, set, onDisconnect, serverTimestamp as dbServerTimestamp } from 'firebase/database';
 import { doc, serverTimestamp, updateDoc } from '@/firebase/firestore-compat';
 import { updateDocumentNonBlocking } from '../lib/non-blocking-writes';
@@ -9,6 +12,16 @@ export function GlobalPresenceManager() {
   const firestore = useFirestore();
   const { user } = useUser();
   const database = useDatabase();
+  const { activeRoom, minimizedRoom } = useRoomContext();
+  const { profile: userProfile } = useUserProfile(user?.uid);
+
+  // GLOBAL ROOM PRESENCE: Keeps room presence 100% active across screen navigation & minimizes
+  useRoomPresence({
+    activeRoom,
+    minimizedRoom,
+    userProfile: userProfile || null,
+  });
+
   const presenceRef = useRef<any>(null);
   const appState = useRef(AppState.currentState);
 

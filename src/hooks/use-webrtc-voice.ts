@@ -46,8 +46,7 @@ export function useWebRTCVoice(
   isInSeat: boolean,
   isMuted: boolean,
   uid: string | undefined,
-  isSpeakerMuted: boolean = false,
-  keepAlive: boolean = false
+  isSpeakerMuted: boolean = false
 ) {
   const database = useDatabase();
   const [remoteUsers, setRemoteUsers] = useState<number[]>([]);
@@ -58,8 +57,6 @@ export function useWebRTCVoice(
   const localStreamRef = useRef<any>(null);
   const signalingRef = useRef<WebRTCSignaling | null>(null);
   const isMountedRef = useRef(true);
-  const keepAliveRef = useRef(keepAlive);
-  keepAliveRef.current = keepAlive;
 
   const signalingCleanupsRef = useRef<(() => void)[]>([]);
   const lastSpeakingUpdateRef = useRef(0);
@@ -175,7 +172,6 @@ export function useWebRTCVoice(
       sub.remove();
       signalingCleanupsRef.current.forEach((unsub) => unsub());
       signalingCleanupsRef.current = [];
-      cleanup();
     };
   }, [roomId, uid]);
 

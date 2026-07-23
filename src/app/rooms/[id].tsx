@@ -7,7 +7,6 @@ import { doc, setDoc, collection, query, orderBy, limit, where, Timestamp, serve
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, useStorage, useDatabase } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
-import { useRoomPresence } from '../../hooks/use-room-presence';
 import { useMusicSync, destroyMusicSound } from '../../hooks/use-music-sync';
 import { useRoomContext } from '../../context/room-context';
 import { useAgoraNative, destroyAgoraEngine } from '../../hooks/use-agora-native';
@@ -105,7 +104,9 @@ export default function RoomScreen() {
   const { profile: userProfile } = useUserProfile(user?.uid);
   const { setActiveRoom, setIsMinimized, setMinimizedRoom, minimizedRoom, isSpeakerMuted, setIsSpeakerMuted, isAIListening, setIsAIListening, isGiftEffects } = useRoomContext();
   const [sessionJoinTime] = useState(new Date());
+  const [isMinimizing, setIsMinimizing] = useState(false);
   const isMinimizingRef = useRef(false);
+  isMinimizingRef.current = isMinimizing;
 
   const [isGiftPickerOpen, setIsGiftPickerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -592,7 +593,7 @@ export default function RoomScreen() {
       if (!isMinimizingRef.current) {
         setActiveRoom(null);
       }
-      isMinimizingRef.current = false;
+      setIsMinimizing(false);
     };
   }, [room, setActiveRoom, setIsMinimized]);
 
@@ -716,7 +717,7 @@ export default function RoomScreen() {
     };
   }, [messages]);
 
-  useRoomPresence({ activeRoom: room, minimizedRoom: minimizedRoom, userProfile: userProfile || null });
+  // useRoomPresence removed — handled globally by GlobalPresenceManager to prevent duplicate intervals & ref conflicts
 
   const currentUserParticipant = useMemo(() => participants?.find(p => p.uid === user?.uid) || null, [participants, user?.uid]);
 
@@ -806,9 +807,9 @@ export default function RoomScreen() {
   const isModerator = room?.moderatorIds?.includes(user?.uid || '') || false;
   const canManageRoom = isOwner || isModerator || user?.uid === '901piBzTQ0VzCtAvlyyobwvAaTs1';
 
-  const agoraHook = useVoiceEngine({ roomId: id, isInSeat, isMuted, uid: user?.uid, isSpeakerMuted, keepAlive: isMinimizingRef.current });
+  const agoraHook = useVoiceEngine({ roomId: id, isInSeat, isMuted, uid: user?.uid, isSpeakerMuted });
 
-  const { isMusicPlaying, musicState, isRepeatEnabled, setIsRepeatEnabled, handleToggleMusic, handleStopMusic, handleSeekMusic, handleNextMusic, handlePreviousMusic, setLocalVolume, songIntensity } = useMusicSync({ room: room || null, canManageRoom, userId: user?.uid, isSpeakerMuted, keepAlive: isMinimizingRef.current });
+  const { isMusicPlaying, musicState, isRepeatEnabled, setIsRepeatEnabled, handleToggleMusic, handleStopMusic, handleSeekMusic, handleNextMusic, handlePreviousMusic, setLocalVolume, songIntensity } = useMusicSync({ room: room || null, canManageRoom, userId: user?.uid, isSpeakerMuted });
 
   const { taskProgress, achievedTasks, claimedTasks, claimTask, triggerTask, totalTasks, completedTasks } = useRoomTasks(id, onlineParticipants, room?.ownerId || '', isModerator);
   const { captions, isCaptionsEnabled, setIsCaptionsEnabled, sttEngine } = useVoiceCaptions(id, isInSeat, isMuted);
@@ -1027,7 +1028,10 @@ export default function RoomScreen() {
       : inventoryFrameUrl;
 
     await setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', user.uid), { seatIndex: seatIdx, isMuted: isSeatMuted, name: userProfile.username, avatarUrl: userProfile.avatarUrl, activeFrameMediaUrl: frameUrlToSend, lastSeen: serverTimestamp() }, { merge: true });
-    const takeSeatTid = setTimeout(() => { muteOverrideRef.current = null; forceUpdate(n => n + 1); }, 2000);
+    // DON'T forceUpdate here — let Firestore onSnapshot listener trigger the re-render naturally.
+    // Calling forceUpdate with stale participants data (before listener fires) would set isInSeat=false,
+    // making the seat appear empty and looking like the owner was "kicked" off.
+    const takeSeatTid = setTimeout(() => { muteOverrideRef.current = null; }, 2000);
     seatTimeoutIds.current.push(takeSeatTid);
   };
 
@@ -1111,6 +1115,7 @@ export default function RoomScreen() {
   };
   const handleMinimize = () => {
     isMinimizingRef.current = true;
+    setIsMinimizing(true);
     if (room) setMinimizedRoom(room);
     setIsMinimized(true);
     try { router.back(); } catch { router.replace('/'); }

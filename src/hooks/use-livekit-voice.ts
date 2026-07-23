@@ -207,8 +207,7 @@ export function useLiveKitVoice(
   isInSeat: boolean,
   isMuted: boolean,
   uid: string | undefined,
-  isSpeakerMuted: boolean = false,
-  keepAlive: boolean = false
+  isSpeakerMuted: boolean = false
 ) {
   const [remoteUsers, setRemoteUsers] = useState<number[]>([]);
   const [connectionState, setConnectionState] = useState<'DISCONNECTED' | 'CONNECTING' | 'CONNECTED'>('DISCONNECTED');
@@ -216,8 +215,6 @@ export function useLiveKitVoice(
   const roomRef = useRef<any>(null);
   const speakingUsersRef = useRef<Record<number, number>>({});
   const processedTracksRef = useRef<Set<string>>(new Set());
-  const keepAliveRef = useRef(keepAlive);
-  keepAliveRef.current = keepAlive;
 
   useEffect(() => {
     if (!LIVEKIT_URL || !LIVEKIT_API_KEY || !LIVEKIT_API_SECRET || !roomId || !uid) return;
@@ -333,16 +330,7 @@ export function useLiveKitVoice(
 
     return () => {
       cancelled = true;
-      if (!keepAliveRef.current && roomRef.current) {
-        try {
-          roomRef.current.disconnect();
-        } catch {}
-        roomRef.current = null;
-        lkRoom = null;
-        setConnectionState('DISCONNECTED');
-        setRemoteUsers([]);
-        processedTracksRef.current.clear();
-      }
+      // Engine persistence is handled by component-level cleanup in [id].tsx
     };
   }, [roomId, uid]);
 
