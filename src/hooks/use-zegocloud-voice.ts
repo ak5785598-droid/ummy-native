@@ -177,8 +177,13 @@ export function useZegoCloudVoice(
           await engine.enableSoundLevelMonitor(true, 200);
         } catch {}
 
+        let soundLogCount = 0;
         engine.on('capturedSoundLevelUpdate', (soundLevel: number) => {
           if (cancelled) return;
+          if (soundLogCount < 5 || soundLevel > 5) {
+            console.log('[ZEGO] capturedSoundLevel:', soundLevel);
+            soundLogCount++;
+          }
           const myUid = hashUidToNumber(uid || '');
           speakingUsersRef.current = { ...speakingUsersRef.current, [myUid]: soundLevel };
           if (soundLevel > 5) {
@@ -229,6 +234,7 @@ export function useZegoCloudVoice(
 
         if (isInSeat) {
           console.log('[ZEGO] User is in seat — enabling audio, unmuting, publishing stream:', streamID);
+          try { await engine.startPreview(); console.log('[ZEGO] startPreview OK'); } catch (e) { console.log('[ZEGO] startPreview failed:', e); }
           await engine.enableAudioCaptureDevice(true);
           await engine.muteMicrophone(isMuted);
           await engine.mutePublishStreamAudio(isMuted, ZegoPublishChannel.Main);
