@@ -234,53 +234,6 @@ export function useZegoCloudVoice(
         singletonRoomId = roomId;
         console.log('[ZEGO] loginRoom completed successfully');
 
-        if (cancelled) return;
-
-        const streamID = `stream_${hashUidToNumber(uid || '')}`;
-
-        if (isInSeat) {
-          console.log('[ZEGO] User is in seat — setting up audio pipeline');
-
-          try {
-            await engine.enableAudioCaptureDevice(true);
-            console.log('[ZEGO] enableAudioCaptureDevice OK');
-          } catch (e) {
-            console.log('[ZEGO] enableAudioCaptureDevice failed:', e);
-          }
-
-          try {
-            await engine.muteMicrophone(isMuted);
-            console.log('[ZEGO] muteMicrophone(' + isMuted + ') OK');
-          } catch (e) {
-            console.log('[ZEGO] muteMicrophone failed:', e);
-          }
-
-          try {
-            await engine.mutePublishStreamAudio(isMuted, ZegoPublishChannel.Main);
-            console.log('[ZEGO] mutePublishStreamAudio OK');
-          } catch (e) {
-            console.log('[ZEGO] mutePublishStreamAudio failed:', e);
-          }
-
-          try {
-            await engine.startPreview();
-            console.log('[ZEGO] startPreview OK');
-          } catch (e) {
-            console.log('[ZEGO] startPreview failed:', e);
-          }
-
-          try {
-            await engine.startPublishingStream(streamID, ZegoPublishChannel.Main, undefined);
-            console.log('[ZEGO] startPublishingStream OK:', streamID);
-          } catch (e) {
-            console.log('[ZEGO] startPublishingStream failed:', e);
-          }
-        } else {
-          console.log('[ZEGO] User NOT in seat — muting mic');
-          await engine.muteMicrophone(true);
-          await engine.mutePublishStreamAudio(true, ZegoPublishChannel.Main);
-        }
-
       } catch (err) {
         console.log('[ZEGO] Connection error:', err);
         if (!cancelled) setConnectionState('DISCONNECTED');
@@ -290,27 +243,35 @@ export function useZegoCloudVoice(
     return () => {
       cancelled = true;
     };
-  }, [roomId, uid, isInSeat, isMuted, isSpeakerMuted]);
+  }, [roomId, uid]);
 
   useEffect(() => {
     if (!engineRef.current || connectionState !== 'CONNECTED') return;
-    try {
-      const ZegoModule = require('zego-express-engine-reactnative');
-      const { ZegoPublishChannel } = ZegoModule;
-      const engine = engineRef.current;
-      const streamID = `stream_${hashUidToNumber(uid || '')}`;
+    (async () => {
+      try {
+        const ZegoModule = require('zego-express-engine-reactnative');
+        const { ZegoPublishChannel } = ZegoModule || {};
+        const engine = engineRef.current;
+        const streamID = `stream_${hashUidToNumber(uid || '')}`;
 
-      engine.muteAllPlayStreamAudio(isSpeakerMuted).catch(() => {});
+        await engine.muteAllPlayStreamAudio(isSpeakerMuted).catch(() => {});
 
-      if (isInSeat) {
-        engine.muteMicrophone(isMuted).catch(() => {});
-        engine.mutePublishStreamAudio(isMuted, ZegoPublishChannel.Main).catch(() => {});
-      } else {
-        engine.muteMicrophone(true).catch(() => {});
-        engine.mutePublishStreamAudio(true, ZegoPublishChannel.Main).catch(() => {});
-        engine.stopPublishingStream(streamID, ZegoPublishChannel.Main).catch(() => {});
+        if (isInSeat) {
+          console.log('[ZEGO] Dynamic seat update: User IS in seat');
+          await engine.enableAudioCaptureDevice(true).catch(() => {});
+          await engine.muteMicrophone(isMuted).catch(() => {});
+          await engine.mutePublishStreamAudio(isMuted, ZegoPublishChannel.Main).catch(() => {});
+          await engine.startPublishingStream(streamID, ZegoPublishChannel.Main, undefined).catch(() => {});
+        } else {
+          console.log('[ZEGO] Dynamic seat update: User NOT in seat');
+          await engine.muteMicrophone(true).catch(() => {});
+          await engine.mutePublishStreamAudio(true, ZegoPublishChannel.Main).catch(() => {});
+          await engine.stopPublishingStream(streamID, ZegoPublishChannel.Main).catch(() => {});
+        }
+      } catch (err) {
+        console.log('[ZEGO] Dynamic seat audio update error:', err);
       }
-    } catch {}
+    })();
   }, [isInSeat, isMuted, isSpeakerMuted, connectionState, uid]);
 
   useEffect(() => {
