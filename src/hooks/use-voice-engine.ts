@@ -33,7 +33,7 @@ export function useVoiceEngine({
     zegoEnabled ? isInSeat : false,
     zegoEnabled ? isMuted : true,
     zegoEnabled ? uid : undefined,
-    zegoEnabled ? isSpeakerMuted : true
+    isSpeakerMuted
   );
 
   const [livekitEnabled, setLivekitEnabled] = useState(false);
@@ -42,7 +42,7 @@ export function useVoiceEngine({
     livekitEnabled ? isInSeat : false,
     livekitEnabled ? isMuted : true,
     livekitEnabled ? uid : undefined,
-    livekitEnabled ? isSpeakerMuted : true
+    isSpeakerMuted
   );
 
   const switchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
