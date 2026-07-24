@@ -263,10 +263,10 @@ export function useZegoCloudVoice(
           }
 
           try {
-            await engine.enableSoundLevelMonitor(true, 200);
-            console.log('[ZEGO] enableSoundLevelMonitor OK');
+            await engine.startPreview();
+            console.log('[ZEGO] startPreview OK');
           } catch (e) {
-            console.log('[ZEGO] enableSoundLevelMonitor failed:', e);
+            console.log('[ZEGO] startPreview failed:', e);
           }
 
           try {
