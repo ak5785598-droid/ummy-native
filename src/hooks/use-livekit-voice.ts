@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Platform, PermissionsAndroid } from 'react-native';
+import { registerGlobals } from '@livekit/react-native-webrtc';
 
 if (typeof (global as any).DOMException === 'undefined') {
   (global as any).DOMException = class DOMException extends Error {
@@ -9,6 +10,8 @@ if (typeof (global as any).DOMException === 'undefined') {
     }
   };
 }
+
+registerGlobals();
 
 const LIVEKIT_URL = process.env.EXPO_PUBLIC_LIVEKIT_URL || 'ws://168.144.72.108:7880';
 const LIVEKIT_API_KEY = process.env.EXPO_PUBLIC_LIVEKIT_API_KEY || 'APIjpjyvioBfFLU';

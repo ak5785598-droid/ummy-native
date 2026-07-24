@@ -221,7 +221,6 @@ export function useZegoCloudVoice(
         if (cancelled) return;
 
         const streamID = `stream_${hashUidToNumber(uid || '')}`;
-        await engine.enableAudioOutput(true);
         await engine.muteAllPlayStreamAudio(isSpeakerMuted);
 
         if (isInSeat) {
@@ -263,7 +262,7 @@ export function useZegoCloudVoice(
       } else {
         engine.muteMicrophone(true).catch(() => {});
         engine.mutePublishStreamAudio(true, ZegoPublishChannel.Main).catch(() => {});
-        engine.stopPublishingStream(ZegoPublishChannel.Main).catch(() => {});
+        engine.stopPublishingStream(streamID, ZegoPublishChannel.Main).catch(() => {});
       }
     } catch {}
   }, [isInSeat, isMuted, isSpeakerMuted, connectionState, uid]);

@@ -4,6 +4,7 @@ import { Platform, PermissionsAndroid, AppState, AppStateStatus, NativeModules }
 import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
 import { doc, setDoc, deleteDoc, serverTimestamp } from '@/firebase/firestore-compat';
 import { useFirestore } from '../firebase/provider';
+import { getRtcToken } from '../lib/agora-token';
 
 const { VoiceForegroundService } = NativeModules;
 
@@ -20,6 +21,7 @@ function stopVoiceService() {
 }
 
 const APP_ID = process.env.EXPO_PUBLIC_AGORA_APP_ID || 'cd76c7f91f144d4681e2002dc15db9ff';
+const APP_CERTIFICATE = 'a5f1c37c7b47428ca68a86dab48464a2';
 
 // Module-level singleton: engine persists across screen mounts/unmounts
 let singletonEngine: IRtcEngine | null = null;
@@ -181,7 +183,10 @@ export function useAgoraNative(
         });
 
         const numericUid = hashUidToNumber(uid);
-        engine.joinChannel('', roomId, numericUid, {});
+        console.log('[Agora] Channel:', roomId, 'NumericUID:', numericUid);
+        const token = await getRtcToken(APP_ID, APP_CERTIFICATE, roomId!, numericUid);
+        console.log('[Agora] Token (first 20 chars):', token.substring(0, 20));
+        engine.joinChannel(token, roomId, numericUid, {});
         startVoiceService();
       } catch (e) {
         console.error('[Agora] Initialization error:', e);
