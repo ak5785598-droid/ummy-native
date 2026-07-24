@@ -81,10 +81,17 @@ export function useVoiceEngine({
     if (switchTimer2Ref.current) clearTimeout(switchTimer2Ref.current);
     if (switchTimer3Ref.current) clearTimeout(switchTimer3Ref.current);
 
-    // Priority: Agora → ZegoCloud → WebRTC → LiveKit
+    // Priority: Agora → DigitalOcean LiveKit → ZegoCloud → WebRTC
     if (agoraHook.connectionState === 'CONNECTED') {
       if (activeProvider !== 'agora') console.log('[VOICE] >>> Switching to AGORA');
       setActiveProvider('agora');
+      setProviderError(null);
+      return;
+    }
+
+    if (livekitHook.connectionState === 'CONNECTED') {
+      if (activeProvider !== 'livekit') console.log('[VOICE] >>> Switching to LIVEKIT (DigitalOcean Server)');
+      setActiveProvider('livekit');
       setProviderError(null);
       return;
     }
@@ -103,30 +110,17 @@ export function useVoiceEngine({
       return;
     }
 
-    if (livekitHook.connectionState === 'CONNECTED') {
-      if (activeProvider !== 'livekit') console.log('[VOICE] >>> Switching to LIVEKIT');
-      setActiveProvider('livekit');
-      setProviderError(null);
-      return;
-    }
-
-    // Fast 1s fallback: Enable ZegoCloud & WebRTC immediately if Agora is not connected
-    if (agoraHook.connectionState === 'DISCONNECTED' || !zegoEnabled) {
+    // Fast 500ms Fallback: Enable DigitalOcean LiveKit, ZegoCloud, and WebRTC immediately
+    if (agoraHook.connectionState === 'DISCONNECTED' || !livekitEnabled) {
       switchTimerRef.current = setTimeout(() => {
         if (agoraHook.connectionState !== 'CONNECTED') {
-          console.log('[VOICE] Fast Fallback: Enabling ZegoCloud & WebRTC...');
+          console.log('[VOICE] Fast Fallback: Enabling DigitalOcean LiveKit (ws://168.144.72.108:7880)...');
+          setLivekitEnabled(true);
           setZegoEnabled(true);
           setWebRtcEnabled(true);
         }
-      }, 1000);
+      }, 500);
     }
-
-    switchTimer2Ref.current = setTimeout(() => {
-      if (agoraHook.connectionState !== 'CONNECTED' && zegoHook.connectionState !== 'CONNECTED' && webrtcHook.connectionState !== 'CONNECTED') {
-        console.log('[VOICE] Enabling LiveKit fallback...');
-        setLivekitEnabled(true);
-      }
-    }, 3000);
 
     return () => {
       if (switchTimerRef.current) clearTimeout(switchTimerRef.current);
