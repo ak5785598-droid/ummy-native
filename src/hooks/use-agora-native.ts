@@ -155,6 +155,10 @@ export function useAgoraNative(
           },
           onError: (code, msg) => {
             console.log('[Agora] Error:', code, msg);
+            // Service suspended / quota exceeded / invalid app id / connection error
+            if ([101, 102, 109, 110, 119, 120, 1027, 1028].includes(code) || code < 0) {
+              if (isMounted) setConnectionState('DISCONNECTED');
+            }
           },
           onAudioVolumeIndication: (connection, speakers) => {
             if (isMounted && speakers) {

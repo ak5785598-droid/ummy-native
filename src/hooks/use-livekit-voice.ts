@@ -10,9 +10,9 @@ if (typeof (global as any).DOMException === 'undefined') {
   };
 }
 
-const LIVEKIT_URL = process.env.EXPO_PUBLIC_LIVEKIT_URL || '';
-const LIVEKIT_API_KEY = process.env.EXPO_PUBLIC_LIVEKIT_API_KEY || '';
-const LIVEKIT_API_SECRET = process.env.EXPO_PUBLIC_LIVEKIT_API_SECRET || '';
+const LIVEKIT_URL = process.env.EXPO_PUBLIC_LIVEKIT_URL || 'ws://168.144.72.108:7880';
+const LIVEKIT_API_KEY = process.env.EXPO_PUBLIC_LIVEKIT_API_KEY || 'APIjpjyvioBfFLU';
+const LIVEKIT_API_SECRET = process.env.EXPO_PUBLIC_LIVEKIT_API_SECRET || '0CAwCaAbJfpceWGhRKVnFhKDHeAbGltGTsfV1IxdJfBD';
 
 let lkModule: any = null;
 let lkRoom: any = null;
