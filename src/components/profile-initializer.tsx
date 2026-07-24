@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useUser, useFirestore } from '../firebase/provider';
 import { doc, getDoc, setDoc, serverTimestamp, writeBatch, runTransaction } from '@/firebase/firestore-compat';
 
@@ -20,6 +20,24 @@ export function ProfileInitializer() {
         const [userSnap, profileSnap] = await Promise.all([getDoc(userRef), getDoc(profileRef)]);
 
         if (!userSnap.exists()) {
+          const accNum = Math.floor(100000 + Math.random() * 900000).toString();
+          const initialData = {
+            id: uid,
+            accountNumber: accNum,
+            username: user.displayName || `User_${accNum}`,
+            avatarUrl: user.photoURL || '',
+            email: user.email || '',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            lastSeen: serverTimestamp(),
+            isOnline: true,
+            wallet: { coins: 0, diamonds: 0, totalSpent: 0, dailySpent: 0, weeklySpent: 0, monthlySpent: 0 },
+            level: { rich: 1, charm: 1 },
+            stats: { fans: 0, following: 0, friends: 0, visitors: 0 },
+            inventory: { ownedItems: [], expiries: {} }
+          };
+          await setDoc(userRef, initialData, { merge: true });
+          await setDoc(profileRef, initialData, { merge: true });
           hasInitialized.current = uid;
           return;
         }

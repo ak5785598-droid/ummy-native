@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { View } from 'react-native';
 import { Home, Compass, Mail, User } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,10 +11,18 @@ const NeonIndicator = () => (
 );
 
 export default function TabLayout() {
-  const { user } = useUser();
+  const { user, isLoading } = useUser();
   const firestore = useFirestore();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [hasUnread, setHasUnread] = useState(false);
+
+  // Auth guard: redirect to login if user is signed out
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace('/(auth)/login');
+    }
+  }, [user, isLoading]);
 
   // Monitor all private chats in background for global unread dot
   useEffect(() => {

@@ -4,24 +4,22 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.app.Service
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
+import androidx.media.app.NotificationCompat.MediaStyle
+import android.app.Service
 
 class VoiceForegroundService : Service() {
 
     companion object {
-        const val CHANNEL_ID = "ummy_voice_channel"
+        const val CHANNEL_ID = "voice_channel"
         const val NOTIFICATION_ID = 9999
-        const val ACTION_START = "app.vercel.ummy_chat.twa.START_VOICE_SERVICE"
-        const val ACTION_STOP = "app.vercel.ummy_chat.twa.STOP_VOICE_SERVICE"
         private var wakeLock: PowerManager.WakeLock? = null
     }
-
-    override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -29,28 +27,17 @@ class VoiceForegroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            ACTION_STOP -> {
-                releaseWakeLock()
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
-                return START_NOT_STICKY
-            }
-            ACTION_START -> {
-                acquireWakeLock()
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    var type = android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        type = type or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-                    }
-                    startForeground(NOTIFICATION_ID, buildNotification(), type)
-                } else {
-                    startForeground(NOTIFICATION_ID, buildNotification())
-                }
-            }
+        val notification = buildNotification()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
         }
+        acquireWakeLock()
         return START_STICKY
     }
+
+    override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
         releaseWakeLock()
@@ -61,11 +48,10 @@ class VoiceForegroundService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Ummy Voice Chat",
+                "Voice Chat",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Keeps your voice connection active while in a room"
-                setShowBadge(false)
+                description = "Keeps voice chat alive in background"
                 setSound(null, null)
             }
             val manager = getSystemService(NotificationManager::class.java)
@@ -81,13 +67,14 @@ class VoiceForegroundService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Ummy Voice Chat")
-            .setContentText("Voice connection active")
+            .setContentTitle("Ummy Chat")
+            .setContentText("Voice chat is active")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setSilent(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .build()
     }
 

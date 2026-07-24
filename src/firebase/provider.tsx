@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, ReactNode, useState, useEffect, useMemo, DependencyList } from 'react';
-import { onSnapshot, doc } from '@/firebase/firestore-compat';
+import { onSnapshot, doc, setDoc, serverTimestamp } from '@/firebase/firestore-compat';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore } from '@/firebase/firestore-compat';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
@@ -90,9 +90,13 @@ export function FirebaseProvider({ children, firebaseApp, firestore, auth, stora
           if (firebaseUser && firestore) {
             const isActive = await isCurrentDeviceActive(firestore, firebaseUser.uid);
             if (!isActive) {
-              try { await (auth as any).signOut(); } catch {}
-              setUserAuthState({ user: null, isLoading: false, userError: null });
-              return;
+              // Device mismatch — auto-register this device instead of signing out.
+              // This ensures the latest login always wins.
+              try {
+                const deviceId = await getOrCreateDeviceId();
+                const userRef = doc(firestore, 'users', firebaseUser.uid);
+                await setDoc(userRef, { activeDeviceId: deviceId, lastLoginAt: serverTimestamp() }, { merge: true });
+              } catch {}
             }
           }
           setUserAuthState({ user: firebaseUser, isLoading: false, userError: null });

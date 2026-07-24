@@ -184,35 +184,49 @@ export default function ProfileScreen() {
   }, [profileId, firestoreDb]);
 
   const profile = useMemo(() => {
-    if (!baseProfile) return null;
-    
-    // Pick the best valid ID between baseProfile and sub-collection data
-    const isValidAccNum = (id: any) => {
-      if (!id) return false;
-      const s = String(id).trim();
-      return /^\d+$/.test(s) || s === '0000';
-    };
+    const raw = baseProfile || profileSubData || myProfile;
+    if (raw) {
+      const isValidAccNum = (id: any) => {
+        if (!id) return false;
+        const s = String(id).trim();
+        return /^\d+$/.test(s) || s === '0000';
+      };
 
-    const baseAccNum = baseProfile?.accountNumber;
-    const subAccNum = profileSubData?.accountNumber;
+      const baseAccNum = baseProfile?.accountNumber || (myProfile as any)?.accountNumber;
+      const subAccNum = profileSubData?.accountNumber;
 
-    // Prioritize baseAccNum (Admin source of truth) if they mismatch or exist
-    let bestAccNum = baseAccNum || subAccNum;
-    if (baseAccNum && subAccNum && baseAccNum !== subAccNum) {
-      bestAccNum = baseAccNum;
-    } else if (!isValidAccNum(subAccNum) && isValidAccNum(baseAccNum)) {
-      bestAccNum = baseAccNum;
-    } else if (isValidAccNum(subAccNum) && !isValidAccNum(baseAccNum)) {
-      bestAccNum = subAccNum;
+      let bestAccNum = baseAccNum || subAccNum;
+      if (baseAccNum && subAccNum && baseAccNum !== subAccNum) {
+        bestAccNum = baseAccNum;
+      } else if (!isValidAccNum(subAccNum) && isValidAccNum(baseAccNum)) {
+        bestAccNum = baseAccNum;
+      } else if (isValidAccNum(subAccNum) && !isValidAccNum(baseAccNum)) {
+        bestAccNum = subAccNum;
+      }
+
+      return {
+        ...(myProfile || {}),
+        ...(profileSubData || {}),
+        ...(baseProfile || {}),
+        accountNumber: bestAccNum || '000000',
+        id: profileId,
+      };
     }
 
-    return {
-      ...baseProfile,
-      ...profileSubData,
-      accountNumber: bestAccNum,
-      id: profileId,
-    };
-  }, [baseProfile, profileSubData, profileId]);
+    if (currentUser) {
+      return {
+        id: currentUser.uid,
+        username: currentUser.displayName || 'Tribe Member',
+        avatarUrl: currentUser.photoURL || '',
+        accountNumber: '000000',
+        wallet: { coins: 0, diamonds: 0, totalSpent: 0 },
+        inventory: { ownedItems: [] },
+        stats: { fans: 0, following: 0, friends: 0, visitors: 0 }
+      };
+    }
+
+    return null;
+  }, [baseProfile, profileSubData, myProfile, profileId, currentUser]);
 
   // Auto-assign medals based on tags
   const medalAssignedRef = useRef(false);
