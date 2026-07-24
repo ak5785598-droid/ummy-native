@@ -81,7 +81,7 @@ export function useVoiceEngine({
     if (switchTimer2Ref.current) clearTimeout(switchTimer2Ref.current);
     if (switchTimer3Ref.current) clearTimeout(switchTimer3Ref.current);
 
-    // Fallback logic: Agora → ZegoCloud → LiveKit → WebRTC
+    // Priority: Agora → ZegoCloud → WebRTC → LiveKit
     if (agoraHook.connectionState === 'CONNECTED') {
       if (activeProvider !== 'agora') console.log('[VOICE] >>> Switching to AGORA');
       setActiveProvider('agora');
@@ -96,6 +96,13 @@ export function useVoiceEngine({
       return;
     }
 
+    if (webrtcHook.connectionState === 'CONNECTED') {
+      if (activeProvider !== 'webrtc') console.log('[VOICE] >>> Switching to WEBRTC');
+      setActiveProvider('webrtc');
+      setProviderError(null);
+      return;
+    }
+
     if (livekitHook.connectionState === 'CONNECTED') {
       if (activeProvider !== 'livekit') console.log('[VOICE] >>> Switching to LIVEKIT');
       setActiveProvider('livekit');
@@ -103,31 +110,23 @@ export function useVoiceEngine({
       return;
     }
 
-    // Enable ZegoCloud after 3s if Agora not connected
-    if (!zegoEnabled) {
+    // Fast 1s fallback: Enable ZegoCloud & WebRTC immediately if Agora is not connected
+    if (agoraHook.connectionState === 'DISCONNECTED' || !zegoEnabled) {
       switchTimerRef.current = setTimeout(() => {
-        if (agoraHook.connectionState !== 'CONNECTED' && !zegoEnabled) {
-          console.log('[VOICE] Enabling ZegoCloud fallback...');
+        if (agoraHook.connectionState !== 'CONNECTED') {
+          console.log('[VOICE] Fast Fallback: Enabling ZegoCloud & WebRTC...');
           setZegoEnabled(true);
+          setWebRtcEnabled(true);
         }
-      }, 3000);
+      }, 1000);
     }
 
     switchTimer2Ref.current = setTimeout(() => {
-      if (agoraHook.connectionState !== 'CONNECTED' && zegoHook.connectionState !== 'CONNECTED' && !livekitEnabled) {
-        console.log('[VOICE] Agora/Zego not connected — enabling LiveKit fallback...');
+      if (agoraHook.connectionState !== 'CONNECTED' && zegoHook.connectionState !== 'CONNECTED' && webrtcHook.connectionState !== 'CONNECTED') {
+        console.log('[VOICE] Enabling LiveKit fallback...');
         setLivekitEnabled(true);
       }
-    }, 6000);
-
-    switchTimer3Ref.current = setTimeout(() => {
-      if (agoraHook.connectionState !== 'CONNECTED' && zegoHook.connectionState !== 'CONNECTED' && livekitHook.connectionState !== 'CONNECTED') {
-        console.log('[VOICE] >>> Switching to WEBRTC (final fallback)');
-        setWebRtcEnabled(true);
-        setActiveProvider('webrtc');
-        setProviderError('Agora & ZegoCloud & LiveKit failed → WebRTC fallback active');
-      }
-    }, 10000);
+    }, 3000);
 
     return () => {
       if (switchTimerRef.current) clearTimeout(switchTimerRef.current);
