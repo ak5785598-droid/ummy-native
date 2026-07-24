@@ -127,6 +127,7 @@ export function useZegoCloudVoice(
 
         engine.on('roomStateUpdate', (roomID: string, state: any) => {
           if (cancelled) return;
+          console.log('[ZEGO] roomStateUpdate:', roomID, 'state:', state, '(3=Connected, 0=Disconnected)');
           if (state === ZegoRoomState.Connected) {
             setConnectionState('CONNECTED');
             singletonRoomId = roomID;
@@ -137,6 +138,7 @@ export function useZegoCloudVoice(
 
         engine.on('roomStreamUpdate', async (_roomID: string, updateType: number, streamList: any[]) => {
           if (cancelled) return;
+          console.log('[ZEGO] roomStreamUpdate: type=' + updateType + ' streams=' + streamList.length);
           if (updateType === 1) {
             for (const stream of streamList) {
               const streamUid = parseInt(stream.streamID.split('_')[1] || '0', 10);
@@ -211,12 +213,14 @@ export function useZegoCloudVoice(
         });
 
         const zegoRoomId = hashRoomId(roomId);
+        console.log('[ZEGO] Logging into room:', zegoRoomId, 'userID: zego_' + uid, 'isInSeat:', isInSeat, 'isMuted:', isMuted);
         const roomConfig = new ZegoRoomConfig(0, true, '');
         await engine.loginRoom(zegoRoomId, {
           userID: `zego_${uid}`,
           userName: uid || 'User',
         }, roomConfig);
         singletonRoomId = roomId;
+        console.log('[ZEGO] loginRoom completed successfully');
 
         if (cancelled) return;
 
@@ -224,11 +228,14 @@ export function useZegoCloudVoice(
         await engine.muteAllPlayStreamAudio(isSpeakerMuted);
 
         if (isInSeat) {
+          console.log('[ZEGO] User is in seat — enabling audio, unmuting, publishing stream:', streamID);
           await engine.enableAudioCaptureDevice(true);
           await engine.muteMicrophone(isMuted);
           await engine.mutePublishStreamAudio(isMuted, ZegoPublishChannel.Main);
           await engine.startPublishingStream(streamID, ZegoPublishChannel.Main, undefined);
+          console.log('[ZEGO] startPublishingStream called successfully');
         } else {
+          console.log('[ZEGO] User NOT in seat — muting mic');
           await engine.muteMicrophone(true);
           await engine.mutePublishStreamAudio(true, ZegoPublishChannel.Main);
         }
@@ -246,6 +253,7 @@ export function useZegoCloudVoice(
 
   useEffect(() => {
     if (!engineRef.current || connectionState !== 'CONNECTED') return;
+    console.log('[ZEGO] State update useEffect firing: isInSeat=' + isInSeat + ' isMuted=' + isMuted + ' isSpeakerMuted=' + isSpeakerMuted);
     try {
       const ZegoModule = require('zego-express-engine-reactnative');
       const { ZegoPublishChannel } = ZegoModule;
