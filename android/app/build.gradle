@@ -85,13 +85,17 @@ android {
     ndkVersion rootProject.ext.ndkVersion
 
     configurations.all {
-        exclude group: 'com.android.support', module: 'support-compat'
-        exclude group: 'com.android.support', module: 'support-v4'
-        exclude group: 'com.android.support', module: 'versionedparcelable'
-        exclude group: 'com.android.support', module: 'support-core-ui'
-        exclude group: 'com.android.support', module: 'support-core-utils'
-        exclude group: 'com.android.support', module: 'animated-vector-drawable'
-        exclude group: 'com.android.support', module: 'support-vector-drawable'
+        exclude group: 'com.android.support'
+    }
+
+    packagingOptions {
+        resources {
+            pickFirst 'META-INF/androidx.*'
+            pickFirst 'META-INF/*.version'
+            pickFirst 'META-INF/DEPENDENCIES'
+            pickFirst 'META-INF/LICENSE'
+            pickFirst 'META-INF/NOTICE'
+        }
     }
 
     buildToolsVersion rootProject.ext.buildToolsVersion
