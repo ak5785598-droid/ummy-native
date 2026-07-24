@@ -19,7 +19,7 @@ function stopVoiceService() {
   }
 }
 
-const APP_ID = process.env.EXPO_PUBLIC_AGORA_APP_ID || '619919c1721449c1874fb9395fe6da31';
+const APP_ID = process.env.EXPO_PUBLIC_AGORA_APP_ID || 'cd76c7f91f144d4681e2002dc15db9ff';
 
 // Module-level singleton: engine persists across screen mounts/unmounts
 let singletonEngine: IRtcEngine | null = null;
@@ -119,6 +119,9 @@ export function useAgoraNative(
         engineRef.current = engine;
         
         engine.initialize({ appId: APP_ID });
+        engine.enableAudio();
+        engine.adjustRecordingSignalVolume(100);
+        engine.adjustPlaybackSignalVolume(100);
         engine.setChannelProfile(ChannelProfileType.ChannelProfileLiveBroadcasting);
         engine.setClientRole(isInSeat ? ClientRoleType.ClientRoleBroadcaster : ClientRoleType.ClientRoleAudience);
         engine.enableAudioVolumeIndication(200, 3, true);
@@ -230,8 +233,10 @@ export function useAgoraNative(
     if (!engine) return;
     if (isInSeat) {
       engine.setClientRole(ClientRoleType.ClientRoleBroadcaster);
+      engine.enableLocalAudio(true);
       engine.muteLocalAudioStream(isMuted);
-      engine.enableLocalAudio(!isMuted);
+      engine.adjustRecordingSignalVolume(100);
+      engine.adjustPlaybackSignalVolume(100);
     } else {
       engine.setClientRole(ClientRoleType.ClientRoleAudience);
       engine.muteLocalAudioStream(true);
