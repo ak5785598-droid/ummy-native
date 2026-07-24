@@ -117,6 +117,9 @@ export function useZegoCloudVoice(
             const profile = new ZegoEngineProfile(ZEGO_APP_ID, ZEGO_APP_SIGN, ZegoScenario.StandardChatroom);
             engine = await ZegoExpressEngine.createEngineWithProfile(profile);
             singletonEngine = engine;
+            await engine.setAudioRouteToSpeaker(true).catch(() => {});
+            await engine.enableAudioOutput(true).catch(() => {});
+            await engine.enableSoundLevelMonitor(true).catch(() => {});
             console.log('[ZEGO] Engine created successfully');
           } catch (e) {
             console.log('[ZEGO] Engine creation failed (non-fatal):', e);
@@ -254,6 +257,7 @@ export function useZegoCloudVoice(
         const engine = engineRef.current;
         const streamID = `stream_${hashUidToNumber(uid || '')}`;
 
+        await engine.setAudioRouteToSpeaker(!isSpeakerMuted).catch(() => {});
         await engine.muteAllPlayStreamAudio(isSpeakerMuted).catch(() => {});
 
         if (isInSeat) {
