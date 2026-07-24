@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Platform, PermissionsAndroid } from 'react-native';
-import { Audio } from 'expo-av';
 
 const ZEGO_APP_ID = parseInt(process.env.EXPO_PUBLIC_ZEGO_APP_ID || '139273378', 10);
 const ZEGO_APP_SIGN = process.env.EXPO_PUBLIC_ZEGO_APP_SIGN || '62ea7b1ae5eecd2075a8ccedf1701b7b013b982bba2264ac4987f3bb0926c868';
@@ -40,6 +39,7 @@ async function requestMicPermission(): Promise<boolean> {
 
 let singletonEngine: any = null;
 let singletonRoomId: string | null = null;
+let singletonListenerCount = 0;
 
 export function destroyZegoEngine() {
   if (singletonEngine) {
@@ -52,6 +52,7 @@ export function destroyZegoEngine() {
     } catch {}
     singletonEngine = null;
     singletonRoomId = null;
+    singletonListenerCount = 0;
   }
 }
 
@@ -68,16 +69,17 @@ export function useZegoCloudVoice(
   const engineRef = useRef<any>(null);
   const speakingUsersRef = useRef<Record<number, number>>({});
   const processedStreamsRef = useRef<Set<string>>(new Set());
+  const setupDoneRef = useRef(false);
 
   useEffect(() => {
     if (!ZEGO_APP_ID || !ZEGO_APP_SIGN || !roomId || !uid) return;
-    // Remove early return guard — room change needs to re-join
 
     let cancelled = false;
 
     (async () => {
       try {
         setConnectionState('CONNECTING');
+        setupDoneRef.current = false;
 
         const hasMic = await requestMicPermission();
         if (!hasMic || cancelled) {
@@ -85,7 +87,6 @@ export function useZegoCloudVoice(
           return;
         }
 
-        // Lazy load native module — wrapped in try-catch to prevent native crash killing React
         let ZegoModule: any;
         try {
           ZegoModule = require('zego-express-engine-reactnative');
@@ -103,18 +104,20 @@ export function useZegoCloudVoice(
         const { ZegoScenario, ZegoRoomState, ZegoEngineProfile, ZegoRoomConfig, ZegoPublishChannel } = ZegoModule || {};
 
         let engine: any;
-        // Always logout from old room first if engine exists
         if (singletonEngine) {
           engine = singletonEngine;
           try {
             const oldRoomId = singletonRoomId ? hashRoomId(singletonRoomId) : '';
             if (oldRoomId) await engine.logoutRoom(oldRoomId);
           } catch {}
+          console.log('[ZEGO] Reusing existing engine');
         } else {
           try {
+            console.log('[ZEGO] Creating new engine with AppID:', ZEGO_APP_ID);
             const profile = new ZegoEngineProfile(ZEGO_APP_ID, ZEGO_APP_SIGN, ZegoScenario.StandardChatroom);
             engine = await ZegoExpressEngine.createEngineWithProfile(profile);
             singletonEngine = engine;
+            console.log('[ZEGO] Engine created successfully');
           } catch (e) {
             console.log('[ZEGO] Engine creation failed (non-fatal):', e);
             if (!cancelled) setConnectionState('DISCONNECTED');
@@ -125,97 +128,101 @@ export function useZegoCloudVoice(
 
         if (cancelled) return;
 
-        engine.on('roomStateUpdate', (roomID: string, state: any) => {
-          if (cancelled) return;
-          console.log('[ZEGO] roomStateUpdate:', roomID, 'state:', state, '(3=Connected, 0=Disconnected)');
-          if (state === ZegoRoomState.Connected) {
-            setConnectionState('CONNECTED');
-            singletonRoomId = roomID;
-          } else if (state === ZegoRoomState.Disconnected) {
-            setConnectionState('DISCONNECTED');
-          }
-        });
+        if (!setupDoneRef.current) {
+          setupDoneRef.current = true;
 
-        engine.on('roomStreamUpdate', async (_roomID: string, updateType: number, streamList: any[]) => {
-          if (cancelled) return;
-          console.log('[ZEGO] roomStreamUpdate: type=' + updateType + ' streams=' + streamList.length);
-          if (updateType === 1) {
-            for (const stream of streamList) {
-              const streamUid = parseInt(stream.streamID.split('_')[1] || '0', 10);
-              if (streamUid === hashUidToNumber(uid || '')) continue;
-              if (processedStreamsRef.current.has(stream.streamID)) continue;
-              processedStreamsRef.current.add(stream.streamID);
+          engine.on('roomStateUpdate', (roomID: string, state: any) => {
+            if (cancelled) return;
+            console.log('[ZEGO] roomStateUpdate:', roomID, 'state:', state);
+            if (state === ZegoRoomState.Connected) {
+              setConnectionState('CONNECTED');
+              singletonRoomId = roomID;
+            } else if (state === ZegoRoomState.Disconnected) {
+              setConnectionState('DISCONNECTED');
+            }
+          });
 
-              try {
-                await engine.startPlayingStream(stream.streamID, undefined, undefined);
-              } catch (e) {
-                console.log('[ZEGO] Failed to play stream:', stream.streamID, e);
+          engine.on('roomStreamUpdate', async (_roomID: string, updateType: number, streamList: any[]) => {
+            if (cancelled) return;
+            console.log('[ZEGO] roomStreamUpdate: type=' + updateType + ' streams=' + streamList.length);
+            if (updateType === 1) {
+              for (const stream of streamList) {
+                const streamUid = parseInt(stream.streamID.split('_')[1] || '0', 10);
+                if (streamUid === hashUidToNumber(uid || '')) continue;
+                if (processedStreamsRef.current.has(stream.streamID)) continue;
+                processedStreamsRef.current.add(stream.streamID);
+
+                try {
+                  await engine.startPlayingStream(stream.streamID, undefined, undefined);
+                  console.log('[ZEGO] Playing remote stream:', stream.streamID);
+                } catch (e) {
+                  console.log('[ZEGO] Failed to play stream:', stream.streamID, e);
+                }
+
+                setRemoteUsers(prev => {
+                  if (prev.includes(streamUid)) return prev;
+                  return [...prev, streamUid];
+                });
               }
-
-              setRemoteUsers(prev => {
-                if (prev.includes(streamUid)) return prev;
-                return [...prev, streamUid];
-              });
+            } else if (updateType === 0) {
+              for (const stream of streamList) {
+                const streamUid = parseInt(stream.streamID.split('_')[1] || '0', 10);
+                try {
+                  await engine.stopPlayingStream(stream.streamID);
+                } catch {}
+                processedStreamsRef.current.delete(stream.streamID);
+                setRemoteUsers(prev => prev.filter(u => u !== streamUid));
+                speakingUsersRef.current[streamUid] = 0;
+              }
             }
-          } else if (updateType === 0) {
-            for (const stream of streamList) {
-              const streamUid = parseInt(stream.streamID.split('_')[1] || '0', 10);
-              try {
-                await engine.stopPlayingStream(stream.streamID);
-              } catch {}
-              processedStreamsRef.current.delete(stream.streamID);
-              setRemoteUsers(prev => prev.filter(u => u !== streamUid));
-              speakingUsersRef.current[streamUid] = 0;
+          });
+
+          engine.on('roomUserUpdate', () => {});
+
+          let soundLogCount = 0;
+          engine.on('capturedSoundLevelUpdate', (soundLevel: number) => {
+            if (cancelled) return;
+            if (soundLogCount < 10 || soundLevel > 5) {
+              console.log('[ZEGO] capturedSoundLevel:', soundLevel);
+              soundLogCount++;
             }
-          }
-        });
-
-        engine.on('roomUserUpdate', () => {});
-
-        // Sound level monitoring for speaking indicator (green button)
-        try {
-          await engine.enableSoundLevelMonitor(true, 200);
-        } catch {}
-
-        let soundLogCount = 0;
-        engine.on('capturedSoundLevelUpdate', (soundLevel: number) => {
-          if (cancelled) return;
-          if (soundLogCount < 5 || soundLevel > 5) {
-            console.log('[ZEGO] capturedSoundLevel:', soundLevel);
-            soundLogCount++;
-          }
-          const myUid = hashUidToNumber(uid || '');
-          speakingUsersRef.current = { ...speakingUsersRef.current, [myUid]: soundLevel };
-          if (soundLevel > 5) {
-            setSpeakingUsers(prev => ({ ...prev, [myUid]: soundLevel }));
-          } else {
-            setSpeakingUsers(prev => {
-              const next = { ...prev };
-              delete next[myUid];
-              return next;
-            });
-          }
-        });
-
-        engine.on('remoteSoundLevelUpdate', (soundLevels: Record<string, number>) => {
-          if (cancelled) return;
-          const updated = { ...speakingUsersRef.current };
-          for (const [streamID, level] of Object.entries(soundLevels)) {
-            const remoteUid = parseInt(streamID.split('_')[1] || '0', 10);
-            if (remoteUid === hashUidToNumber(uid || '')) continue;
-            updated[remoteUid] = level;
-            if (level > 5) {
-              setSpeakingUsers(prev => ({ ...prev, [remoteUid]: level }));
+            const myUid = hashUidToNumber(uid || '');
+            speakingUsersRef.current = { ...speakingUsersRef.current, [myUid]: soundLevel };
+            if (soundLevel > 5) {
+              setSpeakingUsers(prev => ({ ...prev, [myUid]: soundLevel }));
             } else {
               setSpeakingUsers(prev => {
                 const next = { ...prev };
-                delete next[remoteUid];
+                delete next[myUid];
                 return next;
               });
             }
-          }
-          speakingUsersRef.current = updated;
-        });
+          });
+
+          engine.on('remoteSoundLevelUpdate', (soundLevels: Record<string, number>) => {
+            if (cancelled) return;
+            const updated = { ...speakingUsersRef.current };
+            for (const [streamID, level] of Object.entries(soundLevels)) {
+              const remoteUid = parseInt(streamID.split('_')[1] || '0', 10);
+              if (remoteUid === hashUidToNumber(uid || '')) continue;
+              updated[remoteUid] = level;
+              if (level > 5) {
+                setSpeakingUsers(prev => ({ ...prev, [remoteUid]: level }));
+              } else {
+                setSpeakingUsers(prev => {
+                  const next = { ...prev };
+                  delete next[remoteUid];
+                  return next;
+                });
+              }
+            }
+            speakingUsersRef.current = updated;
+          });
+
+          engine.on('playerStreamUpdate', (streamID: string, state: any) => {
+            console.log('[ZEGO] playerStreamUpdate:', streamID, 'state:', state);
+          });
+        }
 
         const zegoRoomId = hashRoomId(roomId);
         console.log('[ZEGO] Logging into room:', zegoRoomId, 'userID: zego_' + uid, 'isInSeat:', isInSeat, 'isMuted:', isMuted);
@@ -230,16 +237,44 @@ export function useZegoCloudVoice(
         if (cancelled) return;
 
         const streamID = `stream_${hashUidToNumber(uid || '')}`;
-        await engine.muteAllPlayStreamAudio(isSpeakerMuted);
 
         if (isInSeat) {
-          console.log('[ZEGO] User is in seat — enabling audio, unmuting, publishing stream:', streamID);
-          try { await engine.startPreview(); console.log('[ZEGO] startPreview OK'); } catch (e) { console.log('[ZEGO] startPreview failed:', e); }
-          await engine.enableAudioCaptureDevice(true);
-          await engine.muteMicrophone(isMuted);
-          await engine.mutePublishStreamAudio(isMuted, ZegoPublishChannel.Main);
-          await engine.startPublishingStream(streamID, ZegoPublishChannel.Main, undefined);
-          console.log('[ZEGO] startPublishingStream called successfully');
+          console.log('[ZEGO] User is in seat — setting up audio pipeline');
+
+          try {
+            await engine.enableAudioCaptureDevice(true);
+            console.log('[ZEGO] enableAudioCaptureDevice OK');
+          } catch (e) {
+            console.log('[ZEGO] enableAudioCaptureDevice failed:', e);
+          }
+
+          try {
+            await engine.muteMicrophone(isMuted);
+            console.log('[ZEGO] muteMicrophone(' + isMuted + ') OK');
+          } catch (e) {
+            console.log('[ZEGO] muteMicrophone failed:', e);
+          }
+
+          try {
+            await engine.mutePublishStreamAudio(isMuted, ZegoPublishChannel.Main);
+            console.log('[ZEGO] mutePublishStreamAudio OK');
+          } catch (e) {
+            console.log('[ZEGO] mutePublishStreamAudio failed:', e);
+          }
+
+          try {
+            await engine.enableSoundLevelMonitor(true, 200);
+            console.log('[ZEGO] enableSoundLevelMonitor OK');
+          } catch (e) {
+            console.log('[ZEGO] enableSoundLevelMonitor failed:', e);
+          }
+
+          try {
+            await engine.startPublishingStream(streamID, ZegoPublishChannel.Main, undefined);
+            console.log('[ZEGO] startPublishingStream OK:', streamID);
+          } catch (e) {
+            console.log('[ZEGO] startPublishingStream failed:', e);
+          }
         } else {
           console.log('[ZEGO] User NOT in seat — muting mic');
           await engine.muteMicrophone(true);
@@ -259,7 +294,6 @@ export function useZegoCloudVoice(
 
   useEffect(() => {
     if (!engineRef.current || connectionState !== 'CONNECTED') return;
-    console.log('[ZEGO] State update useEffect firing: isInSeat=' + isInSeat + ' isMuted=' + isMuted + ' isSpeakerMuted=' + isSpeakerMuted);
     try {
       const ZegoModule = require('zego-express-engine-reactnative');
       const { ZegoPublishChannel } = ZegoModule;
@@ -269,10 +303,8 @@ export function useZegoCloudVoice(
       engine.muteAllPlayStreamAudio(isSpeakerMuted).catch(() => {});
 
       if (isInSeat) {
-        engine.enableAudioCaptureDevice(true).catch(() => {});
         engine.muteMicrophone(isMuted).catch(() => {});
         engine.mutePublishStreamAudio(isMuted, ZegoPublishChannel.Main).catch(() => {});
-        engine.startPublishingStream(streamID, ZegoPublishChannel.Main, undefined).catch(() => {});
       } else {
         engine.muteMicrophone(true).catch(() => {});
         engine.mutePublishStreamAudio(true, ZegoPublishChannel.Main).catch(() => {});
@@ -282,9 +314,7 @@ export function useZegoCloudVoice(
   }, [isInSeat, isMuted, isSpeakerMuted, connectionState, uid]);
 
   useEffect(() => {
-    return () => {
-      // Engine persistence is handled by component-level cleanup in [id].tsx
-    };
+    return () => {};
   }, [roomId]);
 
   const startScreenShare = useCallback(async () => {}, []);
