@@ -1,7 +1,7 @@
 {
-  "versionCode": 4,
+  "versionCode": 100,
   "versionName": "1.4.0",
-  "apkUrl": "https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/releases%2Fv1.3.0%2Fapp-arm64-v8a-release.apk?alt=media",
+  "apkUrl": "https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/releases%2Fv1.4.0%2Fapp-release.apk?alt=media",
   "forceUpdate": false,
-  "changelog": "Voice fix: background voice now stays active on screen lock and app minimize. Foreground service for persistent voice connection."
+  "changelog": "• Background voice fix - mic stays active when app is minimized\n• Login stability improvements\n• Bug fixes and performance improvements"
 }
