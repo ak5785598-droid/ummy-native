@@ -299,16 +299,15 @@ export function useAgoraNative(
   }, []);
 
   useEffect(() => {
-    const engine = engineRef.current;
+    const engine = engineRef.current || singletonEngine;
     if (!engine) return;
+    console.log('[Agora] isInSeat effect:', { isInSeat, isMuted, hasEngine: !!engine });
     if (isInSeat) {
       engine.setClientRole(ClientRoleType.ClientRoleBroadcaster);
       engine.enableLocalAudio(true);
       engine.muteLocalAudioStream(isMuted);
       engine.adjustRecordingSignalVolume(100);
       engine.adjustPlaybackSignalVolume(100);
-      // CRITICAL for Agora v4.x: setClientRole alone doesn't publish mic.
-      // updateChannelMediaOptions is required to actually start broadcasting audio.
       engine.updateChannelMediaOptions({
         publishMicrophoneTrack: !isMuted,
         autoSubscribeAudio: true,
@@ -319,7 +318,6 @@ export function useAgoraNative(
       engine.setClientRole(ClientRoleType.ClientRoleAudience);
       engine.muteLocalAudioStream(true);
       engine.enableLocalAudio(false);
-      // Stop publishing when leaving seat
       engine.updateChannelMediaOptions({
         publishMicrophoneTrack: false,
         autoSubscribeAudio: true,
@@ -327,7 +325,7 @@ export function useAgoraNative(
         clientRoleType: ClientRoleType.ClientRoleAudience,
       });
     }
-  }, [isInSeat, isMuted, connectionState]);
+  }, [isInSeat, isMuted]);
 
   useEffect(() => {
     const engine = engineRef.current;
