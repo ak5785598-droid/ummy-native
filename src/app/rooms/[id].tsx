@@ -102,7 +102,7 @@ export default function RoomScreen() {
   const storage = useStorage();
   const database = useDatabase();
   const { profile: userProfile } = useUserProfile(user?.uid);
-  const { setActiveRoom, setIsMinimized, setMinimizedRoom, minimizedRoom, isSpeakerMuted, setIsSpeakerMuted, isAIListening, setIsAIListening, isGiftEffects } = useRoomContext();
+  const { activeRoom, setActiveRoom, setIsMinimized, setMinimizedRoom, minimizedRoom, isSpeakerMuted, setIsSpeakerMuted, isAIListening, setIsAIListening, isGiftEffects } = useRoomContext();
   const [sessionJoinTime] = useState(new Date());
   const [isMinimizing, setIsMinimizing] = useState(false);
   const isMinimizingRef = useRef(false);
@@ -588,14 +588,17 @@ export default function RoomScreen() {
 
   useEffect(() => {
     setIsMinimized(false);
-    if (room) setActiveRoom(room);
+    if (room) {
+      setActiveRoom(room);
+      setMinimizedRoom(null);
+    }
     return () => {
       if (!isMinimizingRef.current) {
         setActiveRoom(null);
       }
       setIsMinimizing(false);
     };
-  }, [room, setActiveRoom, setIsMinimized]);
+  }, [room, setActiveRoom, setIsMinimized, setMinimizedRoom]);
 
   // CRITICAL: Destroy ALL voice engines + music on unmount ONLY if not minimizing
   useEffect(() => {
@@ -608,6 +611,16 @@ export default function RoomScreen() {
       }
     };
   }, []);
+
+  // VOICE LEAK FIX: When activeRoom changes to a different room, destroy this room's voice engines
+  useEffect(() => {
+    if (activeRoom && activeRoom.id !== id && !isMinimizingRef.current) {
+      destroyAgoraEngine();
+      destroyZegoEngine();
+      destroyLiveKitRoom();
+      destroyMusicSound();
+    }
+  }, [activeRoom?.id, id]);
 
   const backStateRef = useRef({
     showExitDialog, showProfileCard, showFullProfile, isGiftPickerOpen, showGames, showYouTube, showNetMirror,
@@ -1093,6 +1106,8 @@ export default function RoomScreen() {
 
   const handleExit = async () => {
     destroyAgoraEngine();
+    destroyZegoEngine();
+    destroyLiveKitRoom();
     destroyMusicSound();
     if (firestore && id && user?.uid) {
       try {

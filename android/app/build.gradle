@@ -84,20 +84,6 @@ def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 android {
     ndkVersion rootProject.ext.ndkVersion
 
-    configurations.all {
-        exclude group: 'com.android.support'
-    }
-
-    packagingOptions {
-        resources {
-            pickFirst 'META-INF/androidx.*'
-            pickFirst 'META-INF/*.version'
-            pickFirst 'META-INF/DEPENDENCIES'
-            pickFirst 'META-INF/LICENSE'
-            pickFirst 'META-INF/NOTICE'
-        }
-    }
-
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
@@ -106,8 +92,8 @@ android {
         applicationId 'app.vercel.ummy_chat.twa'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 5
-        versionName "1.5.0"
+        versionCode 100
+        versionName "1.0.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
@@ -131,7 +117,7 @@ android {
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
-            def enablePngCrunchInRelease = findProperty('android.enablePngCrunchInReleaseBuilds') ?: 'true'
+            def enablePngCrunchInRelease = findProperty('android.enablePngCrunchInReleaseBuilds') ?: 'false'
             crunchPngs enablePngCrunchInRelease.toBoolean()
         }
     }
@@ -143,6 +129,10 @@ android {
     }
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
+        noCompress 'tflite'
+    }
+    aaptOptions {
+        cruncherEnabled = false
     }
 }
 
@@ -163,6 +153,21 @@ android {
         options.each {
             android.packagingOptions[prop] += it
         }
+    }
+}
+
+configurations.all {
+    exclude group: 'com.android.support', module: 'support-compat'
+    exclude group: 'com.android.support', module: 'support-annotations'
+    exclude group: 'com.android.support', module: 'support-core-utils'
+    exclude group: 'com.android.support', module: 'support-core-ui'
+    exclude group: 'com.android.support', module: 'support-fragment'
+    exclude group: 'com.android.support', module: 'appcompat-v7'
+    exclude group: 'com.android.support', module: 'animated-vector-drawable'
+    exclude group: 'com.android.support', module: 'support-vector-drawable'
+    resolutionStrategy {
+        force 'androidx.core:core:1.13.0'
+        force 'androidx.core:core-ktx:1.13.0'
     }
 }
 

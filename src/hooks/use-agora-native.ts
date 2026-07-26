@@ -113,7 +113,8 @@ export function useAgoraNative(
 
     const init = async () => {
       try {
-        await requestMicPermission();
+        const micGranted = await requestMicPermission();
+        console.log('[Agora] Mic permission:', micGranted ? 'GRANTED' : 'DENIED');
 
         const engine = createAgoraRtcEngine();
         singletonEngine = engine;
@@ -128,7 +129,10 @@ export function useAgoraNative(
         engine.setClientRole(isInSeat ? ClientRoleType.ClientRoleBroadcaster : ClientRoleType.ClientRoleAudience);
         engine.enableAudioVolumeIndication(200, 3, true);
 
-        // Keep audio active in background on Expo/Android/iOS
+        // Route to loudspeaker by default
+        try { engine.setEnableSpeakerphone(true); } catch {}
+
+        // Set audio mode for voice — DO NOT use DoNotMix as it steals audio focus from Agora
         Audio.setAudioModeAsync({
           playsInSilentModeIOS: true,
           staysActiveInBackground: true,
@@ -146,9 +150,25 @@ export function useAgoraNative(
           onUserOffline: (connection, remoteUid) => {
             if (isMounted) setRemoteUsers((prev) => prev.filter((id) => id !== remoteUid));
           },
-          onJoinChannelSuccess: () => {
-            console.log('[Agora] Join channel SUCCESS');
-            if (isMounted) setConnectionState('CONNECTED');
+          onJoinChannelSuccess: (connection, elapsed) => {
+            console.log('[Agora] Join channel SUCCESS, elapsed:', elapsed);
+            if (isMounted) {
+              setConnectionState('CONNECTED');
+              // CRITICAL: After join, explicitly start publishing audio
+              // In Agora v4, joinChannel alone doesn't always start mic publishing
+              try {
+                engine.enableLocalAudio(true);
+                engine.updateChannelMediaOptions({
+                  publishMicrophoneTrack: true,
+                  autoSubscribeAudio: true,
+                  publishCameraTrack: false,
+                  clientRoleType: ClientRoleType.ClientRoleBroadcaster,
+                });
+                console.log('[Agora] Post-join: enabled local audio + started publishing');
+              } catch (e) {
+                console.log('[Agora] Post-join audio enable error:', e);
+              }
+            }
           },
           onConnectionFailed: (connection, reason) => {
             console.log('[Agora] Connection FAILED:', reason);
@@ -166,17 +186,20 @@ export function useAgoraNative(
             }
           },
           onAudioVolumeIndication: (connection, speakers) => {
-            if (isMounted && speakers) {
+            if (isMounted && speakers && speakers.length > 0) {
               const map: Record<number, number> = {};
               speakers.forEach(s => {
-                if (s.uid !== undefined && s.volume !== undefined) {
+                if (s.uid !== undefined && s.volume !== undefined && s.volume > 0) {
                   map[s.uid] = s.volume;
                 }
               });
               const now = Date.now();
-              if (now - lastSpeakingUpdateRef.current >= 500) {
+              if (now - lastSpeakingUpdateRef.current >= 200) {
                 lastSpeakingUpdateRef.current = now;
                 speakingUsersRef.current = map;
+                if (Object.keys(map).length > 0) {
+                  console.log('[Agora] Volume:', Object.entries(map).map(([k,v]) => `${k}:${v}`).join(', '));
+                }
               }
             }
           },
@@ -184,9 +207,34 @@ export function useAgoraNative(
 
         const numericUid = hashUidToNumber(uid);
         console.log('[Agora] Channel:', roomId, 'NumericUID:', numericUid);
-        const token = await getRtcToken(APP_ID, APP_CERTIFICATE, roomId!, numericUid);
-        console.log('[Agora] Token (first 20 chars):', token.substring(0, 20));
-        engine.joinChannel(token, roomId, numericUid, {});
+
+        // DIAGNOSTIC: Try empty token first (test mode) vs server token (secure mode)
+        // Error 110 = token invalid. If empty "" works → project is in TEST mode
+        let token = '';
+        try {
+          token = await getRtcToken(APP_ID, APP_CERTIFICATE, roomId!, numericUid);
+          console.log('[Agora] Token (first 20 chars):', token.substring(0, 20));
+        } catch (tokenErr) {
+          console.warn('[Agora] Token fetch failed, trying without token:', tokenErr);
+        }
+
+        console.log('[Agora] Joining with token length:', token.length, '| UID:', numericUid, '| InSeat:', isInSeat);
+        engine.joinChannel(token, roomId, numericUid, {
+          channelProfile: ChannelProfileType.ChannelProfileLiveBroadcasting,
+          clientRoleType: isInSeat ? ClientRoleType.ClientRoleBroadcaster : ClientRoleType.ClientRoleAudience,
+          publishMicrophoneTrack: isInSeat && !isMuted,  // only publish if in seat and not muted
+          autoSubscribeAudio: true,                       // always listen to others
+          publishCameraTrack: false,                      // voice only, no video
+          autoSubscribeVideo: false,
+        });
+        // After joining, explicitly apply local audio state
+        if (isInSeat) {
+          engine.enableLocalAudio(true);
+          engine.muteLocalAudioStream(isMuted);
+        } else {
+          engine.enableLocalAudio(false);
+          engine.muteLocalAudioStream(true);
+        }
         startVoiceService();
       } catch (e) {
         console.error('[Agora] Initialization error:', e);
@@ -220,7 +268,24 @@ export function useAgoraNative(
     return () => {
       isMounted = false;
       sub.remove();
+
+      // CRITICAL: Always leave AND release the Agora channel when room component unmounts
+      // Without release(), createAgoraRtcEngine() returns same undestroyed instance next time
+      if (singletonEngine) {
+        try {
+          singletonEngine.muteLocalAudioStream(true);
+          singletonEngine.enableLocalAudio(false);
+          singletonEngine.leaveChannel();
+          singletonEngine.release(); // ← MUST call release() to fully destroy engine
+        } catch {}
+        // Stop foreground service — mic no longer needed
+        stopVoiceService();
+        // Reset singleton so next room creates a fresh engine
+        singletonEngine = null;
+        singletonRoomId = null;
+      }
     };
+
   }, [roomId, uid]);
 
   useEffect(() => {
@@ -242,57 +307,53 @@ export function useAgoraNative(
       engine.muteLocalAudioStream(isMuted);
       engine.adjustRecordingSignalVolume(100);
       engine.adjustPlaybackSignalVolume(100);
+      // CRITICAL for Agora v4.x: setClientRole alone doesn't publish mic.
+      // updateChannelMediaOptions is required to actually start broadcasting audio.
+      engine.updateChannelMediaOptions({
+        publishMicrophoneTrack: !isMuted,
+        autoSubscribeAudio: true,
+        publishCameraTrack: false,
+        clientRoleType: ClientRoleType.ClientRoleBroadcaster,
+      });
     } else {
       engine.setClientRole(ClientRoleType.ClientRoleAudience);
       engine.muteLocalAudioStream(true);
       engine.enableLocalAudio(false);
+      // Stop publishing when leaving seat
+      engine.updateChannelMediaOptions({
+        publishMicrophoneTrack: false,
+        autoSubscribeAudio: true,
+        publishCameraTrack: false,
+        clientRoleType: ClientRoleType.ClientRoleAudience,
+      });
     }
   }, [isInSeat, isMuted, connectionState]);
 
   useEffect(() => {
     const engine = engineRef.current;
-    if (!engine) return;
+    if (!engine || connectionState !== 'CONNECTED') return;
+    // Mute/unmute all remote streams when speaker toggle changes OR when engine connects
     engine.muteAllRemoteAudioStreams(isSpeakerMuted);
-  }, [isSpeakerMuted]);
+    // Also set playback volume to 0 as secondary enforcement
+    engine.adjustPlaybackSignalVolume(isSpeakerMuted ? 0 : 100);
+  }, [isSpeakerMuted, connectionState]);
+
 
   // AppState resilience: maintain audio capture & playback when screen locks or app backgrounded
   useEffect(() => {
     const handleAppStateChange = async (nextState: AppStateStatus) => {
       if (nextState === 'background' || nextState === 'inactive') {
-        console.log('[Agora] Background/Lock — re-asserting continuous background audio');
-        // 1) Re-assert audio session mode
-        try {
-          await Audio.setAudioModeAsync({
-            playsInSilentModeIOS: true,
-            staysActiveInBackground: true,
-            allowsRecordingIOS: true,
-            interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
-            shouldDuckAndroid: false,
-            interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-          });
-        } catch {}
-        // 2) Re-enable Agora engine audio + local mic capture
-        if (engineRef.current) {
+        // Screen off / background — DO NOT call Audio.setAudioModeAsync here!
+        // Re-calling with DoNotMix interrupts Bluetooth and forces speaker routing.
+        // The foreground service keeps audio alive; just maintain mic state.
+        if (engineRef.current && isInSeat) {
           try {
-            engineRef.current.enableAudio();
-            if (isInSeat) {
-              engineRef.current.setClientRole(ClientRoleType.ClientRoleBroadcaster);
-              engineRef.current.enableLocalAudio(!isMuted);
-              engineRef.current.muteLocalAudioStream(isMuted);
-            }
+            // Only update mic state — do NOT call enableAudio() as it resets routing
+            engineRef.current.enableLocalAudio(!isMuted);
+            engineRef.current.muteLocalAudioStream(isMuted);
+            // Re-assert loudspeaker routing when coming back from background
+            engineRef.current.setEnableSpeakerphone(true);
           } catch {}
-          // 3) Delayed retry — Android may suspend briefly; re-assert after 1s
-          setTimeout(() => {
-            if (engineRef.current) {
-              try {
-                engineRef.current.enableAudio();
-                if (isInSeat) {
-                  engineRef.current.enableLocalAudio(!isMuted);
-                  engineRef.current.muteLocalAudioStream(isMuted);
-                }
-              } catch {}
-            }
-          }, 1000);
         }
       }
     };

@@ -6,6 +6,8 @@ import { useRouter } from 'expo-router';
 import { useRoomContext } from '../context/room-context';
 import { destroyAgoraEngine } from '../hooks/use-agora-native';
 import { destroyMusicSound } from '../hooks/use-music-sync';
+import { destroyZegoEngine } from '../hooks/use-zegocloud-voice';
+import { destroyLiveKitRoom } from '../hooks/use-livekit-voice';
 import { useVoiceEngine } from '../hooks/use-voice-engine';
 import { Image } from 'expo-image';
 import { toCDN } from '../lib/cdn';
@@ -104,11 +106,23 @@ export function FloatingRoomBar() {
   // Clean exit when closing from floating bar
   const handleExitRoom = async () => {
     destroyAgoraEngine();
+    destroyZegoEngine();
+    destroyLiveKitRoom();
     destroyMusicSound();
     if (firestore && room?.id && user?.uid) {
       try {
         const pRef = doc(firestore, 'chatRooms', room.id, 'participants', user.uid);
         await deleteDoc(pRef);
+        const roomRef = doc(firestore, 'chatRooms', room.id);
+        const roomSnap = await getDoc(roomRef);
+        if (roomSnap.exists()) {
+          const roomData = roomSnap.data();
+          const currentCount = roomData?.participantCount || 0;
+          if (currentCount > 0) {
+            const { updateDoc } = await import('@/firebase/firestore-compat');
+            updateDoc(roomRef, { participantCount: currentCount - 1 }).catch(() => {});
+          }
+        }
       } catch {}
     }
     setActiveRoom(null);

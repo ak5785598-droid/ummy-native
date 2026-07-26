@@ -4,13 +4,12 @@ import { initializeFirestore, getFirestore, Firestore, persistentLocalCache, per
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { getDatabase, Database } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
-import rnfbStorage from '@react-native-firebase/storage';
-import appCheck from '@react-native-firebase/app-check';
+
+import { getAuth } from 'firebase/auth';
 
 let appInstance: FirebaseApp | null = null;
 let firestoreInstance: Firestore | null = null;
-let authInstance: FirebaseAuthTypes.Module | null = null;
+let authInstance: any = null;
 let storageInstance: FirebaseStorage | null = null;
 let databaseInstance: Database | null = null;
 
@@ -20,8 +19,8 @@ export function initializeFirebase() {
   }
 
   // Initialize App Check FIRST (before Auth)
-  // Debug token from AndroidManifest meta-data is used automatically
   try {
+    const appCheck = require('@react-native-firebase/app-check').default;
     const rnfbProvider = appCheck().newReactNativeFirebaseAppCheckProvider();
     rnfbProvider.configure({
       android: {
@@ -36,9 +35,13 @@ export function initializeFirebase() {
   }
 
   if (!authInstance) {
-    // Using @react-native-firebase/auth for true native authentication
-    // reCAPTCHA webview handles verification for non-Play-Store builds
-    authInstance = auth();
+    try {
+      const auth = require('@react-native-firebase/auth').default;
+      authInstance = auth();
+    } catch (e) {
+      // Safe Fallback to Web SDK Auth if RNFBAppModule native module is unlinked
+      authInstance = getAuth(appInstance);
+    }
   }
 
 

@@ -62,8 +62,10 @@ export default function HomeScreen() {
           if (usersInRoom && typeof usersInRoom === 'object') {
             const onlineCount = Object.values(usersInRoom).filter((u: any) => {
               if (!u || typeof u !== 'object') return false;
-              if (u.isOnline === false) return false;
-              if (u.lastSeen && (now - Number(u.lastSeen) > 120000)) return false;
+              // Must explicitly be online (not just "not false")
+              if (u.isOnline !== true) return false;
+              // Stale after 30 seconds (was 2 minutes — too long)
+              if (u.lastSeen && (now - Number(u.lastSeen) > 30000)) return false;
               return true;
             }).length;
 

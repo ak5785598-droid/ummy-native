@@ -81,7 +81,7 @@ export function useVoiceEngine({
     if (switchTimer2Ref.current) clearTimeout(switchTimer2Ref.current);
     if (switchTimer3Ref.current) clearTimeout(switchTimer3Ref.current);
 
-    // Priority: Agora → DigitalOcean LiveKit → ZegoCloud → WebRTC
+    // Priority: Agora → ZegoCloud → DigitalOcean LiveKit → WebRTC
     if (agoraHook.connectionState === 'CONNECTED') {
       if (activeProvider !== 'agora') console.log('[VOICE] >>> Switching to AGORA');
       setActiveProvider('agora');
@@ -89,37 +89,40 @@ export function useVoiceEngine({
       return;
     }
 
-    if (livekitHook.connectionState === 'CONNECTED') {
-      if (activeProvider !== 'livekit') console.log('[VOICE] >>> Switching to LIVEKIT (DigitalOcean Server)');
-      setActiveProvider('livekit');
-      setProviderError(null);
-      return;
-    }
-
     if (zegoHook.connectionState === 'CONNECTED') {
-      if (activeProvider !== 'zego') console.log('[VOICE] >>> Switching to ZEGO');
+      if (activeProvider !== 'zego') console.log('[VOICE] >>> Switching to ZEGO (fallback #1)');
       setActiveProvider('zego');
       setProviderError(null);
       return;
     }
 
+    if (livekitHook.connectionState === 'CONNECTED') {
+      if (activeProvider !== 'livekit') console.log('[VOICE] >>> Switching to LIVEKIT DigitalOcean (fallback #2)');
+      setActiveProvider('livekit');
+      setProviderError(null);
+      return;
+    }
+
     if (webrtcHook.connectionState === 'CONNECTED') {
-      if (activeProvider !== 'webrtc') console.log('[VOICE] >>> Switching to WEBRTC');
+      if (activeProvider !== 'webrtc') console.log('[VOICE] >>> Switching to WEBRTC (fallback #3)');
       setActiveProvider('webrtc');
       setProviderError(null);
       return;
     }
 
-    // Fast 500ms Fallback: Enable DigitalOcean LiveKit, ZegoCloud, and WebRTC immediately
-    if (agoraHook.connectionState === 'DISCONNECTED' || !livekitEnabled) {
+    // Agora is primary — if not connected after 8s, enable WebRTC as last resort only
+    // ZegoCloud & LiveKit disabled — they were unreliable (connecting sometimes, not always)
+    if (agoraHook.connectionState === 'DISCONNECTED' || agoraHook.connectionState === 'CONNECTING') {
       switchTimerRef.current = setTimeout(() => {
+        // Double-check Agora still not connected before enabling fallback
         if (agoraHook.connectionState !== 'CONNECTED') {
-          console.log('[VOICE] Fast Fallback: Enabling DigitalOcean LiveKit (ws://168.144.72.108:7880)...');
-          setLivekitEnabled(true);
-          setZegoEnabled(true);
+          console.log('[VOICE] Agora not connected after 8s — enabling WebRTC last resort...');
           setWebRtcEnabled(true);
+          // ZegoCloud & LiveKit intentionally disabled (unreliable)
+          // setZegoEnabled(true);
+          // setLivekitEnabled(true);
         }
-      }, 500);
+      }, 8000);
     }
 
     return () => {

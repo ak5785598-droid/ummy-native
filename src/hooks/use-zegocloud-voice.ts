@@ -117,9 +117,10 @@ export function useZegoCloudVoice(
             const profile = new ZegoEngineProfile(ZEGO_APP_ID, ZEGO_APP_SIGN, ZegoScenario.StandardChatroom);
             engine = await ZegoExpressEngine.createEngineWithProfile(profile);
             singletonEngine = engine;
-            await engine.setAudioRouteToSpeaker(true).catch(() => {});
-            await engine.enableAudioOutput(true).catch(() => {});
-            await engine.enableSoundLevelMonitor(true).catch(() => {});
+            // Wrap each optional engine method individually — some methods may not exist in this SDK version
+            try { await engine.setAudioRouteToSpeaker(true); } catch {}
+            try { if (typeof engine.enableAudioOutput === 'function') await engine.enableAudioOutput(true); } catch {}
+            try { await engine.enableSoundLevelMonitor(true); } catch {}
             console.log('[ZEGO] Engine created successfully');
           } catch (e) {
             console.log('[ZEGO] Engine creation failed (non-fatal):', e);
@@ -136,11 +137,14 @@ export function useZegoCloudVoice(
 
           engine.on('roomStateUpdate', (roomID: string, state: any) => {
             if (cancelled) return;
-            console.log('[ZEGO] roomStateUpdate:', roomID, 'state:', state);
-            if (state === ZegoRoomState.Connected) {
+            console.log('[ZEGO] roomStateUpdate:', roomID, 'state:', state, '(ZegoRoomState.Connected=', ZegoRoomState?.Connected, ')');
+            // Compare both by enum value and raw integer (0=Disconnected, 2=Connected)
+            const isConnected = state === 2 || (ZegoRoomState?.Connected !== undefined && state === ZegoRoomState.Connected);
+            const isDisconnected = state === 0 || (ZegoRoomState?.Disconnected !== undefined && state === ZegoRoomState.Disconnected);
+            if (isConnected) {
               setConnectionState('CONNECTED');
               singletonRoomId = roomID;
-            } else if (state === ZegoRoomState.Disconnected) {
+            } else if (isDisconnected) {
               setConnectionState('DISCONNECTED');
             }
           });

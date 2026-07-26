@@ -1,10 +1,17 @@
-import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
+const getRNFirestore = () => {
+  try {
+    return require('@react-native-firebase/firestore').default;
+  } catch (e) {
+    return () => null;
+  }
+};
+const firestore = getRNFirestore();
 
-export type Firestore = FirebaseFirestoreTypes.Module;
-export type DocumentReference = FirebaseFirestoreTypes.DocumentReference;
-export type CollectionReference = FirebaseFirestoreTypes.CollectionReference;
-export type WriteBatch = FirebaseFirestoreTypes.WriteBatch;
-export type Timestamp = FirebaseFirestoreTypes.Timestamp;
+export type Firestore = any;
+export type DocumentReference = any;
+export type CollectionReference = any;
+export type WriteBatch = any;
+export type Timestamp = any;
 
 export const initializeFirestore = (app: any, settings: any) => firestore();
 export const getFirestore = (app?: any) => firestore();

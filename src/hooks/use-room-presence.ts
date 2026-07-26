@@ -39,6 +39,12 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
   const lastSyncMetadata = useRef<string>('');
   const hasCleanedUpRef = useRef(false);
 
+  // Update latestRoomRef at RENDER TIME (not inside effect) so cleanup always sees the new room
+  latestRoomRef.current = {
+    activeRoomId: activeRoom?.id || null,
+    minimizedRoomId: minimizedRoom?.id || null,
+  };
+
   useEffect(() => {
     const sessionRoom = activeRoom || minimizedRoom;
     const roomId = sessionRoom?.id;
@@ -49,11 +55,6 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
     const diagRef = ref(database, `roomPresence/_diag`);
     set(diagRef, { ts: Date.now(), uid: user.uid, roomId }).catch(() => {});
 
-    // Update latestRoomRef ONLY after confirming valid roomId — prevents false cleanup during brief null transitions
-    latestRoomRef.current = {
-      activeRoomId: activeRoom?.id || null,
-      minimizedRoomId: minimizedRoom?.id || null,
-    };
 
     const uid = user.uid;
     const isOwner = sessionRoom?.ownerId === uid;
@@ -237,7 +238,8 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
         try {
           const participantsColRef = collection(firestore, 'chatRooms', roomId, 'participants');
           const participantsSnap = await getDocs(participantsColRef);
-          const ghostThreshold = Date.now() - 120000; // 120 seconds (2 min) — generous for background transitions
+          const ghostThreshold = Date.now() - 90000;      // 90s for normal users
+          const seatedGhostThreshold = Date.now() - 300000; // 5 min for seated users (generous)
           const purgeBatch = writeBatch(firestore);
           let activeCount = 0;
           let ghostsFound = 0;
@@ -246,12 +248,27 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
 
           participantsSnap.forEach((docSnap: any) => {
             const data = docSnap.data();
-            // NEVER delete owner, current user, or anyone currently sitting on a mic seat!
-            if (data.uid === roomOwnerId || data.uid === uid || (typeof data.seatIndex === 'number' && data.seatIndex >= 0)) {
+            const lastSeen = data.lastSeen?.toDate?.()?.getTime?.() || 0;
+            const isSeated = typeof data.seatIndex === 'number' && data.seatIndex >= 0;
+
+            // Owner and current user: never purge
+            if (data.uid === roomOwnerId || data.uid === uid) {
               activeCount++;
               return;
             }
-            const lastSeen = data.lastSeen?.toDate?.()?.getTime?.() || 0;
+
+            // Seated user: use longer threshold (5 min) — they might just be in background
+            if (isSeated) {
+              if (lastSeen < seatedGhostThreshold) {
+                purgeBatch.delete(docSnap.ref);
+                ghostsFound++;
+              } else {
+                activeCount++;
+              }
+              return;
+            }
+
+            // Normal user: 90s threshold
             if (lastSeen < ghostThreshold) {
               purgeBatch.delete(docSnap.ref);
               ghostsFound++;
@@ -270,6 +287,7 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
           }
         } catch (error) {}
       }, 20000);
+
     } // end owner-only ghost purge
 
     const presencePath = `roomPresence/${roomId}/${uid}`;
@@ -318,15 +336,14 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
       if (purgeInterval.current) clearInterval(purgeInterval.current);
       subscription.remove();
 
-      // Only clean up if room is TRULY exited (both active and minimized are null)
-      // When room is merely minimized, keep RTDB presence and entrance cache alive
+      // Only keep presence if user is still in THIS specific room (e.g., minimized)
+      // If user switched to a different room, old room must be cleaned up immediately
       const currentActive = latestRoomRef.current.activeRoomId;
       const currentMinimized = latestRoomRef.current.minimizedRoomId;
-      const isStillInRoom = !!(currentActive || currentMinimized);
+      const isStillInThisRoom = currentActive === roomId || currentMinimized === roomId;
 
-      if (isStillInRoom) {
-        // Room is just being minimized — do NOT delete RTDB presence or clear entrance cache
-        // Re-establish RTDB presence if needed
+      if (isStillInThisRoom) {
+        // Room is just being minimized — keep RTDB presence alive
         if (presenceRef.current && !userProfile?.roomInvisible) {
           set(presenceRef.current, {
             uid,
@@ -340,42 +357,52 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
         return;
       }
 
-      // Truly exited — clean everything up
+      // Truly exited — first mark offline immediately (home screen will stop counting within 30s),
+      // then remove the node entirely
       if (presenceRef.current) {
-        set(presenceRef.current, null);
+        update(presenceRef.current, { isOnline: false, lastSeen: dbServerTimestamp() }).catch(() => {});
+        set(presenceRef.current, null).catch(() => {});
       }
 
       // Allow re-entry notification only when truly leaving
       enteredRooms.delete(roomId);
       entranceSentForRooms.delete(roomId);
 
-      // Immediate cleanup — delete participant doc only if truly left
-      if (!isOwner) {
-        (async () => {
-          try {
-            if (!hasCleanedUpRef.current) {
-              hasCleanedUpRef.current = true;
-              const existingDoc = await getDoc(participantRef);
-              if (existingDoc.exists()) {
-                await deleteDoc(participantRef);
+
+      // Immediate cleanup — delete participant doc for ALL users (including owner) when switching rooms
+      // Owner flag only means don't delete the ROOM, not that they can stay as a participant ghost
+      (async () => {
+        try {
+          if (!hasCleanedUpRef.current) {
+            hasCleanedUpRef.current = true;
+
+            const existingDoc = await getDoc(participantRef);
+            if (existingDoc.exists()) {
+              await deleteDoc(participantRef);
+              // Only decrement count for non-owners (owner's count managed by purge)
+              if (!isOwner) {
                 updateDocumentNonBlocking(roomDocRef, {
                   participantCount: increment(-1),
                 });
               }
-              updateDocumentNonBlocking(userRef, {
-                currentRoomId: null,
-                isOnline: false,
-              });
-              updateDocumentNonBlocking(profileRef, {
-                currentRoomId: null,
-                isOnline: false,
-              });
             }
-          } catch (error) {}
-          hasJoinedRef.current = false;
-          lastRoomId.current = null;
-        })();
-      }
+
+            // Update user's currentRoomId to new room (or null) immediately
+            const newRoomId = latestRoomRef.current.activeRoomId || latestRoomRef.current.minimizedRoomId;
+            updateDocumentNonBlocking(userRef, {
+              currentRoomId: newRoomId || null,
+              isOnline: true,
+            });
+            updateDocumentNonBlocking(profileRef, {
+              currentRoomId: newRoomId || null,
+              isOnline: true,
+            });
+          }
+        } catch (error) {}
+        hasJoinedRef.current = false;
+        lastRoomId.current = null;
+      })();
+
     };
   }, [firestore, activeRoom?.id, minimizedRoom?.id, user?.uid, database]);
 

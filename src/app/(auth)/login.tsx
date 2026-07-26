@@ -1,30 +1,39 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Modal, ScrollView, Animated, Dimensions, Alert, Platform, StatusBar } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Phone, X, ChevronDown, Search, Fingerprint } from 'lucide-react-native';
 import LoginBackground from '../../components/LoginBackground';
-import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { LoginManager, AccessToken } from 'react-native-fbsdk-next';
 import { useUser, useFirestore, useDoc } from '../../firebase/provider';
 import { registerDeviceSession } from '../../lib/device-session';
 import { doc, getDoc, setDoc, serverTimestamp, runTransaction } from '@/firebase/firestore-compat';
-import { Image } from 'expo-image';
+import { FirebaseAuthTypes } from '@react-native-firebase/auth';
 
-// ============================================================
-// ⚡ FIREBASE CONFIG ⚡
-// ============================================================
-GoogleSignin.configure({
-  webClientId: '373109833688-655nmcl2juhrn5kop38geb4khuu3dsl5.apps.googleusercontent.com',
-});
+// Safe lazy getters for native modules
+const getGoogleSignin = () => {
+  try {
+    const { GoogleSignin } = require('@react-native-google-signin/google-signin');
+    GoogleSignin.configure({
+      webClientId: '373109833688-655nmcl2juhrn5kop38geb4khuu3dsl5.apps.googleusercontent.com',
+    });
+    return GoogleSignin;
+  } catch (e) {
+    return null;
+  }
+};
 
-// Firebase Auth instance
-const firebaseAuth = auth();
-// Required for test phone numbers to bypass Play Integrity check
-if (__DEV__) {
-  firebaseAuth.settings.appVerificationDisabledForTesting = true;
-}
+const getFirebaseAuth = () => {
+  try {
+    const auth = require('@react-native-firebase/auth').default();
+    if (__DEV__ && auth?.settings) {
+      auth.settings.appVerificationDisabledForTesting = true;
+    }
+    return auth;
+  } catch (e) {
+    return null;
+  }
+};
 
 const CREATOR_ID = '901piBzTQ0VzCtAvlyyobwvAaTs1';
 const { width, height } = Dimensions.get('window');
@@ -243,6 +252,12 @@ export default function LoginScreen() {
   const handleGoogleSignIn = async () => {
     try {
       setIsSigningIn(true);
+      const GoogleSignin = getGoogleSignin();
+      const auth = getFirebaseAuth();
+      if (!GoogleSignin || !auth) {
+        Alert.alert('Sign In', 'Native Sign In module is not available in dev build.');
+        return;
+      }
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       const res: any = await GoogleSignin.signIn();
       const data = res?.data || res;
@@ -250,9 +265,9 @@ export default function LoginScreen() {
       const accessToken = data?.accessToken || (data as any)?.authentication?.accessToken || (res as any)?.accessToken || 'placeholder_access_token';
       
       if (idToken) {
-        // credential expects (idToken, accessToken) - passing both prevents HostFunction empty validation crash
-        const googleCredential = auth.GoogleAuthProvider.credential(idToken, accessToken);
-        const result = await auth().signInWithCredential(googleCredential);
+        const authModule = require('@react-native-firebase/auth').default;
+        const googleCredential = authModule.GoogleAuthProvider.credential(idToken, accessToken);
+        const result = await auth.signInWithCredential(googleCredential);
         if (result.user) await handlePostAuth(result.user);
       } else {
         throw new Error('Google Sign In succeeded but ID Token is missing. Object: ' + JSON.stringify(res));
@@ -271,12 +286,14 @@ export default function LoginScreen() {
   const handleFacebookSignIn = async () => {
     try {
       setIsSigningIn(true);
+      const { LoginManager, AccessToken } = require('react-native-fbsdk-next');
+      const authModule = require('@react-native-firebase/auth').default;
       const result = await LoginManager.logInWithPermissions(['public_profile', 'email']);
       if (result.isCancelled) { setIsSigningIn(false); return; }
       const accessData = await AccessToken.getCurrentAccessToken();
       if (!accessData) throw new Error('No access token');
-      const facebookCredential = auth.FacebookAuthProvider.credential(accessData.accessToken);
-      const fbResult = await auth().signInWithCredential(facebookCredential);
+      const facebookCredential = authModule.FacebookAuthProvider.credential(accessData.accessToken);
+      const fbResult = await authModule().signInWithCredential(facebookCredential);
       if (fbResult.user) await handlePostAuth(fbResult.user);
     } catch (error: any) {
       Alert.alert('Facebook Sign In Failed', error?.message || 'Please try again.');
@@ -296,9 +313,12 @@ export default function LoginScreen() {
     }
     try {
       setIsSigningIn(true);
-      const formattedNumber = `${selectedCountry.code}${cleanNumber}`;
-
-      const confirmation = await firebaseAuth.signInWithPhoneNumber(formattedNumber);
+      const auth = getFirebaseAuth();
+      if (!auth) {
+        Alert.alert('Phone Auth', 'Native Phone Auth module is not available in dev build.');
+        return;
+      }
+      const confirmation = await auth.signInWithPhoneNumber(formattedNumber);
       setConfirm(confirmation);
       setPhoneLoginStep('code');
       Alert.alert('Code Sent', `OTP sent to ${formattedNumber}`);

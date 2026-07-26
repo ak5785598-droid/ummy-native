@@ -9,8 +9,8 @@ initializeApp({
 });
 
 const bucket = getStorage().bucket();
-const apkPath = path.join(__dirname, '..', 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-arm64-v8a-release.apk');
-const destination = 'releases/v1.3.0/app-arm64-v8a-release.apk';
+const apkPath = path.join(__dirname, '..', 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk');
+const destination = 'releases/v1.4.0/app-release.apk';
 
 async function upload() {
   console.log('Uploading APK to Firebase Storage...');
@@ -26,7 +26,7 @@ async function upload() {
   });
   
   console.log('Upload complete!');
-  console.log('URL: https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/releases%2Fv1.3.0%2Fapp-arm64-v8a-release.apk?alt=media');
+  console.log('URL: https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/releases%2Fv1.4.0%2Fapp-release.apk?alt=media');
   process.exit(0);
 }
 

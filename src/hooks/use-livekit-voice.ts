@@ -40,30 +40,60 @@ function hashUidToNumber(uid: string): number {
   return (hash >>> 0);
 }
 
-function generateToken(apiKey: string, apiSecret: string, identity: string, room: string): string {
+async function generateToken(apiKey: string, apiSecret: string, identity: string, room: string): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const exp = now + 86400;
 
-  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const payload = btoa(JSON.stringify({
+  // Base64url encode JSON strings (standard btoa + replace +/= chars)
+  const toB64url = (str: string) =>
+    btoa(unescape(encodeURIComponent(str)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+
+  const header = toB64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  // LiveKit requires video grants nested under the 'video' key
+  const payload = toB64url(JSON.stringify({
     iss: apiKey,
     sub: identity,
-    identity,
     name: identity,
-    room,
-    roomJoin: true,
-    canPublish: true,
-    canSubscribe: true,
-    canPublishData: true,
+    video: {
+      room,
+      roomJoin: true,
+      canPublish: true,
+      canSubscribe: true,
+      canPublishData: true,
+    },
     exp,
     nbf: now,
   }));
 
   const data = `${header}.${payload}`;
 
-  // Pure JS HMAC-SHA256 implementation to prevent native ExpoCrypto crashes
-  const hmac = jsHmacSha256(data, apiSecret);
-  return `${data}.${hmac}`;
+  try {
+    // Use Web Crypto API — available in React Native 0.71+ via Hermes
+    const encoder = new TextEncoder();
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(apiSecret),
+      { name: 'HMAC', hash: { name: 'SHA-256' } },
+      false,
+      ['sign']
+    );
+    const sigBuffer = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(data));
+    // Convert ArrayBuffer to base64url
+    const sigBytes = new Uint8Array(sigBuffer);
+    let binary = '';
+    for (let i = 0; i < sigBytes.length; i++) binary += String.fromCharCode(sigBytes[i]);
+    const sig = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    console.log('[LIVEKIT] Token generated with crypto.subtle ✅');
+    return `${data}.${sig}`;
+  } catch (cryptoErr) {
+    // Fallback: pure JS HMAC-SHA256
+    console.warn('[LIVEKIT] crypto.subtle unavailable, using pure JS HMAC fallback:', cryptoErr);
+    const sig = jsHmacSha256(data, apiSecret);
+    return `${data}.${sig}`;
+  }
 }
 
 function jsHmacSha256(message: string, secret: string): string {
@@ -250,7 +280,7 @@ export function useLiveKitVoice(
 
         const roomName = `room_${roomId.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 60)}`;
         const identity = `lk_${uid}`;
-        const token = generateToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, identity, roomName);
+        const token = await generateToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, identity, roomName);
 
         const room = new lk.Room({
           adaptiveStream: true,
@@ -323,7 +353,8 @@ export function useLiveKitVoice(
           return;
         }
 
-        await room.localParticipant.setMicrophoneEnabled(!isMuted && !isSpeakerMuted);
+        // Enable mic if user is in seat and not muted (isSpeakerMuted only controls listening, not publishing)
+        await room.localParticipant.setMicrophoneEnabled(!isMuted);
 
       } catch (err) {
         console.log('[LIVEKIT] Connection error:', err);

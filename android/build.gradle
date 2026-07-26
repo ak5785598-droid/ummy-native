@@ -18,8 +18,7 @@ allprojects {
     google()
     mavenCentral()
     maven { url 'https://www.jitpack.io' }
-    maven { url 'https://storage.zego.im/maven' }
-    maven { url 'https://maven.zegocloud.com/' }
+    maven { url 'https://maven.zego.im' }
   }
 }
 

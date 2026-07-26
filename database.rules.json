@@ -1,0 +1,42 @@
+{
+  "rules": {
+    ".read": true,
+    ".write": "auth != null",
+    "webrtc": {
+      "$roomId": {
+        ".read": true,
+        ".write": true,
+        "users": {
+          "$uid": {
+            ".read": true,
+            ".write": true
+          }
+        },
+        "offers": {
+          "$uid": {
+            ".read": true,
+            ".write": true
+          }
+        },
+        "answers": {
+          "$uid": {
+            ".read": true,
+            ".write": true
+          }
+        },
+        "candidates": {
+          "$uid": {
+            ".read": true,
+            ".write": true
+          }
+        }
+      }
+    },
+    "roomPresence": {
+      "$roomId": {
+        ".read": true,
+        ".write": true
+      }
+    }
+  }
+}
