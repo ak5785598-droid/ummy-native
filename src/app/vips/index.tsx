@@ -44,24 +44,24 @@ const { width } = Dimensions.get('window');
 // threshold: coins to reach level (SVIP Points × 10)
 // pointsBack: coins refunded monthly (Points Back × 10)
 const SVIP_LEVELS_DATA = [
-  { level: 1,  name: 'SVIP 1',  points: '8.0M',  exp: 80000000,       pointsBack: '2.4M',  pointsBackExp: 24000000,    theme: 'owl' },
-  { level: 2,  name: 'SVIP 2',  points: '24.0M',  exp: 240000000,     pointsBack: '8.0M',  pointsBackExp: 80000000,    theme: 'owl' },
-  { level: 3,  name: 'SVIP 3',  points: '80.0M',  exp: 800000000,     pointsBack: '32.0M', pointsBackExp: 320000000,   theme: 'owl' },
-  { level: 4,  name: 'SVIP 4',  points: '200.0M', exp: 2000000000,     pointsBack: '80.0M', pointsBackExp: 800000000,   theme: 'wolf' },
-  { level: 5,  name: 'SVIP 5',  points: '400.0M', exp: 4000000000,     pointsBack: '200.0M', pointsBackExp: 2000000000,  theme: 'wolf' },
-  { level: 6,  name: 'SVIP 6',  points: '800.0M', exp: 8000000000,     pointsBack: '400.0M', pointsBackExp: 4000000000,  theme: 'wolf' },
-  { level: 7,  name: 'SVIP 7',  points: '1.36B',  exp: 13600000000,    pointsBack: '800.0M', pointsBackExp: 8000000000,  theme: 'scorpion' },
-  { level: 8,  name: 'SVIP 8',  points: '2.16B',  exp: 21600000000,    pointsBack: '1.36B', pointsBackExp: 13600000000,  theme: 'scorpion' },
-  { level: 9,  name: 'SVIP 9',  points: '3.6B',   exp: 36000000000,    pointsBack: '2.16B', pointsBackExp: 21600000000,  theme: 'scorpion' },
-  { level: 10, name: 'SVIP 10', points: '5.6B',   exp: 56000000000,    pointsBack: '3.6B',  pointsBackExp: 36000000000,  theme: 'lion' },
-  { level: 11, name: 'SVIP 11', points: '8.4B',   exp: 84000000000,    pointsBack: '5.6B',  pointsBackExp: 56000000000,  theme: 'lion' },
-  { level: 12, name: 'SVIP 12', points: '12.0B',  exp: 120000000000,   pointsBack: '8.4B',  pointsBackExp: 84000000000,  theme: 'lion' },
-  { level: 13, name: 'SVIP 13', points: '16.8B',  exp: 168000000000,   pointsBack: '12.0B', pointsBackExp: 120000000000, theme: 'tiger' },
-  { level: 14, name: 'SVIP 14', points: '22.4B',  exp: 224000000000,   pointsBack: '16.8B', pointsBackExp: 168000000000, theme: 'tiger' },
-  { level: 15, name: 'SVIP 15', points: '30.0B',  exp: 300000000000,   pointsBack: '22.4B', pointsBackExp: 224000000000, theme: 'tiger' },
-  { level: 16, name: 'SVIP 16', points: '40.0B',  exp: 400000000000,   pointsBack: '30.0B', pointsBackExp: 300000000000, theme: 'dragon' },
-  { level: 17, name: 'SVIP 17', points: '52.0B',  exp: 520000000000,   pointsBack: '40.0B', pointsBackExp: 400000000000, theme: 'dragon' },
-  { level: 18, name: 'SVIP 18', points: '68.0B',  exp: 680000000000,   pointsBack: '52.0B', pointsBackExp: 520000000000, theme: 'dragon' },
+  { level: 1,  name: 'SVIP 1',  points: '8.0M',  exp: 80000000,       pointsBack: '2.4M',  pointsBackExp: 24000000,    monthlyCoins: 400000,       theme: 'owl' },
+  { level: 2,  name: 'SVIP 2',  points: '24.0M',  exp: 240000000,     pointsBack: '8.0M',  pointsBackExp: 80000000,    monthlyCoins: 1600000,      theme: 'owl' },
+  { level: 3,  name: 'SVIP 3',  points: '80.0M',  exp: 800000000,     pointsBack: '32.0M', pointsBackExp: 320000000,   monthlyCoins: 5600000,      theme: 'owl' },
+  { level: 4,  name: 'SVIP 4',  points: '200.0M', exp: 2000000000,     pointsBack: '80.0M', pointsBackExp: 800000000,   monthlyCoins: 16000000,     theme: 'wolf' },
+  { level: 5,  name: 'SVIP 5',  points: '400.0M', exp: 4000000000,     pointsBack: '200.0M', pointsBackExp: 2000000000,  monthlyCoins: 36000000,     theme: 'wolf' },
+  { level: 6,  name: 'SVIP 6',  points: '800.0M', exp: 8000000000,     pointsBack: '400.0M', pointsBackExp: 4000000000,  monthlyCoins: 80000000,     theme: 'wolf' },
+  { level: 7,  name: 'SVIP 7',  points: '1.36B',  exp: 13600000000,    pointsBack: '800.0M', pointsBackExp: 8000000000,  monthlyCoins: 136000000,    theme: 'scorpion' },
+  { level: 8,  name: 'SVIP 8',  points: '2.16B',  exp: 21600000000,    pointsBack: '1.36B', pointsBackExp: 13600000000,  monthlyCoins: 216000000,    theme: 'scorpion' },
+  { level: 9,  name: 'SVIP 9',  points: '3.6B',   exp: 36000000000,    pointsBack: '2.16B', pointsBackExp: 21600000000,  monthlyCoins: 360000000,    theme: 'scorpion' },
+  { level: 10, name: 'SVIP 10', points: '5.6B',   exp: 56000000000,    pointsBack: '3.6B',  pointsBackExp: 36000000000,  monthlyCoins: 400000000,    theme: 'lion' },
+  { level: 11, name: 'SVIP 11', points: '8.4B',   exp: 84000000000,    pointsBack: '5.6B',  pointsBackExp: 56000000000,  monthlyCoins: 484000000,    theme: 'lion' },
+  { level: 12, name: 'SVIP 12', points: '12.0B',  exp: 120000000000,   pointsBack: '8.4B',  pointsBackExp: 84000000000,  monthlyCoins: 576000000,    theme: 'lion' },
+  { level: 13, name: 'SVIP 13', points: '16.8B',  exp: 168000000000,   pointsBack: '12.0B', pointsBackExp: 120000000000, monthlyCoins: 676000000,    theme: 'tiger' },
+  { level: 14, name: 'SVIP 14', points: '22.4B',  exp: 224000000000,   pointsBack: '16.8B', pointsBackExp: 168000000000, monthlyCoins: 784000000,    theme: 'tiger' },
+  { level: 15, name: 'SVIP 15', points: '30.0B',  exp: 300000000000,   pointsBack: '22.4B', pointsBackExp: 224000000000, monthlyCoins: 900000000,    theme: 'tiger' },
+  { level: 16, name: 'SVIP 16', points: '40.0B',  exp: 400000000000,   pointsBack: '30.0B', pointsBackExp: 300000000000, monthlyCoins: 1024000000,   theme: 'dragon' },
+  { level: 17, name: 'SVIP 17', points: '52.0B',  exp: 520000000000,   pointsBack: '40.0B', pointsBackExp: 400000000000, monthlyCoins: 1156000000,   theme: 'dragon' },
+  { level: 18, name: 'SVIP 18', points: '68.0B',  exp: 680000000000,   pointsBack: '52.0B', pointsBackExp: 520000000000, monthlyCoins: 1296000000,   theme: 'dragon' },
 ];
 
 const SVIP_PRIVILEGES_DATA = [
@@ -266,6 +266,11 @@ export default function VipsClubScreen() {
     avoidBeingKicked: false,
   });
 
+  // Monthly coins claim state
+  const [monthlyClaimed, setMonthlyClaimed] = useState(false);
+  const [claimingCoins, setClaimingCoins] = useState(false);
+  const [showMonthlyInfo, setShowMonthlyInfo] = useState(false);
+
   // Sync real-time VIP config from Firestore
   useEffect(() => {
     if (!firestore) return;
@@ -306,6 +311,60 @@ export default function VipsClubScreen() {
   const isVideoBg = showCustomBg && (levelBgUrl.includes('.mp4') || levelBgUrl.includes('video'));
 
   const unlockedCount = SVIP_PRIVILEGES_DATA.filter(p => p.level <= userSvipLevel).length;
+
+  // Check if monthly coins already claimed this month
+  useEffect(() => {
+    if (!user?.uid || !firestore || userSvipLevel <= 0) return;
+    const profileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
+    const unsub = onSnapshot(profileRef, (snap: any) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        const lastClaim = data?.svipMonthlyClaimedAt;
+        if (lastClaim) {
+          const claimDate = lastClaim?.toDate ? lastClaim.toDate() : new Date(lastClaim);
+          const now = new Date();
+          const sameMonth = claimDate.getMonth() === now.getMonth() && claimDate.getFullYear() === now.getFullYear();
+          setMonthlyClaimed(sameMonth);
+        } else {
+          setMonthlyClaimed(false);
+        }
+      }
+    }, () => {});
+    return () => unsub();
+  }, [user?.uid, firestore, userSvipLevel]);
+
+  const handleClaimMonthlyCoins = async () => {
+    if (!user?.uid || !firestore || userSvipLevel <= 0) return;
+    if (monthlyClaimed) {
+      Alert.alert('Already Claimed', 'You have already claimed your monthly SVIP coins this month!');
+      return;
+    }
+    const levelData = SVIP_LEVELS_DATA.find(l => l.level === userSvipLevel);
+    if (!levelData) return;
+
+    setClaimingCoins(true);
+    try {
+      const profileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
+      const userRef = doc(firestore, 'users', user.uid);
+
+      await Promise.all([
+        updateDoc(profileRef, {
+          'wallet.coins': increment(levelData.monthlyCoins),
+          svipMonthlyClaimedAt: serverTimestamp(),
+        }),
+        updateDoc(userRef, {
+          'wallet.coins': increment(levelData.monthlyCoins),
+        }),
+      ]);
+
+      setMonthlyClaimed(true);
+      Alert.alert('Claimed!', `${levelData.monthlyCoins.toLocaleString('en-IN')} coins added to your wallet!`);
+    } catch (e: any) {
+      Alert.alert('Claim Failed', e.message || 'Something went wrong.');
+    } finally {
+      setClaimingCoins(false);
+    }
+  };
 
   const handleToggleChange = async (key: keyof typeof stealthSettings, requiredLevel: number) => {
     if (userSvipLevel < requiredLevel) {
@@ -822,8 +881,10 @@ export default function VipsClubScreen() {
 
           {/* SVIP Unlocked Exclusives Grid Showcase */}
           {(() => {
-            // Helper to get matching 3D animal frame asset dynamically
+            // Helper to get matching frame asset - Firestore per-level URL first, then fallback to local
             const getFrameAsset = (lvl: number) => {
+              const firestoreUrl = vipConfig?.levels?.[lvl]?.frameUrl;
+              if (firestoreUrl) return { uri: firestoreUrl };
               if (lvl >= 16) return require('../../../assets/images/themes/svip_dragon_frame.png');
               if (lvl >= 13) return require('../../../assets/images/themes/svip_tiger_frame.png');
               if (lvl >= 10) return require('../../../assets/images/themes/svip_lion_frame.png');
@@ -960,6 +1021,53 @@ export default function VipsClubScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Monthly Gold Coins Claim */}
+          {userSvipLevel > 0 && (
+            <View className="mt-4 bg-gradient-to-br from-amber-900/30 to-yellow-900/20 border border-amber-500/30 rounded-3xl p-4">
+              <View className="flex-row items-center justify-between mb-3">
+                <View className="flex-row items-center gap-2">
+                  <View className="w-8 h-8 rounded-full bg-amber-500/20 items-center justify-center">
+                    <Text className="text-lg">🪙</Text>
+                  </View>
+                  <View>
+                    <Text className="text-amber-400 font-black text-sm">Gold Coins / Month</Text>
+                    <Text className="text-amber-200/60 text-[9px] font-bold">SVIP {userSvipLevel} Monthly Reward</Text>
+                  </View>
+                </View>
+                <TouchableOpacity onPress={() => setShowMonthlyInfo(true)} className="bg-white/10 px-2 py-1 rounded-lg">
+                  <Text className="text-white text-[9px] font-bold">View All</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View className="bg-black/30 rounded-2xl p-3 mb-3">
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-amber-200/70 text-[10px] font-bold">Your Monthly Reward</Text>
+                  <Text className="text-amber-400 font-black text-base">
+                    {SVIP_LEVELS_DATA.find(l => l.level === userSvipLevel)?.monthlyCoins?.toLocaleString('en-IN') || '0'}
+                  </Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                onPress={handleClaimMonthlyCoins}
+                disabled={monthlyClaimed || claimingCoins || userSvipLevel <= 0}
+                className={`py-3 rounded-xl items-center ${
+                  monthlyClaimed
+                    ? 'bg-white/5 border border-white/10'
+                    : claimingCoins
+                    ? 'bg-amber-500/30'
+                    : 'bg-gradient-to-r from-amber-500 to-yellow-500'
+                }`}
+              >
+                <Text className={`font-black text-sm uppercase tracking-wider ${
+                  monthlyClaimed ? 'text-slate-400' : 'text-black'
+                }`}>
+                  {monthlyClaimed ? '✅ Claimed This Month' : claimingCoins ? 'Claiming...' : '🎁 Claim Monthly Coins'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Privileges Grid */}
           <View className="mt-8 mb-24 flex-row flex-wrap justify-between">
             {SVIP_PRIVILEGES_DATA.map((benefit) => {
@@ -1078,6 +1186,82 @@ export default function VipsClubScreen() {
                   );
                 })}
               </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Monthly Coins Info Modal */}
+        <Modal
+          visible={showMonthlyInfo}
+          onRequestClose={() => setShowMonthlyInfo(false)}
+          transparent
+          animationType="slide"
+        >
+          <View className="flex-1 justify-end bg-black/60">
+            <View className="bg-[#070914] border-t border-white/10 rounded-t-3xl p-5 max-h-[85vh]">
+              <View className="flex-row items-center justify-between pb-3 border-b border-white/5 mb-4">
+                <View className="flex-row items-center gap-2">
+                  <Text className="text-lg">🪙</Text>
+                  <Text className="text-sm font-black text-amber-400 uppercase tracking-wider">Gold Coins / Month</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowMonthlyInfo(false)}>
+                  <Text className="text-white text-xs font-bold">✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Table Header */}
+              <View className="flex-row bg-amber-500/20 rounded-xl px-3 py-2 mb-1">
+                <Text className="flex-1 text-[9px] font-black text-amber-300 uppercase">SVIP Level</Text>
+                <Text className="flex-1 text-[9px] font-black text-amber-300 uppercase text-right">Coins Reward</Text>
+                <Text className="flex-1 text-[9px] font-black text-amber-300 uppercase text-right">SVIP Level</Text>
+                <Text className="flex-1 text-[9px] font-black text-amber-300 uppercase text-right">Coins Reward</Text>
+              </View>
+
+              {/* Table Rows */}
+              <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
+                {Array.from({ length: 9 }, (_, i) => {
+                  const left = SVIP_LEVELS_DATA[i];
+                  const right = SVIP_LEVELS_DATA[i + 9];
+                  const isLeftCurrent = left.level === userSvipLevel;
+                  const isRightCurrent = right?.level === userSvipLevel;
+                  return (
+                    <View key={i} className="flex-row px-3 py-2 border-b border-white/5">
+                      <Text className={`flex-1 text-[11px] font-bold ${isLeftCurrent ? 'text-amber-400' : 'text-slate-300'}`}>
+                        SVIP{left.level}
+                      </Text>
+                      <Text className={`flex-1 text-[11px] font-bold text-right ${isLeftCurrent ? 'text-amber-400' : 'text-white'}`}>
+                        {left.monthlyCoins.toLocaleString('en-IN')}/mo
+                      </Text>
+                      {right ? (
+                        <>
+                          <Text className={`flex-1 text-[11px] font-bold text-right ${isRightCurrent ? 'text-amber-400' : 'text-slate-300'}`}>
+                            SVIP{right.level}
+                          </Text>
+                          <Text className={`flex-1 text-[11px] font-bold text-right ${isRightCurrent ? 'text-amber-400' : 'text-white'}`}>
+                            {right.monthlyCoins.toLocaleString('en-IN')}/mo
+                          </Text>
+                        </>
+                      ) : (
+                        <>
+                          <Text className="flex-1" />
+                          <Text className="flex-1" />
+                        </>
+                      )}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+
+              <Text className="text-amber-200/50 text-[9px] font-bold text-center mt-4">
+                A fixed amount of gold coins can be claimed monthly as an SVIP benefit.
+              </Text>
+
+              <TouchableOpacity
+                onPress={() => setShowMonthlyInfo(false)}
+                className="mt-4 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 items-center"
+              >
+                <Text className="text-black font-black text-sm uppercase tracking-wider">Ok</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>
