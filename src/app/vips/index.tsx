@@ -929,15 +929,33 @@ export default function VipsClubScreen() {
 
                 {/* Grid Container */}
                 <View className="space-y-3">
-                  {/* Row 1: Logo, Frame, Entrance */}
+                  {/* Row 1: Gold Coins, Frame, Entrance */}
                   <View className="flex-row gap-3">
-                    {/* Card 1: Logo */}
-                    <View className="flex-1 bg-[#140f0c]/90 border border-[#3d2a1d] rounded-2xl p-3 items-center justify-between h-36">
-                      <View className="flex-1 items-center justify-center w-full">
-                        {renderSvipStrip(selectedLevel)}
+                    {/* Card 1: Gold Coins / Month */}
+                    <TouchableOpacity 
+                      onPress={() => {
+                        if (userSvipLevel > 0) {
+                          if (monthlyClaimed) {
+                            Alert.alert('Already Claimed', 'You have already claimed your monthly SVIP coins this month!');
+                          } else {
+                            handleClaimMonthlyCoins();
+                          }
+                        } else {
+                          setShowMonthlyInfo(true);
+                        }
+                      }}
+                      className="flex-1 bg-[#140f0c]/90 border border-amber-500/30 rounded-2xl p-3 items-center justify-between h-36"
+                    >
+                      <View className="flex-1 items-center justify-center w-full relative">
+                        <Text className="text-3xl">💰</Text>
+                        <View className="bg-amber-500/90 px-2 py-0.5 rounded-full mt-1">
+                          <Text className="text-black text-[8px] font-black">
+                            {SVIP_LEVELS_DATA.find(l => l.level === selectedLevel)?.monthlyCoins?.toLocaleString('en-IN') || '0'}/Mo
+                          </Text>
+                        </View>
                       </View>
-                      <Text className="text-[10px] font-bold text-slate-400 mt-2 lowercase">logo</Text>
-                    </View>
+                      <Text className="text-[10px] font-bold text-amber-400 mt-1 lowercase">gold coins / month</Text>
+                    </TouchableOpacity>
 
                     {/* Card 2: Frame */}
                     <View className="flex-1 bg-[#140f0c]/90 border border-[#3d2a1d] rounded-2xl p-3 items-center justify-between h-36">
@@ -974,7 +992,7 @@ export default function VipsClubScreen() {
                     </View>
                   </View>
 
-                  {/* Row 2: Bubble, Mic Wave */}
+                  {/* Row 2: Bubble, Wave, Logo */}
                   <View className="flex-row gap-3">
                     {/* Card 4: Bubble */}
                     <View className="flex-1 bg-[#140f0c]/90 border border-[#3d2a1d] rounded-2xl p-3 items-center justify-between h-36">
@@ -1001,6 +1019,14 @@ export default function VipsClubScreen() {
                       </View>
                       <Text className="text-[10px] font-bold text-slate-400 mt-2 lowercase">wave</Text>
                     </View>
+
+                    {/* Card 6: Logo */}
+                    <View className="flex-1 bg-[#140f0c]/90 border border-[#3d2a1d] rounded-2xl p-3 items-center justify-between h-36">
+                      <View className="flex-1 items-center justify-center w-full">
+                        {renderSvipStrip(selectedLevel)}
+                      </View>
+                      <Text className="text-[10px] font-bold text-slate-400 mt-2 lowercase">logo</Text>
+                    </View>
                   </View>
                 </View>
               </View>
@@ -1020,53 +1046,6 @@ export default function VipsClubScreen() {
               <Text className="text-[10px] font-black uppercase text-white tracking-wider">Stealth Settings</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Monthly Gold Coins Claim */}
-          {userSvipLevel > 0 && (
-            <View className="mt-4 bg-gradient-to-br from-amber-900/30 to-yellow-900/20 border border-amber-500/30 rounded-3xl p-4">
-              <View className="flex-row items-center justify-between mb-3">
-                <View className="flex-row items-center gap-2">
-                  <View className="w-8 h-8 rounded-full bg-amber-500/20 items-center justify-center">
-                    <Text className="text-lg">🪙</Text>
-                  </View>
-                  <View>
-                    <Text className="text-amber-400 font-black text-sm">Gold Coins / Month</Text>
-                    <Text className="text-amber-200/60 text-[9px] font-bold">SVIP {userSvipLevel} Monthly Reward</Text>
-                  </View>
-                </View>
-                <TouchableOpacity onPress={() => setShowMonthlyInfo(true)} className="bg-white/10 px-2 py-1 rounded-lg">
-                  <Text className="text-white text-[9px] font-bold">View All</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View className="bg-black/30 rounded-2xl p-3 mb-3">
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-amber-200/70 text-[10px] font-bold">Your Monthly Reward</Text>
-                  <Text className="text-amber-400 font-black text-base">
-                    {SVIP_LEVELS_DATA.find(l => l.level === userSvipLevel)?.monthlyCoins?.toLocaleString('en-IN') || '0'}
-                  </Text>
-                </View>
-              </View>
-
-              <TouchableOpacity
-                onPress={handleClaimMonthlyCoins}
-                disabled={monthlyClaimed || claimingCoins || userSvipLevel <= 0}
-                className={`py-3 rounded-xl items-center ${
-                  monthlyClaimed
-                    ? 'bg-white/5 border border-white/10'
-                    : claimingCoins
-                    ? 'bg-amber-500/30'
-                    : 'bg-gradient-to-r from-amber-500 to-yellow-500'
-                }`}
-              >
-                <Text className={`font-black text-sm uppercase tracking-wider ${
-                  monthlyClaimed ? 'text-slate-400' : 'text-black'
-                }`}>
-                  {monthlyClaimed ? '✅ Claimed This Month' : claimingCoins ? 'Claiming...' : '🎁 Claim Monthly Coins'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
 
           {/* Privileges Grid */}
           <View className="mt-8 mb-24 flex-row flex-wrap justify-between">
