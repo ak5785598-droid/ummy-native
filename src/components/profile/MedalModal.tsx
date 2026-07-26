@@ -30,16 +30,16 @@ export const MedalModal = ({ open, onClose, profile }: any) => {
 
   return (
     <Modal visible={open} transparent animationType="slide">
-      <StatusBar barStyle="light-content" backgroundColor="#1a1025" />
-      <View className="flex-1 bg-[#1a1025]">
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <View className="flex-1 bg-white">
         <SafeAreaView style={{ flex: 1 }} edges={['top']}>
           {/* Header */}
-          <View className="flex-row items-center justify-between px-4 py-3 border-b border-purple-900/50">
+          <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
             <TouchableOpacity onPress={onClose} className="flex-row items-center gap-2">
-              <ArrowLeft size={22} color="#a78bfa" />
-              <Text className="text-purple-400 font-bold text-base">Back</Text>
+              <ArrowLeft size={22} color="#374151" />
+              <Text className="text-gray-700 font-bold text-base">Back</Text>
             </TouchableOpacity>
-            <Text className="text-white font-bold text-lg">Medal Wall</Text>
+            <Text className="text-gray-900 font-bold text-lg">Medal Wall</Text>
             <View style={{ width: 60 }} />
           </View>
 
@@ -47,7 +47,7 @@ export const MedalModal = ({ open, onClose, profile }: any) => {
           <ScrollView className="flex-1 px-4 py-4" showsVerticalScrollIndicator={false}>
             {loading ? (
               <View className="py-20 items-center">
-                <Text className="text-purple-400/50 font-bold tracking-widest text-xs uppercase">Loading...</Text>
+                <Text className="text-gray-400 font-bold tracking-widest text-xs uppercase">Loading...</Text>
               </View>
             ) : allMedals.length > 0 ? (
               <View className="flex-row flex-wrap justify-between">
@@ -55,21 +55,21 @@ export const MedalModal = ({ open, onClose, profile }: any) => {
                   const isEarned = earnedMedalIds.includes(medal.id);
                   return (
                     <View key={medal.id} className={`w-[31%] items-center mb-5 ${isEarned ? '' : 'opacity-35'}`}>
-                      <View className={`w-20 h-20 rounded-2xl items-center justify-center mb-2 overflow-hidden ${isEarned ? 'border-2 border-yellow-500/70' : 'bg-purple-900/30 border border-purple-700/30'}`}>
+                      <View className={`w-20 h-20 rounded-2xl items-center justify-center mb-2 overflow-hidden ${isEarned ? 'border-2 border-yellow-500/70' : 'bg-gray-100 border border-gray-200'}`}>
                         {medal.imageUrl ? (
                           <Image cachePolicy="memory-disk" source={{ uri: toCDN(medal.imageUrl) }} style={{ width: 80, height: 80 }} contentFit="cover" />
                         ) : (
                           <Text className="text-3xl">🏅</Text>
                         )}
                       </View>
-                      <Text className={`text-[9px] font-bold text-center ${isEarned ? 'text-yellow-400' : 'text-purple-400/50'}`}>{medal.name}</Text>
+                      <Text className={`text-[9px] font-bold text-center ${isEarned ? 'text-yellow-600' : 'text-gray-400'}`}>{medal.name}</Text>
                     </View>
                   );
                 })}
               </View>
             ) : (
               <View className="py-20 items-center">
-                <Text className="text-purple-400/50 font-bold tracking-widest text-xs uppercase">No Medals Available</Text>
+                <Text className="text-gray-400 font-bold tracking-widest text-xs uppercase">No Medals Available</Text>
               </View>
             )}
           </ScrollView>
