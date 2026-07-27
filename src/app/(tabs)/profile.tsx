@@ -184,7 +184,7 @@ export default function ProfileScreen() {
   }, [profileId, firestoreDb]);
 
   const profile = useMemo(() => {
-    const raw = baseProfile || profileSubData || myProfile;
+    const raw = myProfile || baseProfile || profileSubData;
     if (raw) {
       const isValidAccNum = (id: any) => {
         if (!id) return false;
@@ -204,12 +204,43 @@ export default function ProfileScreen() {
         bestAccNum = subAccNum;
       }
 
+      const mergedStats = {
+        ...((baseProfile as any)?.stats || {}),
+        ...((profileSubData as any)?.stats || {}),
+        ...((myProfile as any)?.stats || {}),
+        receivedGifts: {
+          ...((baseProfile as any)?.stats?.receivedGifts || {}),
+          ...((profileSubData as any)?.stats?.receivedGifts || {}),
+          ...((myProfile as any)?.stats?.receivedGifts || {}),
+        },
+        giftDetails: {
+          ...((baseProfile as any)?.stats?.giftDetails || {}),
+          ...((profileSubData as any)?.stats?.giftDetails || {}),
+          ...((myProfile as any)?.stats?.giftDetails || {}),
+        },
+      };
+
+      const mergedInventory = {
+        ...((baseProfile as any)?.inventory || {}),
+        ...((profileSubData as any)?.inventory || {}),
+        ...((myProfile as any)?.inventory || {}),
+        activeFrame: (myProfile as any)?.inventory?.activeFrame || (profileSubData as any)?.inventory?.activeFrame || (baseProfile as any)?.inventory?.activeFrame || null,
+        activeFrameMediaUrl: (myProfile as any)?.inventory?.activeFrameMediaUrl || (profileSubData as any)?.inventory?.activeFrameMediaUrl || (baseProfile as any)?.inventory?.activeFrameMediaUrl || null,
+        ownedItems: [...new Set([
+          ...((myProfile || {})?.inventory?.ownedItems || []),
+          ...((profileSubData || {})?.inventory?.ownedItems || []),
+          ...((baseProfile || {})?.inventory?.ownedItems || []),
+        ])],
+      };
+
       return {
-        ...(myProfile || {}),
-        ...(profileSubData || {}),
         ...(baseProfile || {}),
+        ...(profileSubData || {}),
+        ...(myProfile || {}),
         accountNumber: bestAccNum || '000000',
         id: profileId,
+        stats: mergedStats,
+        inventory: mergedInventory,
       };
     }
 

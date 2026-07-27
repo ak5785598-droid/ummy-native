@@ -3,9 +3,8 @@ import { StyleSheet, View, Text, Modal, TouchableOpacity, Linking, Alert } from 
 import * as Application from 'expo-application';
 import { ShieldAlert, Download, CheckCircle, ExternalLink } from 'lucide-react-native';
 
-// Remote configuration update check endpoint URL
-// In production, update this endpoint link to point to your backend API or github raw JSON config file.
-const UPDATE_CONFIG_URL = 'https://raw.githubusercontent.com/ak5785598-droid/ummy-native/master/update-config.json';
+// Remote configuration update check endpoint — hosted on our Cloudflare worker for full control
+const UPDATE_CONFIG_URL = 'https://ummy-ota.ak5785598.workers.dev/api/update-config';
 
 interface UpdateConfig {
   versionCode: number;

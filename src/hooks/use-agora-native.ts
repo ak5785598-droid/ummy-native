@@ -125,8 +125,10 @@ export function useAgoraNative(
         engine.enableAudio();
         engine.adjustRecordingSignalVolume(100);
         engine.adjustPlaybackSignalVolume(100);
-        engine.setChannelProfile(ChannelProfileType.ChannelProfileLiveBroadcasting);
-        engine.setClientRole(isInSeat ? ClientRoleType.ClientRoleBroadcaster : ClientRoleType.ClientRoleAudience);
+        // Use Communication mode — all users see each other via onUserJoined.
+        // In Live Broadcasting mode, audience members are INVISIBLE to each other,
+        // so onUserJoined never fires and audio subscription never happens.
+        engine.setChannelProfile(ChannelProfileType.ChannelProfileCommunication);
         engine.enableAudioVolumeIndication(200, 3, true);
 
         // Route to loudspeaker by default
@@ -154,19 +156,17 @@ export function useAgoraNative(
             console.log('[Agora] Join channel SUCCESS, elapsed:', elapsed);
             if (isMounted) {
               setConnectionState('CONNECTED');
-              // CRITICAL: After join, explicitly start publishing audio
-              // In Agora v4, joinChannel alone doesn't always start mic publishing
+              // ONLY ensure speaker is on and remote audio is unmuted.
+              // DO NOT override role/publishMicrophoneTrack here — the isInSeat
+              // useEffect is the single source of truth for publishing state.
+              // Overriding here causes race conditions with the seat effect.
               try {
-                engine.enableLocalAudio(true);
-                engine.updateChannelMediaOptions({
-                  publishMicrophoneTrack: true,
-                  autoSubscribeAudio: true,
-                  publishCameraTrack: false,
-                  clientRoleType: ClientRoleType.ClientRoleBroadcaster,
-                });
-                console.log('[Agora] Post-join: enabled local audio + started publishing');
+                engine.setEnableSpeakerphone(true);
+                engine.muteAllRemoteAudioStreams(false);
+                engine.adjustPlaybackSignalVolume(100);
+                console.log('[Agora] Post-join: speaker ON, remote audio UNMUTED');
               } catch (e) {
-                console.log('[Agora] Post-join audio enable error:', e);
+                console.log('[Agora] Post-join setup error:', e);
               }
             }
           },
@@ -219,23 +219,17 @@ export function useAgoraNative(
         }
 
         console.log('[Agora] Joining with token length:', token.length, '| UID:', numericUid, '| InSeat:', isInSeat);
+        // Communication mode: everyone is visible → onUserJoined fires for all → audio subscription works
+        // Mic is OFF until user takes a seat (publishMicrophoneTrack: false)
         engine.joinChannel(token, roomId, numericUid, {
-          channelProfile: ChannelProfileType.ChannelProfileLiveBroadcasting,
-          clientRoleType: isInSeat ? ClientRoleType.ClientRoleBroadcaster : ClientRoleType.ClientRoleAudience,
-          publishMicrophoneTrack: isInSeat && !isMuted,  // only publish if in seat and not muted
-          autoSubscribeAudio: true,                       // always listen to others
-          publishCameraTrack: false,                      // voice only, no video
+          channelProfile: ChannelProfileType.ChannelProfileCommunication,
+          publishMicrophoneTrack: false,  // mic off until seat taken — isInSeat effect enables it
+          autoSubscribeAudio: true,       // always receive ALL other users' audio
+          publishCameraTrack: false,
           autoSubscribeVideo: false,
         });
-        // After joining, explicitly apply local audio state
-        if (isInSeat) {
-          engine.enableLocalAudio(true);
-          engine.muteLocalAudioStream(isMuted);
-        } else {
-          engine.enableLocalAudio(false);
-          engine.muteLocalAudioStream(true);
-        }
         startVoiceService();
+
       } catch (e) {
         console.error('[Agora] Initialization error:', e);
         if (isMounted) setConnectionState('DISCONNECTED');
@@ -303,29 +297,36 @@ export function useAgoraNative(
     if (!engine) return;
     console.log('[Agora] isInSeat effect:', { isInSeat, isMuted, hasEngine: !!engine });
     if (isInSeat) {
-      engine.setClientRole(ClientRoleType.ClientRoleBroadcaster);
+      // Seat taken: enable mic and publish audio
+      // No role switching needed in Communication mode — just control the mic
       engine.enableLocalAudio(true);
       engine.muteLocalAudioStream(isMuted);
+      engine.muteAllRemoteAudioStreams(false);
       engine.adjustRecordingSignalVolume(100);
       engine.adjustPlaybackSignalVolume(100);
+      engine.setEnableSpeakerphone(true);
       engine.updateChannelMediaOptions({
-        publishMicrophoneTrack: !isMuted,
+        publishMicrophoneTrack: !isMuted,  // publish mic when seated + not muted
         autoSubscribeAudio: true,
         publishCameraTrack: false,
-        clientRoleType: ClientRoleType.ClientRoleBroadcaster,
       });
+      console.log('[Agora] Seat taken: mic ON, publishing audio');
     } else {
-      engine.setClientRole(ClientRoleType.ClientRoleAudience);
+      // No seat: mute mic, keep receiving all remote audio
       engine.muteLocalAudioStream(true);
       engine.enableLocalAudio(false);
+      engine.muteAllRemoteAudioStreams(false);  // always hear others
+      engine.adjustPlaybackSignalVolume(100);
+      engine.setEnableSpeakerphone(true);
       engine.updateChannelMediaOptions({
-        publishMicrophoneTrack: false,
+        publishMicrophoneTrack: false,  // don't publish when not seated
         autoSubscribeAudio: true,
         publishCameraTrack: false,
-        clientRoleType: ClientRoleType.ClientRoleAudience,
       });
+      console.log('[Agora] No seat: mic OFF, still receiving all remote audio');
     }
   }, [isInSeat, isMuted]);
+
 
   useEffect(() => {
     const engine = engineRef.current;

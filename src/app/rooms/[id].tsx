@@ -39,6 +39,8 @@ import { LootBoxDisplay } from '../../components/room/loot-box-display';
 import { AristocracyDialog } from '../../components/room/aristocracy-dialog';
 import { RoomTasksDialog } from '../../components/room/room-tasks-dialog';
 import { UserPlus, X, Disc3, Lock } from 'lucide-react-native';
+import { getRoomLevelFromPoints } from '../../lib/bonus-utils';
+import { triggerRoomLevelBroadcast } from '../../lib/global-activity';
 import { GiftPicker } from '../../components/gift/gift-picker';
 import { GiftAnimationOverlay } from '../../components/gift/gift-animation-overlay';
 import { RoomEmojiPickerDialog } from '../../components/room/room-emoji-picker-dialog';
@@ -455,6 +457,27 @@ export default function RoomScreen() {
       ...room
     } as any;
   }, [room, id, name, coverUrl, backgroundUrl, roomThemeId]);
+
+  // Auto-broadcast room level ups to top system banner across all users
+  const prevRoomLevelRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!room || !id) return;
+    const currentPoints = room.levelPoints || 0;
+    const currentLvl = getRoomLevelFromPoints(currentPoints);
+
+    if (prevRoomLevelRef.current !== null && currentLvl > prevRoomLevelRef.current) {
+      triggerRoomLevelBroadcast({
+        roomId: id,
+        roomNumber: room.roomNumber || room.accountNumber || id,
+        userName: userProfile?.username || user?.displayName || room.ownerName || 'Room Host',
+        levelNumber: currentLvl,
+        levelName: `Level ${currentLvl}`,
+        rewardText: `Unlocked Level ${currentLvl} Station Rewards!`,
+      });
+    }
+    prevRoomLevelRef.current = currentLvl;
+  }, [room?.levelPoints, id, userProfile?.username, user?.displayName]);
 
   // Record recent visit when room loads (web app parity)
   useEffect(() => {
@@ -1040,7 +1063,8 @@ export default function RoomScreen() {
       ? (userProfile?.svipPrivileges?.frameUrl || null)
       : inventoryFrameUrl;
 
-    await setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', user.uid), { seatIndex: seatIdx, isMuted: isSeatMuted, name: userProfile.username, avatarUrl: userProfile.avatarUrl, activeFrameMediaUrl: frameUrlToSend, lastSeen: serverTimestamp() }, { merge: true });
+    const activeWaveToSend = userProfile.inventory?.activeWave || (userProfile as any)?.activeWave || null;
+    await setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', user.uid), { seatIndex: seatIdx, isMuted: isSeatMuted, name: userProfile.username, avatarUrl: userProfile.avatarUrl, activeFrameMediaUrl: frameUrlToSend, activeWave: activeWaveToSend, lastSeen: serverTimestamp() }, { merge: true });
     // DON'T forceUpdate here — let Firestore onSnapshot listener trigger the re-render naturally.
     // Calling forceUpdate with stale participants data (before listener fires) would set isInSeat=false,
     // making the seat appear empty and looking like the owner was "kicked" off.
@@ -1319,6 +1343,7 @@ export default function RoomScreen() {
         activeEmoji={occupant?.activeEmoji}
         customEmojiMap={customEmojiMap}
         avatarFrameUrl={occupant?.activeFrameMediaUrl}
+        activeWave={(occupant as any)?.activeWave || (occupant as any)?.inventory?.activeWave || (occupant?.uid === user?.uid ? (userProfile?.inventory?.activeWave || (userProfile as any)?.activeWave) : null)}
         connectRight={connectRight}
       />
     );

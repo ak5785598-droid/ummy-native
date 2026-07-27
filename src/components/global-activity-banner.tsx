@@ -5,7 +5,15 @@ import firestore from '@react-native-firebase/firestore';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export function GlobalActivityBanner() {
-  const [eventData, setEventData] = useState<{ userName: string; giftName: string; roomNumber: string | number } | null>(null);
+  const [eventData, setEventData] = useState<{
+    userName: string;
+    giftName: string;
+    roomNumber: string | number;
+    type?: string;
+    levelName?: string;
+    levelNumber?: number | string;
+    rewardText?: string;
+  } | null>(null);
 
   // Stable animated values — never recreated
   const translateY = useRef(new Animated.Value(-60)).current;
@@ -41,7 +49,15 @@ export function GlobalActivityBanner() {
     });
   };
 
-  const show = (data: { userName: string; giftName: string; roomNumber: string | number }) => {
+  const show = (data: {
+    userName: string;
+    giftName: string;
+    roomNumber: string | number;
+    type?: string;
+    levelName?: string;
+    levelNumber?: number | string;
+    rewardText?: string;
+  }) => {
     // Cancel any pending hide
     if (hideTimer.current) {
       clearTimeout(hideTimer.current);
@@ -103,6 +119,10 @@ export function GlobalActivityBanner() {
             userName: doc.userName || 'Someone',
             giftName: doc.giftName || 'Gift',
             roomNumber: doc.roomNumber ?? '',
+            type: doc.type || 'gift',
+            levelName: doc.levelName || '',
+            levelNumber: doc.levelNumber || '',
+            rewardText: doc.rewardText || '',
           });
         },
         () => { /* silent */ }
@@ -129,14 +149,26 @@ export function GlobalActivityBanner() {
         <Text style={styles.sep}>|  </Text>
         <Text style={styles.msg} numberOfLines={1}>
           {eventData ? (
-            <>
-              <Text style={styles.white}>✨ WOW! </Text>
-              <Text style={styles.yellow}>{eventData.userName}</Text>
-              <Text style={styles.white}> sent a </Text>
-              <Text style={styles.purple}>{eventData.giftName}</Text>
-              <Text style={styles.white}> in Room </Text>
-              <Text style={styles.green}>#{eventData.roomNumber}</Text>
-            </>
+            eventData.type === 'room_level' || eventData.type === 'level_unlock' ? (
+              <>
+                <Text style={styles.white}>🎉 LEVEL UNLOCKED! </Text>
+                <Text style={styles.green}>Room #{eventData.roomNumber}</Text>
+                <Text style={styles.white}> reached </Text>
+                <Text style={styles.yellow}>{eventData.levelName || `Level ${eventData.levelNumber}`}</Text>
+                {eventData.rewardText ? (
+                  <Text style={styles.purple}> ({eventData.rewardText})</Text>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <Text style={styles.white}>✨ WOW! </Text>
+                <Text style={styles.yellow}>{eventData.userName}</Text>
+                <Text style={styles.white}> sent a </Text>
+                <Text style={styles.purple}>{eventData.giftName}</Text>
+                <Text style={styles.white}> in Room </Text>
+                <Text style={styles.green}>#{eventData.roomNumber}</Text>
+              </>
+            )
           ) : null}
         </Text>
       </Animated.View>

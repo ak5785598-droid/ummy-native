@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator, StyleSheet, FlatList, Dimensions, BackHandler, TextInput } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator, StyleSheet, FlatList, Dimensions, BackHandler, TextInput, Animated, Easing } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ChevronLeft, ShoppingBag, Check, X, Play, Gift,
@@ -93,6 +93,194 @@ const STATIC_ID_ITEMS = [
   { id: 'theme-silver', name: 'Silver Blue ID', type: 'ID', price: 0, durationDays: 7, description: 'Exclusive Premium Silver Blue ID Badge theme.', isSilver: true },
   { id: 'theme-gold', name: 'Gold SSS ID', type: 'ID', price: 0, durationDays: 7, description: 'Exclusive VIP Gold SSS ID Badge theme.', variant: 'red' },
 ];
+
+const STORE_WAVE_COLOR_MAP: Record<string, { color: string; glow: string }> = {
+  'w-lovelyshine': { color: '#60a5fa', glow: 'rgba(96, 165, 250, 0.35)' },
+  'w-waveflew':    { color: '#e2e8f0', glow: 'rgba(226, 232, 240, 0.35)' },
+  'w-tonepink':    { color: '#f472b6', glow: 'rgba(244, 114, 182, 0.35)' },
+  'w-vox':         { color: '#3b82f6', glow: 'rgba(59, 130, 246, 0.35)' },
+  'w-reso':        { color: '#22c55e', glow: 'rgba(34, 197, 94, 0.35)' },
+  'w-echo':        { color: '#f97316', glow: 'rgba(249, 115, 22, 0.35)' },
+};
+
+function StoreWaveBreathingBadge({ waveId, itemColor }: { waveId: string; itemColor?: string }) {
+  const breatheAnim = React.useRef(new Animated.Value(1)).current;
+  const opacityAnim = React.useRef(new Animated.Value(0.4)).current;
+
+  const config = STORE_WAVE_COLOR_MAP[waveId || ''] || { color: itemColor || '#22c55e', glow: 'rgba(34, 197, 94, 0.3)' };
+
+  React.useEffect(() => {
+    const breatheLoop = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(breatheAnim, { toValue: 1.15, duration: 1200, useNativeDriver: true }),
+          Animated.timing(opacityAnim, { toValue: 0.8, duration: 1200, useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(breatheAnim, { toValue: 1, duration: 1200, useNativeDriver: true }),
+          Animated.timing(opacityAnim, { toValue: 0.4, duration: 1200, useNativeDriver: true }),
+        ]),
+      ])
+    );
+    breatheLoop.start();
+    return () => breatheLoop.stop();
+  }, []);
+
+  return (
+    <View style={{ width: 80, height: 80, alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+      {/* Outer Breathing Glowing Aura */}
+      <Animated.View
+        style={{
+          position: 'absolute',
+          width: 72, height: 72,
+          borderRadius: 36,
+          borderWidth: 2,
+          borderColor: config.color,
+          backgroundColor: config.glow,
+          transform: [{ scale: breatheAnim }],
+          opacity: opacityAnim,
+        }}
+      />
+
+      {/* Inner Ring */}
+      <View
+        style={{
+          position: 'absolute',
+          width: 58, height: 58,
+          borderRadius: 29,
+          borderWidth: 2,
+          borderColor: config.color,
+          shadowColor: config.color,
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.6,
+          shadowRadius: 8,
+        }}
+      />
+
+      {/* Center Dark Glossy Disc with Equalizer Waves */}
+      <View style={{
+        width: 46, height: 46, borderRadius: 23,
+        backgroundColor: '#0f172a',
+        borderWidth: 1.5, borderColor: config.color,
+        alignItems: 'center', justifyContent: 'center',
+        flexDirection: 'row', gap: 3, paddingHorizontal: 6,
+      }}>
+        {/* Equalizer Frequency Bars */}
+        <View style={{ width: 3, height: 12, backgroundColor: config.color, borderRadius: 2 }} />
+        <View style={{ width: 3, height: 22, backgroundColor: config.color, borderRadius: 2 }} />
+        <View style={{ width: 3.5, height: 28, backgroundColor: config.color, borderRadius: 2 }} />
+        <View style={{ width: 3, height: 18, backgroundColor: config.color, borderRadius: 2 }} />
+        <View style={{ width: 3, height: 10, backgroundColor: config.color, borderRadius: 2 }} />
+      </View>
+    </View>
+  );
+}
+
+const STORE_WAVE_PARTICLES_MAP: Record<string, string[]> = {
+  'w-lovelyshine': ['✨', '🩵', '✨'],
+  'w-tonepink':    ['✨', '🩷', '✨'],
+  'w-vox':         ['⚡', '🌐', '⚡'],
+  'w-reso':        ['✨', '🍀', '✨'],
+  'w-echo':        ['🔥', '💥', '🔥'],
+  'w-waveflew':    ['💎', '✨', '💎'],
+};
+
+function StoreWaveRingPreview({ waveId }: { waveId: string }) {
+  const pulse1 = React.useRef(new Animated.Value(1)).current;
+  const pulse2 = React.useRef(new Animated.Value(1)).current;
+  const rotateAnim = React.useRef(new Animated.Value(0)).current;
+  const sparkleAnim = React.useRef(new Animated.Value(0)).current;
+
+  const config = STORE_WAVE_COLOR_MAP[waveId || ''] || { color: '#22c55e', glow: 'rgba(34, 197, 94, 0.25)' };
+  const particles = STORE_WAVE_PARTICLES_MAP[waveId || ''] || ['✨', '🎙️', '✨'];
+
+  React.useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(pulse1, { toValue: 1.15, duration: 600, useNativeDriver: true }),
+          Animated.timing(pulse2, { toValue: 1.25, duration: 600, useNativeDriver: true }),
+          Animated.timing(sparkleAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(pulse1, { toValue: 1, duration: 600, useNativeDriver: true }),
+          Animated.timing(pulse2, { toValue: 1, duration: 600, useNativeDriver: true }),
+          Animated.timing(sparkleAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+        ]),
+      ])
+    );
+    const rotateLoop = Animated.loop(
+      Animated.timing(rotateAnim, { toValue: 1, duration: 3000, easing: Easing.linear, useNativeDriver: true })
+    );
+
+    loop.start();
+    rotateLoop.start();
+
+    return () => {
+      loop.stop();
+      rotateLoop.stop();
+    };
+  }, []);
+
+  const spin = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const sparkleTy = sparkleAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -14],
+  });
+
+  return (
+    <>
+      {/* Outer Pulse Glow Ring */}
+      <Animated.View
+        style={{
+          position: 'absolute',
+          width: 84, height: 84,
+          borderRadius: 42,
+          borderWidth: 2,
+          borderColor: config.color,
+          backgroundColor: config.glow,
+          transform: [{ scale: pulse2 }],
+        }}
+        pointerEvents="none"
+      />
+
+      {/* Rotating Dashed Orbit Ring */}
+      <Animated.View
+        style={{
+          position: 'absolute',
+          width: 76, height: 76,
+          borderRadius: 38,
+          borderWidth: 1.5,
+          borderColor: config.color,
+          borderStyle: 'dashed',
+          transform: [{ rotate: spin }, { scale: pulse1 }],
+        }}
+        pointerEvents="none"
+      />
+
+      {/* Floating Preview Particles */}
+      <Animated.View
+        style={{
+          position: 'absolute',
+          top: -14, left: 0, right: 0,
+          alignItems: 'center',
+          transform: [{ translateY: sparkleTy }],
+        }}
+        pointerEvents="none"
+      >
+        <View style={{ flexDirection: 'row', gap: 14 }}>
+          {particles.map((p, i) => (
+            <Text key={i} style={{ fontSize: 11 }}>{p}</Text>
+          ))}
+        </View>
+      </Animated.View>
+    </>
+  );
+}
 
 // ─── Tab definition ─────────────────────────────────────────────────────────
 const TABS = ['Store', 'My Items'];
@@ -268,9 +456,15 @@ export default function StoreScreen() {
       }));
   }, [allItems, storeNotForSale]);
 
+  const ORDERED_TYPES = ['Frame', 'Theme', 'Bubble', 'Wave', 'Entry', 'ID'];
   const TYPE_FILTERS = useMemo(() => {
-    const types = Array.from(new Set(allItemsWithFlags.map(i => i.type).filter(Boolean)));
-    return types;
+    const typesInItems = new Set(allItemsWithFlags.map(i => i.type).filter(Boolean));
+    const ordered = ORDERED_TYPES.filter(t => typesInItems.has(t));
+    // Add any remaining types not explicitly listed
+    for (const t of typesInItems) {
+      if (!ordered.includes(t)) ordered.push(t);
+    }
+    return ordered;
   }, [allItemsWithFlags]);
 
   const filteredItems = useMemo(() => {
@@ -607,6 +801,7 @@ export default function StoreScreen() {
           id: item.id
         };
       }
+      if (item.type === 'Wave') updateData['activeWave'] = item.id;
       await updateDoc(profileRef, updateData);
       await updateDoc(userRef, updateData);
       Alert.alert('✅ Activated!', `${item.name} is now your active ${item.type.toLowerCase()}.`);
@@ -696,6 +891,8 @@ export default function StoreScreen() {
                item.isSilver ? <SilverBlueIDBadgeIcon number={checkedId || '888888'} /> :
                <IDBadgeIcon number={checkedId || '888888'} />}
             </View>
+          ) : item.type === 'Wave' ? (
+            <StoreWaveBreathingBadge waveId={item.id} itemColor={item.color} />
           ) : item.type === 'Bubble' ? (
             <View style={{ width: '100%', justifyContent: 'center', alignItems: 'center', paddingVertical: 6 }}>
               <ChatMessageBubble
@@ -964,6 +1161,24 @@ export default function StoreScreen() {
                           This is how your chat bubble looks! 💬🔥
                         </Text>
                       </ChatMessageBubble>
+                    </View>
+                  ) : previewItem.type === 'Wave' ? (
+                    <View style={{ width: 150, height: 150, alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                      <StoreWaveRingPreview waveId={previewItem.id} />
+                      <View style={{ width: 72, height: 72, borderRadius: 36, overflow: 'hidden', borderWidth: 2, borderColor: 'white', backgroundColor: '#3b82f6', elevation: 4 }}>
+                        {userProfile?.avatarUrl && typeof userProfile.avatarUrl === 'string' && userProfile.avatarUrl.startsWith('http') ? (
+                          <Image cachePolicy="memory-disk" source={{ uri: userProfile.avatarUrl }} style={{ width: '100%', height: '100%' }} />
+                        ) : (
+                          <View style={{ width: '100%', height: '100%', backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={{ fontSize: 24, fontWeight: 'bold', color: 'white' }}>
+                              {userProfile?.username ? userProfile.username[0].toUpperCase() : 'U'}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={{ position: 'absolute', bottom: 4, backgroundColor: 'rgba(15,23,42,0.85)', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+                        <Text style={{ fontSize: 9, fontWeight: '900', color: '#4ade80' }}>🎙️ Mic Speaking Live</Text>
+                      </View>
                     </View>
                   ) : (
                     (() => {
