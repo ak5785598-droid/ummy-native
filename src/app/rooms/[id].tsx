@@ -13,6 +13,7 @@ import { useAgoraNative, destroyAgoraEngine } from '../../hooks/use-agora-native
 import { useVoiceEngine } from '../../hooks/use-voice-engine';
 import { destroyZegoEngine } from '../../hooks/use-zegocloud-voice';
 import { destroyLiveKitRoom } from '../../hooks/use-livekit-voice';
+import { useSTTEngine } from '../../hooks/use-stt-engine';
 import { useRoomTasks } from '../../hooks/use-room-tasks';
 import { Room, Message, RoomParticipant, MusicTrack, TopSupporter, isInventoryItemExpired } from '../../lib/types';
 import { ROOM_THEMES } from '../../lib/themes';
@@ -698,7 +699,6 @@ export default function RoomScreen() {
   const lastAnnouncedMsgId = useRef<string | null>(null);
   const lastProcessedMsgCount = useRef(0);
   const emojiClearTimeouts = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const sttTimeoutIds = useRef<ReturnType<typeof setTimeout>[]>([]);
   const seatTimeoutIds = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
@@ -873,114 +873,16 @@ export default function RoomScreen() {
   useMediaPreloader([], []);
   useScreenWakeLock(true);
 
-  // AI Listen — Continuous STT to chat message
-  const aiListenRecognitionRef = useRef<any>(null);
-  useEffect(() => {
-    if (!isAIListening) {
-      // User ne manually off kiya — sab rokdo
-      if (aiListenRecognitionRef.current) {
-        try { aiListenRecognitionRef.current.stop?.(); } catch {}
-        aiListenRecognitionRef.current = null;
-      }
-      try {
-        const VoiceModule = require('@react-native-voice/voice').default || require('@react-native-voice/voice');
-        VoiceModule?.destroy?.().catch(() => {});
-      } catch {}
-      return;
-    }
+  // AI Listen — uses shared STT engine (no clash with Voice Captions)
+  // Ref keeps handleSendMessage always fresh — avoids stale closure
+  const handleSendMessageRef = useRef<((text: string, imageUrl?: string) => Promise<void>) | null>(null);
+  useEffect(() => { handleSendMessageRef.current = handleSendMessage; });
 
-    let active = true; // Track if still enabled
-    sttTimeoutIds.current.forEach(id => clearTimeout(id));
-    sttTimeoutIds.current = [];
+  const aiListenCallback = useCallback((transcript: string) => {
+    if (transcript) handleSendMessageRef.current?.(transcript);
+  }, []);
 
-    const startSTT = async () => {
-      if (!active || !isAIListening) return;
-
-      if (Platform.OS === 'android') {
-        try {
-          const perm = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
-          if (perm !== PermissionsAndroid.RESULTS.GRANTED) {
-            console.log('[AI-LISTEN] RECORD_AUDIO permission denied');
-            return;
-          }
-        } catch {}
-      }
-
-      try {
-        const VoiceModule = require('@react-native-voice/voice').default || require('@react-native-voice/voice');
-        if (VoiceModule) {
-          console.log('[AI-LISTEN] Starting native STT...');
-          VoiceModule.onSpeechResults = (e: any) => {
-            const transcript = e.value?.[0];
-            console.log('[AI-LISTEN] Got result:', transcript);
-            if (transcript) {
-              handleSendMessage(transcript);
-            }
-            // Restart for next command (continuous mode)
-            const sttTid1 = setTimeout(() => { if (active) startSTT(); }, 800);
-            sttTimeoutIds.current.push(sttTid1);
-          };
-          VoiceModule.onSpeechError = (err: any) => {
-            console.log('[AI-LISTEN] Speech error:', err);
-            const sttTid2 = setTimeout(() => { if (active) startSTT(); }, 1000);
-            sttTimeoutIds.current.push(sttTid2);
-          };
-          VoiceModule.onSpeechEnd = () => {
-            console.log('[AI-LISTEN] Speech ended, restarting...');
-            const sttTid3 = setTimeout(() => { if (active) startSTT(); }, 500);
-            sttTimeoutIds.current.push(sttTid3);
-          };
-          VoiceModule.onSpeechStart = () => {
-            console.log('[AI-LISTEN] Speech started - listening...');
-          };
-          await VoiceModule.start('hi-IN');
-          aiListenRecognitionRef.current = VoiceModule;
-          console.log('[AI-LISTEN] Native STT started successfully');
-          return;
-        }
-      } catch (err: any) {
-        console.log('[AI-LISTEN] Native STT failed:', err?.message || err);
-      }
-
-      // Fallback: Web SpeechRecognition (continuous mode — Expo Go)
-      try {
-        if (typeof window === 'undefined') return; // Native build mein window nahi hoga
-        const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (!SR) return; // STT unavailable — toggle ON rakhna, silently do nothing
-        const recognition = new SR();
-        recognition.lang = 'hi-IN';
-        recognition.interimResults = false;
-        recognition.continuous = true;
-        recognition.onresult = (event: any) => {
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            if (event.results[i].isFinal) {
-              const transcript = event.results[i][0].transcript;
-              if (transcript) handleSendMessage(transcript);
-            }
-          }
-        };
-        recognition.onerror = () => {
-          const sttTid4 = setTimeout(() => { if (active) startSTT(); }, 1000);
-          sttTimeoutIds.current.push(sttTid4);
-        };
-        recognition.onend = () => {
-          const sttTid5 = setTimeout(() => { if (active) startSTT(); }, 300);
-          sttTimeoutIds.current.push(sttTid5);
-        };
-        recognition.start();
-        aiListenRecognitionRef.current = recognition;
-      } catch { /* Silent fail — don't turn off toggle */ }
-    };
-
-    startSTT();
-
-    return () => {
-      active = false;
-      sttTimeoutIds.current.forEach(id => clearTimeout(id));
-      sttTimeoutIds.current = [];
-      try { aiListenRecognitionRef.current?.stop?.(); } catch {}
-    };
-  }, [isAIListening]);
+  useSTTEngine(isAIListening, aiListenCallback);
 
   useEffect(() => {
     return () => {
