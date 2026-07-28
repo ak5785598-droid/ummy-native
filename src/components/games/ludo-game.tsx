@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Dimensions, Animated, Easing } from 'reac
 import { X, Volume2, VolumeX, Plus } from 'lucide-react-native';
 import { useUser } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
-import { useLudoEngine } from '../../hooks/use-ludo-engine';
+import { useLudoEngine, canPieceMove } from '../../hooks/use-ludo-engine';
 import { Image } from 'expo-image';
 import { toCDN } from '../../lib/cdn';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -290,7 +290,17 @@ function AnimatedLudoPiece({
 export function LudoGame({ onClose, roomId, onRoundEnd, isMuted, isAdmin }: LudoGameProps) {
   const { user: currentUser } = useUser();
   const { profile: userProfile } = useUserProfile(currentUser?.uid);
-  const { gameState, isLoading, joinLobby, startGame, leaveLobby, rollDice, movePiece, resetGame } = useLudoEngine(roomId || 'lobby', currentUser?.uid || null);
+  const { gameState, isLoading, joinLobby, startGame, leaveLobby, rollDice, movePiece, resetGame } = useLudoEngine(
+    roomId || 'lobby',
+    currentUser?.uid || null,
+    (winnerId, rankings) => {
+      const iWon = winnerId === currentUser?.uid;
+      onRoundEnd?.({
+        resultText: iWon ? 'You won Ludo! 🏆' : `${gameState?.players.find(p => p.uid === winnerId)?.username ?? 'Opponent'} won!`,
+        resultEmoji: iWon ? '🎲🏆' : '😢',
+      });
+    },
+  );
 
   const [isLaunching, setIsLaunching] = useState(true);
   const [localLobbyMode, setLocalLobbyMode] = useState<'quick' | 'classic' | null>(null);
@@ -301,11 +311,11 @@ export function LudoGame({ onClose, roomId, onRoundEnd, isMuted, isAdmin }: Ludo
     if (!gameState || gameState.status !== 'playing') return;
     const interval = setInterval(() => {
       const now = Date.now();
-      const turnStart = gameState.turnStartTime ? (gameState.turnStartTime.seconds ? gameState.turnStartTime.seconds * 1000 : new Date(gameState.turnStartTime).getTime()) : now;
+      // FIXED: turnStartTime is now a plain number
+      const turnStart = typeof gameState.turnStartTime === 'number' ? gameState.turnStartTime : now;
       const elapsed = Math.floor((now - turnStart) / 1000);
       setTimeLeft(Math.max(0, 30 - elapsed));
     }, 500);
-
     return () => clearInterval(interval);
   }, [gameState?.turn, gameState?.turnStartTime, gameState?.status]);
 
@@ -382,12 +392,10 @@ export function LudoGame({ onClose, roomId, onRoundEnd, isMuted, isAdmin }: Ludo
 
   const movablePieces = useMemo(() => {
     if (!isMyTurn || !gameState?.diceRolled || !gameState?.dice) return [];
+    // FIXED: use canPieceMove helper (same logic as engine)
     return gameState.pieces.filter((p: any) => {
       if (p.ownerUid !== currentUser?.uid) return false;
-      if (p.position === 0 && gameState.dice !== 6) return false;
-      if (p.position >= 58) return false;
-      if (p.position + gameState.dice > 58) return false;
-      return true;
+      return canPieceMove(p, gameState.dice!);
     });
   }, [gameState?.pieces, gameState?.dice, gameState?.diceRolled, isMyTurn, currentUser?.uid]);
 
@@ -412,59 +420,7 @@ export function LudoGame({ onClose, roomId, onRoundEnd, isMuted, isAdmin }: Ludo
     joinLobby(userProfile, mode, isBot);
   };
 
-  // Ludo Bot automated moves
-  useEffect(() => {
-    if (!gameState || !gameState.isBotMode || gameState.status !== 'playing' || gameState.turn !== 'bot') return;
-
-    const isHost = gameState.players[0]?.uid === currentUser?.uid;
-    if (!isHost) return;
-
-    if (!gameState.diceRolled) {
-      const timer = setTimeout(() => {
-        rollDice();
-      }, 1200);
-      return () => clearTimeout(timer);
-    } else {
-      const timer = setTimeout(() => {
-        const botPieces = gameState.pieces.filter((p: any) => {
-          if (p.ownerUid !== 'bot') return false;
-          if (p.position === 0 && gameState.dice !== 6) return false;
-          if (p.position >= 58) return false;
-          if (p.position + gameState.dice > 58) return false;
-          return true;
-        });
-
-        if (botPieces.length > 0) {
-          let chosenPiece = botPieces[0];
-          
-          const capturePiece = botPieces.find(p => {
-            const dest = p.position === 0 ? 1 : p.position + (gameState.dice || 0);
-            if (dest >= 1 && dest <= 52) {
-              const startIdx = COLOR_START_INDEX[p.color];
-              const pathIdx = (startIdx + dest - 1) % PATH_COORDS.length;
-              const [targetR, targetC] = PATH_COORDS[pathIdx];
-              
-              return gameState.pieces.some(other => {
-                if (other.ownerUid === 'bot') return false;
-                const otherCoord = piecePosition(other, myColor || '');
-                return otherCoord && otherCoord[0] === targetR && otherCoord[1] === targetC && other.position >= 1 && other.position <= 52;
-              });
-            }
-            return false;
-          });
-
-          if (capturePiece) {
-            chosenPiece = capturePiece;
-          } else {
-            chosenPiece = botPieces.reduce((prev, curr) => curr.position > prev.position ? curr : prev, botPieces[0]);
-          }
-
-          movePiece(chosenPiece.id);
-        }
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [gameState?.turn, gameState?.diceRolled, gameState?.isBotMode, rollDice, movePiece, currentUser?.uid]);
+  // Bot AI is now fully handled inside use-ludo-engine.ts hook interval — no UI dependency
 
   // ── Launching / Loading Screen (Screen 1 style) ──
   if (isLaunching || isLoading) {
