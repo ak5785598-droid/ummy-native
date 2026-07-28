@@ -7,9 +7,9 @@ import { useChessEngine } from '../../hooks/use-chess-engine';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  parseFen, boardToFen, legalMoves, makeMove,
-  getGameStatus, pieceToUnicode, getInitialBoard,
-  Board, Piece, PieceColor, PieceType,
+  parseFen, stateToFen, legalMoves, applyMove, getGameStatus,
+  pieceToUnicode, getInitialBoard, isAttackedBy,
+  Board, Piece, PieceColor, PieceType, ChessState,
 } from '../../lib/chess-engine';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -44,17 +44,36 @@ interface ChessGameProps {
 export function ChessGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, isAdmin }: ChessGameProps) {
   const { user: currentUser } = useUser();
   const { profile: userProfile } = useUserProfile(currentUser?.uid);
-  const { gameState, isLoading, startMatch, startGame, makeMove: engineMove, endGame } = useChessEngine(roomId || 'lobby', currentUser?.uid || null);
+  const { gameState, isLoading, startMatch, startGame, makeMove: engineMove, endGame } = useChessEngine(
+    roomId || 'lobby',
+    currentUser?.uid || null,
+    (winnerId, status) => {
+      const iWon = winnerId === currentUser?.uid;
+      onRoundEnd?.({
+        resultText: status === 'checkmate'
+          ? (iWon ? 'You won by Checkmate!' : 'Checkmated!')
+          : status === 'stalemate' ? 'Stalemate — Draw'
+          : status === 'draw' ? 'Draw!'
+          : iWon ? 'Opponent Resigned — You Win!' : 'You Resigned',
+        resultEmoji: iWon ? '♟️🏆' : status === 'draw' || status === 'stalemate' ? '🤝' : '😔',
+      });
+    },
+  );
 
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
   const [capturedByWhite, setCapturedByWhite] = useState<Piece[]>([]);
   const [capturedByBlack, setCapturedByBlack] = useState<Piece[]>([]);
+  const [promotionPending, setPromotionPending] = useState<{ from: [number,number]; to: [number,number] } | null>(null);
 
   const [isLaunching, setIsLaunching] = useState(true);
   const [localLobbyMode, setLocalLobbyMode] = useState<'classic' | null>(null);
   const [countdown, setCountdown] = useState(30);
   const [timeLeft, setTimeLeft] = useState(30);
+
+  // Mounted ref — prevents cleanup from firing endGame on re-renders
+  const mountedRef = useRef(true);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setIsLaunching(false), 5000);
@@ -65,11 +84,11 @@ export function ChessGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, i
     if (!gameState || gameState.status !== 'playing') return;
     const interval = setInterval(() => {
       const now = Date.now();
-      const turnStart = gameState.turnStartTime ? (gameState.turnStartTime.seconds ? gameState.turnStartTime.seconds * 1000 : new Date(gameState.turnStartTime).getTime()) : now;
+      // FIXED: turnStartTime is now a plain number in RTDB — no .seconds needed
+      const turnStart = typeof gameState.turnStartTime === 'number' ? gameState.turnStartTime : now;
       const elapsed = Math.floor((now - turnStart) / 1000);
       setTimeLeft(Math.max(0, 30 - elapsed));
     }, 500);
-
     return () => clearInterval(interval);
   }, [gameState?.turn, gameState?.turnStartTime, gameState?.status]);
 
@@ -104,19 +123,30 @@ export function ChessGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, i
     return () => clearInterval(interval);
   }, [gameState?.status, gameState?.white, gameState?.black, currentUser?.uid, startGame]);
 
-  // Cleanup unmount: if overlay is closed while playing/lobby, set game to ended
+  // FIXED: cleanup only runs on real unmount using mountedRef
+  const endGameRef = useRef(endGame);
+  endGameRef.current = endGame;
+  const gameStateRef = useRef(gameState);
+  gameStateRef.current = gameState;
   useEffect(() => {
     return () => {
-      if (gameState?.status === 'playing' || gameState?.status === 'lobby') {
-        endGame('ended');
+      if (!mountedRef.current) {
+        const gs = gameStateRef.current;
+        if (gs?.status === 'playing' || gs?.status === 'lobby') {
+          endGameRef.current('ended');
+        }
       }
     };
-  }, [gameState?.status, endGame]);
+  }, []);
 
-  const board = useMemo(() => {
-    if (!gameState?.fen) return getInitialBoard();
+  const chessState = useMemo<ChessState | null>(() => {
+    if (!gameState?.fen) return null;
     return parseFen(gameState.fen);
   }, [gameState?.fen]);
+
+  const board = useMemo(() => {
+    return chessState?.board ?? getInitialBoard();
+  }, [chessState]);
 
   const myColor: PieceColor | null = useMemo(() => {
     if (!currentUser?.uid || !gameState) return null;
@@ -129,16 +159,16 @@ export function ChessGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, i
   const opponentColor: PieceColor | null = myColor === 'w' ? 'b' : myColor === 'b' ? 'w' : null;
 
   const selectedMoves = useMemo(() => {
-    if (!selectedSquare || !board) return [];
-    const row = 8 - parseInt(selectedSquare[1]);
+    if (!selectedSquare || !chessState) return [];
+    const row = 8 - parseInt(selectedSquare.slice(1), 10);
     const col = selectedSquare.charCodeAt(0) - 97;
-    return legalMoves(board, row, col);
-  }, [selectedSquare, board]);
+    return legalMoves(chessState, row, col);
+  }, [selectedSquare, chessState]);
 
   // Track captured pieces from FEN
   useEffect(() => {
     if (!gameState?.fen) return;
-    const currentBoard = parseFen(gameState.fen);
+    const currentBoard = parseFen(gameState.fen).board;
     const initialBoard = getInitialBoard();
 
     const wCaptures: Piece[] = [];
@@ -169,26 +199,21 @@ export function ChessGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, i
     return null;
   }, []);
 
+  // FIXED: isInCheck checks if the side-to-move's king is attacked by the OTHER side
   const isInCheck = useMemo(() => {
-    if (!board || !opponentColor) return false;
-    const king = findKing(board, gameState?.turn || 'w');
+    if (!board || !gameState) return false;
+    const sideToMove = gameState.turn as PieceColor;
+    const attacker = sideToMove === 'w' ? 'b' : 'w';
+    const king = findKing(board, sideToMove);
     if (!king) return false;
     const [kr, kc] = king;
-    for (let r = 0; r < 8; r++) {
-      for (let c = 0; c < 8; c++) {
-        const p = board[r][c];
-        if (p && p.color === opponentColor) {
-          const moves = legalMoves(board, r, c);
-          if (moves.some(([mr, mc]) => mr === kr && mc === kc)) return true;
-        }
-      }
-    }
-    return false;
-  }, [board, gameState?.turn, opponentColor, findKing]);
+    return isAttackedBy(board, kr, kc, attacker);
+  }, [board, gameState?.turn, findKing]);
 
-  // Bot move logic for Chess
+  // Bot move logic — uses new ChessState API with proper FEN encoding
   useEffect(() => {
     if (!gameState || !gameState.isBotMode || gameState.status !== 'playing' || gameState.turn !== 'b') return;
+    if (!chessState) return;
 
     const timer = setTimeout(() => {
       const moves: { from: [number, number]; to: [number, number] }[] = [];
@@ -196,36 +221,34 @@ export function ChessGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, i
         for (let c = 0; c < 8; c++) {
           const piece = board[r][c];
           if (piece && piece.color === 'b') {
-            const legals = legalMoves(board, r, c);
-            legals.forEach(([tr, tc]) => {
-              moves.push({ from: [r, c], to: [tr, tc] });
-            });
+            const legals = legalMoves(chessState, r, c);
+            legals.forEach(([tr, tc]) => moves.push({ from: [r, c], to: [tr, tc] }));
           }
         }
       }
 
       if (moves.length === 0) {
-        const status = getGameStatus(board, 'b');
+        const status = getGameStatus(chessState);
         if (status === 'checkmate' || status === 'stalemate') {
           endGame(status, status === 'checkmate' ? gameState.white?.uid : undefined);
         }
         return;
       }
 
-      // Prioritize captures, or select a random move
-      let chosenMove = moves[Math.floor(Math.random() * moves.length)];
+      // Prioritize captures
+      let chosen = moves[Math.floor(Math.random() * moves.length)];
       const captureMoves = moves.filter(m => board[m.to[0]][m.to[1]] !== null);
-      if (captureMoves.length > 0 && Math.random() < 0.7) {
-        chosenMove = captureMoves[Math.floor(Math.random() * captureMoves.length)];
-      }
+      if (captureMoves.length > 0 && Math.random() < 0.7)
+        chosen = captureMoves[Math.floor(Math.random() * captureMoves.length)];
 
-      const { from: [sr, sc], to: [tr, tc] } = chosenMove;
-      const newBoard = makeMove(board, sr, sc, tr, tc);
-      if (newBoard) {
+      const { from: [sr, sc], to: [tr, tc] } = chosen;
+      // Auto-promote to queen
+      const newState = applyMove(chessState, sr, sc, tr, tc, 'q');
+      if (newState) {
         const fromCoord = `${String.fromCharCode(97 + sc)}${8 - sr}`;
         const toCoord = `${String.fromCharCode(97 + tc)}${8 - tr}`;
-        const newFen = boardToFen(newBoard, 'w');
-        const status = getGameStatus(newBoard, 'w');
+        const newFen = stateToFen(newState);
+        const status = getGameStatus(newState);
 
         setLastMove({ from: fromCoord, to: toCoord });
         engineMove(newFen);
@@ -237,28 +260,39 @@ export function ChessGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, i
     }, 1200);
 
     return () => clearTimeout(timer);
-  }, [gameState?.turn, gameState?.status, gameState?.isBotMode, board, engineMove, endGame]);
+  }, [gameState?.turn, gameState?.status, gameState?.isBotMode, chessState, board, engineMove, endGame]);
 
   const handleSquarePress = (r: number, c: number) => {
-    if (!isMyTurn) return;
+    if (!isMyTurn || !chessState || !gameState) return;
 
-    const coord = `${String.fromCharCode(97 + c)}${8 - r}`;
-    const piece = board[r][c];
+    // Apply board flip for black player
+    const displayR = myColor === 'b' ? 7 - r : r;
+    const displayC = myColor === 'b' ? 7 - c : c;
+
+    const coord = `${String.fromCharCode(97 + displayC)}${8 - displayR}`;
+    const piece = board[displayR][displayC];
 
     if (selectedSquare) {
-      const sr = 8 - parseInt(selectedSquare[1]);
+      const sr = 8 - parseInt(selectedSquare.slice(1), 10);
       const sc = selectedSquare.charCodeAt(0) - 97;
-      const isLegal = legalMoves(board, sr, sc).some(([mr, mc]) => mr === r && mc === c);
+      const isLegal = legalMoves(chessState, sr, sc).some(([mr, mc]) => mr === displayR && mc === displayC);
 
       if (isLegal) {
-        const newBoard = makeMove(board, sr, sc, r, c);
-        if (newBoard) {
-          const newFen = boardToFen(newBoard, gameState.turn === 'w' ? 'b' : 'w');
-          const status = getGameStatus(newBoard, gameState.turn === 'w' ? 'b' : 'w');
+        const movingPiece = board[sr][sc];
+        // Check if pawn promotion needed
+        if (movingPiece?.type === 'p' && (displayR === 0 || displayR === 7)) {
+          // Show promotion dialog
+          setPromotionPending({ from: [sr, sc], to: [displayR, displayC] });
+          setSelectedSquare(null);
+          return;
+        }
 
+        const newState = applyMove(chessState, sr, sc, displayR, displayC, 'q');
+        if (newState) {
+          const newFen = stateToFen(newState);
+          const status = getGameStatus(newState);
           setLastMove({ from: selectedSquare, to: coord });
           engineMove(newFen);
-
           if (status === 'checkmate' || status === 'stalemate') {
             endGame(status, status === 'checkmate' ? currentUser?.uid : undefined);
           }
@@ -383,6 +417,21 @@ export function ChessGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, i
   const squareSize = boardSize / 8;
   const legalMoveSet = new Set(selectedMoves.map(([r, c]) => `${r},${c}`));
 
+  // Promotion piece selector
+  const handlePromotion = (promoteTo: PieceType) => {
+    if (!promotionPending || !chessState) { setPromotionPending(null); return; }
+    const { from: [sr, sc], to: [tr, tc] } = promotionPending;
+    const newState = applyMove(chessState, sr, sc, tr, tc, promoteTo);
+    if (newState) {
+      const newFen = stateToFen(newState);
+      const status = getGameStatus(newState);
+      engineMove(newFen);
+      if (status === 'checkmate' || status === 'stalemate')
+        endGame(status, status === 'checkmate' ? currentUser?.uid : undefined);
+    }
+    setPromotionPending(null);
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: '#0f172a', borderRadius: 24, overflow: 'hidden' }}>
       {/* Players Row (DPs side-by-side on both sides under header) */}
@@ -441,7 +490,7 @@ export function ChessGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, i
         {/* Rank labels + Board */}
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View style={{ width: 14, marginRight: 2 }}>
-            {RANKS.map((rank, i) => (
+            {(myColor === 'b' ? [...RANKS].reverse() : RANKS).map((rank, i) => (
               <View key={rank} style={{ height: squareSize, alignItems: 'center', justifyContent: 'center' }}>
                 <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 9, fontWeight: '700' }}>{rank}</Text>
               </View>
@@ -454,9 +503,13 @@ export function ChessGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, i
             overflow: 'hidden', elevation: 10,
             shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 12,
           }}>
-            {Array.from({ length: 8 }).map((_, r) => (
+            {Array.from({ length: 8 }).map((_, rowIdx) => {
+              // FIXED: Flip board for black player
+              const r = myColor === 'b' ? 7 - rowIdx : rowIdx;
+              return (
               <View key={r} style={{ flexDirection: 'row', flex: 1 }}>
-                {Array.from({ length: 8 }).map((_, c) => {
+                {Array.from({ length: 8 }).map((_, colIdx) => {
+                  const c = myColor === 'b' ? 7 - colIdx : colIdx;
                   const isDark = (r + c) % 2 === 1;
                   const coord = `${String.fromCharCode(97 + c)}${8 - r}`;
                   const isSelected = selectedSquare === coord;
@@ -471,7 +524,7 @@ export function ChessGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, i
                     <TouchableOpacity
                       key={c}
                       activeOpacity={0.7}
-                      onPress={() => handleSquarePress(r, c)}
+                      onPress={() => handleSquarePress(rowIdx, colIdx)}
                       style={{
                         flex: 1,
                         backgroundColor: isSelected
@@ -515,13 +568,14 @@ export function ChessGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, i
                   );
                 })}
               </View>
-            ))}
+              );
+            })}
           </View>
         </View>
 
         {/* File labels */}
         <View style={{ flexDirection: 'row', width: boardSize, marginTop: 3, marginLeft: 16 }}>
-          {FILES.map(l => (
+          {(myColor === 'b' ? [...FILES].reverse() : FILES).map(l => (
             <View key={l} style={{ flex: 1, alignItems: 'center' }}>
               <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 9, fontWeight: '700' }}>{l}</Text>
             </View>
@@ -529,33 +583,53 @@ export function ChessGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, i
         </View>
       </View>
 
-      {/* Game controls (e.g. Resign button) */}
+      {/* Resign button */}
       <View style={{ paddingHorizontal: 16, marginTop: 2, marginBottom: 8, alignItems: 'center' }}>
-        <TouchableOpacity 
-          onPress={() => endGame('resigned', currentUser?.uid || '')}
-          style={{ 
-            flexDirection: 'row', 
-            alignItems: 'center', 
-            gap: 4, 
-            backgroundColor: 'rgba(239, 68, 68, 0.12)', 
-            paddingHorizontal: 12, 
-            paddingVertical: 6, 
-            borderRadius: 8, 
-            borderWidth: 1, 
+        <TouchableOpacity
+          onPress={() => {
+            // FIXED: Opponent is winner when current player resigns
+            const opponentUid = myColor === 'w' ? gameState?.black?.uid : gameState?.white?.uid;
+            endGame('resigned', opponentUid || '');
+          }}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
+            backgroundColor: 'rgba(239, 68, 68, 0.12)',
+            paddingHorizontal: 12,
+            paddingVertical: 6,
+            borderRadius: 8,
+            borderWidth: 1,
             borderColor: 'rgba(239, 68, 68, 0.4)',
-            shadowColor: '#ef4444',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.2,
-            shadowRadius: 4,
-            elevation: 2
           }}
         >
           <X size={11} color="#ef4444" />
-          <Text style={{ color: '#ef4444', fontSize: 9, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1 }}>
-            Resign
-          </Text>
+          <Text style={{ color: '#ef4444', fontSize: 9, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1 }}>Resign</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Pawn Promotion Modal */}
+      {promotionPending && (
+        <View style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.85)', alignItems: 'center', justifyContent: 'center', zIndex: 999,
+        }}>
+          <View style={{ backgroundColor: '#1e293b', borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 2, borderColor: '#fbbf24' }}>
+            <Text style={{ color: 'white', fontWeight: '900', fontSize: 16, marginBottom: 16, textTransform: 'uppercase', letterSpacing: 1 }}>Choose Promotion</Text>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              {(['q', 'r', 'b', 'n'] as PieceType[]).map(pt => (
+                <TouchableOpacity
+                  key={pt}
+                  onPress={() => handlePromotion(pt)}
+                  style={{ width: 56, height: 56, borderRadius: 12, backgroundColor: '#334155', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#475569' }}
+                >
+                  <Text style={{ fontSize: 32 }}>{pieceToUnicode({ type: pt, color: myColor || 'w' })}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -688,8 +762,8 @@ function EndedScreen({ status, iWon, onClose }: { status: string; iWon: boolean;
     return () => { bounceLoop.stop(); };
   }, []);
 
-  const emoji = status === 'checkmate' ? (iWon ? '👑' : '💀') : status === 'resigned' ? '🏳️' : '🤝';
-  const title = status === 'checkmate' ? (iWon ? 'CHECKMATE!' : 'CHECKMATED') : status === 'stalemate' ? 'STALEMATE' : status === 'resigned' ? 'RESIGNED' : 'DRAW';
+  const emoji = status === 'checkmate' ? (iWon ? '👑' : '💀') : status === 'resigned' ? (iWon ? '🏆' : '🏳️') : '🤝';
+  const title = status === 'checkmate' ? (iWon ? 'CHECKMATE!' : 'CHECKMATED') : status === 'stalemate' ? 'STALEMATE' : status === 'resigned' ? (iWon ? 'YOU WIN!' : 'RESIGNED') : 'DRAW';
   const color = iWon ? '#fbbf24' : status === 'stalemate' ? '#94a3b8' : '#ef4444';
 
   return (
@@ -697,7 +771,7 @@ function EndedScreen({ status, iWon, onClose }: { status: string; iWon: boolean;
       <Animated.Text style={{ fontSize: 72, marginBottom: 16, transform: [{ translateY: bounceAnim }] }}>{emoji}</Animated.Text>
       <Text style={{ color, fontSize: 32, fontWeight: '900', marginBottom: 8, textShadowColor: color, textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 }}>{title}</Text>
       <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, fontWeight: '700', marginBottom: 32 }}>
-        {iWon ? 'You won the match' : status === 'stalemate' ? 'Nobody wins' : 'Better luck next time'}
+      {iWon ? 'You won the match!' : status === 'stalemate' ? 'Nobody wins' : status === 'resigned' ? (iWon ? 'Opponent resigned' : 'You resigned') : 'Better luck next time'}
       </Text>
       <TouchableOpacity onPress={onClose} style={{ backgroundColor: '#fbbf24', paddingHorizontal: 40, paddingVertical: 16, borderRadius: 16, borderBottomWidth: 3, borderBottomColor: '#b8860b', elevation: 4 }}>
         <Text style={{ color: '#0f172a', fontWeight: '900', fontSize: 14, textTransform: 'uppercase', letterSpacing: 1 }}>Back to Room</Text>
