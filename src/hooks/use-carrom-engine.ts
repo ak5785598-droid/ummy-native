@@ -1,8 +1,14 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useFirestore, useDatabase } from '../firebase/provider';
-import { ref as databaseRef, set as databaseSet, update as databaseUpdate, remove as databaseRemove, onValue } from 'firebase/database';
+import {
+  ref as databaseRef,
+  set as databaseSet,
+  update as databaseUpdate,
+  onValue,
+  runTransaction as rtdbTransaction,
+} from 'firebase/database';
 import { doc, runTransaction, increment } from '@/firebase/firestore-compat';
-import { updatePhysics } from '../lib/carrom-physics';
+import { updatePhysics, createInitialPieces } from '../lib/carrom-physics';
 
 export interface CarromPiece {
   id: string;
@@ -18,6 +24,8 @@ export interface CarromPlayer {
   avatarUrl: string;
   score: number;
   isReady: boolean;
+  coinColor?: 'black' | 'white'; // Assigned color for this player
+  queenCovered?: boolean;        // Has this player covered the queen
 }
 
 export interface CarromGameState {
@@ -33,41 +41,56 @@ export interface CarromGameState {
   winner?: string;
   prize?: number;
   isBotMode?: boolean;
-  turnStartTime?: any;
-  matchStartTime?: any;
+  turnStartTime?: number;
+  matchStartTime?: number;
   missedTurns?: Record<string, number>;
-  updatedAt: any;
+  queenPocketed?: boolean;   // Queen is pocketed but not yet covered
+  queenCoveredBy?: string;   // uid of player who covered the queen
+  updatedAt: number;
 }
 
-export function useCarromEngine(roomId: string | null, userId: string | null) {
+export function useCarromEngine(
+  roomId: string | null,
+  userId: string | null,
+  onRoundEnd?: (winnerId: string, prize: number) => void,
+) {
   const firestore = useFirestore();
   const [gameState, setGameState] = useState<CarromGameState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const database = useDatabase();
 
+  // Always-current ref so intervals/callbacks read fresh state without stale closures
+  const gameStateRef = useRef<CarromGameState | null>(null);
+  gameStateRef.current = gameState;
+
   const gamePath = roomId ? `games/carrom_${roomId}` : null;
 
+  // ── Firebase realtime listener ─────────────────────────────────────────
   useEffect(() => {
     if (!database || !gamePath) { setIsLoading(false); return; }
     const gameRef = databaseRef(database, gamePath);
-    const unsubscribe = onValue(gameRef, (snapshot) => {
-      const val = snapshot.val();
-      if (val) {
-        setGameState({
-          ...val,
-          matchStartTime: val.matchStartTime ? { toDate: () => new Date(val.matchStartTime) } : null,
-          updatedAt: val.updatedAt ? { toDate: () => new Date(val.updatedAt) } : null,
-        });
-      }
-      setIsLoading(false);
-    }, () => setIsLoading(false));
+    const unsubscribe = onValue(
+      gameRef,
+      snapshot => {
+        const val = snapshot.val();
+        if (val) setGameState(val as CarromGameState);
+        setIsLoading(false);
+      },
+      () => setIsLoading(false),
+    );
     return () => unsubscribe();
   }, [database, gamePath]);
 
+  // ── initializeGame — only resets if NO game node exists (not on 'ended') ─
+  const initOnceRef = useRef(false);
   const initializeGame = useCallback(async () => {
     if (!database || !gamePath || !userId || !roomId) return;
+    if (initOnceRef.current) return;
 
-    if (!gameState || gameState.status === 'ended') {
+    const gs = gameStateRef.current;
+    // Only create fresh game if there's nothing in DB yet
+    if (!gs) {
+      initOnceRef.current = true;
       await databaseSet(databaseRef(database, gamePath), {
         id: `carrom_${roomId}`,
         roomId,
@@ -80,35 +103,29 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
         entryFee: 0,
         updatedAt: Date.now(),
       });
-
       setTimeout(async () => {
         try { await databaseUpdate(databaseRef(database, gamePath), { status: 'mode_select' }); } catch {}
-      }, 5000);
+      }, 2000);
     }
-  }, [database, gamePath, userId, gameState, roomId]);
+  }, [database, gamePath, userId, roomId]);
 
-  const selectMode = useCallback(async (mode: 'freestyle' | 'professional', entryFee: number = 0, isBot: boolean = false, userProfile?: any) => {
-    if (!database || !gamePath || gameState?.status !== 'mode_select') return;
+  // ── selectMode ────────────────────────────────────────────────────────────
+  const selectMode = useCallback(async (
+    mode: 'freestyle' | 'professional',
+    entryFee: number = 0,
+    isBot: boolean = false,
+    userProfile?: any,
+  ) => {
+    if (!database || !gamePath) return;
+    const gs = gameStateRef.current;
+    if (gs?.status !== 'mode_select') return;
+
     try {
       if (isBot && userProfile && userId) {
-        const initialPieces: CarromPiece[] = [
-          { id: 'queen', type: 'queen', position: { x: 50, y: 50 }, velocity: { x: 0, y: 0 }, isPocketed: false },
-          ...[...Array(6)].map((_, i) => ({
-            id: `r1-${i}`,
-            type: (i % 2 === 0 ? 'white' : 'black') as 'white' | 'black',
-            position: { x: 50 + Math.cos(i * 60 * Math.PI / 180) * 8, y: 50 + Math.sin(i * 60 * Math.PI / 180) * 8 },
-            velocity: { x: 0, y: 0 },
-            isPocketed: false,
-          })),
-          ...[...Array(12)].map((_, i) => ({
-            id: `r2-${i}`,
-            type: (i % 3 === 0 ? 'white' : 'black') as 'white' | 'black',
-            position: { x: 50 + Math.cos(i * 30 * Math.PI / 180) * 16, y: 50 + Math.sin(i * 30 * Math.PI / 180) * 16 },
-            velocity: { x: 0, y: 0 },
-            isPocketed: false,
-          })),
-          { id: 'striker', type: 'striker', position: { x: 50, y: 85 }, velocity: { x: 0, y: 0 }, isPocketed: false },
-        ];
+        const initialPieces = createInitialPieces();
+        // Assign striker starting position for player (bottom)
+        const strikerPiece = initialPieces.find(p => p.id === 'striker');
+        if (strikerPiece) { strikerPiece.position = { x: 50, y: 85 }; }
 
         await databaseUpdate(databaseRef(database, gamePath), {
           status: 'playing',
@@ -122,6 +139,8 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
               avatarUrl: userProfile.avatarUrl || '',
               score: 0,
               isReady: true,
+              coinColor: 'black',
+              queenCovered: false,
             },
             {
               uid: 'bot',
@@ -129,13 +148,17 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
               avatarUrl: 'bot',
               score: 0,
               isReady: true,
-            }
+              coinColor: 'white',
+              queenCovered: false,
+            },
           ],
           pieces: initialPieces,
           turn: userId,
           matchStartTime: Date.now(),
           turnStartTime: Date.now(),
           missedTurns: { [userId]: 0, bot: 0 },
+          queenPocketed: false,
+          queenCoveredBy: '',
           updatedAt: Date.now(),
         });
       } else {
@@ -147,38 +170,23 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
         });
       }
     } catch {}
-  }, [database, gamePath, gameState, userId]);
+  }, [database, gamePath, userId]);
 
+  // ── joinArena — Firebase transaction to prevent race condition ────────────
   const joinArena = useCallback(async (userProfile: any, isBot: boolean = false) => {
-    if (!database || !gamePath || !userId || !userProfile || gameState?.status !== 'lobby' || !roomId) return;
+    if (!database || !gamePath || !userId || !userProfile || !roomId) return;
+    const gs = gameStateRef.current;
+    if (gs?.status !== 'lobby') return;
 
-    const entryFee = gameState.entryFee || 0;
+    const entryFee = gs.entryFee || 0;
     if ((userProfile?.wallet?.coins || 0) < entryFee) return;
 
-    const existingPlayer = gameState.players.find((p: any) => p.uid === userId);
-    if (existingPlayer) return;
-    if (gameState.players.length >= 4) return;
+    // Check if already joined
+    const alreadyJoined = (gs.players || []).find((p: any) => p.uid === userId);
+    if (alreadyJoined) return;
 
     try {
-      const newPlayer: CarromPlayer = {
-        uid: userId,
-        username: userProfile.username || 'P',
-        avatarUrl: userProfile.avatarUrl || '',
-        score: 0,
-        isReady: false,
-      };
-
-      const playersToAdd = [newPlayer];
-      if (isBot) {
-        playersToAdd.push({
-          uid: 'bot',
-          username: 'Robot 🤖',
-          avatarUrl: 'bot',
-          score: 0,
-          isReady: true,
-        });
-      }
-
+      // Deduct entry fee via Firestore transaction first
       if (entryFee > 0) {
         await runTransaction(firestore!, async (transaction: any) => {
           const userRef = doc(firestore!, 'users', userId);
@@ -197,133 +205,107 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
         });
       }
 
+      // Use RTDB transaction to safely append player (prevents race condition)
+      const playersRef = databaseRef(database, `${gamePath}/players`);
+      await rtdbTransaction(playersRef, (currentPlayers: any[]) => {
+        const existing = currentPlayers || [];
+
+        // Assign coin color based on join order
+        const coinColor = existing.length === 0 ? 'black' : 'white';
+
+        const newPlayer: CarromPlayer = {
+          uid: userId,
+          username: userProfile.username || 'P',
+          avatarUrl: userProfile.avatarUrl || '',
+          score: 0,
+          isReady: false,
+          coinColor,
+          queenCovered: false,
+        };
+
+        const updated = [...existing, newPlayer];
+
+        if (isBot) {
+          updated.push({
+            uid: 'bot',
+            username: 'Robot 🤖',
+            avatarUrl: 'bot',
+            score: 0,
+            isReady: true,
+            coinColor: 'white',
+            queenCovered: false,
+          });
+        }
+
+        return updated;
+      });
+
       await databaseUpdate(databaseRef(database, gamePath), {
-        players: [...gameState.players, ...playersToAdd],
         isBotMode: isBot,
-        matchStartTime: isBot ? Date.now() : null,
-        turnStartTime: isBot ? Date.now() : null,
-        missedTurns: isBot ? { [userId]: 0, bot: 0 } : null,
         updatedAt: Date.now(),
       });
-    } catch (err) {
-    }
-  }, [database, gamePath, userId, gameState, firestore, roomId]);
+    } catch (err) {}
+  }, [database, gamePath, userId, firestore, roomId]);
 
+  // ── startMatch — host starts game from lobby ──────────────────────────────
   const startMatch = useCallback(async () => {
-    if (!database || !gamePath || !gameState || gameState.status !== 'lobby') return;
-    if (gameState.players.length < 2) return;
+    if (!database || !gamePath) return;
+    const gs = gameStateRef.current;
+    if (!gs || gs.status !== 'lobby') return;
+    if (gs.players.length < 2) return;
 
-    const initialPieces: CarromPiece[] = [
-      { id: 'queen', type: 'queen', position: { x: 50, y: 50 }, velocity: { x: 0, y: 0 }, isPocketed: false },
-      ...[...Array(6)].map((_, i) => ({
-        id: `r1-${i}`,
-        type: (i % 2 === 0 ? 'white' : 'black') as 'white' | 'black',
-        position: { x: 50 + Math.cos(i * 60 * Math.PI / 180) * 8, y: 50 + Math.sin(i * 60 * Math.PI / 180) * 8 },
-        velocity: { x: 0, y: 0 },
-        isPocketed: false,
-      })),
-      ...[...Array(12)].map((_, i) => ({
-        id: `r2-${i}`,
-        type: (i % 3 === 0 ? 'white' : 'black') as 'white' | 'black',
-        position: { x: 50 + Math.cos(i * 30 * Math.PI / 180) * 16, y: 50 + Math.sin(i * 30 * Math.PI / 180) * 16 },
-        velocity: { x: 0, y: 0 },
-        isPocketed: false,
-      })),
-      { id: 'striker', type: 'striker', position: { x: 50, y: 85 }, velocity: { x: 0, y: 0 }, isPocketed: false },
-    ];
+    const initialPieces = createInitialPieces();
+
+    // Assign coin colors to players based on order
+    const playersWithColors = gs.players.map((p, idx) => ({
+      ...p,
+      coinColor: (idx === 0 ? 'black' : 'white') as 'black' | 'white',
+      queenCovered: false,
+      score: 0,
+    }));
 
     try {
       await databaseUpdate(databaseRef(database, gamePath), {
         status: 'playing',
         pieces: initialPieces,
-        turn: gameState.players[0].uid,
+        players: playersWithColors,
+        turn: gs.players[0].uid,
         matchStartTime: Date.now(),
         turnStartTime: Date.now(),
-        missedTurns: gameState.players.reduce((acc: any, p: any) => { acc[p.uid] = 0; return acc; }, {}),
+        missedTurns: gs.players.reduce((acc: any, p: any) => { acc[p.uid] = 0; return acc; }, {}),
+        queenPocketed: false,
+        queenCoveredBy: '',
         updatedAt: Date.now(),
       });
     } catch {}
-  }, [database, gamePath, gameState]);
+  }, [database, gamePath]);
 
+  // ── updateStriker position ────────────────────────────────────────────────
   const updateStriker = useCallback(async (pos: number) => {
-    if (!database || !gamePath || !gameState || gameState.status !== 'playing') return;
-    const isBotTurn = gameState.turn === 'bot';
-    const isMyTurn = gameState.turn === userId;
-    const isHost = gameState.players[0]?.uid === userId;
+    if (!database || !gamePath) return;
+    const gs = gameStateRef.current;
+    if (!gs || gs.status !== 'playing') return;
+    const isBotTurn = gs.turn === 'bot';
+    const isMyTurn = gs.turn === userId;
+    const isHost = gs.players[0]?.uid === userId;
 
     if (!isMyTurn && !(isBotTurn && isHost)) return;
     try { await databaseUpdate(databaseRef(database, gamePath), { strikerPos: pos }); } catch {}
-  }, [database, gamePath, gameState, userId]);
+  }, [database, gamePath, userId]);
 
-  const strike = useCallback(async (angle: number, power: number) => {
-    if (!database || !gamePath || !gameState || gameState.status !== 'playing') return;
-    const isBotTurn = gameState.turn === 'bot';
-    const isMyTurn = gameState.turn === userId;
-    const isHost = gameState.players[0]?.uid === userId;
-
-    if (!isMyTurn && !(isBotTurn && isHost)) return;
-
-    const pieces = [...gameState.pieces.map(p => ({ ...p, position: { ...p.position }, velocity: { ...p.velocity } }))];
-    const striker = pieces.find(p => p.id === 'striker');
-    if (!striker) return;
-
-    striker.position.x = gameState.strikerPos ?? 50;
-    striker.position.y = 85;
-
-    const rad = (angle - 90) * Math.PI / 180;
-    striker.velocity = {
-      x: Math.cos(rad) * power,
-      y: Math.sin(rad) * power,
-    };
-
-    let currentPieces = pieces;
-    let iterations = 0;
-    const MAX_ITER = 300;
-
-    while (iterations < MAX_ITER) {
-      const { pieces: nextPieces, hasMovement } = updatePhysics(currentPieces);
-      currentPieces = nextPieces;
-      if (!hasMovement) break;
-      iterations++;
-    }
-
-    const finalPieces = currentPieces.map(p => {
-      if (p.id === 'striker') {
-        return { ...p, position: { x: 50, y: 85 }, velocity: { x: 0, y: 0 }, isPocketed: false };
-      }
-      return p;
-    });
-
-    const currentPlayerIndex = gameState.players.findIndex((p: any) => p.uid === gameState.turn);
-    const nextPlayer = gameState.players[(currentPlayerIndex + 1) % gameState.players.length];
-
-    const newMissedTurns = { ...(gameState.missedTurns || {}) };
-    if (gameState.turn) {
-      newMissedTurns[gameState.turn] = 0;
-    }
-
-    try {
-      await databaseUpdate(databaseRef(database, gamePath), {
-        pieces: finalPieces,
-        turn: nextPlayer.uid,
-        turnStartTime: Date.now(),
-        missedTurns: newMissedTurns,
-        updatedAt: Date.now(),
-      });
-    } catch {}
-  }, [database, gamePath, gameState, userId]);
-
+  // ── endMatch — distribute prize, update DB, call onRoundEnd ──────────────
   const endMatch = useCallback(async (winnerId: string) => {
-    if (!database || !gamePath || !gameState || gameState.status !== 'playing' || !roomId) return;
+    if (!database || !gamePath || !roomId) return;
+    const gs = gameStateRef.current;
+    if (!gs || gs.status !== 'playing') return;
 
     try {
-      await runTransaction(firestore!, async (transaction: any) => {
-        const entryFee = gameState.entryFee || 0;
-        const totalPlayers = gameState.players.length;
-        const totalPool = entryFee * totalPlayers;
-        const prize = Math.floor(totalPool * 0.9);
+      const entryFee = gs.entryFee || 0;
+      const totalPool = entryFee * gs.players.length;
+      const prize = Math.floor(totalPool * 0.9);
 
-        if (prize > 0) {
+      if (prize > 0 && winnerId !== 'bot') {
+        await runTransaction(firestore!, async (transaction: any) => {
           const winnerRef = doc(firestore!, 'users', winnerId);
           const winnerProfileRef = doc(firestore!, 'users', winnerId, 'profile', winnerId);
           const walletRef = doc(firestore!, 'walletTransactions', `win_${winnerId}_${Date.now()}`);
@@ -337,86 +319,291 @@ export function useCarromEngine(roomId: string | null, userId: string | null) {
             gameId: `carrom_${roomId}`,
             timestamp: new Date(),
           });
-        }
-      });
-
-      const entryFee = gameState.entryFee || 0;
-      const totalPlayers = gameState.players.length;
-      const totalPool = entryFee * totalPlayers;
-      const prize = Math.floor(totalPool * 0.9);
+        });
+      }
 
       await databaseUpdate(databaseRef(database, gamePath), {
         status: 'ended',
         winner: winnerId,
-        prize,
+        prize: prize,
         updatedAt: Date.now(),
       });
-    } catch (err) {
+
+      // Fire winner popup
+      onRoundEnd?.(winnerId, prize);
+    } catch {}
+  }, [database, gamePath, gameState, firestore, roomId, onRoundEnd]);
+
+  // ── strike — simulate physics, resolve scoring, advance turn ─────────────
+  const strike = useCallback(async (angle: number, power: number) => {
+    if (!database || !gamePath) return;
+    const gs = gameStateRef.current;
+    if (!gs || gs.status !== 'playing') return;
+
+    const isBotTurn = gs.turn === 'bot';
+    const isMyTurn = gs.turn === userId;
+    const isHost = gs.players[0]?.uid === userId;
+    if (!isMyTurn && !(isBotTurn && isHost)) return;
+
+    // Deep-copy all pieces
+    const pieces = gs.pieces.map((p: CarromPiece) => ({
+      ...p,
+      position: { ...p.position },
+      velocity: { ...p.velocity },
+    }));
+
+    const striker = pieces.find(p => p.id === 'striker');
+    if (!striker) return;
+
+    // Place striker at current position (x from slider, y always at player row)
+    striker.position.x = gs.strikerPos ?? 50;
+    striker.position.y = 85;
+    striker.isPocketed = false;
+
+    // Convert angle to velocity (angle=0 means straight up)
+    const rad = (angle - 90) * Math.PI / 180;
+    striker.velocity = {
+      x: Math.cos(rad) * power,
+      y: Math.sin(rad) * power,
+    };
+
+    // ── Run physics simulation ──────────────────────────────────────────────
+    let currentPieces = pieces;
+    const MAX_ITER = 400;
+    const allPocketed: CarromPiece[] = [];
+
+    for (let i = 0; i < MAX_ITER; i++) {
+      const { pieces: nextPieces, hasMovement, newlyPocketed } = updatePhysics(currentPieces);
+      currentPieces = nextPieces;
+      if (newlyPocketed.length > 0) {
+        allPocketed.push(...newlyPocketed);
+      }
+      if (!hasMovement) break;
     }
-  }, [database, gamePath, gameState, firestore, roomId]);
 
-  // Host referee logic for Carrom
+    // ── Determine turn result ───────────────────────────────────────────────
+    const currentPlayerUid = gs.turn;
+    const currentPlayer = gs.players.find((p: CarromPlayer) => p.uid === currentPlayerUid);
+    const myColor = currentPlayer?.coinColor || 'black';
+
+    let strikerPocketed = false;
+    let myCoinsIn = 0;
+    let opponentCoinsIn = 0;
+    let queenIn = false;
+
+    for (const p of allPocketed) {
+      if (p.id === 'striker') {
+        strikerPocketed = true;
+      } else if (p.type === 'queen') {
+        queenIn = true;
+      } else if (p.type === myColor) {
+        myCoinsIn++;
+      } else {
+        opponentCoinsIn++;
+      }
+    }
+
+    // ── Scoring ─────────────────────────────────────────────────────────────
+    const updatedPlayers = gs.players.map((p: CarromPlayer) => {
+      if (p.uid === currentPlayerUid) {
+        let newScore = p.score + myCoinsIn;
+        // Striker pocketed = opponent gets +1
+        return { ...p, score: newScore };
+      } else {
+        let newScore = p.score;
+        if (strikerPocketed) newScore += 1;
+        return { ...p, score: newScore };
+      }
+    });
+
+    // ── Queen rule ───────────────────────────────────────────────────────────
+    // If queen was pocketed and player also pocketed at least one of their coins this shot → queen is covered
+    let queenPocketed = gs.queenPocketed || false;
+    let queenCoveredBy = gs.queenCoveredBy || '';
+
+    if (queenIn && !queenPocketed) {
+      if (myCoinsIn > 0) {
+        // Queen covered immediately
+        queenPocketed = true;
+        queenCoveredBy = currentPlayerUid;
+        // Queen cover = +3 bonus
+        const idx = updatedPlayers.findIndex(p => p.uid === currentPlayerUid);
+        if (idx !== -1) updatedPlayers[idx].score += 3;
+      } else {
+        // Queen pocketed but not covered — queen returns to center
+        queenPocketed = false;
+        queenCoveredBy = '';
+        const queenPiece = currentPieces.find(p => p.id === 'queen');
+        if (queenPiece) {
+          queenPiece.isPocketed = false;
+          queenPiece.position = { x: 50, y: 50 };
+          queenPiece.velocity = { x: 0, y: 0 };
+        }
+      }
+    } else if (queenPocketed && !queenCoveredBy && myCoinsIn > 0) {
+      // Queen was already pocketed last turn, player now covers it
+      queenCoveredBy = currentPlayerUid;
+      const idx = updatedPlayers.findIndex(p => p.uid === currentPlayerUid);
+      if (idx !== -1) updatedPlayers[idx].score += 3;
+    }
+
+    // ── Reset striker always after shot ─────────────────────────────────────
+    const finalPieces = currentPieces.map((p: CarromPiece) => {
+      if (p.id === 'striker') {
+        return { ...p, position: { x: 50, y: 85 }, velocity: { x: 0, y: 0 }, isPocketed: false };
+      }
+      return p;
+    });
+
+    // ── Win condition — all 9 of a player's coins pocketed ──────────────────
+    const myPocketedCount = finalPieces.filter(
+      (p: CarromPiece) => p.type === myColor && p.isPocketed,
+    ).length;
+    const hasWon = myPocketedCount >= 9 && (queenCoveredBy !== '' || !finalPieces.find(p => p.id === 'queen' && !p.isPocketed));
+
+    if (hasWon) {
+      // Push final state then end match
+      await databaseUpdate(databaseRef(database, gamePath), {
+        pieces: finalPieces,
+        players: updatedPlayers,
+        queenPocketed,
+        queenCoveredBy,
+        updatedAt: Date.now(),
+      });
+      await endMatch(currentPlayerUid);
+      return;
+    }
+
+    // ── Determine next turn ─────────────────────────────────────────────────
+    // Same turn if: pocketed ≥1 of own coins AND striker not pocketed
+    const keepTurn = myCoinsIn > 0 && !strikerPocketed;
+    const currentPlayerIndex = gs.players.findIndex((p: CarromPlayer) => p.uid === currentPlayerUid);
+    const nextPlayerIndex = (currentPlayerIndex + 1) % gs.players.length;
+    const nextPlayerUid = keepTurn ? currentPlayerUid : gs.players[nextPlayerIndex].uid;
+
+    const newMissedTurns = { ...(gs.missedTurns || {}) };
+    if (currentPlayerUid) newMissedTurns[currentPlayerUid] = 0;
+
+    try {
+      await databaseUpdate(databaseRef(database, gamePath), {
+        pieces: finalPieces,
+        players: updatedPlayers,
+        turn: nextPlayerUid,
+        strikerPos: 50,
+        turnStartTime: Date.now(),
+        missedTurns: newMissedTurns,
+        queenPocketed,
+        queenCoveredBy,
+        updatedAt: Date.now(),
+      });
+    } catch {}
+  }, [database, gamePath, userId, endMatch]);
+
+  // ── Host referee: turn timeout + match timeout ────────────────────────────
   useEffect(() => {
-    if (!database || !gamePath || !gameState || gameState.status !== 'playing' || !userId) return;
-
-    const isHost = gameState.players[0]?.uid === userId;
-    if (!isHost) return;
+    if (!database || !gamePath || !userId) return;
 
     const interval = setInterval(async () => {
+      const gs = gameStateRef.current;
+      if (!gs || gs.status !== 'playing') return;
+
+      const isHost = gs.players[0]?.uid === userId;
+      if (!isHost) return;
+
       const now = Date.now();
-      const turnStart = gameState.turnStartTime || now;
+
+      // Turn timeout — 30 seconds
+      const turnStart = typeof gs.turnStartTime === 'number' ? gs.turnStartTime : now;
       const turnElapsed = now - turnStart;
 
       if (turnElapsed >= 30000) {
-        const activePlayerUid = gameState.turn;
-        
-        const newMissedCount = (gameState.missedTurns?.[activePlayerUid] || 0) + 1;
-        const updatedMissedTurns = { ...(gameState.missedTurns || {}), [activePlayerUid]: newMissedCount };
+        const activePlayerUid = gs.turn;
+        const missed = (gs.missedTurns?.[activePlayerUid] || 0) + 1;
+        const updatedMissed = { ...(gs.missedTurns || {}), [activePlayerUid]: missed };
 
-        if (newMissedCount >= 3) {
-          clearInterval(interval);
-          const otherPlayer = gameState.players.find((p: any) => p.uid !== activePlayerUid);
+        if (missed >= 3) {
+          // Auto-forfeit: 3 missed turns = lose
+          const other = gs.players.find((p: CarromPlayer) => p.uid !== activePlayerUid);
           await databaseUpdate(databaseRef(database, gamePath), {
             status: 'ended',
-            winner: otherPlayer?.uid || 'bot',
+            winner: other?.uid || '',
             updatedAt: Date.now(),
           });
+          onRoundEnd?.(other?.uid || '', 0);
         } else {
-          const nextPlayerIndex = (gameState.players.findIndex((p: any) => p.uid === activePlayerUid) + 1) % gameState.players.length;
-          const nextPlayer = gameState.players[nextPlayerIndex];
-
+          // Skip turn
+          const nextIdx = (gs.players.findIndex((p: CarromPlayer) => p.uid === activePlayerUid) + 1) % gs.players.length;
           await databaseUpdate(databaseRef(database, gamePath), {
-            turn: nextPlayer.uid,
+            turn: gs.players[nextIdx].uid,
             turnStartTime: Date.now(),
-            missedTurns: updatedMissedTurns,
+            missedTurns: updatedMissed,
             updatedAt: Date.now(),
           });
         }
       }
 
-      const matchStart = gameState.matchStartTime || now;
-      const matchElapsed = now - matchStart;
-      if (matchElapsed >= 1200000) { // 20 mins
-        clearInterval(interval);
-        let bestPlayerUid = gameState.players[0].uid;
+      // Match timeout — 20 minutes
+      const matchStart = typeof gs.matchStartTime === 'number' ? gs.matchStartTime : now;
+      if (now - matchStart >= 1200000) {
+        let best = gs.players[0].uid;
         let maxScore = -1;
-        gameState.players.forEach((p: any) => {
-          if (p.score > maxScore) {
-            maxScore = p.score;
-            bestPlayerUid = p.uid;
-          }
+        gs.players.forEach((p: CarromPlayer) => {
+          if (p.score > maxScore) { maxScore = p.score; best = p.uid; }
         });
-
         await databaseUpdate(databaseRef(database, gamePath), {
           status: 'ended',
-          winner: bestPlayerUid,
+          winner: best,
           updatedAt: Date.now(),
         });
+        onRoundEnd?.(best, 0);
       }
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [database, gamePath, gameState, userId]);
+  }, [database, gamePath, userId, onRoundEnd]);
+
+  // ── Bot AI — runs when it's bot's turn ───────────────────────────────────
+  useEffect(() => {
+    if (!database || !gamePath || !userId) return;
+
+    const gs = gameStateRef.current;
+    if (!gs || gs.status !== 'playing' || gs.turn !== 'bot') return;
+
+    const isHost = gs.players[0]?.uid === userId;
+    if (!isHost) return;
+
+    const timer = setTimeout(async () => {
+      const currentGs = gameStateRef.current;
+      if (!currentGs || currentGs.turn !== 'bot') return;
+
+      // Find a white coin (bot's color) that is not pocketed
+      const target = currentGs.pieces.find(
+        p => p.type === 'white' && !p.isPocketed,
+      ) || currentGs.pieces.find(p => p.type !== 'striker' && !p.isPocketed);
+
+      let angle = 180; // default: straight down (bot is at top)
+      let power = 7;
+
+      if (target) {
+        // Aim from top-center (bot striker at y=15) toward target
+        const strikerX = currentGs.strikerPos ?? 50;
+        const strikerY = 15;
+        const dx = target.position.x - strikerX;
+        const dy = target.position.y - strikerY;
+        const deg = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
+        angle = deg;
+        // Power based on distance
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        power = Math.min(10, Math.max(4, dist * 0.25));
+      }
+
+      // Small random spread for realism
+      const jitter = (Math.random() - 0.5) * 8;
+      await strike(angle + jitter, power);
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [gameState?.turn, database, gamePath, userId, strike]);
 
   return {
     gameState,

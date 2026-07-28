@@ -16,7 +16,7 @@ import { RankingJackpotModal } from '../games/ranking-jackpot-modal';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const TALL_GAMES = ['roulette', 'teen-patti', 'fruit-party', 'forest-party'];
+const TALL_GAMES = ['roulette', 'teen-patti', 'fruit-party', 'forest-party', 'carrom', 'ludo', 'chess'];
 
 const GAME_RULES: Record<string, { title: string; rules: string[] }> = {
   'fruit-party': {
@@ -391,7 +391,7 @@ export function RoomGameOverlay({ visible, isMinimized, gameId, onClose, onMinim
                   <View style={{ alignItems: 'flex-start', paddingHorizontal: 12 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                       <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '700' }}>
-                        {gameId === 'roulette' ? 'Winning Number:  ' : gameId === 'teen-patti' ? 'Winning Faction:  ' : 'Winning Food:  '}
+                        {gameId === 'roulette' ? 'Winning Number:  ' : gameId === 'teen-patti' ? 'Winning Faction:  ' : gameId === 'carrom' || gameId === 'chess' || gameId === 'ludo' ? 'Winner:  ' : 'Winning Food:  '}
                       </Text>
                       <View style={{
                         width: 26,

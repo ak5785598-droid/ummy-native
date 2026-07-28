@@ -81,14 +81,16 @@ export function RoomGamesDialog({ visible, onClose, onSelectGame, roomId, canMan
     if (!visible) setSelectedId(null);
   }, [visible]);
 
-  const RESTRICTED_GAMES = ['ludo', 'chess', 'carrom'];
+  // Only block non-admins from STARTING a restricted game — they can still JOIN if one is active
+  const RESTRICTED_GAMES_START_ONLY = ['ludo', 'chess', 'carrom'];
 
   const handleSelect = (gameId: string) => {
-    if (RESTRICTED_GAMES.includes(gameId) && !canManage) {
+    const game = gameList.find(g => g.id === gameId || g.slug === gameId);
+    // Block non-admins from starting a fresh restricted game (not from joining)
+    if (RESTRICTED_GAMES_START_ONLY.includes(gameId) && !canManage && !game?.isActive) {
       Alert.alert('Admin Only', 'Only room owner or admin can start this game.');
       return;
     }
-    const game = gameList.find(g => g.id === gameId || g.slug === gameId);
     setSelectedId(gameId);
     setTimeout(() => {
       onSelectGame(gameId, game?.title, game?.coverUrl);

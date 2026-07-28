@@ -25,7 +25,9 @@ export function CarromGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, 
   const { profile: userProfile } = useUserProfile(currentUser?.uid);
   const {
     gameState, initializeGame, selectMode, joinArena, startMatch, updateStriker, strike,
-  } = useCarromEngine(roomId || 'lobby', currentUser?.uid || null);
+  } = useCarromEngine(roomId || 'lobby', currentUser?.uid || null, (winnerId, prize) => {
+    onRoundEnd?.({ resultText: winnerId === currentUser?.uid ? `You win! 🪙 ${prize}` : 'Better luck next time!', resultEmoji: winnerId === currentUser?.uid ? '🏆' : '😢' });
+  });
 
   const [power, setPower] = useState(0);
   const [angle, setAngle] = useState(0);
@@ -38,7 +40,7 @@ export function CarromGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, 
     if (!gameState || gameState.status !== 'playing') return;
     const interval = setInterval(() => {
       const now = Date.now();
-      const turnStart = gameState.turnStartTime ? (gameState.turnStartTime.seconds ? gameState.turnStartTime.seconds * 1000 : new Date(gameState.turnStartTime).getTime()) : now;
+      const turnStart = typeof gameState.turnStartTime === 'number' ? gameState.turnStartTime : now;
       const elapsed = Math.floor((now - turnStart) / 1000);
       setTimeLeft(Math.max(0, 30 - elapsed));
     }, 500);
@@ -46,45 +48,14 @@ export function CarromGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, 
     return () => clearInterval(interval);
   }, [gameState?.turn, gameState?.turnStartTime, gameState?.status]);
 
-  useEffect(() => { initializeGame(); }, [initializeGame]);
+  // Call initializeGame only once on mount — not on every gameState change
+  useEffect(() => { initializeGame(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelectMode = async (mode: 'freestyle' | 'professional', isBot: boolean = false) => {
     await selectMode(mode, 0, isBot, userProfile);
   };
 
-  // Carrom Bot automated moves
-  useEffect(() => {
-    if (!gameState || gameState.status !== 'playing' || gameState.turn !== 'bot') return;
-
-    const isHost = gameState.players[0]?.uid === currentUser?.uid;
-    if (!isHost) return;
-
-    let innerTimer1: ReturnType<typeof setTimeout>;
-    let innerTimer2: ReturnType<typeof setTimeout>;
-
-    const timer = setTimeout(async () => {
-      const randomPos = Math.floor(Math.random() * 40) + 30; // 30-70
-      const randomAngle = Math.floor(Math.random() * 40) - 20; // -20 to 20
-      const randomPower = Math.floor(Math.random() * 50) + 40; // 40-90%
-
-      await updateStriker(randomPos);
-      
-      innerTimer1 = setTimeout(async () => {
-        setIsStriking(true);
-        await strike(randomAngle, randomPower / 10);
-        innerTimer2 = setTimeout(() => {
-          setIsStriking(false);
-          setPower(0);
-        }, 2000);
-      }, 1000);
-    }, 1500);
-
-    return () => {
-      clearTimeout(timer);
-      if (innerTimer1) clearTimeout(innerTimer1);
-      if (innerTimer2) clearTimeout(innerTimer2);
-    };
-  }, [gameState?.turn, gameState?.status, strike, updateStriker, currentUser?.uid]);
+  // Bot AI is now fully handled inside use-carrom-engine.ts hook
 
   // Lobby countdown timer when players >= 2
   useEffect(() => {
@@ -169,7 +140,7 @@ export function CarromGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, 
       <View style={{ position: 'absolute', bottom: '20%', right: '10%', width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(59,130,246,0.04)' }} pointerEvents="none" />
 
       {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8, zIndex: 40, marginLeft: -40 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8, zIndex: 40 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#ef4444' }} />
           <Text style={{ color: 'white', fontWeight: '900', fontSize: 14, textTransform: 'uppercase', letterSpacing: -0.5 }}>Carrom Live</Text>
@@ -256,16 +227,14 @@ export function CarromGame({ onClose, roomId, onRoundEnd, isMuted: isMutedProp, 
                 </Text>
               </TouchableOpacity>
 
-              {/* Score indicators */}
+              {/* Live Score indicators */}
               <View style={{ flexDirection: 'row', gap: 4 }}>
-                <View style={styles.scoreBadge}>
-                  <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: 'white', borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)' }} />
-                  <Text style={{ color: 'white', fontSize: 8, fontWeight: '900' }}>10</Text>
-                </View>
-                <View style={styles.scoreBadge}>
-                  <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#ef4444', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }} />
-                  <Text style={{ color: 'white', fontSize: 8, fontWeight: '900' }}>50</Text>
-                </View>
+                {gameState.players.slice(0, 2).map((p: any, i: number) => (
+                  <View key={i} style={styles.scoreBadge}>
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: p.coinColor === 'black' ? '#2A1F18' : '#EED6B3', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }} />
+                    <Text style={{ color: 'white', fontSize: 8, fontWeight: '900' }}>{p.score}</Text>
+                  </View>
+                ))}
               </View>
             </View>
           </View>
@@ -470,9 +439,10 @@ function CarromBoard({ gameState, isMyTurn, angle, setAngle, isStriking, updateS
     
     const x0 = localStrikerPos;
     const y0 = 85;
-    const rad = angle * Math.PI / 180;
-    const vx = Math.sin(rad);
-    const vy = -Math.cos(rad);
+    // FIXED: Use same angle convention as strike() — (angle - 90) offset
+    const rad = (angle - 90) * Math.PI / 180;
+    const vx = Math.cos(rad);
+    const vy = Math.sin(rad);
 
     let closestT = Infinity;
     let hitPiece: any = null;
@@ -616,7 +586,7 @@ function CarromBoard({ gameState, isMyTurn, angle, setAngle, isStriking, updateS
         />
       )}
       {/* SVG Canvas for High-Fidelity Vector Board Markings */}
-      <Svg width={innerSize} height={innerSize} viewBox="0 0 1000 1000" style={{ position: 'absolute', top: -2, left: -2 }}>
+      <Svg width={innerSize} height={innerSize} viewBox="0 0 1000 1000" style={{ position: 'absolute', top: 0, left: 0 }}>
         <Defs>
           {/* Wood veneer surface gradient */}
           <RadialGradient id="woodSurface" cx="50%" cy="50%" rx="50%" ry="50%" fx="50%" fy="50%">
@@ -842,7 +812,7 @@ function CarromBoard({ gameState, isMyTurn, angle, setAngle, isStriking, updateS
 
         return (
           <View key={piece.id} style={{
-            position: 'absolute', left: x - 2, top: y - 2,
+            position: 'absolute', left: x, top: y,
             width: size, height: size, borderRadius: size / 2,
             backgroundColor: piece.type === 'black' ? '#2A1F18' : piece.type === 'queen' ? '#B91C1C' : isStrikerPiece ? '#FAFAFA' : '#EED6B3',
             borderWidth: 1.5,
