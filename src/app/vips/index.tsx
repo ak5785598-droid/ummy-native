@@ -65,35 +65,21 @@ const SVIP_LEVELS_DATA = [
 ];
 
 const SVIP_PRIVILEGES_DATA = [
-  { id: 1, name: 'SVIP Badge', desc: 'Premium level status marker', level: 1, icon: Award, category: 'Identity' },
-  { id: 2, name: 'Silver-Wing Frame', desc: 'Noble Owl Avatar frame decoration', level: 1, icon: Crown, category: 'Identity' },
-  { id: 3, name: 'Owl Chat Bubble', desc: 'Distinctive blue message border', level: 2, icon: MessageSquare, category: 'Interaction' },
   { id: 4, name: 'Entering Sound', desc: 'Audio sound wave chime on room entry', level: 2, icon: Volume2, category: 'VFX' },
-  { id: 5, name: 'Golden Wave Mic', desc: 'Gilded mic waves in rooms', level: 3, icon: Radio, category: 'Interaction' },
   { id: 6, name: 'Silver Greeting Card', desc: 'Gleaming Owl entry greeting card', level: 4, icon: ShieldAlert, category: 'VFX' },
-  { id: 7, name: 'Owl Portal Ride', desc: 'Animated Owl flight entry ride', level: 4, icon: Compass, category: 'VFX' },
   { id: 8, name: 'Mysterious Visitor', desc: 'Visit profiles with 100% stealth', level: 5, icon: EyeOff, category: 'Stealth' },
-  { id: 9, name: 'Exclusive Owl Gift', desc: 'Unlock Owl core token gifting item', level: 5, icon: Gift, category: 'Gifts' },
+  { id: 9, name: 'Exclusive Gift', desc: 'Unlock core token gifting item', level: 5, icon: Gift, category: 'Gifts' },
   { id: 10, name: 'Weekly Coin Rebate', desc: 'Daily claimable coin multiplier bonuses', level: 6, icon: Zap, category: 'Rebates' },
-  { id: 11, name: 'Wolf Velvet Frame', desc: 'Dark purple neon wolf border decoration', level: 7, icon: Crown, category: 'Identity' },
   { id: 12, name: 'Hide Gift Record', desc: 'Stealthily receive/send without record', level: 8, icon: Lock, category: 'Stealth' },
-  { id: 13, name: 'Purple Crescent Ride', desc: 'Hovering moon ride portal entrance', level: 8, icon: Compass, category: 'VFX' },
   { id: 14, name: 'Rank Hiding', desc: 'Become completely invisible on charts', level: 9, icon: UserCheck, category: 'Stealth' },
-  { id: 15, name: 'Wolf Neon Bubble', desc: 'Luminous violet chat bubble border', level: 9, icon: MessageSquare, category: 'Interaction' },
   { id: 16, name: 'Private Space Album', desc: 'Hidden album with access key control', level: 10, icon: Key, category: 'Interaction' },
-  { id: 17, name: 'Fiery Lion Frame', desc: 'Solar ruby-red fiery card outline', level: 11, icon: Crown, category: 'Identity' },
-  { id: 18, name: 'Lion Crimson Nameplate', desc: 'Stand out with bold red nameplate text', level: 11, icon: Flame, category: 'Identity' },
+  { id: 18, name: 'Crimson Nameplate', desc: 'Stand out with bold red nameplate text', level: 11, icon: Flame, category: 'Identity' },
   { id: 19, name: 'Room Stealth Entry', desc: 'Enter any chatroom in absolute silence', level: 12, icon: EyeOff, category: 'Stealth' },
-  { id: 20, name: 'Lion Portal Ride', desc: 'Fiery solar lion chariot entry portal', level: 12, icon: Compass, category: 'VFX' },
   { id: 21, name: 'Absolute Kick Immunity', desc: 'Immunity against all kicks & bans', level: 13, icon: ShieldCheck, category: 'Stealth' },
-  { id: 22, name: 'Lion Crimson Bubble', desc: 'Glowing crimson flame chat outline', level: 14, icon: MessageSquare, category: 'Interaction' },
   { id: 23, name: 'CP Room Decoration', desc: 'Custom themed luxury CP room design', level: 14, icon: Heart, category: 'Interaction' },
   { id: 24, name: 'Custom Micro-Badge', desc: 'Personalized mini icon next to name', level: 15, icon: Award, category: 'Identity' },
-  { id: 25, name: 'Obsidian Dragon Frame', desc: 'Cosmic scale dragon wings ornament', level: 16, icon: Crown, category: 'Identity' },
-  { id: 26, name: 'Dragon Flight Ride', desc: 'Grand majestic dragon mount ride VFX', level: 16, icon: Compass, category: 'VFX' },
   { id: 27, name: 'Diamond Conversion Buff', desc: 'Higher limit for coin-to-diamond swaps', level: 17, icon: Gem, category: 'Rebates' },
   { id: 28, name: 'VIP Liaison Officer', desc: '24/7 dedicated support representative', level: 17, icon: Users, category: 'Interaction' },
-  { id: 29, name: 'Imperial Dragon Bubble', desc: 'Dragon scales neon border overlay', level: 18, icon: MessageSquare, category: 'Interaction' },
   { id: 30, name: 'Global Server Broadcast', desc: 'Announce presence to all rooms globally', level: 18, icon: Radio, category: 'VFX' },
   { id: 31, name: 'Infinite Validity Lock', desc: 'Never downgrade; level locked forever', level: 18, icon: Crown, category: 'Rebates' },
 ];
@@ -511,6 +497,358 @@ export default function VipsClubScreen() {
       </View>
     );
   };
+
+const SVIP_WAVE_LEVEL_CONFIG: Record<number, { color: string; glow: string; accent: string; beast: string; particles: string[]; gradient: string[] }> = {
+  1:  { color: '#60a5fa', glow: 'rgba(96, 165, 250, 0.4)',  accent: '#38bdf8', beast: '🦉', particles: ['✨', '🩵', '✨'], gradient: ['#1e3a8a', '#3b82f6'] },
+  2:  { color: '#38bdf8', glow: 'rgba(56, 189, 248, 0.45)', accent: '#7dd3fc', beast: '🦉', particles: ['✨', '💙', '✨'], gradient: ['#0284c7', '#38bdf8'] },
+  3:  { color: '#0ea5e9', glow: 'rgba(14, 165, 233, 0.5)',  accent: '#a5f3fc', beast: '🦉', particles: ['⚡', '💎', '⚡'], gradient: ['#0369a1', '#0ea5e9'] },
+  4:  { color: '#c084fc', glow: 'rgba(192, 132, 252, 0.4)', accent: '#e879f9', beast: '🐺', particles: ['🔮', '💜', '🔮'], gradient: ['#581c87', '#a855f7'] },
+  5:  { color: '#a855f7', glow: 'rgba(168, 85, 247, 0.45)', accent: '#d946ef', beast: '🐺', particles: ['✨', '🐺', '✨'], gradient: ['#6b21a8', '#c084fc'] },
+  6:  { color: '#9333ea', glow: 'rgba(147, 51, 234, 0.5)',  accent: '#f0abfc', beast: '🐺', particles: ['⚡', '🌌', '⚡'], gradient: ['#7e22ce', '#e879f9'] },
+  7:  { color: '#22d3ee', glow: 'rgba(34, 211, 238, 0.4)',  accent: '#06b6d4', beast: '🦂', particles: ['⚡', '🌐', '⚡'], gradient: ['#0891b2', '#22d3ee'] },
+  8:  { color: '#06b6d4', glow: 'rgba(6, 182, 212, 0.45)',  accent: '#67e8f9', beast: '🦂', particles: ['💥', '🦂', '💥'], gradient: ['#0e7490', '#06b6d4'] },
+  9:  { color: '#0891b2', glow: 'rgba(8, 145, 178, 0.5)',   accent: '#a5f3fc', beast: '🦂', particles: ['⚡', '💠', '⚡'], gradient: ['#155e75', '#67e8f9'] },
+  10: { color: '#f59e0b', glow: 'rgba(245, 158, 11, 0.4)',  accent: '#fbbf24', beast: '🦁', particles: ['🔥', '🦁', '🔥'], gradient: ['#b45309', '#f59e0b'] },
+  11: { color: '#d97706', glow: 'rgba(217, 119, 6, 0.45)',  accent: '#fde047', beast: '🦁', particles: ['🔥', '👑', '🔥'], gradient: ['#92400e', '#fbbf24'] },
+  12: { color: '#b45309', glow: 'rgba(180, 83, 9, 0.5)',    accent: '#fef08a', beast: '🦁', particles: ['💥', '🌞', '💥'], gradient: ['#78350f', '#f59e0b'] },
+  13: { color: '#f97316', glow: 'rgba(249, 115, 22, 0.4)',  accent: '#fb923c', beast: '🐅', particles: ['🔥', '🐅', '🔥'], gradient: ['#c2410c', '#f97316'] },
+  14: { color: '#ea580c', glow: 'rgba(234, 88, 12, 0.45)',  accent: '#ffedd5', beast: '🐅', particles: ['⚡', '💥', '⚡'], gradient: ['#9a3412', '#fb923c'] },
+  15: { color: '#c2410c', glow: 'rgba(194, 65, 12, 0.5)',   accent: '#fed7aa', beast: '🐅', particles: ['🔥', '⚡', '🔥'], gradient: ['#7c2d12', '#ea580c'] },
+  16: { color: '#f43f5e', glow: 'rgba(244, 63, 94, 0.45)',  accent: '#fb7185', beast: '🐉', particles: ['✨', '🐉', '✨'], gradient: ['#be123c', '#f43f5e'] },
+  17: { color: '#e11d48', glow: 'rgba(225, 29, 72, 0.5)',   accent: '#ffe4e6', beast: '🐲', particles: ['🔥', '🐲', '🔥'], gradient: ['#9f1239', '#fb7185'] },
+  18: { color: '#be123c', glow: 'rgba(190, 18, 60, 0.6)',   accent: '#fff1f2', beast: '👑', particles: ['🔥', '🐉', '🔥'], gradient: ['#881337', '#e11d48'] },
+};
+
+function RealPurpleCosmicWaveWidget({ level }: { level: number }) {
+  const [isAnimating, setIsAnimating] = useState(false);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const scalePulse = useRef(new Animated.Value(1)).current;
+  const rotateOuter = useRef(new Animated.Value(0)).current;
+  const rotateInner = useRef(new Animated.Value(0)).current;
+
+  const getThemePalette = () => {
+    if (level >= 16) {
+      return { c1: '#f43f5e', c2: '#e11d48', c3: '#ffe4e6' };
+    }
+    if (level >= 13) {
+      return { c1: '#f97316', c2: '#ea580c', c3: '#ffedd5' };
+    }
+    if (level >= 10) {
+      return { c1: '#f59e0b', c2: '#d97706', c3: '#fef08a' };
+    }
+    if (level >= 7) {
+      return { c1: '#22d3ee', c2: '#06b6d4', c3: '#a5f3fc' };
+    }
+    if (level >= 4) {
+      return { c1: '#c084fc', c2: '#9333ea', c3: '#f0abfc' };
+    }
+    return { c1: '#d946ef', c2: '#a855f7', c3: '#f0abfc' };
+  };
+
+  const pal = getThemePalette();
+
+  useEffect(() => {
+    if (!isAnimating) {
+      scalePulse.setValue(1);
+      rotateOuter.setValue(0);
+      rotateInner.setValue(0);
+      return;
+    }
+
+    const pulseLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scalePulse, { toValue: 1.15, duration: 600, useNativeDriver: true }),
+        Animated.timing(scalePulse, { toValue: 1, duration: 600, useNativeDriver: true }),
+      ])
+    );
+
+    const rotOuter = Animated.loop(
+      Animated.timing(rotateOuter, { toValue: 1, duration: 3500, easing: Easing.linear, useNativeDriver: true })
+    );
+
+    const rotInner = Animated.loop(
+      Animated.timing(rotateInner, { toValue: 1, duration: 2400, easing: Easing.linear, useNativeDriver: true })
+    );
+
+    pulseLoop.start();
+    rotOuter.start();
+    rotInner.start();
+
+    const timer = setTimeout(() => {
+      setIsAnimating(false);
+    }, 4500);
+
+    return () => {
+      pulseLoop.stop();
+      rotOuter.stop();
+      rotInner.stop();
+      clearTimeout(timer);
+    };
+  }, [isAnimating]);
+
+  const spinClockwise = rotateOuter.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const spinCounter = rotateInner.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['360deg', '0deg'],
+  });
+
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={() => {
+        setIsAnimating(true);
+        Animated.sequence([
+          Animated.spring(scaleAnim, { toValue: 1.3, friction: 3, useNativeDriver: true }),
+          Animated.spring(scaleAnim, { toValue: 1, friction: 4, useNativeDriver: true }),
+        ]).start();
+      }}
+      style={{ width: 80, height: 80, alignItems: 'center', justifyContent: 'center', position: 'relative' }}
+    >
+      {/* Outer Glowing Neon Aura Backing */}
+      <Animated.View
+        style={{
+          position: 'absolute',
+          width: 76, height: 76,
+          borderRadius: 38,
+          backgroundColor: pal.c1,
+          opacity: 0.2,
+          transform: [{ scale: scalePulse }],
+        }}
+        pointerEvents="none"
+      />
+
+      {/* SVG Multi-Layer Concentric Rings & Arc Flare - Exact Image Match */}
+      <Animated.View
+        style={{
+          position: 'absolute',
+          width: 76, height: 76,
+          transform: [{ rotate: spinClockwise }, { scale: scalePulse }],
+        }}
+        pointerEvents="none"
+      >
+        <Svg width="76" height="76" viewBox="0 0 100 100">
+          <Defs>
+            <SvgLinearGradient id={`waveGrad_${level}`} x1="0%" y1="0%" x2="100%" y2="100%">
+              <Stop offset="0%" stopColor={pal.c1} stopOpacity="1" />
+              <Stop offset="50%" stopColor={pal.c2} stopOpacity="0.8" />
+              <Stop offset="100%" stopColor={pal.c3} stopOpacity="0.9" />
+            </SvgLinearGradient>
+          </Defs>
+
+          {/* Outer Ring 1: Thick Arc Flare */}
+          <Circle cx="50" cy="50" r="45" stroke={`url(#waveGrad_${level})`} strokeWidth="4.5" strokeDasharray="220 30" fill="none" />
+
+          {/* Ring 2: Dotted Orbit Ring */}
+          <Circle cx="50" cy="50" r="39" stroke={pal.c1} strokeWidth="1.5" strokeDasharray="3 4" opacity="0.9" fill="none" />
+
+          {/* Ring 3: Fine Concentric Frequency Ring */}
+          <Circle cx="50" cy="50" r="33" stroke={pal.c3} strokeWidth="1" opacity="0.75" fill="none" />
+
+          {/* Ring 4: Inner Dashed Ring */}
+          <Circle cx="50" cy="50" r="26" stroke={pal.c1} strokeWidth="2" strokeDasharray="12 6" opacity="0.85" fill="none" />
+
+          {/* Ring 5: Core Orbit Ring */}
+          <Circle cx="50" cy="50" r="19" stroke={pal.c2} strokeWidth="1.5" strokeDasharray="4 3" fill="none" />
+        </Svg>
+      </Animated.View>
+
+      {/* Counter-Spin Inner Starlight Sparkle Field */}
+      <Animated.View
+        style={{
+          position: 'absolute',
+          width: 50, height: 50,
+          transform: [{ rotate: spinCounter }],
+        }}
+        pointerEvents="none"
+      >
+        <Svg width="50" height="50" viewBox="0 0 50 50">
+          <Circle cx="25" cy="4" r="1.5" fill={pal.c3} />
+          <Circle cx="46" cy="25" r="2" fill={pal.c1} />
+          <Circle cx="25" cy="46" r="1.5" fill={pal.c3} />
+          <Circle cx="4" cy="25" r="2" fill={pal.c1} />
+        </Svg>
+      </Animated.View>
+
+      {/* Pulsating Center Purple Crystal Orb Dot */}
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+        <View style={{
+          width: 24, height: 24, borderRadius: 12,
+          backgroundColor: '#0c0814',
+          borderWidth: 2, borderColor: pal.c1,
+          alignItems: 'center', justifyContent: 'center',
+          elevation: 8,
+          shadowColor: pal.c1,
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.95,
+          shadowRadius: 8,
+        }}>
+          <View style={{
+            width: 10, height: 10, borderRadius: 5,
+            backgroundColor: pal.c3,
+            shadowColor: pal.c3, shadowOpacity: 1, shadowRadius: 4,
+          }} />
+        </View>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
+function RealDragonFireMagicWaveWidget() {
+  const [isAnimating, setIsAnimating] = useState(false);
+  const scalePulse = useRef(new Animated.Value(1)).current;
+  const rotateOuter = useRef(new Animated.Value(0)).current;
+  const rotateSpikes = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!isAnimating) {
+      scalePulse.setValue(1);
+      rotateOuter.setValue(0);
+      rotateSpikes.setValue(0);
+      return;
+    }
+
+    const pulseLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scalePulse, { toValue: 1.18, duration: 600, useNativeDriver: true }),
+        Animated.timing(scalePulse, { toValue: 1, duration: 600, useNativeDriver: true }),
+      ])
+    );
+
+    const rotOuter = Animated.loop(
+      Animated.timing(rotateOuter, { toValue: 1, duration: 4000, easing: Easing.linear, useNativeDriver: true })
+    );
+
+    const rotSpikes = Animated.loop(
+      Animated.timing(rotateSpikes, { toValue: 1, duration: 2500, easing: Easing.linear, useNativeDriver: true })
+    );
+
+    pulseLoop.start();
+    rotOuter.start();
+    rotSpikes.start();
+
+    const timer = setTimeout(() => {
+      setIsAnimating(false);
+    }, 4500);
+
+    return () => {
+      pulseLoop.stop();
+      rotOuter.stop();
+      rotSpikes.stop();
+      clearTimeout(timer);
+    };
+  }, [isAnimating]);
+
+  const spinClockwise = rotateOuter.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const spinCounter = rotateSpikes.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['360deg', '0deg'],
+  });
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={() => setIsAnimating(true)}
+      style={{ width: 84, height: 84, alignItems: 'center', justifyContent: 'center', position: 'relative' }}
+    >
+      {/* Fiery Red Glowing Aura Backing */}
+      <Animated.View
+        style={{
+          position: 'absolute',
+          width: 80, height: 80,
+          borderRadius: 40,
+          backgroundColor: '#ef4444',
+          opacity: 0.3,
+          shadowColor: '#dc2626',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 1, shadowRadius: 12,
+          transform: [{ scale: scalePulse }],
+        }}
+        pointerEvents="none"
+      />
+
+      {/* SVG Outer Crimson Fiery Scale Concentric Rings */}
+      <Animated.View
+        style={{
+          position: 'absolute',
+          width: 80, height: 80,
+          transform: [{ rotate: spinClockwise }, { scale: scalePulse }],
+        }}
+        pointerEvents="none"
+      >
+        <Svg width="80" height="80" viewBox="0 0 100 100">
+          <Defs>
+            <SvgLinearGradient id="dragonFireGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <Stop offset="0%" stopColor="#f87171" stopOpacity="1" />
+              <Stop offset="50%" stopColor="#dc2626" stopOpacity="0.9" />
+              <Stop offset="100%" stopColor="#7f1d1d" stopOpacity="0.8" />
+            </SvgLinearGradient>
+          </Defs>
+
+          {/* Outer Double Crimson Fire Rings */}
+          <Circle cx="50" cy="50" r="46" stroke="#f87171" strokeWidth="2.5" fill="none" />
+          <Circle cx="50" cy="50" r="42" stroke="url(#dragonFireGrad)" strokeWidth="3" strokeDasharray="180 40" fill="none" />
+          <Circle cx="50" cy="50" r="38" stroke="#ef4444" strokeWidth="1.5" strokeDasharray="8 4" fill="none" />
+          <Circle cx="50" cy="50" r="34" stroke="#f87171" strokeWidth="1" opacity="0.8" fill="none" />
+        </Svg>
+      </Animated.View>
+
+      {/* SVG 8-Point Radial Fireburst Spikes & Runed Disc */}
+      <Animated.View
+        style={{
+          position: 'absolute',
+          width: 64, height: 64,
+          transform: [{ rotate: spinCounter }],
+        }}
+        pointerEvents="none"
+      >
+        <Svg width="64" height="64" viewBox="0 0 100 100">
+          {/* 8-Point Star Spikes radiating outwards */}
+          <Path d="M50 5 L53 35 L85 50 L53 65 L50 95 L47 65 L15 50 L47 35 Z" fill="none" stroke="#f87171" strokeWidth="2" opacity="0.9" />
+          <Path d="M78 22 L62 40 L78 78 L40 62 L22 78 L38 40 L22 22 L40 38 Z" fill="none" stroke="#ef4444" strokeWidth="1.5" opacity="0.75" />
+
+          {/* Inner Runed Ring */}
+          <Circle cx="50" cy="50" r="24" stroke="#fecaca" strokeWidth="2" strokeDasharray="6 3" fill="none" />
+        </Svg>
+      </Animated.View>
+
+      {/* Center Fiery Core Disc Dot */}
+      <View style={{
+        width: 24, height: 24, borderRadius: 12,
+        backgroundColor: '#450a0a',
+        borderWidth: 2, borderColor: '#f87171',
+        alignItems: 'center', justifyContent: 'center',
+        elevation: 10,
+        shadowColor: '#ef4444',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1, shadowRadius: 10,
+      }}>
+        <View style={{
+          width: 10, height: 10, borderRadius: 5,
+          backgroundColor: '#fecaca',
+          shadowColor: '#fecaca', shadowOpacity: 1, shadowRadius: 4,
+        }} />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function SvipWaveLivePreviewWidget({ level }: { level: number }) {
+  if (level >= 16) {
+    return <RealDragonFireMagicWaveWidget />;
+  }
+  return <RealPurpleCosmicWaveWidget level={level} />;
+}
+
+
 
   const renderUniqueBadge = (lvl: number, animated = true) => {
     const customBadgeUrl = vipConfig?.levels?.[lvl]?.badgeUrl;
@@ -980,13 +1318,27 @@ export default function VipsClubScreen() {
 
                     {/* Card 3: Entrance */}
                     <View className="flex-1 bg-[#140f0c]/90 border border-[#3d2a1d] rounded-2xl p-3 items-center justify-between h-36">
-                      <View className="flex-1 items-center justify-center w-full">
+                      <View className="flex-1 items-center justify-center w-full relative">
                         {/* Premium 3D Entrance Effect Banner */}
                         <Image 
                           source={getEntranceAsset(selectedLevel)} 
                           style={{ width: '100%', height: 42 }} 
                           contentFit="contain" 
                         />
+                        {/* Real-Time Logged-In User Name Overlay */}
+                        <View style={{ position: 'absolute', right: 10, top: 14, maxWidth: '65%' }}>
+                          <Text style={{ 
+                            color: '#ffffff', 
+                            fontSize: 8, 
+                            fontWeight: '900', 
+                            letterSpacing: 0.5,
+                            textShadowColor: 'rgba(0, 0, 0, 0.95)', 
+                            textShadowOffset: { width: 1, height: 1 }, 
+                            textShadowRadius: 3 
+                          }} numberOfLines={1}>
+                            {(userProfile?.username || 'USER').toUpperCase()}
+                          </Text>
+                        </View>
                       </View>
                       <Text className="text-[10px] font-bold text-slate-400 mt-2 lowercase">entrance</Text>
                     </View>
@@ -1010,12 +1362,7 @@ export default function VipsClubScreen() {
                     {/* Card 5: Mic Wave */}
                     <View className="flex-1 bg-[#140f0c]/90 border border-[#3d2a1d] rounded-2xl p-3 items-center justify-between h-36">
                       <View className="flex-1 items-center justify-center w-full">
-                        {/* Premium 3D Glowing Mic Wave Sound Rings */}
-                        <Image 
-                          source={getWaveAsset(selectedLevel)} 
-                          style={{ width: 60, height: 60 }} 
-                          contentFit="contain" 
-                        />
+                        <SvipWaveLivePreviewWidget level={selectedLevel} />
                       </View>
                       <Text className="text-[10px] font-bold text-slate-400 mt-2 lowercase">wave</Text>
                     </View>
@@ -1037,7 +1384,7 @@ export default function VipsClubScreen() {
           <View className="flex-row items-center justify-between bg-white/5 border border-white/10 rounded-3xl p-4 mt-6">
             <View className="space-y-0.5">
               <Text className="text-[9px] font-black uppercase text-slate-400">SVIP BENEFITS</Text>
-              <Text className="text-white font-bold text-sm">Unlocked: {unlockedCount} / 31</Text>
+              <Text className="text-white font-bold text-sm">Unlocked: {unlockedCount} / {SVIP_PRIVILEGES_DATA.length}</Text>
             </View>
             <TouchableOpacity 
               onPress={() => setIsSettingsOpen(true)}

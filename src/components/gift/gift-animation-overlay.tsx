@@ -57,15 +57,12 @@ export function GiftAnimationOverlay({ events }: GiftAnimationOverlayProps) {
 
     const vUrl = latestEvent.videoUrl || '';
     if (vUrl) {
-      let active = true;
+      // Set remote URL immediately so video plays without waiting for cache
+      setCachedVideoUrl(vUrl);
+      // Cache in background for next time
       getCachedFile(vUrl).then(localPath => {
-        if (active) setCachedVideoUrl(localPath);
-      }).catch(() => {
-        if (active) setCachedVideoUrl(vUrl);
-      });
-      return () => {
-        active = false;
-      };
+        if (localPath && localPath !== vUrl) setCachedVideoUrl(localPath);
+      }).catch(() => {});
     } else {
       setCachedVideoUrl(null);
     }
@@ -125,10 +122,10 @@ export function GiftAnimationOverlay({ events }: GiftAnimationOverlayProps) {
           backgroundColor: 'transparent',
         }}
       >
-        {isVideo && resolvedVideoUrl ? (
+        {isVideo ? (
           <Video
             ref={videoRef}
-            source={{ uri: resolvedVideoUrl }}
+            source={{ uri: resolvedVideoUrl || vUrl }}
             style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }}
             resizeMode={ResizeMode.COVER}
             shouldPlay
