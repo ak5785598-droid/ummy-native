@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal, TextInput, FlatList, RefreshControl, Keyboard, Platform, LayoutAnimation, UIManager, Alert, BackHandler, Dimensions, Vibration, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -450,7 +450,7 @@ function ChatListItem({ chat, currentUid, onPress, onLongPress, onAvatarPress }:
     >
       <View className="relative mr-3">
         <TouchableOpacity onPress={() => { if (onAvatarPress && otherUid) onAvatarPress(otherUid); }} activeOpacity={0.7}>
-          <Image cachePolicy="memory-disk" source={{ uri: toCDN(otherUser?.avatarUrl) || 'https://picsum.photos/100' }} 
+          <Image cachePolicy="memory-disk" source={{ uri: toCDN(otherUser?.avatarUrl || (otherUser as any)?.photoURL) || 'https://picsum.photos/100' }} 
             className="w-12 h-12 rounded-full border border-slate-100"
           />
         </TouchableOpacity>
@@ -465,7 +465,7 @@ function ChatListItem({ chat, currentUid, onPress, onLongPress, onAvatarPress }:
       <View className="flex-1">
         <View className="flex-row items-center justify-between">
           <Text className={`text-base font-bold ${isUnread ? 'text-pink-600' : 'text-slate-800'}`} numberOfLines={1}>
-            {otherUser?.username || 'User'}
+            {otherUser?.username || otherUser?.name || (otherUser as any)?.displayName || 'User'}
           </Text>
           <Text className="text-[10px] font-semibold text-slate-400">{formatTime(chat.updatedAt)}</Text>
         </View>

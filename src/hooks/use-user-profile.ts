@@ -131,11 +131,15 @@ export function useUserProfile(uid: string | undefined | null) {
         }
 
         const avatarUrl = sub?.avatarUrl || base?.avatarUrl || sub?.photoURL || base?.photoURL || '';
+        const username = sub?.username || base?.username || sub?.name || base?.name || sub?.displayName || base?.displayName || '';
+        const name = sub?.name || base?.name || sub?.username || base?.username || sub?.displayName || base?.displayName || '';
 
         setProfile({
           ...(sub || {}),
           ...(base || {}),
           avatarUrl,
+          ...(username ? { username } : {}),
+          ...(name ? { name } : {}),
           wallet: mergedWallet,
           coins: finalCoins,
           level: mergedLevel,
