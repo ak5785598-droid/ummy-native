@@ -130,9 +130,12 @@ export function useUserProfile(uid: string | undefined | null) {
           }
         }
 
+        const avatarUrl = sub?.avatarUrl || base?.avatarUrl || sub?.photoURL || base?.photoURL || '';
+
         setProfile({
           ...(sub || {}),
           ...(base || {}),
+          avatarUrl,
           wallet: mergedWallet,
           coins: finalCoins,
           level: mergedLevel,
