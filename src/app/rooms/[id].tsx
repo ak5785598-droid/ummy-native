@@ -73,7 +73,7 @@ import { LootLevelAnimation } from '../../components/room/loot-level-animation';
 import { LootingRoom } from '../../components/room/looting-room';
 import { MountOverlay } from '../../components/room/mount-overlay';
 import { RoomAISystems } from '../../components/room/room-ai-systems';
-import { CaptionsOverlay } from '../../components/room/captions-overlay';
+
 import { RoomEchoDialog } from '../../components/room/room-echo-dialog';
 import { RoomThemeArchitectDialog } from '../../components/room/room-theme-architect-dialog';
 import { RoomSupportDialog } from '../../components/room/room-support-dialog';
@@ -848,7 +848,10 @@ export default function RoomScreen() {
   const { isMusicPlaying, musicState, isRepeatEnabled, setIsRepeatEnabled, handleToggleMusic, handleStopMusic, handleSeekMusic, handleNextMusic, handlePreviousMusic, setLocalVolume, songIntensity } = useMusicSync({ room: room || null, canManageRoom, userId: user?.uid, isSpeakerMuted });
 
   const { taskProgress, achievedTasks, claimedTasks, claimTask, triggerTask, totalTasks, completedTasks } = useRoomTasks(id, onlineParticipants, room?.ownerId || '', isModerator);
-  const { captions, isCaptionsEnabled, setIsCaptionsEnabled, sttEngine } = useVoiceCaptions(id, isInSeat, isMuted);
+  // Voice Captions: speech → normal chat message. sendMessage ref filled after handleSendMessage is defined.
+  const captionSendRef = useRef<((text: string) => void) | null>(null);
+  const captionSendFn = useCallback((text: string) => { captionSendRef.current?.(text); }, []);
+  const { isCaptionsEnabled, setIsCaptionsEnabled, sttEngine } = useVoiceCaptions(id, isInSeat, isMuted, captionSendFn);
   const { targetLanguage, setTargetLanguage, sourceLanguage, setSourceLanguage, translateMessage, translating } = useTranslation();
   useActivityTracker(id, isInSeat);
 
@@ -873,13 +876,22 @@ export default function RoomScreen() {
   useMediaPreloader([], []);
   useScreenWakeLock(true);
 
-  // AI Listen — uses shared STT engine (no clash with Voice Captions)
-  // Ref keeps handleSendMessage always fresh — avoids stale closure
+  // AI Listen — only responds when user says "@ai" / "ai" in speech
+  // Uses shared STT engine (no clash with Voice Captions)
   const handleSendMessageRef = useRef<((text: string, imageUrl?: string) => Promise<void>) | null>(null);
   useEffect(() => { handleSendMessageRef.current = handleSendMessage; });
 
   const aiListenCallback = useCallback((transcript: string) => {
-    if (transcript) handleSendMessageRef.current?.(transcript);
+    if (!transcript) return;
+    // Check if user said "@ai", "ai", "ummy", "ummi" — same pattern as room-ai-systems.tsx
+    const aiTriggerPattern = /(^|\s)@?(ai|ummy|ummi)(\s|$|[.,!?])/i;
+    if (aiTriggerPattern.test(transcript)) {
+      // Ensure the message has @ai prefix so room-ai-systems picks it up
+      const hasPrefix = /(@ai|@ummy|@ummi)/i.test(transcript);
+      const msgToSend = hasPrefix ? transcript : `@ai ${transcript}`;
+      handleSendMessageRef.current?.(msgToSend);
+    }
+    // If no @ai trigger, ignore — don't send to chat
   }, []);
 
   useSTTEngine(isAIListening, aiListenCallback);
@@ -1014,6 +1026,8 @@ export default function RoomScreen() {
     const bubbleMediaUrl = (userProfile?.inventory as any)?.activeBubbleMediaUrl || null;
     await addDocumentNonBlocking(collection(firestore, 'chatRooms', id, 'messages'), { content: text, imageUrl: imageUrl || null, senderId: user.uid, senderName: userProfile.username, senderAvatar: userProfile.avatarUrl || null, senderChatColor: userProfile?.nobility?.chatColor || null, senderBubble: bubbleToSend, senderBubbleMediaUrl: bubbleMediaUrl, chatRoomId: id, timestamp: serverTimestamp(), type: 'text' });
   };
+  // Wire Voice Captions to send messages (ref pattern because hook is called before this function)
+  captionSendRef.current = handleSendMessage;
 
   const handleImageUpload = async (uri: string): Promise<string | null> => {
     try {
@@ -1512,7 +1526,7 @@ export default function RoomScreen() {
         })()}
 
          <EntryEffectPlayer visible={!!entryEffect} username={entryEffect?.username} avatarUrl={entryEffect?.avatarUrl} mediaUrl={entryEffect?.mediaUrl} videoUrl={entryEffect?.videoUrl} effect={entryEffect?.effect || 'lion'} onComplete={() => setEntryEffect(null)} />
-        <CaptionsOverlay captions={captions} visible={isCaptionsEnabled} />
+
         <LuckyRainOverlay visible={showLuckyRain} roomId={id} coinAmount={luckyRainAmount} onComplete={() => setShowLuckyRain(false)} />
         <AiVoiceAnnouncer enabled={!!room?.isAIVoiceEnabled} language="hi" announcements={aiVoiceAnnouncements} />
 
