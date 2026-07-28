@@ -5,12 +5,47 @@ import { useCollection, useFirebase } from '../../firebase/provider';
 import { collection, query, orderBy, limit } from '@/firebase/firestore-compat';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useUserProfile } from '../../hooks/use-user-profile';
 
 interface CpCardProps {
   onPress: () => void;
 }
 
 const CARD_BG = require('../../../assets/images/home_cards/bg_card_cp.png');
+
+/** Live-resolved CP carousel item — fetches real-time names & avatars */
+const LiveCpCarousel = React.memo(function LiveCpCarousel({ cp, heartEmoji }: { cp: any; heartEmoji: string }) {
+  const { profile: u1P } = useUserProfile(cp?.participantIds?.[0]);
+  const { profile: u2P } = useUserProfile(cp?.participantIds?.[1]);
+  const u1Avatar = u1P?.avatarUrl || cp?.user1Avatar;
+  const u2Avatar = u2P?.avatarUrl || cp?.user2Avatar;
+  const u1Name = u1P?.username || u1P?.name || cp?.user1Name || 'User1';
+  const u2Name = u2P?.username || u2P?.name || cp?.user2Name || 'User2';
+  return (
+    <View style={styles.cpContainer}>
+      <View style={styles.doubleAvatarWrapper}>
+        <Image cachePolicy="memory-disk" source={{ uri: u1Avatar || 'https://picsum.photos/100' }} style={[styles.avatar, styles.leftAvatar]} />
+        <Image cachePolicy="memory-disk" source={{ uri: u2Avatar || 'https://picsum.photos/100' }} style={[styles.avatar, styles.rightAvatar]} />
+      </View>
+      <Text numberOfLines={1} style={styles.nameText}>{u1Name} & {u2Name}</Text>
+      <Text style={styles.cpValueText}>{heartEmoji} {cp?.cpValue?.toLocaleString() || 0}</Text>
+    </View>
+  );
+});
+
+/** Live-resolved CP podium pair — fetches real-time avatars */
+const LivePodiumPair = React.memo(function LivePodiumPair({ cp, avatarStyle, borderColor }: { cp: any; avatarStyle: any; borderColor: string }) {
+  const { profile: u1P } = useUserProfile(cp?.participantIds?.[0]);
+  const { profile: u2P } = useUserProfile(cp?.participantIds?.[1]);
+  const u1Avatar = u1P?.avatarUrl || cp?.user1Avatar;
+  const u2Avatar = u2P?.avatarUrl || cp?.user2Avatar;
+  return (
+    <>
+      <Image cachePolicy="memory-disk" source={{ uri: u1Avatar || 'https://picsum.photos/100' }} style={[avatarStyle, styles.leftAvatar, { borderColor }]} />
+      <Image cachePolicy="memory-disk" source={{ uri: u2Avatar || 'https://picsum.photos/100' }} style={[avatarStyle, styles.rightAvatar, { borderColor }]} />
+    </>
+  );
+});
 
 export function CpCard({ onPress }: CpCardProps) {
   const { firestore, isHydrated } = useFirebase();
@@ -113,24 +148,7 @@ export function CpCard({ onPress }: CpCardProps) {
         <Animated.View style={[styles.carouselContainer, { opacity: fadeAnim }]}>
           {mode === 'carousel' ? (
             currentCp ? (
-              <View style={styles.cpContainer}>
-                <View style={styles.doubleAvatarWrapper}>
-                  <Image
-                    cachePolicy="memory-disk"
-                    source={{ uri: currentCp.user1Avatar || 'https://picsum.photos/100' }}
-                    style={[styles.avatar, styles.leftAvatar]}
-                  />
-                  <Image
-                    cachePolicy="memory-disk"
-                    source={{ uri: currentCp.user2Avatar || 'https://picsum.photos/100' }}
-                    style={[styles.avatar, styles.rightAvatar]}
-                  />
-                </View>
-                <Text numberOfLines={1} style={styles.nameText}>
-                  {currentCp.user1Name || 'User1'} & {currentCp.user2Name || 'User2'}
-                </Text>
-                <Text style={styles.cpValueText}>{heartEmoji} {currentCp.cpValue?.toLocaleString() || 0}</Text>
-              </View>
+              <LiveCpCarousel cp={currentCp} heartEmoji={heartEmoji} />
             ) : (
               <View style={styles.cpContainer}>
                 <View style={styles.doubleAvatarWrapper}>
@@ -152,16 +170,7 @@ export function CpCard({ onPress }: CpCardProps) {
               <View style={styles.podiumRankSide}>
                 {topCp && topCp.length >= 2 ? (
                   <View style={styles.podiumDoubleAvatar}>
-                    <Image
-                      cachePolicy="memory-disk"
-                      source={{ uri: topCp[1].user1Avatar || 'https://picsum.photos/100' }}
-                      style={[styles.podiumAvatarSmall, styles.leftAvatar, { borderColor: '#cbd5e1' }]}
-                    />
-                    <Image
-                      cachePolicy="memory-disk"
-                      source={{ uri: topCp[1].user2Avatar || 'https://picsum.photos/100' }}
-                      style={[styles.podiumAvatarSmall, styles.rightAvatar, { borderColor: '#cbd5e1' }]}
-                    />
+                    <LivePodiumPair cp={topCp[1]} avatarStyle={styles.podiumAvatarSmall} borderColor="#cbd5e1" />
                   </View>
                 ) : (
                   <View style={[styles.podiumAvatarSmall, styles.placeholderAvatar, { borderColor: '#cbd5e1', borderWidth: 1 }]} />
@@ -172,16 +181,7 @@ export function CpCard({ onPress }: CpCardProps) {
               <View style={styles.podiumRankCenter}>
                 {topCp && topCp.length >= 1 ? (
                   <View style={styles.podiumDoubleAvatarLarge}>
-                    <Image
-                      cachePolicy="memory-disk"
-                      source={{ uri: topCp[0].user1Avatar || 'https://picsum.photos/100' }}
-                      style={[styles.podiumAvatarMedium, styles.leftAvatar, { borderColor: '#fbbf24' }]}
-                    />
-                    <Image
-                      cachePolicy="memory-disk"
-                      source={{ uri: topCp[0].user2Avatar || 'https://picsum.photos/100' }}
-                      style={[styles.podiumAvatarMedium, styles.rightAvatar, { borderColor: '#fbbf24' }]}
-                    />
+                    <LivePodiumPair cp={topCp[0]} avatarStyle={styles.podiumAvatarMedium} borderColor="#fbbf24" />
                   </View>
                 ) : (
                   <View style={[styles.podiumAvatarMedium, styles.placeholderAvatar, { borderColor: '#fbbf24', borderWidth: 1.5 }]} />
@@ -192,16 +192,7 @@ export function CpCard({ onPress }: CpCardProps) {
               <View style={styles.podiumRankSide}>
                 {topCp && topCp.length >= 3 ? (
                   <View style={styles.podiumDoubleAvatar}>
-                    <Image
-                      cachePolicy="memory-disk"
-                      source={{ uri: topCp[2].user1Avatar || 'https://picsum.photos/100' }}
-                      style={[styles.podiumAvatarSmall, styles.leftAvatar, { borderColor: '#d97706' }]}
-                    />
-                    <Image
-                      cachePolicy="memory-disk"
-                      source={{ uri: topCp[2].user2Avatar || 'https://picsum.photos/100' }}
-                      style={[styles.podiumAvatarSmall, styles.rightAvatar, { borderColor: '#d97706' }]}
-                    />
+                    <LivePodiumPair cp={topCp[2]} avatarStyle={styles.podiumAvatarSmall} borderColor="#d97706" />
                   </View>
                 ) : (
                   <View style={[styles.podiumAvatarSmall, styles.placeholderAvatar, { borderColor: '#d97706', borderWidth: 1 }]} />

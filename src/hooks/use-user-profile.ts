@@ -134,6 +134,41 @@ export function useUserProfile(uid: string | undefined | null) {
         const username = sub?.username || base?.username || sub?.name || base?.name || sub?.displayName || base?.displayName || '';
         const name = sub?.name || base?.name || sub?.username || base?.username || sub?.displayName || base?.displayName || '';
 
+        // Auto-heal: sync missing fields to base doc so chat list always shows correct data
+        // Case 1: Both docs exist but base is missing name/avatar
+        if (base && sub) {
+          const heal: Record<string, any> = {};
+          if (!base.username && !base.name && (sub.username || sub.name)) {
+            heal.username = sub.username || sub.name;
+            heal.name = sub.name || sub.username;
+          }
+          if (!base.avatarUrl && !base.photoURL && (sub.avatarUrl || sub.photoURL)) {
+            heal.avatarUrl = sub.avatarUrl || sub.photoURL;
+          }
+          if (Object.keys(heal).length > 0) {
+            setDoc(userRef, heal, { merge: true }).catch(() => {});
+          }
+        }
+        // Case 2: Only base doc exists (no sub doc) — heal base from displayName/photoURL
+        if (base && !sub) {
+          const heal: Record<string, any> = {};
+          if (!base.username && !base.name && base.displayName) {
+            heal.username = base.displayName;
+            heal.name = base.displayName;
+          }
+          if (!base.avatarUrl && base.photoURL) {
+            heal.avatarUrl = base.photoURL;
+          }
+          if (Object.keys(heal).length > 0) {
+            setDoc(userRef, heal, { merge: true }).catch(() => {});
+          }
+        }
+
+        // Debug: log when profile resolves to empty name
+        if (!username && !name) {
+          console.warn(`[useUserProfile] uid=${uid} has no name. base keys:`, base ? Object.keys(base) : 'null', 'sub keys:', sub ? Object.keys(sub) : 'null');
+        }
+
         setProfile({
           ...(sub || {}),
           ...(base || {}),
@@ -151,6 +186,7 @@ export function useUserProfile(uid: string | undefined | null) {
           id: uid,
         } as User);
         setIsLoading(false);
+
       } catch (err) {
         console.error("[useUserProfile MERGE ERROR]", err);
         // Robust Fallback: Set whatever raw data is loaded to prevent page loader freeze
@@ -176,6 +212,7 @@ export function useUserProfile(uid: string | undefined | null) {
         mergeAndSet();
       },
       (error: any) => {
+        console.warn(`[useUserProfile] sub-doc error for uid=${uid}:`, error?.code || error?.message || error);
         dataRef.current.sub = null;
         mergeAndSet();
       }
@@ -190,6 +227,7 @@ export function useUserProfile(uid: string | undefined | null) {
         mergeAndSet();
       },
       (error: any) => {
+        console.warn(`[useUserProfile] base-doc error for uid=${uid}:`, error?.code || error?.message || error);
         dataRef.current.base = null;
         mergeAndSet();
       }

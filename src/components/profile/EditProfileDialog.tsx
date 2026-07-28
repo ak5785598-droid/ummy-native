@@ -160,6 +160,25 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
       const profileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
       await setDoc(userRef, { avatarUrl: downloadURL, updatedAt: serverTimestamp() }, { merge: true });
       await setDoc(profileRef, { avatarUrl: downloadURL, updatedAt: serverTimestamp() }, { merge: true });
+
+      // Sync updated avatar to user's cpPairs records
+      try {
+        const { getDocs, query: fQuery, collection: fCollection, where: fWhere } = await import('@/firebase/firestore-compat');
+        const cpSnap = await getDocs(fQuery(fCollection(firestore, 'cpPairs'), fWhere('participantIds', 'array-contains', user.uid)));
+        if (!cpSnap.empty) {
+          cpSnap.forEach((cpDoc: any) => {
+            const cpData = cpDoc.data();
+            const updates: any = { updatedAt: serverTimestamp() };
+            if (cpData.participantIds?.[0] === user.uid) {
+              updates.user1Avatar = downloadURL;
+            } else if (cpData.participantIds?.[1] === user.uid) {
+              updates.user2Avatar = downloadURL;
+            }
+            setDoc(doc(firestore, 'cpPairs', cpDoc.id), updates, { merge: true }).catch(() => {});
+          });
+        }
+      } catch (err) {}
+
       setLocalAvatarUri(downloadURL);
     } catch (e: any) {
       Alert.alert('Upload Failed', e?.message || 'Could not upload photo.');
@@ -273,14 +292,37 @@ export const EditProfileDialog = ({ profile, trigger }: { profile: any; trigger?
       if (!isGenderFixed && gender) updateData.gender = gender;
       if (isOfficialUser) updateData.tags = selectedTags;
 
-      // Summary doc (fast sync for chat/rooms)
+      // Summary doc (fast sync for chat/rooms) — include name + avatarUrl so chat list always has fresh data
+      const baseSyncData: any = { username: name.trim(), name: name.trim(), whatsapp, showWhatsapp, updatedAt: serverTimestamp() };
+      // Also sync current avatar to base doc if available
+      const currentAvatar = localAvatarUri || profile?.avatarUrl;
+      if (currentAvatar) baseSyncData.avatarUrl = currentAvatar;
       await setDoc(
         userRef,
-        { username: name.trim(), whatsapp, showWhatsapp, updatedAt: serverTimestamp() },
+        baseSyncData,
         { merge: true }
       );
       // Full profile doc
       await setDoc(profileRef, updateData, { merge: true });
+
+      // Sync name & avatar to user's cpPairs records so CP Card and Leaderboard show updated info
+      try {
+        const { getDocs, query: fQuery, collection: fCollection, where: fWhere } = await import('@/firebase/firestore-compat');
+        const cpSnap = await getDocs(fQuery(fCollection(firestore, 'cpPairs'), fWhere('participantIds', 'array-contains', user.uid)));
+        if (!cpSnap.empty) {
+          const newName = name.trim();
+          cpSnap.forEach((cpDoc: any) => {
+            const cpData = cpDoc.data();
+            const updates: any = { updatedAt: serverTimestamp() };
+            if (cpData.participantIds?.[0] === user.uid) {
+              updates.user1Name = newName;
+            } else if (cpData.participantIds?.[1] === user.uid) {
+              updates.user2Name = newName;
+            }
+            setDoc(doc(firestore, 'cpPairs', cpDoc.id), updates, { merge: true }).catch(() => {});
+          });
+        }
+      } catch (err) {}
 
       setOpen(false);
     } catch (e: any) {

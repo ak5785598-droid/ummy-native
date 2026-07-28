@@ -41,6 +41,23 @@ function useAnimatedValue(val: number) {
   return useRef(new Animated.Value(val)).current;
 }
 
+/** Live-resolved row for top CP couples — fetches real-time names */
+const LiveCpRow = React.memo(function LiveCpRow({ cp, medal }: { cp: any; medal: string }) {
+  const { profile: u1P } = useUserProfile(cp?.participantIds?.[0]);
+  const { profile: u2P } = useUserProfile(cp?.participantIds?.[1]);
+  const u1Name = u1P?.username || u1P?.name || cp?.user1Name || '?';
+  const u2Name = u2P?.username || u2P?.name || cp?.user2Name || '?';
+  return (
+    <View style={styles.topCpRow}>
+      <Text style={styles.topCpMedal}>{medal}</Text>
+      <Text style={styles.topCpNames} numberOfLines={1}>
+        {u1Name} & {u2Name}
+      </Text>
+      <Text style={styles.topCpValue}>💖 {cp?.cpValue?.toLocaleString() || 0}</Text>
+    </View>
+  );
+});
+
 export function CpPreviewModal({ visible, onClose, onNavigate }: CpPreviewModalProps) {
   const { firestore, isHydrated } = useFirebase();
   const { user } = useUser();
@@ -370,15 +387,7 @@ export function CpPreviewModal({ visible, onClose, onNavigate }: CpPreviewModalP
                   <Text style={styles.topCpLabel}>🏆 Top Couples</Text>
                   {topCp.slice(0, 3).map((cp: any, idx: number) => {
                     const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
-                    return (
-                      <View key={cp.id || idx} style={styles.topCpRow}>
-                        <Text style={styles.topCpMedal}>{medal}</Text>
-                        <Text style={styles.topCpNames} numberOfLines={1}>
-                          {cp.user1Name || '?'} & {cp.user2Name || '?'}
-                        </Text>
-                        <Text style={styles.topCpValue}>💖 {cp.cpValue?.toLocaleString() || 0}</Text>
-                      </View>
-                    );
+                    return <LiveCpRow key={cp.id || idx} cp={cp} medal={medal} />;
                   })}
                 </View>
               )}
