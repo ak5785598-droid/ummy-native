@@ -167,7 +167,7 @@ export function RoomGamesDialog({ visible, onClose, onSelectGame, roomId, canMan
                 {gameList.map(g => {
                   const gameId = g.id || g.slug;
                   const isSelected = selectedId === gameId;
-                  const isRestricted = RESTRICTED_GAMES.includes(gameId) && !canManage;
+                  const isRestricted = RESTRICTED_GAMES_START_ONLY.includes(gameId) && !canManage;
                   const [c1, c2] = getGradientColor(gameId);
                   return (
                     <TouchableOpacity
