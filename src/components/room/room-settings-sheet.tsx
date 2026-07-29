@@ -753,9 +753,123 @@ function MicTestPage({ onClose }: { onClose: () => void }) {
   );
 }
 
+const LiveLogItem = React.memo(function LiveLogItem({
+  item,
+  roomId,
+  onUnban
+}: {
+  item: any;
+  roomId: string;
+  onUnban: (userId: string, userName: string) => void;
+}) {
+  const { profile: targetProfile } = useUserProfile(item.userId || item.uid);
+  const userName = targetProfile?.username || targetProfile?.name || item.targetName || item.username || 'User';
+  const avatarUrl = targetProfile?.avatarUrl || item.targetAvatar || item.avatarUrl || '';
+
+  const formatLogTime = (ts: any) => {
+    if (!ts) return '';
+    const date = ts.toDate ? ts.toDate() : new Date(ts);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const getDurationText = (ms: number) => {
+    if (ms >= 99 * 365 * 24 * 60 * 60 * 1000) return 'Permanent';
+    if (ms >= 30 * 24 * 60 * 60 * 1000) return '30 Days';
+    if (ms >= 24 * 60 * 60 * 1000) return '1 Day';
+    return '2 Hours';
+  };
+
+  const isKick = item.type === 'kick';
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderColor: 'rgba(0,0,0,0.05)' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+        <Image cachePolicy="memory-disk" source={{ uri: toCDN(avatarUrl) || 'https://picsum.photos/100' }} style={{ width: 36, height: 36, borderRadius: 18, marginRight: 10 }} />
+        <View style={{ flex: 1 }}>
+          {isKick ? (
+            <>
+              <Text style={{ fontSize: 12, color: '#dc2626', fontWeight: '700' }}>
+                🚷 <Text style={{ fontWeight: '900', color: '#111827' }}>{userName}</Text> kicked by <Text style={{ fontWeight: '800', color: '#4b5563' }}>{item.adminName || 'Admin'}</Text>
+              </Text>
+              <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: '600', marginTop: 2 }}>
+                Duration: {getDurationText(item.durationMs || 0)} • {formatLogTime(item.timestamp)}
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={{ fontSize: 12, color: '#16a34a', fontWeight: '700' }}>
+                📥 <Text style={{ fontWeight: '900', color: '#111827' }}>{userName}</Text> entered room
+              </Text>
+              <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: '600', marginTop: 2 }}>
+                {formatLogTime(item.timestamp)}
+              </Text>
+            </>
+          )}
+        </View>
+      </View>
+
+      {isKick && (
+        <TouchableOpacity
+          onPress={() => onUnban(item.userId, userName)}
+          style={{ backgroundColor: '#fee2e2', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, borderWidth: 1, borderColor: '#fca5a5' }}
+        >
+          <Text style={{ fontSize: 10, fontWeight: '900', color: '#dc2626' }}>Unban 🔓</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+});
+
+function LiveBanItem({
+  ban,
+  roomId,
+  onUnban
+}: {
+  ban: any;
+  roomId: string;
+  onUnban: (userId: string, userName: string) => void;
+}) {
+  const userId = ban.bannedUid || ban.id;
+  const { profile: targetProfile } = useUserProfile(userId);
+  const userName = targetProfile?.username || targetProfile?.name || ban.targetName || 'User';
+  const avatarUrl = targetProfile?.avatarUrl || ban.targetAvatar || '';
+
+  const getBanExpiryText = (expiry: number) => {
+    if (!expiry) return 'Permanent';
+    const leftMs = expiry - Date.now();
+    if (leftMs <= 0) return 'Expired';
+    const hoursLeft = Math.ceil(leftMs / (1000 * 60 * 60));
+    if (hoursLeft >= 24) return `${Math.ceil(hoursLeft / 24)} Days Left`;
+    return `${hoursLeft} Hours Left`;
+  };
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderColor: 'rgba(0,0,0,0.05)' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+        <Image cachePolicy="memory-disk" source={{ uri: toCDN(avatarUrl) || 'https://picsum.photos/100' }} style={{ width: 36, height: 36, borderRadius: 18, marginRight: 10 }} />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 12, color: '#dc2626', fontWeight: '800' }}>{userName}</Text>
+          <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: '600', marginTop: 2 }}>
+            Status: {getBanExpiryText(ban.bannedUntil)}
+          </Text>
+        </View>
+      </View>
+
+      <TouchableOpacity
+        onPress={() => onUnban(userId, userName)}
+        style={{ backgroundColor: '#fee2e2', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, borderWidth: 1, borderColor: '#fca5a5' }}
+      >
+        <Text style={{ fontSize: 10, fontWeight: '900', color: '#dc2626' }}>Unban 🔓</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 function LogsPage({ roomId, onClose }: { roomId: string; onClose: () => void }) {
   const firestore = useFirestore();
+  const [activeTab, setActiveTab] = useState<'entry' | 'kick' | 'ban'>('entry');
   const [logs, setLogs] = useState<any[]>([]);
+  const [bans, setBans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -772,57 +886,115 @@ function LogsPage({ roomId, onClose }: { roomId: string; onClose: () => void }) 
     return unsub;
   }, [firestore, roomId]);
 
-  const formatLogTime = (ts: any) => {
-    if (!ts) return '';
-    const date = ts.toDate ? ts.toDate() : new Date(ts);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  useEffect(() => {
+    if (!firestore || !roomId) return;
+    const q = query(collection(firestore, 'chatRooms', roomId, 'bans'));
+    const unsub = onSnapshot(q, (snap) => {
+      setBans(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, () => {});
+    return unsub;
+  }, [firestore, roomId]);
+
+  const handleUnban = (userId: string, userName: string) => {
+    if (!firestore || !roomId || !userId) return;
+    Alert.alert(
+      'Remove Kick / Unban 🔓',
+      `Are you sure you want to unban ${userName} from this room?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unban',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(firestore, 'chatRooms', roomId, 'bans', userId));
+              try {
+                await setDoc(doc(firestore, 'chatRooms', roomId, 'participants', userId), {
+                  kickedUntil: null
+                }, { merge: true });
+              } catch (e) {}
+              Alert.alert('Success', `${userName} has been unbanned.`);
+            } catch (e: any) {
+              Alert.alert('Error', e?.message || 'Failed to unban user.');
+            }
+
+          }
+        }
+      ]
+    );
   };
 
-  const getDurationText = (ms: number) => {
-    if (ms >= 99 * 365 * 24 * 60 * 60 * 1000) return 'Permanent';
-    if (ms >= 30 * 24 * 60 * 60 * 1000) return '30 Days';
-    if (ms >= 24 * 60 * 60 * 1000) return '1 Day';
-    return '2 Hours';
-  };
+  const filteredLogs = useMemo(() => {
+    if (activeTab === 'entry') return logs.filter(l => l.type === 'entry');
+    if (activeTab === 'kick') return logs.filter(l => l.type === 'kick' || (!l.type && l.durationMs));
+    return [];
+  }, [logs, activeTab]);
+
 
   return (
-    <View style={{ padding: 12, minHeight: 300, maxHeight: 450 }}>
+    <View style={{ padding: 12, minHeight: 320, maxHeight: 460 }}>
       <Text style={{ fontSize: 13, fontWeight: '950', color: '#111827', textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 12 }}>
-        Room Entry & Kick Logs
+        Room Logs & Ban Center
       </Text>
+
+      {/* 3 Tabs Header */}
+      <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', borderRadius: 16, padding: 3, marginBottom: 12 }}>
+        <TouchableOpacity
+          onPress={() => setActiveTab('entry')}
+          style={{ flex: 1, paddingVertical: 7, borderRadius: 13, alignItems: 'center', backgroundColor: activeTab === 'entry' ? '#fff' : 'transparent' }}
+        >
+          <Text style={{ fontSize: 11, fontWeight: '900', color: activeTab === 'entry' ? '#16a34a' : '#6b7280' }}>
+            📥 Entries ({logs.filter(l => l.type === 'entry').length})
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => setActiveTab('kick')}
+          style={{ flex: 1, paddingVertical: 7, borderRadius: 13, alignItems: 'center', backgroundColor: activeTab === 'kick' ? '#fff' : 'transparent' }}
+        >
+          <Text style={{ fontSize: 11, fontWeight: '900', color: activeTab === 'kick' ? '#dc2626' : '#6b7280' }}>
+            🚷 Kicks ({logs.filter(l => l.type === 'kick').length})
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => setActiveTab('ban')}
+          style={{ flex: 1, paddingVertical: 7, borderRadius: 13, alignItems: 'center', backgroundColor: activeTab === 'ban' ? '#fff' : 'transparent' }}
+        >
+          <Text style={{ fontSize: 11, fontWeight: '900', color: activeTab === 'ban' ? '#7c3aed' : '#6b7280' }}>
+            🚫 Bans ({bans.length})
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       {loading ? (
         <ActivityIndicator color="#7c3aed" style={{ marginTop: 40 }} />
-      ) : logs.length === 0 ? (
+      ) : activeTab === 'ban' ? (
+        bans.length === 0 ? (
+          <Text style={{ textAlign: 'center', color: '#9ca3af', fontSize: 12, paddingVertical: 40 }}>
+            No banned users in this room.
+          </Text>
+        ) : (
+          <ScrollView style={{ flexGrow: 0 }} showsVerticalScrollIndicator={false}>
+            {bans.map(ban => (
+              <LiveBanItem key={ban.id} ban={ban} roomId={roomId} onUnban={handleUnban} />
+            ))}
+          </ScrollView>
+        )
+      ) : filteredLogs.length === 0 ? (
         <Text style={{ textAlign: 'center', color: '#9ca3af', fontSize: 12, paddingVertical: 40 }}>
-          No entries or actions logged yet.
+          {activeTab === 'entry' ? 'No room entries logged yet.' : 'No kicks logged yet.'}
         </Text>
       ) : (
-        <FlatList
-          data={logs}
-          keyExtractor={item => item.id}
-          renderItem={({ item }) => (
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderColor: '#f3f4f6' }}>
-              <View style={{ flex: 1, marginRight: 8 }}>
-                {item.type === 'entry' ? (
-                  <Text style={{ fontSize: 13, color: '#374151', fontWeight: '600' }}>
-                    📥 <Text style={{ fontWeight: '800', color: '#111827' }}>{item.username}</Text> entered the room
-                  </Text>
-                ) : (
-                  <Text style={{ fontSize: 13, color: '#dc2626', fontWeight: '600' }}>
-                    🚷 <Text style={{ fontWeight: '800', color: '#111827' }}>{item.adminName}</Text> kicked user (ID: {item.userId.substring(0, 6)}) for <Text style={{ fontWeight: '800' }}>{getDurationText(item.durationMs)}</Text>
-                  </Text>
-                )}
-              </View>
-              <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: '700' }}>
-                {formatLogTime(item.timestamp)}
-              </Text>
-            </View>
-          )}
-          style={{ flexGrow: 0 }}
-          showsVerticalScrollIndicator={false}
-        />
+        <ScrollView style={{ flexGrow: 0 }} showsVerticalScrollIndicator={false}>
+          {filteredLogs.map(item => (
+            <LiveLogItem key={item.id} item={item} roomId={roomId} onUnban={handleUnban} />
+          ))}
+        </ScrollView>
       )}
     </View>
   );
 }
+
+
+

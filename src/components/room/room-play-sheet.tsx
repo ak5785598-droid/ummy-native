@@ -211,26 +211,28 @@ export function RoomPlaySheet({ visible, onClose, roomId, room, participants, on
     );
   };
 
-  const toggleOptions = canManage ? [
-    {
-      id: 'clean',
-      label: 'Clean',
-      onPress: handleClearChat,
-      icon: ICON_CLEAN,
-      activeColor: '#06b6d4',
-      bgColor: '#e0f7fa',
-      showDot: false,
-    },
-    {
-      id: 'public-msg',
-      label: 'Public Msg',
-      onPress: handleToggleChatMute,
-      icon: ICON_PUBLIC_MSG,
-      activeColor: isChatMuted ? '#475569' : '#3b82f6',
-      bgColor: '#eff6ff',
-      showDot: !isChatMuted,
-      dotColor: '#22c55e',
-    },
+  const toggleOptions = [
+    ...(canManage ? [
+      {
+        id: 'clean',
+        label: 'Clean',
+        onPress: handleClearChat,
+        icon: ICON_CLEAN,
+        activeColor: '#06b6d4',
+        bgColor: '#e0f7fa',
+        showDot: false,
+      },
+      {
+        id: 'public-msg',
+        label: 'Public Msg',
+        onPress: handleToggleChatMute,
+        icon: ICON_PUBLIC_MSG,
+        activeColor: isChatMuted ? '#475569' : '#3b82f6',
+        bgColor: '#eff6ff',
+        showDot: !isChatMuted,
+        dotColor: '#22c55e',
+      },
+    ] : []),
     {
       id: 'gift-effects',
       label: 'Gift Effects',
@@ -241,7 +243,7 @@ export function RoomPlaySheet({ visible, onClose, roomId, room, participants, on
       showDot: isGiftEffects,
       dotColor: '#eab308',
     },
-  ] : [];
+  ];
 
   const featureItems = (canManage ? [
     {

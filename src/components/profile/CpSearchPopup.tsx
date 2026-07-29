@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { Search, X, UserPlus, CheckCircle } from 'lucide-react-native';
 import { Image } from 'expo-image';
@@ -58,6 +58,21 @@ export function CpSearchPopup({ visible, onClose, profile }: CpSearchPopupProps)
       return;
     }
     try {
+      // CP restriction: check if either user already has a CP
+      if (type === 'CP') {
+        const { getDocs, query: fQuery, collection: fCollection, where: fWhere } = await import('@/firebase/firestore-compat');
+        const myExistingCp = await getDocs(fQuery(fCollection(firestore, 'cpPairs'), fWhere('type', '==', 'CP'), fWhere('participantIds', 'array-contains', user.uid)));
+        if (!myExistingCp.empty) {
+          Alert.alert('Already have CP 💔', 'You already have an active CP. Break your current CP first.');
+          return;
+        }
+        const targetExistingCp = await getDocs(fQuery(fCollection(firestore, 'cpPairs'), fWhere('type', '==', 'CP'), fWhere('participantIds', 'array-contains', selectedUser.id)));
+        if (!targetExistingCp.empty) {
+          Alert.alert('Already has CP 💔', `${selectedUser.username || 'This user'} already has an active CP.`);
+          return;
+        }
+      }
+
       await setDoc(doc(firestore, 'proposals', `${user.uid}_${selectedUser.id}`), {
         fromUid: user.uid,
         fromUsername: profile.username || '',

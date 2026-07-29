@@ -229,7 +229,22 @@ function CoverCarousel({ images }: { images: string[] }) {
   );
 }
 
+const LivePartnerItem = React.memo(function LivePartnerItem({ partner }: { partner: any }) {
+  const { profile: pProfile } = useUserProfile(partner.uid);
+  const name = pProfile?.username || pProfile?.name || partner.name || 'User';
+  const avatarUrl = pProfile?.avatarUrl || partner.avatarUrl;
+
+  return (
+    <View style={{ alignItems: 'center', width: 58, marginHorizontal: 2 }}>
+      <Image cachePolicy="memory-disk" source={{ uri: toCDN(avatarUrl) || 'https://picsum.photos/200' }}
+        style={{ width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.9)' }} />
+      <Text style={{ fontSize: 7, fontWeight: '700', color: '#FFFFFF', marginTop: 3, textAlign: 'center' }} numberOfLines={1}>{name}</Text>
+    </View>
+  );
+});
+
 export function FullProfileDialog({
+
   open,
   onOpenChange,
   profile,
@@ -275,13 +290,16 @@ export function FullProfileDialog({
     return () => { if (unsub) unsub(); };
   }, [open, targetUid]);
 
+  const { profile: targetLiveProfile } = useUserProfile(targetUid);
+
   const resolvedPartnerUid = useMemo(() => {
     if (profile?.relationship?.partnerUid) return profile.relationship.partnerUid;
+    if (profile?.relationship?.uid) return profile.relationship.uid;
     if (activeCpPair?.participantIds) {
       return activeCpPair.participantIds.find((id: string) => id !== targetUid);
     }
     return null;
-  }, [profile?.relationship?.partnerUid, activeCpPair, targetUid]);
+  }, [profile?.relationship, activeCpPair, targetUid]);
 
   const { profile: fetchedPartnerProfile } = useUserProfile(resolvedPartnerUid || undefined);
 
@@ -411,6 +429,21 @@ export function FullProfileDialog({
   const handleSendCpProposal = useCallback(async (type: 'CP' | 'Best Friend' | 'Besties') => {
     if (!firestore || !user || !cpSelectedUser) return;
     try {
+      // CP restriction: check if either user already has a CP
+      if (type === 'CP') {
+        const { getDocs, query: fQuery, collection: fCollection, where: fWhere } = await import('@/firebase/firestore-compat');
+        const myExistingCp = await getDocs(fQuery(fCollection(firestore, 'cpPairs'), fWhere('type', '==', 'CP'), fWhere('participantIds', 'array-contains', user.uid)));
+        if (!myExistingCp.empty) {
+          Alert.alert('Already have CP 💔', 'You already have an active CP. Break your current CP first.');
+          return;
+        }
+        const targetExistingCp = await getDocs(fQuery(fCollection(firestore, 'cpPairs'), fWhere('type', '==', 'CP'), fWhere('participantIds', 'array-contains', cpSelectedUser.id)));
+        if (!targetExistingCp.empty) {
+          Alert.alert('Already has CP 💔', `${cpSelectedUser.username || 'This user'} already has an active CP.`);
+          return;
+        }
+      }
+
       const proposalId = `${user.uid}_${cpSelectedUser.id}_${Date.now()}`;
       await setDoc(doc(firestore, 'proposals', proposalId), {
         fromUid: user.uid,
@@ -690,19 +723,19 @@ export function FullProfileDialog({
                   let partners: any[] = [];
                   if (isCP) {
                     const relData = profile?.relationship;
-                    const partnerName = relData?.partnerName || fetchedPartnerProfile?.username || (activeCpPair?.user1Uid === targetUid ? activeCpPair?.user2Name : activeCpPair?.user1Name) || '';
-                    const partnerAvatar = relData?.partnerAvatar || fetchedPartnerProfile?.avatarUrl || (activeCpPair?.user1Uid === targetUid ? activeCpPair?.user2Avatar : activeCpPair?.user1Avatar) || '';
-                    const pUid = relData?.partnerUid || resolvedPartnerUid || '';
+                    const partnerName = fetchedPartnerProfile?.username || fetchedPartnerProfile?.name || relData?.partnerName || relData?.name || (activeCpPair?.user1Uid === targetUid ? activeCpPair?.user2Name : activeCpPair?.user1Name) || '';
+                    const partnerAvatar = fetchedPartnerProfile?.avatarUrl || relData?.partnerAvatar || relData?.avatarUrl || (activeCpPair?.user1Uid === targetUid ? activeCpPair?.user2Avatar : activeCpPair?.user1Avatar) || '';
+                    const pUid = relData?.partnerUid || relData?.uid || resolvedPartnerUid || '';
 
                     if (pUid || partnerName || partnerAvatar) {
                       partners = [{ name: partnerName || 'Partner', avatarUrl: partnerAvatar, uid: pUid }];
                     }
                   } else if (isBF) {
                     const bfData = profile?.bestFriends || (profile?.bestFriend ? [profile.bestFriend] : []);
-                    partners = bfData.map((bf: any) => ({ name: bf.name || bf.username, avatarUrl: bf.avatarUrl || bf.avatar, uid: bf.uid }));
+                    partners = bfData.map((bf: any) => ({ name: bf.name || bf.username, avatarUrl: bf.avatarUrl || bf.avatar, uid: bf.uid || bf.id }));
                   } else {
                     const bestiesData = profile?.bestiesList || (profile?.besties ? [profile.besties] : []);
-                    partners = bestiesData.map((b: any) => ({ name: b.name || b.username, avatarUrl: b.avatarUrl || b.avatar, uid: b.uid }));
+                    partners = bestiesData.map((b: any) => ({ name: b.name || b.username, avatarUrl: b.avatarUrl || b.avatar, uid: b.uid || b.id }));
                   }
 
                   const hasData = partners.length > 0;
@@ -721,9 +754,11 @@ export function FullProfileDialog({
 
                           {/* Left: Self */}
                           <View style={{ alignItems: 'center', marginTop: 2 }}>
-                            <Image cachePolicy="memory-disk" source={{ uri: toCDN(profile.avatarUrl) || 'https://picsum.photos/200' }}
+                            <Image cachePolicy="memory-disk" source={{ uri: toCDN(targetLiveProfile?.avatarUrl || profile.avatarUrl) || 'https://picsum.photos/200' }}
                               style={{ width: 50, height: 50, borderRadius: 25, borderWidth: 2, borderColor: 'rgba(255,255,255,0.95)' }} />
-                            <Text style={{ fontSize: 9, fontWeight: '800', color: '#FFFFFF', marginTop: 6, textAlign: 'center' }} numberOfLines={1}>{profile.username}</Text>
+                            <Text style={{ fontSize: 9, fontWeight: '800', color: '#FFFFFF', marginTop: 6, textAlign: 'center' }} numberOfLines={1}>
+                              {targetLiveProfile?.username || targetLiveProfile?.name || profile.username || profile.name || 'User'}
+                            </Text>
                           </View>
 
                           {/* Center: Heart or Icon */}
@@ -753,11 +788,7 @@ export function FullProfileDialog({
                               <View style={{ flex: 1, maxWidth: 130 }}>
                                 <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} scrollEventThrottle={16}>
                                   {partners.map((p: any, idx: number) => (
-                                    <View key={idx} style={{ alignItems: 'center', width: 58, marginHorizontal: 2 }}>
-                                      <Image cachePolicy="memory-disk" source={{ uri: toCDN(p.avatarUrl) || 'https://picsum.photos/200' }}
-                                        style={{ width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.9)' }} />
-                                      <Text style={{ fontSize: 7, fontWeight: '700', color: '#FFFFFF', marginTop: 3, textAlign: 'center' }} numberOfLines={1}>{p.name}</Text>
-                                    </View>
+                                    <LivePartnerItem key={p.uid || idx} partner={p} />
                                   ))}
                                   {isOwnProfile && (
                                     <TouchableOpacity onPress={() => { setSearchType(item.type); setShowCpSearch(true); }}
@@ -1118,7 +1149,22 @@ function getISOWeek(d: Date): number {
   return Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 }
 
+
+const LiveSupporterSlot = React.memo(function LiveSupporterSlot({
+  supporter,
+  render
+}: {
+  supporter: any;
+  render: (data: { name: string; avatarUrl: string }) => React.ReactNode;
+}) {
+  const { profile: liveP } = useUserProfile(supporter?.supporterId);
+  const name = liveP?.username || liveP?.name || supporter?.supporterName || 'User';
+  const avatarUrl = liveP?.avatarUrl || supporter?.supporterAvatar || '';
+  return <>{render({ name, avatarUrl })}</>;
+});
+
 function TopSupportersSection({ profileId, isOwnProfile, firestore, user, onViewProfile }: { profileId: string; isOwnProfile: boolean; firestore: any; user: any; onViewProfile?: (uid: string) => void }) {
+
   const [supporters, setSupporters] = useState<any[]>([]);
   const [showAll, setShowAll] = useState(false);
   const [period, setPeriod] = useState<'total' | 'weekly' | 'monthly'>('total');
@@ -1240,26 +1286,29 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user, onView
       <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-end', gap: 16, paddingBottom: 4 }}>
         {slots.map((slot, i) => (
           <View key={i} style={{ alignItems: 'center', transform: [{ translateY: slot.translateY }] }}>
-            <TouchableOpacity
-              onPress={() => { if (slot.supporter?.supporterId) { setShowAll(false); onViewProfile?.(slot.supporter.supporterId); } }}
-              disabled={!slot.supporter}
-              style={{ width: slot.size, height: slot.size, borderRadius: slot.size / 2, borderWidth: 2, borderColor: slot.color, backgroundColor: slot.supporter ? 'transparent' : 'rgba(148,163,184,0.08)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
-            >
-              {slot.supporter ? (
-                <Image cachePolicy="memory-disk" source={{ uri: toCDN(slot.supporter.supporterAvatar) || 'https://picsum.photos/100' }}
-                  style={{ width: slot.size, height: slot.size, borderRadius: slot.size / 2 }} />
-              ) : (
-                <Text style={{ fontSize: slot.size * 0.35, color: slot.color, opacity: 0.5 }}>{slot.medal}</Text>
-              )}
-            </TouchableOpacity>
-            <Text style={{ fontSize: 14, marginTop: 4 }}>{slot.medal}</Text>
             {slot.supporter ? (
-              <>
-                <Text style={{ fontSize: 9, fontWeight: '800', color: '#334155', marginTop: 2 }} numberOfLines={1}>{slot.supporter.supporterName}</Text>
-                <Text style={{ fontSize: 8, fontWeight: '700', color: '#f43f5e' }}>{getPoints(slot.supporter).toLocaleString()} pts</Text>
-              </>
+              <LiveSupporterSlot supporter={slot.supporter} render={({ name, avatarUrl }) => (
+                <>
+                  <TouchableOpacity
+                    onPress={() => { if (slot.supporter?.supporterId) { setShowAll(false); onViewProfile?.(slot.supporter.supporterId); } }}
+                    style={{ width: slot.size, height: slot.size, borderRadius: slot.size / 2, borderWidth: 2, borderColor: slot.color, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
+                  >
+                    <Image cachePolicy="memory-disk" source={{ uri: toCDN(avatarUrl) || 'https://picsum.photos/100' }}
+                      style={{ width: slot.size, height: slot.size, borderRadius: slot.size / 2 }} />
+                  </TouchableOpacity>
+                  <Text style={{ fontSize: 14, marginTop: 4 }}>{slot.medal}</Text>
+                  <Text style={{ fontSize: 9, fontWeight: '800', color: '#334155', marginTop: 2 }} numberOfLines={1}>{name}</Text>
+                  <Text style={{ fontSize: 8, fontWeight: '700', color: '#f43f5e' }}>{getPoints(slot.supporter).toLocaleString()} pts</Text>
+                </>
+              )} />
             ) : (
-              <Text style={{ fontSize: 9, fontWeight: '600', color: '#CBD5E1', marginTop: 2 }}>Empty</Text>
+              <>
+                <TouchableOpacity disabled style={{ width: slot.size, height: slot.size, borderRadius: slot.size / 2, borderWidth: 2, borderColor: slot.color, backgroundColor: 'rgba(148,163,184,0.08)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                  <Text style={{ fontSize: slot.size * 0.35, color: slot.color, opacity: 0.5 }}>{slot.medal}</Text>
+                </TouchableOpacity>
+                <Text style={{ fontSize: 14, marginTop: 4 }}>{slot.medal}</Text>
+                <Text style={{ fontSize: 9, fontWeight: '600', color: '#CBD5E1', marginTop: 2 }}>Empty</Text>
+              </>
             )}
           </View>
         ))}
@@ -1267,20 +1316,17 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user, onView
 
       {/* Top 10 Full Page Modal */}
       {showAll && (
-        <Modal visible={showAll} transparent animationType="slide">
+        <Modal visible={showAll} animationType="slide" onRequestClose={() => setShowAll(false)}>
           <View style={{ flex: 1, backgroundColor: '#FFF' }}>
-            {/* Header */}
-            <SafeAreaView style={{ backgroundColor: '#FFF' }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
-                <TouchableOpacity onPress={() => setShowAll(false)} style={{ padding: 4 }}>
-                  <ChevronLeft size={22} color="#1E293B" />
-                </TouchableOpacity>
-                <Text style={{ fontSize: 17, fontWeight: '800', color: '#1E293B' }}>Top Supporters</Text>
-                <View style={{ width: 30 }} />
-              </View>
-            </SafeAreaView>
+            {/* Modal Header */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#0F172A' }}>Top Supporters</Text>
+              <TouchableOpacity onPress={() => setShowAll(false)} style={{ padding: 4 }}>
+                <Text style={{ fontSize: 18, fontWeight: '700', color: '#64748B' }}>✕</Text>
+              </TouchableOpacity>
+            </View>
 
-            {/* Period Tabs */}
+            {/* Filter Tabs: total / weekly / monthly */}
             <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, gap: 8, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
               {(['total', 'weekly', 'monthly'] as const).map(p => (
                 <TouchableOpacity key={p} onPress={() => setPeriod(p)}
@@ -1299,26 +1345,29 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user, onView
                   { s: sorted[2], medal: String.fromCodePoint(0x1F949), size: 50, color: '#d97706', ty: 16 },
                 ].map((slot, i) => (
                   <View key={i} style={{ alignItems: 'center', transform: [{ translateY: slot.ty }] }}>
-                    <TouchableOpacity
-                      onPress={() => { if (slot.s?.supporterId) { setShowAll(false); onViewProfile?.(slot.s.supporterId); } }}
-                      disabled={!slot.s}
-                      style={{ width: slot.size, height: slot.size, borderRadius: slot.size / 2, borderWidth: 2.5, borderColor: slot.color, backgroundColor: slot.s ? 'transparent' : 'rgba(148,163,184,0.08)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
-                    >
-                      {slot.s ? (
-                        <Image cachePolicy="memory-disk" source={{ uri: toCDN(slot.s.supporterAvatar) || 'https://picsum.photos/100' }}
-                          style={{ width: slot.size, height: slot.size, borderRadius: slot.size / 2 }} />
-                      ) : (
-                        <Text style={{ fontSize: slot.size * 0.35, color: slot.color, opacity: 0.5 }}>{slot.medal}</Text>
-                      )}
-                    </TouchableOpacity>
-                    <Text style={{ fontSize: 20, marginTop: 6 }}>{slot.medal}</Text>
                     {slot.s ? (
-                      <>
-                        <Text style={{ fontSize: 12, fontWeight: '800', color: '#334155', marginTop: 4 }} numberOfLines={1}>{slot.s.supporterName}</Text>
-                        <Text style={{ fontSize: 10, fontWeight: '700', color: '#f43f5e', marginTop: 2 }}>{getPoints(slot.s).toLocaleString()} pts</Text>
-                      </>
+                      <LiveSupporterSlot supporter={slot.s} render={({ name, avatarUrl }) => (
+                        <>
+                          <TouchableOpacity
+                            onPress={() => { if (slot.s?.supporterId) { setShowAll(false); onViewProfile?.(slot.s.supporterId); } }}
+                            style={{ width: slot.size, height: slot.size, borderRadius: slot.size / 2, borderWidth: 2.5, borderColor: slot.color, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
+                          >
+                            <Image cachePolicy="memory-disk" source={{ uri: toCDN(avatarUrl) || 'https://picsum.photos/100' }}
+                              style={{ width: slot.size, height: slot.size, borderRadius: slot.size / 2 }} />
+                          </TouchableOpacity>
+                          <Text style={{ fontSize: 20, marginTop: 6 }}>{slot.medal}</Text>
+                          <Text style={{ fontSize: 12, fontWeight: '800', color: '#334155', marginTop: 4 }} numberOfLines={1}>{name}</Text>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: '#f43f5e', marginTop: 2 }}>{getPoints(slot.s).toLocaleString()} pts</Text>
+                        </>
+                      )} />
                     ) : (
-                      <Text style={{ fontSize: 11, fontWeight: '600', color: '#CBD5E1', marginTop: 4 }}>Empty</Text>
+                      <>
+                        <TouchableOpacity disabled style={{ width: slot.size, height: slot.size, borderRadius: slot.size / 2, borderWidth: 2.5, borderColor: slot.color, backgroundColor: 'rgba(148,163,184,0.08)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                          <Text style={{ fontSize: slot.size * 0.35, color: slot.color, opacity: 0.5 }}>{slot.medal}</Text>
+                        </TouchableOpacity>
+                        <Text style={{ fontSize: 20, marginTop: 6 }}>{slot.medal}</Text>
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: '#CBD5E1', marginTop: 4 }}>Empty</Text>
+                      </>
                     )}
                   </View>
                 ))}
@@ -1329,16 +1378,18 @@ function TopSupportersSection({ profileId, isOwnProfile, firestore, user, onView
             <ScrollView style={{ flex: 1, paddingHorizontal: 16 }}>
               <Text style={{ fontSize: 10, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 1, marginTop: 12, marginBottom: 8 }}>All Supporters</Text>
               {sorted.map((s: any, i: number) => (
-                <TouchableOpacity key={s.id} onPress={() => { if (s.supporterId) { setShowAll(false); onViewProfile?.(s.supporterId); } }}
-                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F8FAFC', gap: 12 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '900', color: i < 3 ? '#f43f5e' : '#94A3B8', width: 28, textAlign: 'center' }}>{i + 1}</Text>
-                  <Image cachePolicy="memory-disk" source={{ uri: toCDN(s.supporterAvatar) || 'https://picsum.photos/100' }}
-                    style={{ width: 42, height: 42, borderRadius: 21, borderWidth: 2, borderColor: i === 0 ? '#fbbf24' : i === 1 ? '#94a3b8' : i === 2 ? '#d97706' : '#E2E8F0' }} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#1E293B' }} numberOfLines={1}>{s.supporterName}</Text>
-                  </View>
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#f43f5e' }}>{getPoints(s).toLocaleString()} pts</Text>
-                </TouchableOpacity>
+                <LiveSupporterSlot key={s.id} supporter={s} render={({ name, avatarUrl }) => (
+                  <TouchableOpacity onPress={() => { if (s.supporterId) { setShowAll(false); onViewProfile?.(s.supporterId); } }}
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F8FAFC', gap: 12 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '900', color: i < 3 ? '#f43f5e' : '#94A3B8', width: 28, textAlign: 'center' }}>{i + 1}</Text>
+                    <Image cachePolicy="memory-disk" source={{ uri: toCDN(avatarUrl) || 'https://picsum.photos/100' }}
+                      style={{ width: 42, height: 42, borderRadius: 21, borderWidth: 2, borderColor: i === 0 ? '#fbbf24' : i === 1 ? '#94a3b8' : i === 2 ? '#d97706' : '#E2E8F0' }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: '#1E293B' }} numberOfLines={1}>{name}</Text>
+                    </View>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#f43f5e' }}>{getPoints(s).toLocaleString()} pts</Text>
+                  </TouchableOpacity>
+                )} />
               ))}
               {sorted.length === 0 && (
                 <Text style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', paddingVertical: 40, fontStyle: 'italic' }}>No supporters yet</Text>

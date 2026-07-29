@@ -68,12 +68,12 @@ export function CpPreviewModal({ visible, onClose, onNavigate }: CpPreviewModalP
     return query(
       collection(firestore, 'cpPairs'),
       where('participantIds', 'array-contains', user.uid),
-      limit(1)
+      limit(5)
     );
   }, [firestore, isHydrated, user?.uid]);
 
-  const { data: myCpData } = useCollection(myCpQuery);
-  const activeCp = myCpData?.[0];
+  const { data: myCpDataRaw } = useCollection(myCpQuery);
+  const activeCp = useMemo(() => (myCpDataRaw || []).find((cp: any) => cp.type !== 'Best Friend' && cp.type !== 'Besties'), [myCpDataRaw]);
   const partnerUid = activeCp?.participantIds?.find((id: string) => id !== user?.uid);
   const { profile: myProfile } = useUserProfile(user?.uid);
   const { profile: partnerProfile } = useUserProfile(partnerUid);
@@ -81,9 +81,10 @@ export function CpPreviewModal({ visible, onClose, onNavigate }: CpPreviewModalP
   // Top CP pairs (leaderboard preview)
   const topCpQuery = useMemo(() => {
     if (!firestore || !isHydrated) return null;
-    return query(collection(firestore, 'cpPairs'), orderBy('cpValue', 'desc'), limit(3));
+    return query(collection(firestore, 'cpPairs'), orderBy('cpValue', 'desc'), limit(10));
   }, [firestore, isHydrated]);
-  const { data: topCp } = useCollection(topCpQuery);
+  const { data: topCpRaw } = useCollection(topCpQuery);
+  const topCp = useMemo(() => (topCpRaw || []).filter((cp: any) => cp.type !== 'Best Friend' && cp.type !== 'Besties').slice(0, 3), [topCpRaw]);
 
   // --- Animation values ---
   const modalScale = useAnimatedValue(0.85);

@@ -147,6 +147,21 @@ export default function CpHouseScreen() {
     if (!user?.uid || !selectedTarget || !firestore) return;
     setIsSendingProposal(true);
     try {
+      // CP restriction: check if either user already has a CP
+      if (selectedProposeType === 'CP') {
+        const { getDocs, query: fQuery, collection: fCollection, where: fWhere } = await import('@/firebase/firestore-compat');
+        const myExistingCp = await getDocs(fQuery(fCollection(firestore, 'cpPairs'), fWhere('type', '==', 'CP'), fWhere('participantIds', 'array-contains', user.uid)));
+        if (!myExistingCp.empty) {
+          Alert.alert('Already have CP 💔', 'You already have an active CP. Break your current CP first.');
+          return;
+        }
+        const targetExistingCp = await getDocs(fQuery(fCollection(firestore, 'cpPairs'), fWhere('type', '==', 'CP'), fWhere('participantIds', 'array-contains', selectedTarget.uid)));
+        if (!targetExistingCp.empty) {
+          Alert.alert('Already has CP 💔', `${selectedTarget.username || 'This user'} already has an active CP.`);
+          return;
+        }
+      }
+
       const proposalId = `${user.uid}_to_${selectedTarget.uid}`;
       const proposalRef = doc(firestore, 'proposals', proposalId);
       await setDoc(proposalRef, {

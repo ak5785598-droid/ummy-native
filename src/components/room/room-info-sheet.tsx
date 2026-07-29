@@ -10,6 +10,8 @@ import { collection, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRem
 import { Room } from '../../lib/types';
 import { Alert } from 'react-native';
 import { Image } from 'expo-image';
+import { toCDN } from '../../lib/cdn';
+
 
 interface RoomInfoSheetProps {
   visible: boolean;
@@ -67,16 +69,19 @@ export function RoomInfoSheet({ visible, onClose, room: propRoom, isOwner = fals
   // Fetch followers (all joined members) from subcollection - real-time snapshot
   const [followers, setFollowers] = useState<any[]>([]);
   const [isFollowersLoading, setIsFollowersLoading] = useState(true);
+  const [removedUids, setRemovedUids] = useState<string[]>([]);
 
   useEffect(() => {
     if (!firestore || !room.id || !visible) return;
     try {
       const db = require('@react-native-firebase/firestore').default;
       const unsub = db().collection('chatRooms').doc(room.id).collection('followers')
-        .orderBy('followedAt', 'desc')
         .onSnapshot((snap: any) => {
           if (snap) {
-            setFollowers(snap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
+            setFollowers(snap.docs.map((d: any) => {
+              const data = d.data() || {};
+              return { id: d.id, uid: data.uid || d.id, ...data };
+            }));
           }
           setIsFollowersLoading(false);
         }, (error: any) => {
@@ -98,6 +103,31 @@ export function RoomInfoSheet({ visible, onClose, room: propRoom, isOwner = fals
     } catch (e) {
     }
   };
+
+  const handleRemoveMember = async (targetUid: string) => {
+    if (!firestore || !room.id || !targetUid) return;
+    try {
+      setRemovedUids(prev => [...prev, targetUid]);
+      setFollowers(prev => prev.filter(f => (f.uid || f.id) !== targetUid));
+
+      const db = require('@react-native-firebase/firestore').default;
+      await db().collection('chatRooms').doc(room.id).collection('followers').doc(targetUid).delete();
+      try {
+        await db().collection('users').doc(targetUid).collection('followedRooms').doc(room.id).delete();
+      } catch (e) {}
+      
+      Alert.alert('Removed', 'Member has been removed from room members list.');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to remove member.');
+    }
+  };
+
+
+
+
+  const visibleFollowers = useMemo(() => {
+    return followers?.filter(f => !removedUids.includes(f.uid || f.id)) || [];
+  }, [followers, removedUids]);
 
   return (
     <Modal visible={visible} transparent animationType="slide">
@@ -137,7 +167,7 @@ export function RoomInfoSheet({ visible, onClose, room: propRoom, isOwner = fals
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setActiveTab('member')} className="pb-1 relative">
                 <Text className={`text-base font-black uppercase tracking-wider ${activeTab === 'member' ? 'text-blue-600' : 'text-slate-300'}`}>
-                  Member ({followers.length + 1})
+                  Member ({visibleFollowers.length + 1})
                 </Text>
                 {activeTab === 'member' && (
                   <View className="absolute bottom-0 left-0 right-0 h-[3px] bg-blue-600 rounded-full" />
@@ -184,7 +214,7 @@ export function RoomInfoSheet({ visible, onClose, room: propRoom, isOwner = fals
                   <View className="flex-row justify-between items-center py-3 border-b border-slate-100">
                     <View>
                       <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Members</Text>
-                      <Text className="text-sm font-black text-slate-800">{followers?.length || 0}</Text>
+                      <Text className="text-sm font-black text-slate-800">{visibleFollowers.length + 1}</Text>
                     </View>
                     <View>
                       <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Language</Text>
@@ -216,7 +246,7 @@ export function RoomInfoSheet({ visible, onClose, room: propRoom, isOwner = fals
                     Admins: <Text className="text-slate-800 font-extrabold">{(room.moderatorIds?.length || 0)}/10</Text>
                   </Text>
                   <Text className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                    Members: <Text className="text-slate-800 font-extrabold">{followers?.length || 0}</Text>
+                    Members: <Text className="text-slate-800 font-extrabold">{visibleFollowers.length + 1}</Text>
                   </Text>
                 </View>
 
@@ -227,28 +257,36 @@ export function RoomInfoSheet({ visible, onClose, room: propRoom, isOwner = fals
 
                   {/* Moderator Rows */}
                   {room.moderatorIds?.filter((mid: string) => mid !== room.ownerId).map((mid: string) => (
-                    <UserRow key={mid} uid={mid} role="admin" isOwnerUser={isOwner} onToggleAdmin={handleToggleAdmin} onPress={onUserPress} />
+                    <UserRow key={mid} uid={mid} role="admin" isOwnerUser={isOwner} onToggleAdmin={handleToggleAdmin} onRemoveMember={handleRemoveMember} onPress={onUserPress} />
                   ))}
 
                   {/* Normal Participants */}
                   {isFollowersLoading ? (
                     <ActivityIndicator size="small" color="#3b82f6" className="py-6" />
                   ) : (
-                    followers?.filter(f => f.uid !== room.ownerId && !room.moderatorIds?.includes(f.uid)).map(f => (
-                      <UserRow key={f.uid} uid={f.uid} role="follower" isOwnerUser={isOwner} onToggleAdmin={handleToggleAdmin} onPress={onUserPress} />
-                    ))
+                    visibleFollowers.filter(f => {
+                      const fUid = f.uid || f.id;
+                      return fUid !== room.ownerId && !room.moderatorIds?.includes(fUid);
+                    }).map(f => {
+                      const fUid = f.uid || f.id;
+                      return (
+                        <UserRow key={fUid} uid={fUid} role="follower" isOwnerUser={isOwner} onToggleAdmin={handleToggleAdmin} onRemoveMember={handleRemoveMember} onPress={onUserPress} />
+                      );
+                    })
                   )}
+
                 </View>
               </View>
             )}
           </ScrollView>
+
         </View>
       </View>
     </Modal>
   );
 }
 
-function UserRow({ uid, role, isOwnerUser, onToggleAdmin, onPress }: { uid: string; role?: 'owner' | 'admin' | 'follower'; isOwnerUser: boolean; onToggleAdmin?: (uid: string, isCurrentlyAdmin: boolean) => void; onPress?: (uid: string) => void }) {
+function UserRow({ uid, role, isOwnerUser, onToggleAdmin, onRemoveMember, onPress }: { uid: string; role?: 'owner' | 'admin' | 'follower'; isOwnerUser: boolean; onToggleAdmin?: (uid: string, isCurrentlyAdmin: boolean) => void; onRemoveMember?: (uid: string) => void; onPress?: (uid: string) => void }) {
   const { profile, isLoading } = useUserProfile(uid);
   const { level: userLevel } = useUserLevel(profile);
 
@@ -262,18 +300,32 @@ function UserRow({ uid, role, isOwnerUser, onToggleAdmin, onPress }: { uid: stri
 
   const handleOptionsPress = () => {
     Alert.alert(
-      'Admin Management',
-      isModerator ? 'Remove this user from admins?' : 'Make this user an admin?',
+      'Member Options ⚙️',
+      `Choose action for ${profile.username || 'this user'}:`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
-          text: isModerator ? 'Remove Admin' : 'Make Admin', 
+          text: isModerator ? 'Remove Admin Status 🛡️' : 'Make Admin 🛡️', 
           onPress: () => onToggleAdmin?.(uid, isModerator),
-          style: isModerator ? 'destructive' : 'default'
+        },
+        {
+          text: 'Remove Member ❌',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Remove Member',
+              `Remove ${profile.username || 'user'} from room members list?`,
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Remove', style: 'destructive', onPress: () => onRemoveMember?.(uid) }
+              ]
+            );
+          }
         }
       ]
     );
   };
+
 
   return (
     <TouchableOpacity onPress={() => onPress?.(uid)} activeOpacity={0.7}>
@@ -281,7 +333,7 @@ function UserRow({ uid, role, isOwnerUser, onToggleAdmin, onPress }: { uid: stri
         <View className="flex-row items-center gap-3">
           <Image 
             cachePolicy="memory-disk" 
-            source={{ uri: profile.avatarUrl || 'https://picsum.photos/100' }}
+            source={{ uri: toCDN(profile.avatarUrl) || 'https://api.dicebear.com/7.x/initials/png?seed=' + encodeURIComponent(profile.username || 'U') }}
             className="h-10 w-10 rounded-full border border-slate-200 bg-slate-100"
           />
           <View className="flex-col">

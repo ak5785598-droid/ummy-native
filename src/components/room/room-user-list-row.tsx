@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { Crown, Shield, Mic, MicOff } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { toCDN } from '../../lib/cdn';
+import { useUserProfile } from '../../hooks/use-user-profile';
+
 interface UserRowProps {
   p: any;
   isOwner: boolean;
@@ -11,22 +13,28 @@ interface UserRowProps {
 }
 
 export const UserRow = React.memo(function UserRow({ p, isOwner, isModerator, onPress }: UserRowProps) {
+  const { profile } = useUserProfile(p.uid);
+  const liveName = profile?.username || profile?.name || p.name || p.username || 'User';
+  const liveAvatar = profile?.avatarUrl || p.avatarUrl;
+
   return (
     <TouchableOpacity
       onPress={() => onPress?.(p.uid)}
       className="flex-row items-center py-3 border-b border-white/5"
     >
-      <Image cachePolicy="memory-disk" source={{ uri: toCDN(p.avatarUrl) || 'https://picsum.photos/100' }}
+      <Image
+        cachePolicy="memory-disk"
+        source={{ uri: toCDN(liveAvatar) || 'https://api.dicebear.com/7.x/initials/png?seed=' + encodeURIComponent(liveName) }}
         className="w-10 h-10 rounded-full mr-3"
       />
       <View className="flex-1">
         <View className="flex-row items-center gap-2">
-          <Text className="text-white text-sm font-bold">{p.name}</Text>
+          <Text className="text-white text-sm font-bold">{liveName}</Text>
           {isOwner && <Crown size={14} color="#fbbf24" />}
           {isModerator && <Shield size={14} color="#60a5fa" />}
         </View>
         <Text className="text-white/50 text-[10px]">
-          Seat {p.seatIndex || 'Audience'}
+          {p.seatIndex > 0 ? `Seat ${p.seatIndex}` : 'Audience'}
         </Text>
       </View>
       {p.seatIndex > 0 && (
@@ -39,3 +47,4 @@ export const UserRow = React.memo(function UserRow({ p, isOwner, isModerator, on
     </TouchableOpacity>
   );
 });
+

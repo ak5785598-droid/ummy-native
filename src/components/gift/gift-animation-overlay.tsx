@@ -109,8 +109,10 @@ export function GiftAnimationOverlay({ events }: GiftAnimationOverlayProps) {
   const isLegendary = latestEvent.tier === 'legendary';
   const resolvedVideoUrl = cachedVideoUrl || vUrl;
 
+  const topOffset = Math.round(height * 0.20);
+
   return (
-    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'transparent', zIndex: 50, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }} pointerEvents="none">
+    <View style={{ position: 'absolute', top: topOffset, left: 0, right: 0, bottom: 0, backgroundColor: 'transparent', zIndex: 50, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }} pointerEvents="none">
       <Animated.View
         style={{
           transform: [{ scale: scaleAnim }],
@@ -126,7 +128,18 @@ export function GiftAnimationOverlay({ events }: GiftAnimationOverlayProps) {
           <Video
             ref={videoRef}
             source={{ uri: resolvedVideoUrl || vUrl }}
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }}
+            style={{ 
+              position: 'absolute', 
+              top: 0, 
+              left: 0, 
+              right: 0, 
+              bottom: 0, 
+              width: '100%', 
+              height: '100%',
+              opacity: 0.88,
+              // @ts-ignore
+              mixBlendMode: 'screen',
+            }}
             resizeMode={ResizeMode.COVER}
             shouldPlay
             isLooping={false}

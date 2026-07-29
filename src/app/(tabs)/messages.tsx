@@ -157,7 +157,12 @@ export default function MessagesScreen() {
   const unreadSystemCount = systemMsgs.filter((n: any) => n.isRead === false).length;
 
   const openChat = (chat: PrivateChat) => {
-    const otherUid = (chat.participantIds || []).find(id => id !== user?.uid);
+    let otherUid = (chat.participantIds || []).find(id => id !== user?.uid);
+    // Fallback: extract from chatId (format: uid1_uid2) when participantIds is incomplete
+    if (!otherUid && chat.id) {
+      const parts = chat.id.split('_');
+      otherUid = parts.find((id: string) => id !== user?.uid);
+    }
     setActiveChatId(chat.id);
     setSelectedRecipient({ uid: otherUid });
   };
@@ -409,8 +414,18 @@ export default function MessagesScreen() {
 
 function ChatListItem({ chat, currentUid, onPress, onLongPress, onAvatarPress }: { chat: PrivateChat; currentUid: string; onPress: () => void; onLongPress?: () => void; onAvatarPress?: (uid: string) => void }) {
   const router = useRouter();
-  const otherUid = (chat.participantIds || []).find(id => id !== currentUid) || '';
-  const { profile: otherUser } = useUserProfile(otherUid);
+  let otherUid = (chat.participantIds || []).find(id => id !== currentUid) || '';
+  // Fallback: extract from chatId (format: uid1_uid2) when participantIds is incomplete
+  if (!otherUid && chat.id) {
+    const parts = chat.id.split('_');
+    otherUid = parts.find((id: string) => id !== currentUid) || '';
+  }
+  const { profile: otherUser, isLoading: profileLoading } = useUserProfile(otherUid);
+  
+  // DEBUG: trace chat list profile resolution
+  if (!profileLoading && (!otherUser?.username || otherUser?.username === 'User')) {
+    console.warn(`[ChatListItem DEBUG] chatId=${chat.id} otherUid="${otherUid}" participantIds=${JSON.stringify(chat.participantIds)} profile=`, otherUser ? { username: otherUser.username, name: otherUser.name, displayName: (otherUser as any)?.displayName, avatarUrl: otherUser.avatarUrl?.substring(0, 50) } : 'NULL');
+  }
   
   const isUnread = chat.lastSenderId !== currentUid && !(chat.lastMessageReadBy || []).includes(currentUid);
   
@@ -450,9 +465,15 @@ function ChatListItem({ chat, currentUid, onPress, onLongPress, onAvatarPress }:
     >
       <View className="relative mr-3">
         <TouchableOpacity onPress={() => { if (onAvatarPress && otherUid) onAvatarPress(otherUid); }} activeOpacity={0.7}>
-          <Image cachePolicy="memory-disk" source={{ uri: toCDN(otherUser?.avatarUrl || (otherUser as any)?.photoURL) || 'https://picsum.photos/100' }} 
-            className="w-12 h-12 rounded-full border border-slate-100"
-          />
+          {profileLoading && !otherUser ? (
+            <View className="w-12 h-12 rounded-full bg-slate-100 border border-slate-100 items-center justify-center">
+              <Loader size={16} color="#cbd5e1" />
+            </View>
+          ) : (
+            <Image cachePolicy="memory-disk" source={{ uri: toCDN(otherUser?.avatarUrl || (otherUser as any)?.photoURL) || 'https://picsum.photos/100' }} 
+              className="w-12 h-12 rounded-full border border-slate-100"
+            />
+          )}
         </TouchableOpacity>
         {isOnline && !inRoomId && (
           <View className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-green-500 border-2 border-white shadow-sm" />
@@ -465,7 +486,7 @@ function ChatListItem({ chat, currentUid, onPress, onLongPress, onAvatarPress }:
       <View className="flex-1">
         <View className="flex-row items-center justify-between">
           <Text className={`text-base font-bold ${isUnread ? 'text-pink-600' : 'text-slate-800'}`} numberOfLines={1}>
-            {otherUser?.username || otherUser?.name || (otherUser as any)?.displayName || 'User'}
+            {profileLoading && !otherUser ? 'Loading...' : (otherUser?.username || otherUser?.name || (otherUser as any)?.displayName || 'User')}
           </Text>
           <Text className="text-[10px] font-semibold text-slate-400">{formatTime(chat.updatedAt)}</Text>
         </View>
@@ -1839,6 +1860,38 @@ function RequestsPage({ visible, onClose, proposals }: { visible: boolean; onClo
     
     const sortedIds = [user.uid, proposal.fromUid].sort();
     const pairId = sortedIds.join('_');
+    const cpType = proposal.type || 'cp';
+
+    // CP restriction: one user can only have ONE CP at a time (not for Best Friend/Besties)
+    if (cpType === 'CP') {
+      try {
+        const { getDocs, query: fQuery, collection: fCollection, where: fWhere } = await import('@/firebase/firestore-compat');
+        
+        // Check if current user (receiver) already has a CP
+        const myExistingCp = await getDocs(fQuery(
+          fCollection(firestore, 'cpPairs'),
+          fWhere('type', '==', 'CP'),
+          fWhere('participantIds', 'array-contains', user.uid)
+        ));
+        if (!myExistingCp.empty) {
+          Alert.alert('Already have CP 💔', 'You already have an active CP. Break your current CP first before accepting a new one.');
+          return;
+        }
+
+        // Check if sender already has a CP
+        const senderExistingCp = await getDocs(fQuery(
+          fCollection(firestore, 'cpPairs'),
+          fWhere('type', '==', 'CP'),
+          fWhere('participantIds', 'array-contains', proposal.fromUid)
+        ));
+        if (!senderExistingCp.empty) {
+          Alert.alert('Sender already has CP 💔', 'The sender already has an active CP with someone else.');
+          return;
+        }
+      } catch (err) {
+        console.warn('[CP Check Error]', err);
+      }
+    }
     
     // Fetch both users' profiles from profile subcollection (where avatarUrl lives)
     let senderName = 'User';
@@ -1894,8 +1947,8 @@ function RequestsPage({ visible, onClose, proposals }: { visible: boolean; onClo
       }
     } catch {}
 
-    const cpType = proposal.type || 'cp';
-    
+
+
     // Write cpPairs with denormalized user data (for home CP card)
     const cpRef = doc(firestore, 'cpPairs', pairId);
     const isSenderUser1 = sortedIds[0] === proposal.fromUid;

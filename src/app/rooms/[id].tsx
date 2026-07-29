@@ -498,12 +498,24 @@ export default function RoomScreen() {
           },
           { merge: true }
         );
+        // Log entry in room entryLogs (for both visitors and owner)
+        await addDocumentNonBlocking(
+          collection(firestore, 'chatRooms', displayRoom.id, 'entryLogs'),
+          {
+            type: 'entry',
+            userId: user.uid,
+            username: userProfile?.username || userProfile?.name || user?.displayName || 'User',
+            avatarUrl: userProfile?.avatarUrl || user?.photoURL || '',
+            timestamp: serverTimestamp(),
+          }
+        );
       } catch (e) {
         // Silently fail
       }
     };
     recordVisit();
   }, [firestore, user?.uid, displayRoom?.id]);
+
 
   const [secondaryQueriesReady, setSecondaryQueriesReady] = useState(false);
   useEffect(() => {
@@ -567,6 +579,24 @@ export default function RoomScreen() {
       return msgTime > clearedAt;
     });
   }, [messages, room?.chatClearedAt]);
+
+  const processedGiftMsgIds = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!messages || messages.length === 0) return;
+    messages.forEach((m: any) => {
+      if ((m.type === 'gift' || m.giftName || m.effectUrl) && !processedGiftMsgIds.current.has(m.id)) {
+        processedGiftMsgIds.current.add(m.id);
+        setGiftAnimEvents(prev => [...prev, {
+          id: m.id,
+          senderName: m.senderName || m.senderUsername || 'Someone',
+          giftName: m.giftName || 'Gift',
+          giftIcon: m.giftIcon || m.icon,
+          effectUrl: m.effectUrl || m.animationUrl,
+          comboCount: m.comboCount || 1,
+        }]);
+      }
+    });
+  }, [messages]);
 
   const musicQuery = useMemoFirebase(() => {
     if (!firestore || !id || !secondaryQueriesReady) return null;
@@ -1020,8 +1050,7 @@ export default function RoomScreen() {
     const activeBubble = userProfile.inventory?.activeBubble || null;
     const isExpired = isInventoryItemExpired(userProfile.inventory, activeBubble);
     const inventoryBubble = isExpired ? null : activeBubble;
-    // User's selected bubble takes priority (no SVIP override)
-    const bubbleToSend = inventoryBubble;
+    const bubbleToSend = inventoryBubble || userProfile?.svipPrivileges?.bubbleId || null;
     // Also send the bubble media URL for image-backed custom bubbles
     const bubbleMediaUrl = (userProfile?.inventory as any)?.activeBubbleMediaUrl || null;
     await addDocumentNonBlocking(collection(firestore, 'chatRooms', id, 'messages'), { content: text, imageUrl: imageUrl || null, senderId: user.uid, senderName: userProfile.username, senderAvatar: userProfile.avatarUrl || null, senderChatColor: userProfile?.nobility?.chatColor || null, senderBubble: bubbleToSend, senderBubbleMediaUrl: bubbleMediaUrl, chatRoomId: id, timestamp: serverTimestamp(), type: 'text' });
@@ -1147,25 +1176,35 @@ export default function RoomScreen() {
   const executeRoomKick = async (targetUid: string, durationMs: number) => {
     if (!firestore || !id || !userProfile) return;
     const expiryTime = Date.now() + durationMs;
-    
+    const targetParticipant = participants?.find(p => p.uid === targetUid);
+    const targetName = targetParticipant?.name || targetParticipant?.username || 'User';
+    const targetAvatar = targetParticipant?.avatarUrl || '';
+    const isLongTermBan = durationMs >= 30 * 24 * 60 * 60 * 1000;
+
     try {
-      // 1. Log the kick in room entry log history
+      // 1. Log the action in room entry log history
       await addDocumentNonBlocking(collection(firestore, 'chatRooms', id, 'entryLogs'), {
-        type: 'kick',
+        type: isLongTermBan ? 'ban' : 'kick',
         userId: targetUid,
+        targetName,
+        targetAvatar,
         adminId: user?.uid || '',
         adminName: userProfile?.username || 'Admin',
         timestamp: serverTimestamp(),
         durationMs
       });
 
-      // 2. Write persistent ban document
-      await setDoc(doc(firestore, 'chatRooms', id, 'bans', targetUid), {
-        bannedUid: targetUid,
-        bannedUntil: expiryTime,
-        bannedBy: user?.uid || '',
-        timestamp: serverTimestamp()
-      });
+      // 2. Write persistent ban document for long-term/permanent bans
+      if (isLongTermBan) {
+        await setDoc(doc(firestore, 'chatRooms', id, 'bans', targetUid), {
+          bannedUid: targetUid,
+          targetName,
+          targetAvatar,
+          bannedUntil: expiryTime,
+          bannedBy: user?.uid || '',
+          timestamp: serverTimestamp()
+        });
+      }
 
       // 3. Set kickedUntil, clear seat and mute status on participant document
       await setDoc(doc(firestore, 'chatRooms', id, 'participants', targetUid), {
@@ -1174,9 +1213,10 @@ export default function RoomScreen() {
         kickedUntil: expiryTime
       }, { merge: true });
 
-      Alert.alert('Success', 'User has been kicked and banned from the room.');
+      Alert.alert('Success', isLongTermBan ? 'User has been banned from the room.' : 'User has been kicked from the room.');
     } catch (e) {}
   };
+
 
   const handlePlayMovie = (tmdbId: string, title: string, posterPath: string) => {
     setMoviePlayerData({ tmdbId, title, posterPath });
@@ -1337,7 +1377,7 @@ export default function RoomScreen() {
         <RoomHeader roomTitle={displayRoom.name || displayRoom.title || 'Room'} roomId={displayRoom.id} roomNumber={displayRoom.roomNumber} onlineCount={participants.length} coverUrl={displayRoom.coverUrl} isOwner={isOwner} isFollowing={isFollowing} onOpenInfo={() => setIsInfoOpen(true)} onFollow={undefined} onOpenSettings={() => setIsSettingsOpen(true)} onOpenShare={() => setIsShareOpen(true)} onExit={() => setShowExitDialog(true)} onOpenUserList={() => setIsUserListOpen(true)} />
 
         {/* Global Gift Patti Banner */}
-        {activeBroadcast && (
+        {isGiftEffects && activeBroadcast && (
           <Animated.View
             style={{
               position: 'absolute',
@@ -1431,7 +1471,26 @@ export default function RoomScreen() {
         <RoomTrophyBadge dailyGifts={displayRoom?.stats?.dailyGifts || 0} supporters={safeTopSupporters} onPress={() => setShowTopSupporters(true)} />
 
         <View style={{ position: 'absolute', top: 130, left: 2, zIndex: 20 }}>
-          <MovieSyncBanner visible={!!displayRoom?.currentMovie && !bannerDismissed} movieTitle={displayRoom?.currentMovie?.title} posterPath={displayRoom?.currentMovie?.posterPath} startedByName={displayRoom?.currentMovie?.startedByName} onJoin={() => { if (displayRoom?.currentMovie) { setMoviePlayerData({ tmdbId: displayRoom.currentMovie.tmdbId, title: displayRoom.currentMovie.title, posterPath: displayRoom.currentMovie.posterPath, mediaType: displayRoom.currentMovie.mediaType, season: displayRoom.currentMovie.season, episode: displayRoom.currentMovie.episode }); setShowMoviePlayer(true); }}} onDismiss={() => setBannerDismissed(true)} />
+          <MovieSyncBanner 
+            visible={!!displayRoom?.currentMovie && !bannerDismissed} 
+            movieTitle={displayRoom?.currentMovie?.title} 
+            posterPath={displayRoom?.currentMovie?.posterPath} 
+            startedByName={displayRoom?.currentMovie?.startedByName} 
+            onJoin={() => { 
+              if (displayRoom?.currentMovie) { 
+                const m = displayRoom.currentMovie;
+                if (m.hubType === 'hub1') {
+                  setShowNetMirror(true);
+                } else if (m.hubType === 'hub3') {
+                  setShowMultiMovies(true);
+                } else {
+                  setMoviePlayerData({ tmdbId: m.tmdbId, title: m.title, posterPath: m.posterPath, mediaType: m.mediaType, season: m.season, episode: m.episode }); 
+                  setShowMoviePlayer(true); 
+                }
+              } 
+            }} 
+            onDismiss={() => setBannerDismissed(true)} 
+          />
         </View>
 
         <View className="flex-1 z-10">
@@ -1575,8 +1634,10 @@ export default function RoomScreen() {
         visible={isUserListOpen} 
         onClose={() => setIsUserListOpen(false)} 
         participants={onlineParticipants} 
+        roomId={id}
         ownerId={displayRoom.ownerId} 
         moderatorIds={displayRoom.moderatorIds} 
+
         onUserPress={(uid) => { 
           setIsUserListOpen(false); 
           const p = participants?.find(pp => pp.uid === uid);
@@ -1633,12 +1694,12 @@ export default function RoomScreen() {
         <GameMiniCard gameId={activeGame} onPress={() => setIsGameMinimized(false)} />
       )}
       <YouTubeDialog visible={showYouTube} onClose={() => setShowYouTube(false)} roomId={id} isHost={isOwner || isModerator} canClose={canManageRoom} />
-      <NetMirrorDialog visible={showNetMirror} onClose={() => setShowNetMirror(false)} />
+      <NetMirrorDialog visible={showNetMirror} onClose={() => setShowNetMirror(false)} roomId={id} isOwner={isOwner || isModerator} userId={user?.uid} username={userProfile?.username || userProfile?.name} />
       <EntertainmentHubDialog visible={showEntertainmentHub} onClose={() => setShowEntertainmentHub(false)} roomId={id} isHost={isOwner || isModerator} canManage={canManageRoom} />
-      <MultiMoviesDialog visible={showMultiMovies} onClose={() => setShowMultiMovies(false)} />
+      <MultiMoviesDialog visible={showMultiMovies} onClose={() => setShowMultiMovies(false)} roomId={id} isOwner={isOwner || isModerator} userId={user?.uid} username={userProfile?.username || userProfile?.name} />
       <ScreenMirrorDialog visible={showScreenMirror} onClose={() => setShowScreenMirror(false)} roomId={id} userId={user?.uid || ''} isHost={isOwner || isModerator} agoraHook={agoraHook} />
       <SportsHubDialog visible={showSports} onClose={() => setShowSports(false)} />
-      <MoviePlayer visible={showMoviePlayer} onClose={() => setShowMoviePlayer(false)} tmdbId={moviePlayerData?.tmdbId} title={moviePlayerData?.title} posterPath={moviePlayerData?.posterPath} mediaType={moviePlayerData?.mediaType} season={moviePlayerData?.season} episode={moviePlayerData?.episode} />
+      <MoviePlayer visible={showMoviePlayer} onClose={() => setShowMoviePlayer(false)} tmdbId={moviePlayerData?.tmdbId} title={moviePlayerData?.title} posterPath={moviePlayerData?.posterPath} mediaType={moviePlayerData?.mediaType} season={moviePlayerData?.season} episode={moviePlayerData?.episode} roomId={id} userId={user?.uid} username={userProfile?.username || userProfile?.name} />
       <MovieAdProtection isOpen={showMoviePlayer} videoUrl={moviePlayerData?.tmdbId ? (moviePlayerData.mediaType === 'tv' ? `https://vidlink.pro/tv/${moviePlayerData.tmdbId}/${moviePlayerData.season}/${moviePlayerData.episode}` : `https://vidlink.pro/movie/${moviePlayerData.tmdbId}`) : null} />
       <LootGate 
         visible={showLootGate} 

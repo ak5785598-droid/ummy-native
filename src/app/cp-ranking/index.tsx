@@ -70,6 +70,12 @@ function getMedalStyle(rank: number) {
    Row item for ranks 4+
 ───────────────────────────────────────────────── */
 const RankRow = React.memo(function RankRow({ cp, rank, isMe, onPress }: { cp: any; rank: number; isMe?: boolean; onPress: () => void }) {
+  const { profile: u1P } = useUserProfile(cp.participantIds?.[0]);
+  const { profile: u2P } = useUserProfile(cp.participantIds?.[1]);
+  const u1Name = u1P?.username || u1P?.name || cp.user1Name || 'User';
+  const u2Name = u2P?.username || u2P?.name || cp.user2Name || 'User';
+  const u1Avatar = u1P?.avatarUrl || cp.user1Avatar;
+  const u2Avatar = u2P?.avatarUrl || cp.user2Avatar;
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[styles.rankRow, isMe && styles.rankRowMe]}>
       {/* Rank number */}
@@ -78,13 +84,13 @@ const RankRow = React.memo(function RankRow({ cp, rank, isMe, onPress }: { cp: a
       {/* Double avatars */}
       <View style={styles.rankAvatarPair}>
         <Image
-          source={{ uri: toCDN(cp.user1Avatar) || 'https://picsum.photos/60' }}
+          source={{ uri: toCDN(u1Avatar) || 'https://picsum.photos/60' }}
           style={[styles.rankAvatar, { zIndex: 2, marginRight: -8 }]}
           contentFit="cover"
           cachePolicy="memory-disk"
         />
         <Image
-          source={{ uri: toCDN(cp.user2Avatar) || 'https://picsum.photos/61' }}
+          source={{ uri: toCDN(u2Avatar) || 'https://picsum.photos/61' }}
           style={[styles.rankAvatar, { zIndex: 1 }]}
           contentFit="cover"
           cachePolicy="memory-disk"
@@ -94,7 +100,7 @@ const RankRow = React.memo(function RankRow({ cp, rank, isMe, onPress }: { cp: a
       {/* Names & level */}
       <View style={{ flex: 1, marginLeft: 12 }}>
         <Text style={styles.rankNames} numberOfLines={1}>
-          {cp.user1Name || 'User'} & {cp.user2Name || 'User'}
+          {u1Name} & {u2Name}
         </Text>
         <Text style={styles.rankLevel}>Lv.{cp.level || 1} CP</Text>
       </View>
@@ -105,6 +111,29 @@ const RankRow = React.memo(function RankRow({ cp, rank, isMe, onPress }: { cp: a
         <Text style={styles.rankScoreText}>{cp.cpValue?.toLocaleString() || 0}</Text>
       </View>
     </TouchableOpacity>
+  );
+});
+
+const FerrisSeat = React.memo(function FerrisSeat({ cp }: { cp: any }) {
+  const { profile: u1P } = useUserProfile(cp.participantIds?.[0]);
+  const { profile: u2P } = useUserProfile(cp.participantIds?.[1]);
+  return (
+    <>
+      <Image source={{ uri: toCDN(u1P?.avatarUrl || cp.user1Avatar) || 'https://picsum.photos/60' }} style={styles.seatAvatarLarge} contentFit="cover" cachePolicy="memory-disk" />
+      <Image source={{ uri: toCDN(u2P?.avatarUrl || cp.user2Avatar) || 'https://picsum.photos/61' }} style={[styles.seatAvatarLarge, { marginLeft: -12 }]} contentFit="cover" cachePolicy="memory-disk" />
+    </>
+  );
+});
+
+const FerrisCenter = React.memo(function FerrisCenter({ cp }: { cp: any }) {
+  const { profile: u1P } = useUserProfile(cp.participantIds?.[0]);
+  const { profile: u2P } = useUserProfile(cp.participantIds?.[1]);
+  return (
+    <>
+      <Image source={{ uri: toCDN(u1P?.avatarUrl || cp.user1Avatar) || 'https://picsum.photos/80' }} style={styles.centerAvatarLarge} contentFit="cover" cachePolicy="memory-disk" />
+      <Heart size={14} color="#f43f5e" fill="#f43f5e" style={{ marginHorizontal: -4, zIndex: 10 }} />
+      <Image source={{ uri: toCDN(u2P?.avatarUrl || cp.user2Avatar) || 'https://picsum.photos/81' }} style={styles.centerAvatarLarge} contentFit="cover" cachePolicy="memory-disk" />
+    </>
   );
 });
 
@@ -176,9 +205,11 @@ export default function CpRankingScreen() {
   // Fetch top 50 CP pairs
   const topCpQuery = useMemo(() => {
     if (!firestore || !isHydrated) return null;
-    return query(collection(firestore, 'cpPairs'), orderBy('cpValue', 'desc'), limit(50));
+    return query(collection(firestore, 'cpPairs'), orderBy('cpValue', 'desc'), limit(60));
   }, [firestore, isHydrated]);
-  const { data: topCp } = useCollection(topCpQuery);
+  const { data: topCpRaw } = useCollection(topCpQuery);
+  // Client-side filter: exclude Best Friend & Besties, keep CP and legacy (no type / lowercase)
+  const topCp = useMemo(() => (topCpRaw || []).filter((cp: any) => cp.type !== 'Best Friend' && cp.type !== 'Besties').slice(0, 50), [topCpRaw]);
 
   // Fetch my CP
   const myCpQuery = useMemo(() => {
@@ -186,11 +217,12 @@ export default function CpRankingScreen() {
     return query(
       collection(firestore, 'cpPairs'),
       where('participantIds', 'array-contains', user.uid),
-      limit(1)
+      limit(5)
     );
   }, [firestore, isHydrated, user?.uid]);
-  const { data: myCpData } = useCollection(myCpQuery);
-  const activeCp = myCpData?.[0];
+  const { data: myCpDataRaw } = useCollection(myCpQuery);
+  // Client-side: pick first CP-type pair (exclude BF/Besties)
+  const activeCp = useMemo(() => (myCpDataRaw || []).find((cp: any) => cp.type !== 'Best Friend' && cp.type !== 'Besties'), [myCpDataRaw]);
 
   // ── Animation refs ──────────────────────────────
   const glowPulse = useRef(new Animated.Value(0)).current;
@@ -504,8 +536,7 @@ export default function CpRankingScreen() {
                       >
                         {/* Clean Circular CP Pair Container */}
                         <View style={styles.seatCircleSimple}>
-                          <Image source={{ uri: toCDN(cp.user1Avatar) || 'https://picsum.photos/60' }} style={styles.seatAvatarLarge} contentFit="cover" cachePolicy="memory-disk" />
-                          <Image source={{ uri: toCDN(cp.user2Avatar) || 'https://picsum.photos/61' }} style={[styles.seatAvatarLarge, { marginLeft: -12 }]} contentFit="cover" cachePolicy="memory-disk" />
+                          <FerrisSeat cp={cp} />
                         </View>
 
                         <View style={styles.seatBadge}>
@@ -531,9 +562,7 @@ export default function CpRankingScreen() {
 
                   {/* Clean Circular Center Container */}
                   <View style={styles.centerCircleSimple}>
-                    <Image source={{ uri: toCDN(top7[0].user1Avatar) || 'https://picsum.photos/80' }} style={styles.centerAvatarLarge} contentFit="cover" cachePolicy="memory-disk" />
-                    <Heart size={14} color="#f43f5e" fill="#f43f5e" style={{ marginHorizontal: -4, zIndex: 10 }} />
-                    <Image source={{ uri: toCDN(top7[0].user2Avatar) || 'https://picsum.photos/81' }} style={styles.centerAvatarLarge} contentFit="cover" cachePolicy="memory-disk" />
+                    <FerrisCenter cp={top7[0]} />
                   </View>
 
                   <View style={styles.centerBadge}>
@@ -1340,3 +1369,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+

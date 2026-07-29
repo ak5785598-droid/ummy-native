@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Animated, StyleSheet } from 'react-native';
 import { Heart } from 'lucide-react-native';
 import { useCollection, useFirebase } from '../../firebase/provider';
-import { collection, query, orderBy, limit } from '@/firebase/firestore-compat';
+import { collection, query, orderBy, limit, where } from '@/firebase/firestore-compat';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useUserProfile } from '../../hooks/use-user-profile';
@@ -52,10 +52,11 @@ export function CpCard({ onPress }: CpCardProps) {
 
   const topCpQuery = useMemo(() => {
     if (!firestore || !isHydrated) return null;
-    return query(collection(firestore, 'cpPairs'), orderBy('cpValue', 'desc'), limit(3));
+    return query(collection(firestore, 'cpPairs'), orderBy('cpValue', 'desc'), limit(10));
   }, [firestore, isHydrated]);
 
-  const { data: topCp } = useCollection(topCpQuery);
+  const { data: topCpRaw } = useCollection(topCpQuery);
+  const topCp = useMemo(() => (topCpRaw || []).filter((cp: any) => cp.type !== 'Best Friend' && cp.type !== 'Besties').slice(0, 3), [topCpRaw]);
   const [mode, setMode] = useState<'carousel' | 'podium'>('carousel');
   const [activeIndex, setActiveIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;

@@ -33,7 +33,14 @@ export function MovieSyncBanner({ visible, movieTitle, posterPath, startedByName
     };
   }, [visible]);
 
-  if (!visible) return null;
+  // Clean up any site branding from display text
+  const cleanTitle = (movieTitle || 'Movie Time')
+    .replace(/\(NetMirror\)/gi, '')
+    .replace(/\(MultiMovies\)/gi, '')
+    .replace(/NetMirror/gi, '')
+    .replace(/MultiMovies/gi, '')
+    .replace(/Movie Hub \d/gi, 'Movie Time')
+    .trim();
 
   return (
     <Animated.View style={{ transform: [{ translateX: slideAnim }] }}>
@@ -47,7 +54,7 @@ export function MovieSyncBanner({ visible, movieTitle, posterPath, startedByName
         </View>
         <View style={styles.info}>
           <Text style={styles.text} numberOfLines={1}>
-            {movieTitle || 'Movie'} started — Tap to watch
+            {cleanTitle} — Tap to Join
           </Text>
         </View>
       </TouchableOpacity>

@@ -141,7 +141,7 @@ export function RoomMessagesDialog({ visible, onClose, roomId, initialRecipient 
       
       const activeBubble = userProfile?.inventory?.activeBubble || null;
       const isExpired = isInventoryItemExpired(userProfile?.inventory || {}, activeBubble);
-      const bubbleToSend = isExpired ? null : activeBubble;
+      const bubbleToSend = (isExpired ? null : activeBubble) || userProfile?.svipPrivileges?.bubbleId || null;
       const bubbleMediaUrl = (userProfile?.inventory as any)?.activeBubbleMediaUrl || null;
 
       const messageData = {
