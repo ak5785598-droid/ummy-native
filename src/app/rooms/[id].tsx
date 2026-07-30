@@ -90,6 +90,52 @@ import { useScreenWakeLock } from '../../hooks/use-screen-wake-lock';
 import { Image } from 'expo-image';
 import { toCDN } from '../../lib/cdn';
 
+const LOOT_LEVEL_IMAGES: Record<string, any> = {
+  home: require('../../../assets/images/loot/level_home.png'),
+  bank: require('../../../assets/images/loot/level_bank.png'),
+  car: require('../../../assets/images/loot/level_car.png'),
+  hotel: require('../../../assets/images/loot/level_hotel.png'),
+  bus: require('../../../assets/images/loot/level_bus.png'),
+  train: require('../../../assets/images/loot/level_train.png'),
+  ship: require('../../../assets/images/loot/level_ship.png'),
+  aeroplane: require('../../../assets/images/loot/level_aeroplane.png'),
+  submarine: require('../../../assets/images/loot/level_submarine.png'),
+  rocket: require('../../../assets/images/loot/level_rocket.png'),
+};
+
+const BroadcastUserAvatar = React.memo(function BroadcastUserAvatar({ broadcast }: { broadcast: any }) {
+  const { profile } = useUserProfile(broadcast?.senderUid);
+  const avatarUri = profile?.avatarUrl || broadcast?.senderAvatar;
+
+  if (avatarUri) {
+    return (
+      <View style={{
+        width: 38, height: 38, borderRadius: 19,
+        overflow: 'hidden',
+      }}>
+        <Image
+          cachePolicy="memory-disk"
+          source={{ uri: toCDN(avatarUri) }}
+          style={{ width: 38, height: 38, borderRadius: 19 }}
+          contentFit="cover"
+        />
+      </View>
+    );
+  }
+
+  return (
+    <View
+      style={{
+        width: 38, height: 38, borderRadius: 19,
+        backgroundColor: 'rgba(255,255,255,0.25)',
+        alignItems: 'center', justifyContent: 'center',
+      }}
+    >
+      <Text style={{ fontSize: 18 }}>👤</Text>
+    </View>
+  );
+});
+
 export default function RoomScreen() {
   const { id, name, coverUrl, backgroundUrl, roomThemeId, hasPassword } = useLocalSearchParams<{
     id: string;
@@ -373,6 +419,57 @@ export default function RoomScreen() {
         processedRtdGiftIds.current = new Set(arr.slice(-25));
       }
       setGiftAnimEvents(prev => [...prev.slice(-5), evt]);
+    });
+
+    return () => unsub();
+  }, [database, id]);
+
+  const processedRtdLootIds = useRef<Set<string>>(new Set());
+
+  // ⚡ RTD-based INSTANT room loot level animation for all room participants
+  useEffect(() => {
+    if (!database || !id) return;
+    const { ref: dbRef, onValue: dbOnValue } = require('firebase/database');
+    const lootRtdPath = dbRef(database, `roomLoot/${id}/lastLoot`);
+
+    const unsub = dbOnValue(lootRtdPath, (snap: any) => {
+      if (!snap.exists()) return;
+      const evt = snap.val();
+      if (!evt || !evt.id) return;
+      if (evt.timestamp && evt.timestamp < sessionJoinTime.getTime()) return;
+      if (processedRtdLootIds.current.has(evt.id)) return;
+      processedRtdLootIds.current.add(evt.id);
+
+      setShowLootGate(false);
+      setCurrentGateIndex(evt.gateIndex || 0);
+      setCurrentGateLevelName(evt.levelName || 'Home');
+      setTimeout(() => {
+        setShowLevelAnimation(true);
+      }, 350);
+    });
+
+    return () => unsub();
+  }, [database, id]);
+
+  const processedRtdGateOpenIds = useRef<Set<string>>(new Set());
+
+  // ⚡ RTD-based INSTANT gateOpen broadcast — all room members see LootGate popup
+  useEffect(() => {
+    if (!database || !id) return;
+    const { ref: dbRef, onValue: dbOnValue } = require('firebase/database');
+    const gateOpenPath = dbRef(database, `roomLoot/${id}/gateOpen`);
+
+    const unsub = dbOnValue(gateOpenPath, (snap: any) => {
+      if (!snap.exists()) return;
+      const evt = snap.val();
+      if (!evt || !evt.id) return;
+      if (evt.timestamp && evt.timestamp < sessionJoinTime.getTime()) return;
+      if (processedRtdGateOpenIds.current.has(evt.id)) return;
+      processedRtdGateOpenIds.current.add(evt.id);
+
+      setCurrentGateIndex(evt.gateIndex || 0);
+      setCurrentGateLevelName(evt.levelName || 'Home');
+      setShowLootGate(true);
     });
 
     return () => unsub();
@@ -1377,96 +1474,179 @@ export default function RoomScreen() {
         <RoomHeader roomTitle={displayRoom.name || displayRoom.title || 'Room'} roomId={displayRoom.id} roomNumber={displayRoom.roomNumber} onlineCount={participants.length} coverUrl={displayRoom.coverUrl} isOwner={isOwner} isFollowing={isFollowing} onOpenInfo={() => setIsInfoOpen(true)} onFollow={undefined} onOpenSettings={() => setIsSettingsOpen(true)} onOpenShare={() => setIsShareOpen(true)} onExit={() => setShowExitDialog(true)} onOpenUserList={() => setIsUserListOpen(true)} />
 
         {/* Global Gift Patti Banner */}
-        {isGiftEffects && activeBroadcast && (
-          <Animated.View
-            style={{
-              position: 'absolute',
-              top: 100, // Just below room header
-              left: 16,
-              right: 16,
-              zIndex: 999,
-              transform: [{ translateY: pattiTranslateY }],
-            }}
-          >
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={() => {
-                router.push(`/rooms/${activeBroadcast.roomId}`);
+        {isGiftEffects && activeBroadcast && (() => {
+          const isLoot = activeBroadcast.type === 'loot';
+          const borderColors = isLoot 
+            ? ['#facc15', '#f59e0b', '#ef4444', '#f59e0b', '#facc15']
+            : ['#7c3aed', '#6366f1', '#22d3ee', '#6366f1', '#7c3aed'];
+          const bgColors = isLoot
+            ? ['#fef08a', '#fde047', '#f59e0b', '#b45309']
+            : ['#a5f3fc', '#c4b5fd', '#8b5cf6', '#6d28d9'];
+          const shadowColor = isLoot ? '#f59e0b' : '#67e8f9';
+          const textColor = isLoot ? '#451a03' : '#1e1b4b';
+
+          return (
+            <Animated.View
+              style={{
+                position: 'absolute',
+                top: 95,
+                left: 10,
+                right: 10,
+                zIndex: 999,
+                transform: [{ translateY: pattiTranslateY }],
               }}
             >
-              <LinearGradient
-                colors={['#db2777', '#7c3aed', '#db2777']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={{
-                  borderRadius: 20,
-                  padding: 1.5,
-                  shadowColor: '#d946ef',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.4,
-                  shadowRadius: 8,
-                  elevation: 6,
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => {
+                  router.push(`/rooms/${activeBroadcast.roomId}`);
                 }}
               >
-                <View
-                  style={{
-                    backgroundColor: 'rgba(0,0,0,0.85)',
-                    borderRadius: 18.5,
-                    paddingHorizontal: 14,
-                    paddingVertical: 10,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 }}>
-                    {activeBroadcast.giftImageUrl ? (
-                      <Image
-                        cachePolicy="memory-disk"
-                        source={{ uri: toCDN(activeBroadcast.giftImageUrl) }}
-                        style={{ width: 32, height: 32, borderRadius: 16 }}
-                        contentFit="contain"
-                      />
-                    ) : (
-                      <View
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: 16,
-                          backgroundColor: '#fbbf24',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Text style={{ fontSize: 16 }}>🎁</Text>
-                      </View>
-                    )}
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 8, color: '#facc15', fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                        ✨ Global Broadcast
-                      </Text>
-                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#ffffff' }} numberOfLines={1}>
-                        {activeBroadcast.senderName} sent {activeBroadcast.qty}x {activeBroadcast.giftName} in Room #{activeBroadcast.roomNumber}
-                      </Text>
-                    </View>
-                  </View>
-                  <View
+                {/* Outer glow layer */}
+                <View style={{
+                  borderRadius: 6,
+                  shadowColor: shadowColor,
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.65,
+                  shadowRadius: 16,
+                  elevation: 10,
+                }}>
+                  {/* Ornamental border frame */}
+                  <LinearGradient
+                    colors={borderColors}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
                     style={{
-                      backgroundColor: '#facc15',
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
-                      borderRadius: 12,
+                      borderRadius: 6,
+                      padding: 2,
                     }}
                   >
-                    <Text style={{ fontSize: 9, fontWeight: '900', color: '#000', textTransform: 'uppercase' }}>
-                      Enter
-                    </Text>
-                  </View>
+                    {/* Inner content gradient bg */}
+                    <LinearGradient
+                      colors={bgColors}
+                      start={{ x: 0.5, y: 0 }}
+                      end={{ x: 0.5, y: 1 }}
+                      style={{
+                        borderRadius: 4,
+                        paddingHorizontal: 12,
+                        paddingVertical: 4,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {/* Top edge metallic shine line */}
+                      <View style={{
+                        position: 'absolute', top: 0, left: 20, right: 20, height: 1,
+                        backgroundColor: 'rgba(255,255,255,0.6)',
+                      }} />
+                      {/* Bottom edge metallic shine line */}
+                      <View style={{
+                        position: 'absolute', bottom: 0, left: 20, right: 20, height: 1,
+                        backgroundColor: isLoot ? 'rgba(239,68,68,0.5)' : 'rgba(139,92,246,0.5)',
+                      }} />
+
+                      {/* Corner ornaments — Top Left */}
+                      <View style={{ position: 'absolute', top: -2, left: -2 }}>
+                        <Text style={{ fontSize: 14, color: isLoot ? '#fde047' : '#c4b5fd', textShadowColor: shadowColor, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 4 }}>◆</Text>
+                      </View>
+                      {/* Corner ornaments — Top Right */}
+                      <View style={{ position: 'absolute', top: -2, right: -2 }}>
+                        <Text style={{ fontSize: 14, color: isLoot ? '#fde047' : '#c4b5fd', textShadowColor: shadowColor, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 4 }}>◆</Text>
+                      </View>
+                      {/* Corner ornaments — Bottom Left */}
+                      <View style={{ position: 'absolute', bottom: -2, left: -2 }}>
+                        <Text style={{ fontSize: 14, color: isLoot ? '#fde047' : '#c4b5fd', textShadowColor: shadowColor, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 4 }}>◆</Text>
+                      </View>
+                      {/* Corner ornaments — Bottom Right */}
+                      <View style={{ position: 'absolute', bottom: -2, right: -2 }}>
+                        <Text style={{ fontSize: 14, color: isLoot ? '#fde047' : '#c4b5fd', textShadowColor: shadowColor, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 4 }}>◆</Text>
+                      </View>
+
+                      {/* Top center crest ornament */}
+                      <View style={{ position: 'absolute', top: -6, left: 0, right: 0, alignItems: 'center' }}>
+                        <Text style={{ fontSize: 16, color: isLoot ? '#fff' : '#e0e7ff', textShadowColor: shadowColor, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 8 }}>{isLoot ? '🔥' : '♛'}</Text>
+                      </View>
+
+                      {/* Content Row */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 }}>
+                        {/* Left side: Room DP for Loot, User DP for Gift */}
+                        {isLoot ? (
+                          (activeBroadcast.roomCoverUrl || displayRoom?.coverUrl) ? (
+                            <View style={{ width: 38, height: 38, borderRadius: 19, overflow: 'hidden' }}>
+                              <Image cachePolicy="memory-disk" source={{ uri: toCDN(activeBroadcast.roomCoverUrl || displayRoom?.coverUrl) }} style={{ width: 38, height: 38, borderRadius: 19 }} contentFit="cover" />
+                            </View>
+                          ) : (
+                            <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' }}>
+                              <Text style={{ fontSize: 18 }}>🏠</Text>
+                            </View>
+                          )
+                        ) : (
+                          <BroadcastUserAvatar broadcast={activeBroadcast} />
+                        )}
+
+                        {/* Middle: Broadcast Text */}
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 11, fontWeight: '800', color: textColor, textShadowColor: 'rgba(255,255,255,0.4)', textShadowOffset: { width: 0, height: 0.5 }, textShadowRadius: 1 }} numberOfLines={1}>
+                            {isLoot
+                              ? `${activeBroadcast.senderName} unlocked Loot Level: ${activeBroadcast.giftName} in Room #${activeBroadcast.roomNumber}`
+                              : `${activeBroadcast.senderName} sent ${activeBroadcast.qty}x ${activeBroadcast.giftName} in Room #${activeBroadcast.roomNumber}`}
+                          </Text>
+                        </View>
+
+                        {/* Right side (just before Enter button): Loot Level Icon or Gift Image */}
+                        {isLoot ? (
+                          <View style={{ width: 44, height: 32, justifyContent: 'center', alignItems: 'center' }}>
+                            <Image
+                              cachePolicy="memory-disk"
+                              source={LOOT_LEVEL_IMAGES[activeBroadcast.levelKey || 'home'] || { uri: toCDN(activeBroadcast.giftImageUrl) }}
+                              style={{ width: 44, height: 32 }}
+                              contentFit="contain"
+                            />
+                          </View>
+                        ) : (
+                          activeBroadcast.giftImageUrl ? (
+                            <View style={{ width: 44, height: 32, justifyContent: 'center', alignItems: 'center' }}>
+                              <Image cachePolicy="memory-disk" source={{ uri: toCDN(activeBroadcast.giftImageUrl) }} style={{ width: 44, height: 32 }} contentFit="contain" />
+                            </View>
+                          ) : (
+                            <View style={{ width: 36, height: 32, justifyContent: 'center', alignItems: 'center' }}>
+                              <Text style={{ fontSize: 20 }}>🎁</Text>
+                            </View>
+                          )
+                        )}
+                      </View>
+
+                      {/* Enter button */}
+                      <LinearGradient
+                        colors={isLoot ? ['#fef08a', '#facc15', '#ea580c'] : ['#e0e7ff', '#c4b5fd', '#8b5cf6']}
+                        start={{ x: 0.5, y: 0 }}
+                        end={{ x: 0.5, y: 1 }}
+                        style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 5,
+                          borderRadius: 4,
+                          borderWidth: 1,
+                          borderColor: 'rgba(255,255,255,0.4)',
+                          shadowColor: shadowColor,
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.4,
+                          shadowRadius: 4,
+                          elevation: 3,
+                        }}
+                      >
+                        <Text style={{ fontSize: 9, fontWeight: '900', color: textColor, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          Enter
+                        </Text>
+                      </LinearGradient>
+                    </LinearGradient>
+                  </LinearGradient>
                 </View>
-              </LinearGradient>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
+              </TouchableOpacity>
+            </Animated.View>
+          );
+        })()}
 
         <RoomTrophyBadge dailyGifts={displayRoom?.stats?.dailyGifts || 0} supporters={safeTopSupporters} onPress={() => setShowTopSupporters(true)} />
 
@@ -1564,14 +1744,47 @@ export default function RoomScreen() {
             isOwner={isOwner}
             onOpenGate={(idx) => { 
               const LEVEL_NAMES = ['Home', 'Bank', 'Car', 'Hotel', 'Bus', 'Train', 'Ship', 'Aeroplane', 'Submarine', 'Rocket'];
+              const nameToUse = LEVEL_NAMES[idx] || 'Home';
               setCurrentGateIndex(idx); 
-              setCurrentGateLevelName(LEVEL_NAMES[idx] || 'Home');
+              setCurrentGateLevelName(nameToUse);
               setShowLootGate(true); 
+
+              // RTD broadcast gateOpen for ALL room members
+              if (database && id) {
+                try {
+                  const { ref: dbRef, set: dbSet } = require('firebase/database');
+                  const gateOpenPath = dbRef(database, `roomLoot/${id}/gateOpen`);
+                  dbSet(gateOpenPath, {
+                    id: `gate_${Date.now()}_${Math.random()}`,
+                    gateIndex: idx,
+                    levelName: nameToUse,
+                    senderName: userProfile?.username || userProfile?.name || 'Someone',
+                    timestamp: Date.now()
+                  }).catch(() => {});
+                } catch (e) {}
+              }
             }}
             onGateReady={(idx, name) => { 
+              const LEVEL_NAMES = ['Home', 'Bank', 'Car', 'Hotel', 'Bus', 'Train', 'Ship', 'Aeroplane', 'Submarine', 'Rocket'];
+              const nameToUse = name || LEVEL_NAMES[idx] || 'Home';
               setCurrentGateIndex(idx); 
-              setCurrentGateLevelName(name); 
+              setCurrentGateLevelName(nameToUse); 
               setShowLootGate(true); 
+
+              // RTD broadcast gateOpen for ALL room members
+              if (database && id) {
+                try {
+                  const { ref: dbRef, set: dbSet } = require('firebase/database');
+                  const gateOpenPath = dbRef(database, `roomLoot/${id}/gateOpen`);
+                  dbSet(gateOpenPath, {
+                    id: `gate_${Date.now()}_${Math.random()}`,
+                    gateIndex: idx,
+                    levelName: nameToUse,
+                    senderName: userProfile?.username || userProfile?.name || 'Someone',
+                    timestamp: Date.now()
+                  }).catch(() => {});
+                } catch (e) {}
+              }
             }}
           />
         </View>
@@ -1712,7 +1925,52 @@ export default function RoomScreen() {
         currentUserId={user?.uid}
         onCrack={(idx) => {
           setShowLootGate(false);
-          setShowLevelAnimation(true);
+          const LEVEL_NAMES = ['Home', 'Bank', 'Car', 'Hotel', 'Bus', 'Train', 'Ship', 'Aeroplane', 'Submarine', 'Rocket'];
+          const LEVEL_KEYS = ['home', 'bank', 'car', 'hotel', 'bus', 'train', 'ship', 'aeroplane', 'submarine', 'rocket'];
+          const nameToUse = LEVEL_NAMES[idx] || currentGateLevelName || 'Home';
+          const levelKey = LEVEL_KEYS[idx] || 'home';
+
+          // 1. RTD Sync for ALL room participants in real-time
+          if (database && id) {
+            try {
+              const { ref: dbRef, set: dbSet } = require('firebase/database');
+              const lootRtdPath = dbRef(database, `roomLoot/${id}/lastLoot`);
+              dbSet(lootRtdPath, {
+                id: `loot_${Date.now()}_${Math.random()}`,
+                gateIndex: idx,
+                levelName: nameToUse,
+                senderName: userProfile?.username || userProfile?.name || 'Someone',
+                senderAvatar: userProfile?.avatarUrl || null,
+                timestamp: Date.now()
+              }).catch(() => {});
+            } catch (e) {}
+          }
+
+          // 2. Global Broadcast Patti for ALL rooms across the app
+          if (firestore) {
+            try {
+              const expiresAtDate = new Date(Date.now() + 10000);
+              const broadcastRef = doc(collection(firestore, 'globalBroadcasts'));
+              setDoc(broadcastRef, {
+                id: broadcastRef.id,
+                roomId: id,
+                roomName: displayRoom?.name || 'Ummy Room',
+                roomNumber: displayRoom?.roomNumber || id,
+                senderName: userProfile?.username || userProfile?.name || 'Someone',
+                senderAvatar: userProfile?.avatarUrl || null,
+                giftName: `${nameToUse}`,
+                giftImageUrl: `assets/images/loot/level_${levelKey}.png`,
+                qty: 1,
+                expiresAt: Timestamp.fromDate(expiresAtDate),
+                timestamp: serverTimestamp(),
+                type: 'loot'
+              }).catch(() => {});
+            } catch (e) {}
+          }
+
+          setTimeout(() => {
+            setShowLevelAnimation(true);
+          }, 350);
         }}
         lootConfig={lootConfig}
       />
@@ -1724,7 +1982,9 @@ export default function RoomScreen() {
         onComplete={() => { 
           setShowLevelAnimation(false); 
           setLevelAnimationUrl(undefined); 
-          setShowLootingRoom(true); 
+          setTimeout(() => {
+            setShowLootingRoom(true); 
+          }, 350);
         }}
       />
       <LootingRoom visible={showLootingRoom} onClose={() => setShowLootingRoom(false)} roomId={id} levelIndex={currentGateIndex} isOwner={isOwner} />

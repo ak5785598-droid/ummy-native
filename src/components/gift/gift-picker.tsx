@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, Vibration, Dimensions, Alert, Animated, Easing, TextInput, ActivityIndicator } from 'react-native';
 import { X, ChevronDown, Zap, Send } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -364,7 +364,10 @@ export function GiftPicker({ visible, onClose, roomId, participants, initialReci
           roomId: roomId,
           roomName: roomName,
           roomNumber: roomNumber,
-          senderName: userProfile?.username || 'User', senderChatColor: userProfile?.nobility?.chatColor || null,
+          senderUid: user.uid,
+          senderName: userProfile?.username || 'User',
+          senderAvatar: userProfile?.avatarUrl || user?.photoURL || null,
+          senderChatColor: userProfile?.nobility?.chatColor || null,
           receiverNames: recipientNames,
           giftName: gift.name,
           giftImageUrl: gift.imageUrl || null,
