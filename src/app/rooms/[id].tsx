@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Animated, Modal, Alert, BackH
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { doc, setDoc, collection, query, orderBy, limit, where, Timestamp, serverTimestamp, arrayUnion, arrayRemove, increment, deleteDoc, getDoc, updateDoc, onSnapshot } from '@/firebase/firestore-compat';
+import { doc, setDoc, collection, query, orderBy, limit, where, Timestamp, serverTimestamp, arrayUnion, arrayRemove, increment, deleteDoc, getDoc, updateDoc, onSnapshot, deleteField } from '@/firebase/firestore-compat';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, useStorage, useDatabase } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
@@ -451,29 +451,35 @@ export default function RoomScreen() {
     return () => unsub();
   }, [database, id]);
 
-  const processedRtdGateOpenIds = useRef<Set<string>>(new Set());
-
-  // ⚡ RTD-based INSTANT gateOpen broadcast — all room members see LootGate popup
+  // ⚡ Firestore-based gateOpen sync — ALL room members see LootGate popup via room doc listener
+  const lastProcessedGateId = useRef<string | null>(null);
   useEffect(() => {
-    if (!database || !id) return;
-    const { ref: dbRef, onValue: dbOnValue } = require('firebase/database');
-    const gateOpenPath = dbRef(database, `roomLoot/${id}/gateOpen`);
+    if (!room?.activeGate) return;
+    const gate = room.activeGate;
+    if (!gate.id || gate.id === lastProcessedGateId.current) return;
+    // Skip stale gate events from before this session
+    if (gate.timestamp && typeof gate.timestamp === 'number' && gate.timestamp < sessionJoinTime.getTime()) return;
+    lastProcessedGateId.current = gate.id;
+    setCurrentGateIndex(gate.gateIndex || 0);
+    setCurrentGateLevelName(gate.levelName || 'Home');
+    setShowLootGate(true);
+  }, [room?.activeGate?.id]);
 
-    const unsub = dbOnValue(gateOpenPath, (snap: any) => {
-      if (!snap.exists()) return;
-      const evt = snap.val();
-      if (!evt || !evt.id) return;
-      if (evt.timestamp && evt.timestamp < sessionJoinTime.getTime()) return;
-      if (processedRtdGateOpenIds.current.has(evt.id)) return;
-      processedRtdGateOpenIds.current.add(evt.id);
-
-      setCurrentGateIndex(evt.gateIndex || 0);
-      setCurrentGateLevelName(evt.levelName || 'Home');
-      setShowLootGate(true);
-    });
-
-    return () => unsub();
-  }, [database, id]);
+  // ⚡ Firestore-based crackedGate sync — ALL room members see Level Animation
+  const lastProcessedCrackId = useRef<string | null>(null);
+  useEffect(() => {
+    if (!room?.crackedGate) return;
+    const crack = room.crackedGate;
+    if (!crack.id || crack.id === lastProcessedCrackId.current) return;
+    if (crack.timestamp && typeof crack.timestamp === 'number' && crack.timestamp < sessionJoinTime.getTime()) return;
+    lastProcessedCrackId.current = crack.id;
+    setShowLootGate(false);
+    setCurrentGateIndex(crack.gateIndex || 0);
+    setCurrentGateLevelName(crack.levelName || 'Home');
+    setTimeout(() => {
+      setShowLevelAnimation(true);
+    }, 350);
+  }, [room?.crackedGate?.id]);
 
   const [showLuckyRain, setShowLuckyRain] = useState(false);
   const [luckyRainAmount, setLuckyRainAmount] = useState(0);
@@ -1749,19 +1755,17 @@ export default function RoomScreen() {
               setCurrentGateLevelName(nameToUse);
               setShowLootGate(true); 
 
-              // RTD broadcast gateOpen for ALL room members
-              if (database && id) {
-                try {
-                  const { ref: dbRef, set: dbSet } = require('firebase/database');
-                  const gateOpenPath = dbRef(database, `roomLoot/${id}/gateOpen`);
-                  dbSet(gateOpenPath, {
+              // Firestore broadcast activeGate for ALL room members (they all listen to room doc)
+              if (firestore && id) {
+                updateDoc(doc(firestore, 'chatRooms', id), {
+                  activeGate: {
                     id: `gate_${Date.now()}_${Math.random()}`,
                     gateIndex: idx,
                     levelName: nameToUse,
                     senderName: userProfile?.username || userProfile?.name || 'Someone',
                     timestamp: Date.now()
-                  }).catch(() => {});
-                } catch (e) {}
+                  }
+                }).catch(() => {});
               }
             }}
             onGateReady={(idx, name) => { 
@@ -1771,19 +1775,17 @@ export default function RoomScreen() {
               setCurrentGateLevelName(nameToUse); 
               setShowLootGate(true); 
 
-              // RTD broadcast gateOpen for ALL room members
-              if (database && id) {
-                try {
-                  const { ref: dbRef, set: dbSet } = require('firebase/database');
-                  const gateOpenPath = dbRef(database, `roomLoot/${id}/gateOpen`);
-                  dbSet(gateOpenPath, {
+              // Firestore broadcast activeGate for ALL room members (they all listen to room doc)
+              if (firestore && id) {
+                updateDoc(doc(firestore, 'chatRooms', id), {
+                  activeGate: {
                     id: `gate_${Date.now()}_${Math.random()}`,
                     gateIndex: idx,
                     levelName: nameToUse,
                     senderName: userProfile?.username || userProfile?.name || 'Someone',
                     timestamp: Date.now()
-                  }).catch(() => {});
-                } catch (e) {}
+                  }
+                }).catch(() => {});
               }
             }}
           />
@@ -1946,7 +1948,22 @@ export default function RoomScreen() {
             } catch (e) {}
           }
 
-          // 2. Global Broadcast Patti for ALL rooms across the app
+          // 2. Clear activeGate from room doc (closes LootGate for ALL members)
+          // AND write crackedGate so ALL members see level animation via Firestore
+          if (firestore && id) {
+            updateDoc(doc(firestore, 'chatRooms', id), {
+              activeGate: deleteField(),
+              crackedGate: {
+                id: `cracked_${Date.now()}_${Math.random()}`,
+                gateIndex: idx,
+                levelName: nameToUse,
+                senderName: userProfile?.username || userProfile?.name || 'Someone',
+                timestamp: Date.now()
+              }
+            }).catch(() => {});
+          }
+
+          // 3. Global Broadcast Patti for ALL rooms across the app
           if (firestore) {
             try {
               const expiresAtDate = new Date(Date.now() + 10000);
