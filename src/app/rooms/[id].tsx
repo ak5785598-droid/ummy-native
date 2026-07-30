@@ -451,35 +451,7 @@ export default function RoomScreen() {
     return () => unsub();
   }, [database, id]);
 
-  // ⚡ Firestore-based gateOpen sync — ALL room members see LootGate popup via room doc listener
-  const lastProcessedGateId = useRef<string | null>(null);
-  useEffect(() => {
-    if (!room?.activeGate) return;
-    const gate = room.activeGate;
-    if (!gate.id || gate.id === lastProcessedGateId.current) return;
-    // Skip stale gate events from before this session
-    if (gate.timestamp && typeof gate.timestamp === 'number' && gate.timestamp < sessionJoinTime.getTime()) return;
-    lastProcessedGateId.current = gate.id;
-    setCurrentGateIndex(gate.gateIndex || 0);
-    setCurrentGateLevelName(gate.levelName || 'Home');
-    setShowLootGate(true);
-  }, [room?.activeGate?.id]);
-
-  // ⚡ Firestore-based crackedGate sync — ALL room members see Level Animation
-  const lastProcessedCrackId = useRef<string | null>(null);
-  useEffect(() => {
-    if (!room?.crackedGate) return;
-    const crack = room.crackedGate;
-    if (!crack.id || crack.id === lastProcessedCrackId.current) return;
-    if (crack.timestamp && typeof crack.timestamp === 'number' && crack.timestamp < sessionJoinTime.getTime()) return;
-    lastProcessedCrackId.current = crack.id;
-    setShowLootGate(false);
-    setCurrentGateIndex(crack.gateIndex || 0);
-    setCurrentGateLevelName(crack.levelName || 'Home');
-    setTimeout(() => {
-      setShowLevelAnimation(true);
-    }, 350);
-  }, [room?.crackedGate?.id]);
+  // (Gate sync handled via globalBroadcasts listener below — proven to work for ALL users)
 
   const [showLuckyRain, setShowLuckyRain] = useState(false);
   const [luckyRainAmount, setLuckyRainAmount] = useState(0);
@@ -496,6 +468,8 @@ export default function RoomScreen() {
   const [activeBroadcast, setActiveBroadcast] = useState<any>(null);
   const pattiTranslateY = useRef(new Animated.Value(-120)).current;
 
+  const processedGateBroadcastIds = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (!firestore) return;
 
@@ -504,13 +478,43 @@ export default function RoomScreen() {
       collection(firestore, 'globalBroadcasts'),
       where('expiresAt', '>', Timestamp.fromDate(new Date())),
       orderBy('expiresAt', 'desc'),
-      limit(1)
+      limit(5)
     );
 
     const unsubscribe = onSnapshot(q, (snap: any) => {
-      if (snap && snap.docs.length > 0) {
-        const data = snap.docs[0].data();
+      if (!snap || snap.docs.length === 0) return;
 
+      // Process ALL recent broadcasts for gate events in THIS room
+      snap.docs.forEach((docSnap: any) => {
+        const data = docSnap.data();
+        if (!data || !data.id) return;
+        if (processedGateBroadcastIds.current.has(data.id)) return;
+
+        // Handle gate_open: Show LootGate popup for THIS room's members
+        if (data.type === 'gate_open' && data.roomId === id) {
+          processedGateBroadcastIds.current.add(data.id);
+          setCurrentGateIndex(data.gateIndex || 0);
+          setCurrentGateLevelName(data.levelName || 'Home');
+          setShowLootGate(true);
+          return;
+        }
+
+        // Handle gate_cracked: Close LootGate + Show Level Animation for THIS room
+        if (data.type === 'gate_cracked' && data.roomId === id) {
+          processedGateBroadcastIds.current.add(data.id);
+          setShowLootGate(false);
+          setCurrentGateIndex(data.gateIndex || 0);
+          setCurrentGateLevelName(data.levelName || 'Home');
+          setTimeout(() => {
+            setShowLevelAnimation(true);
+          }, 350);
+          return;
+        }
+      });
+
+      // Handle regular gift/loot broadcast banner (first doc)
+      const data = snap.docs[0].data();
+      if (data && data.type !== 'gate_open' && data.type !== 'gate_cracked') {
         setActiveBroadcast(data);
 
         // Slide in
@@ -1755,17 +1759,21 @@ export default function RoomScreen() {
               setCurrentGateLevelName(nameToUse);
               setShowLootGate(true); 
 
-              // Firestore broadcast activeGate for ALL room members (they all listen to room doc)
+              // globalBroadcasts gate_open — PROVEN to reach ALL users!
               if (firestore && id) {
-                updateDoc(doc(firestore, 'chatRooms', id), {
-                  activeGate: {
-                    id: `gate_${Date.now()}_${Math.random()}`,
+                try {
+                  const gateRef = doc(collection(firestore, 'globalBroadcasts'));
+                  setDoc(gateRef, {
+                    id: gateRef.id,
+                    roomId: id,
+                    type: 'gate_open',
                     gateIndex: idx,
                     levelName: nameToUse,
                     senderName: userProfile?.username || userProfile?.name || 'Someone',
-                    timestamp: Date.now()
-                  }
-                }).catch(() => {});
+                    expiresAt: Timestamp.fromDate(new Date(Date.now() + 30000)),
+                    timestamp: serverTimestamp()
+                  }).catch(() => {});
+                } catch (e) {}
               }
             }}
             onGateReady={(idx, name) => { 
@@ -1775,17 +1783,21 @@ export default function RoomScreen() {
               setCurrentGateLevelName(nameToUse); 
               setShowLootGate(true); 
 
-              // Firestore broadcast activeGate for ALL room members (they all listen to room doc)
+              // globalBroadcasts gate_open — PROVEN to reach ALL users!
               if (firestore && id) {
-                updateDoc(doc(firestore, 'chatRooms', id), {
-                  activeGate: {
-                    id: `gate_${Date.now()}_${Math.random()}`,
+                try {
+                  const gateRef = doc(collection(firestore, 'globalBroadcasts'));
+                  setDoc(gateRef, {
+                    id: gateRef.id,
+                    roomId: id,
+                    type: 'gate_open',
                     gateIndex: idx,
                     levelName: nameToUse,
                     senderName: userProfile?.username || userProfile?.name || 'Someone',
-                    timestamp: Date.now()
-                  }
-                }).catch(() => {});
+                    expiresAt: Timestamp.fromDate(new Date(Date.now() + 30000)),
+                    timestamp: serverTimestamp()
+                  }).catch(() => {});
+                } catch (e) {}
               }
             }}
           />
@@ -1948,19 +1960,21 @@ export default function RoomScreen() {
             } catch (e) {}
           }
 
-          // 2. Clear activeGate from room doc (closes LootGate for ALL members)
-          // AND write crackedGate so ALL members see level animation via Firestore
+          // 2. globalBroadcasts gate_cracked — closes LootGate + shows Level Animation for ALL
           if (firestore && id) {
-            updateDoc(doc(firestore, 'chatRooms', id), {
-              activeGate: deleteField(),
-              crackedGate: {
-                id: `cracked_${Date.now()}_${Math.random()}`,
+            try {
+              const crackRef = doc(collection(firestore, 'globalBroadcasts'));
+              setDoc(crackRef, {
+                id: crackRef.id,
+                roomId: id,
+                type: 'gate_cracked',
                 gateIndex: idx,
                 levelName: nameToUse,
                 senderName: userProfile?.username || userProfile?.name || 'Someone',
-                timestamp: Date.now()
-              }
-            }).catch(() => {});
+                expiresAt: Timestamp.fromDate(new Date(Date.now() + 15000)),
+                timestamp: serverTimestamp()
+              }).catch(() => {});
+            } catch (e) {}
           }
 
           // 3. Global Broadcast Patti for ALL rooms across the app
