@@ -313,9 +313,9 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
     return () => unsub();
   }, [visible, firestore, user?.uid]);
 
-  // Verify entry eligibility from RTD
+  // Verify entry eligibility from Firestore (matching loot-gate.tsx entry storage)
   useEffect(() => {
-    if (!visible || !database || !roomId || !user?.uid || levelIndex === undefined) {
+    if (!visible || !firestore || !roomId || !user?.uid || levelIndex === undefined) {
       setIsAuthorized(null);
       return;
     }
@@ -325,30 +325,20 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
       return;
     }
 
-    const rtdbPath = `rooms/${roomId}/lootGates/${levelIndex}/entries`;
-    const unsub = onValue(databaseRef(database, rtdbPath), (snap: any) => {
-      const val = snap.val();
-      if (!val) {
+    const entryDocRef = doc(firestore, 'chatRooms', roomId, 'lootEntries', String(levelIndex));
+    const unsub = onSnapshot(entryDocRef, (snap: any) => {
+      const data = snap.data?.();
+      if (!data || !data.entries) {
         setIsAuthorized(false);
         return;
       }
-      
-      let isUserJoined = false;
-      if (Array.isArray(val)) {
-        isUserJoined = val.includes(user.uid);
-      } else if (typeof val === 'object') {
-        if (val[user.uid] !== undefined) {
-          isUserJoined = true;
-        } else {
-          isUserJoined = Object.values(val).includes(user.uid);
-        }
-      }
-      setIsAuthorized(isUserJoined);
+      const entries = data.entries as string[];
+      setIsAuthorized(entries.includes(user.uid));
     }, (err) => {
       setIsAuthorized(false);
     });
     return () => unsub();
-  }, [visible, database, roomId, levelIndex, user?.uid, isOwner]);
+  }, [visible, firestore, roomId, levelIndex, user?.uid, isOwner]);
 
   // Subscribe to real-time participant scores
   useEffect(() => {
