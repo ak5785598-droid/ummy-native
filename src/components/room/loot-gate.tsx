@@ -167,11 +167,6 @@ export function LootGate({
     explosionOpacity.setValue(0);
     flashAnimated.setValue(0);
     if (burstIntervalRef.current) { clearInterval(burstIntervalRef.current); burstIntervalRef.current = null; }
-
-    if (firestore && roomId && levelIndex !== undefined) {
-      const entryDocRef = doc(firestore, 'chatRooms', roomId, 'lootEntries', String(levelIndex));
-      setDoc(entryDocRef, { entries: [], createdAt: Date.now() }).catch(() => {});
-    }
   }, [visible, GATE_DURATION, isOwner, database, roomId, levelIndex]);
 
   useEffect(() => {
