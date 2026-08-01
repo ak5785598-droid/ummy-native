@@ -115,7 +115,6 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
           gender: userProfile?.gender || null,
           relationship: userProfile?.relationship || null,
           bestFriend: userProfile?.bestFriend || null,
-          kickedUntil: null,
         }, { merge: true });
 
         batch.set(roomDocRef, {
@@ -136,19 +135,24 @@ export function useRoomPresence({ activeRoom, minimizedRoom, userProfile }: UseR
           updatedAt: serverTimestamp(),
         }, { merge: true });
 
-        const logRef = doc(collection(firestore, 'chatRooms', roomId, 'entryLogs'));
-        batch.set(logRef, {
-          type: 'entry',
-          userId: uid,
-          username: userProfile?.username || 'User',
-          timestamp: serverTimestamp(),
-        });
-
         await batch.commit();
 
-        // Clear stale ban doc AFTER batch (non-blocking, won't break join if fails)
-        deleteDoc(doc(firestore, 'chatRooms', roomId, 'bans', uid)).catch(() => {});
+        // Write entry log SEPARATELY — so if security rules block this subcollection,
+        // the main participant join still succeeds
+        try {
+          const logRef = doc(collection(firestore, 'chatRooms', roomId, 'entryLogs'));
+          await setDoc(logRef, {
+            type: 'entry',
+            userId: uid,
+            username: userProfile?.username || 'User',
+            avatarUrl: userProfile?.avatarUrl || user.photoURL || '',
+            timestamp: serverTimestamp(),
+          });
+        } catch (logErr) {
+          console.error('[performJoin] entryLog write failed:', logErr);
+        }
       } catch (error) {
+        console.error('[performJoin] batch commit failed:', error);
       }
     };
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { View, Text, Modal, TouchableOpacity, Animated, Dimensions, StyleSheet, Image, ScrollView } from 'react-native';
 import { ShieldAlert, Trophy } from 'lucide-react-native';
 import { Audio } from 'expo-av';
@@ -6,6 +6,7 @@ import { doc, increment, onSnapshot } from '@/firebase/firestore-compat';
 import { useFirestore, useUser, useDatabase } from '../../firebase/provider';
 import { ref as databaseRef, onValue, set as rtdbSet } from 'firebase/database';
 import { updateDocumentNonBlocking } from '../../lib/non-blocking-writes';
+import { TopSupporter } from '../../lib/types';
 import { GoldenCoin } from '../GoldenCoin';
 import { PremiumDiamond } from '../PremiumDiamond';
 import { LootLevelAnimation } from './loot-level-animation';
@@ -253,15 +254,27 @@ function FallingReward({
   );
 }
 
+// ========== TIER-BASED POOL DISTRIBUTION ==========
+// Top senders who filled the threshold get the maximum reward
+const POOL_TIERS = {
+  TOP1: 0.25,    // 25% — #1 top sender
+  TOP2: 0.18,    // 18% — #2 top sender
+  TOP3: 0.18,    // 18% — #3 top sender
+  OWNER: 0.10,   // 10% — Room owner bonus (stacks with sender tier)
+  QUEUE: 0.29,   // 29% — Split equally among remaining queue participants
+};
+
 interface LootingRoomProps {
   visible: boolean;
   onClose: () => void;
   roomId: string;
   levelIndex?: number;
   isOwner?: boolean;
+  topSupporters?: TopSupporter[];
+  ownerUid?: string;
 }
 
-export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: LootingRoomProps) {
+export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner, topSupporters = [], ownerUid }: LootingRoomProps) {
   const firestore = useFirestore();
   const database = useDatabase();
   const { user } = useUser();
@@ -540,31 +553,65 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
     [isFrenzy, spawnConfetti]
   );
 
-  // Compute final distributed proportional share of the threshold pool
-  const getProportionalShare = useCallback((uid: string) => {
-    const totalRawScore = leaderboardScores.reduce((sum, item) => sum + item.score, 0);
-    const targetObj = leaderboardScores.find(item => item.uid === uid);
-    const targetRawScore = targetObj ? targetObj.score : (uid === user?.uid ? accumulatedScoreRef.current : 0);
+  // ========== TIER-BASED POOL DISTRIBUTION ==========
+  // Determine top 3 sender UIDs from topSupporters (sorted by total amount)
+  const top3Uids = useMemo(() => {
+    const sorted = [...topSupporters].sort((a, b) => b.amount - a.amount);
+    return sorted.slice(0, 3).map(s => s.uid);
+  }, [topSupporters]);
 
-    if (totalRawScore <= 0) {
-      return 0; // Return 0 if there are no raw scores to split the pool
+  // Get total queue participants who are NOT top 3 senders and NOT owner
+  const getQueueParticipantCount = useCallback(() => {
+    const allUids = leaderboardScores.map(s => s.uid);
+    return allUids.filter(uid => !top3Uids.includes(uid) && uid !== ownerUid).length;
+  }, [leaderboardScores, top3Uids, ownerUid]);
+
+  // Compute tier-based pool share for a specific user
+  const getTierBasedShare = useCallback((uid: string): { poolShare: number; tierLabel: string } => {
+    let poolShare = 0;
+    let tierLabel = '';
+
+    // Check if user is a top sender (can stack with owner)
+    const senderRank = top3Uids.indexOf(uid);
+    if (senderRank === 0) {
+      poolShare += Math.round(rewardPool * POOL_TIERS.TOP1);
+      tierLabel = '🥇 Top 1 Sender';
+    } else if (senderRank === 1) {
+      poolShare += Math.round(rewardPool * POOL_TIERS.TOP2);
+      tierLabel = '🥈 Top 2 Sender';
+    } else if (senderRank === 2) {
+      poolShare += Math.round(rewardPool * POOL_TIERS.TOP3);
+      tierLabel = '🥉 Top 3 Sender';
     }
 
-    // Distribute the 2x Threshold dynamic rewardPool proportionally
-    return Math.round((targetRawScore / totalRawScore) * rewardPool);
-  }, [leaderboardScores, rewardPool, user?.uid]);
+    // Owner bonus stacks with sender tier
+    if (uid === ownerUid) {
+      poolShare += Math.round(rewardPool * POOL_TIERS.OWNER);
+      tierLabel = tierLabel ? `${tierLabel} + 👑 Owner` : '👑 Room Owner';
+    }
+
+    // Queue participant (not top 3, not owner)
+    if (senderRank === -1 && uid !== ownerUid) {
+      const queueCount = Math.max(1, getQueueParticipantCount());
+      const queuePool = Math.round(rewardPool * POOL_TIERS.QUEUE);
+      poolShare = Math.round(queuePool / queueCount);
+      tierLabel = '👥 Queue Entry';
+    }
+
+    return { poolShare, tierLabel };
+  }, [top3Uids, ownerUid, rewardPool, getQueueParticipantCount]);
 
   const handleAutoClose = useCallback(() => {
     if (firestore && user?.uid && isAuthorized === true) {
-      // Calculate real proportional share of the threshold pool
-      const poolShare = getProportionalShare(user.uid);
+      // Calculate tier-based pool share
+      const { poolShare } = getTierBasedShare(user.uid);
       const rawLootScore = accumulatedScoreRef.current;
       
-      // Sum BOTH values as requested: pool reward + direct tapped score
+      // Sum BOTH values: tier pool share + direct tapped score
       const finalCoinsReward = poolShare + rawLootScore;
 
       if (finalCoinsReward > 0) {
-        // Real write operation crediting both distributed coins + tapped score to user's wallet
+        // Credit both distributed coins + tapped score to user's wallet
         updateDocumentNonBlocking(
           doc(firestore, 'users', user.uid),
           { 'wallet.coins': increment(finalCoinsReward) }
@@ -576,7 +623,7 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
       }
     }
     onClose();
-  }, [onClose, firestore, user, isAuthorized, getProportionalShare]);
+  }, [onClose, firestore, user, isAuthorized, getTierBasedShare]);
 
   // Sync final score to RTDB and trigger exactly ONE 5-second close timer
   useEffect(() => {
@@ -760,7 +807,7 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
                   <ScrollView style={{ width: '100%', marginBottom: 5 }} showsVerticalScrollIndicator={false}>
                     {leaderboardScores.map((item, index) => {
                       const isMe = item.uid === user?.uid;
-                      const poolShare = getProportionalShare(item.uid);
+                      const { poolShare, tierLabel } = getTierBasedShare(item.uid);
                       const rawLoot = item.score;
                       const totalWon = poolShare + rawLoot;
 
@@ -776,8 +823,8 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
                             marginBottom: 8
                           }}
                         >
-                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                               {/* Rank */}
                               <Text style={{ color: index === 0 ? '#fbbf24' : (index === 1 ? '#cbd5e1' : '#94a3b8'), fontSize: 15, fontWeight: 'bold', width: 22 }}>
                                 #{index + 1}
@@ -793,9 +840,14 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
                               )}
 
                               {/* Username */}
-                              <Text style={{ color: isMe ? '#fbbf24' : '#fff', fontSize: 14, fontWeight: isMe ? 'bold' : '500' }} numberOfLines={1}>
-                                {item.name} {isMe && '(You)'}
-                              </Text>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ color: isMe ? '#fbbf24' : '#fff', fontSize: 14, fontWeight: isMe ? 'bold' : '500' }} numberOfLines={1}>
+                                  {item.name} {isMe && '(You)'}
+                                </Text>
+                                <Text style={{ color: '#a78bfa', fontSize: 9, fontWeight: '600', marginTop: 1 }}>
+                                  {tierLabel}
+                                </Text>
+                              </View>
                             </View>
 
                             {/* Total Won Payout */}
@@ -813,7 +865,7 @@ export function LootingRoom({ visible, onClose, roomId, levelIndex, isOwner }: L
                               🎯 Tapped: +{rawLoot.toLocaleString()}
                             </Text>
                             <Text style={{ color: '#a855f7', fontSize: 11, fontWeight: '600' }}>
-                              🎁 Pool Share: +{poolShare.toLocaleString()}
+                              🎁 Pool: +{poolShare.toLocaleString()}
                             </Text>
                           </View>
                         </View>

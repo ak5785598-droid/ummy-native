@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { X, ChevronLeft, ChevronRight, Camera, Mic, Shield, Palette, Lock, UserCheck, Tag, Sun, Sparkles, Volume2, MessageSquare, Loader, Crown, Trash2, Sparkle, FileText } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useFirestore, useUser, useCollection, useMemoFirebase, useDoc } from '../../firebase/provider';
-import { doc, serverTimestamp, arrayUnion, arrayRemove, collection, query, orderBy, limit, updateDoc, deleteDoc, writeBatch, onSnapshot } from '@/firebase/firestore-compat';
+import { doc, setDoc, serverTimestamp, arrayUnion, arrayRemove, collection, query, orderBy, limit, updateDoc, deleteDoc, writeBatch, onSnapshot } from '@/firebase/firestore-compat';
 import rnfbStorage from '@react-native-firebase/storage';
 import { Room, RoomParticipant } from '../../lib/types';
 import { ROOM_THEMES } from '../../lib/themes';
@@ -874,15 +874,21 @@ function LogsPage({ roomId, onClose }: { roomId: string; onClose: () => void }) 
 
   useEffect(() => {
     if (!firestore || !roomId) return;
-    const q = query(
-      collection(firestore, 'chatRooms', roomId, 'entryLogs'),
-      orderBy('timestamp', 'desc'),
-      limit(50)
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    const logCol = collection(firestore, 'chatRooms', roomId, 'entryLogs');
+    const unsub = onSnapshot(logCol, (snap) => {
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Sort client-side by timestamp to prevent Firestore index error
+      docs.sort((a: any, b: any) => {
+        const tA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : (a.timestamp || 0);
+        const tB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : (b.timestamp || 0);
+        return tB - tA;
+      });
+      setLogs(docs);
       setLoading(false);
-    }, () => setLoading(false));
+    }, (err) => {
+      console.warn('[LogsPage] entryLogs error:', err);
+      setLoading(false);
+    });
     return unsub;
   }, [firestore, roomId]);
 
@@ -925,8 +931,8 @@ function LogsPage({ roomId, onClose }: { roomId: string; onClose: () => void }) 
   };
 
   const filteredLogs = useMemo(() => {
-    if (activeTab === 'entry') return logs.filter(l => l.type === 'entry');
-    if (activeTab === 'kick') return logs.filter(l => l.type === 'kick' || (!l.type && l.durationMs));
+    if (activeTab === 'entry') return logs.filter(l => l.type === 'entry' || !l.type);
+    if (activeTab === 'kick') return logs.filter(l => l.type === 'kick' || l.type === 'ban' || l.durationMs);
     return [];
   }, [logs, activeTab]);
 

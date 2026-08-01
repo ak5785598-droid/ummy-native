@@ -263,18 +263,15 @@ export function useAgoraNative(
       isMounted = false;
       sub.remove();
 
-      // CRITICAL: Always leave AND release the Agora channel when room component unmounts
-      // Without release(), createAgoraRtcEngine() returns same undestroyed instance next time
-      if (singletonEngine) {
+      // DO NOT release engine if channel is still active in minimized mode
+      if (singletonEngine && singletonRoomId !== roomId) {
         try {
           singletonEngine.muteLocalAudioStream(true);
           singletonEngine.enableLocalAudio(false);
           singletonEngine.leaveChannel();
-          singletonEngine.release(); // ← MUST call release() to fully destroy engine
+          singletonEngine.release();
         } catch {}
-        // Stop foreground service — mic no longer needed
         stopVoiceService();
-        // Reset singleton so next room creates a fresh engine
         singletonEngine = null;
         singletonRoomId = null;
       }

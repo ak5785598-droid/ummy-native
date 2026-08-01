@@ -780,29 +780,44 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
     }
   }, [messages?.length, firestore, user?.uid]);
 
+  const isSendingRef = useRef(false);
+
   const handleSend = async (msgText?: string, imageUrl?: string, audioUrl?: string) => {
     if (!firestore || !user?.uid || (!msgText?.trim() && !imageUrl && !audioUrl)) return;
+    if (isSendingRef.current && !imageUrl && !audioUrl) return;
 
-    const messagesRef = collection(firestore, 'privateChats', chatId, 'messages');
-    const chatDocRef = doc(firestore, 'privateChats', chatId);
+    isSendingRef.current = true;
+    const sendText = msgText?.trim() || '';
 
-    await addDocumentNonBlocking(messagesRef, {
-      text: msgText?.trim() || '',
-      imageUrl: imageUrl || null,
-      audioUrl: audioUrl || null,
-      senderId: user.uid,
-      timestamp: serverTimestamp(),
-    });
+    // Clear input field immediately so quick double taps don't send duplicate text
+    if (msgText) {
+      setText('');
+    }
 
-    await setDocumentNonBlocking(chatDocRef, {
-      participantIds: [user.uid, recipientUid].sort(),
-      lastMessage: msgText?.trim() || (imageUrl ? '📷 Photo' : (audioUrl ? '🎤 Voice message' : '')),
-      lastSenderId: user.uid,
-      lastMessageReadBy: [user.uid],
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
+    try {
+      const messagesRef = collection(firestore, 'privateChats', chatId, 'messages');
+      const chatDocRef = doc(firestore, 'privateChats', chatId);
 
-    setText('');
+      await addDocumentNonBlocking(messagesRef, {
+        text: sendText,
+        imageUrl: imageUrl || null,
+        audioUrl: audioUrl || null,
+        senderId: user.uid,
+        timestamp: serverTimestamp(),
+      });
+
+      await setDocumentNonBlocking(chatDocRef, {
+        participantIds: [user.uid, recipientUid].sort(),
+        lastMessage: sendText || (imageUrl ? '📷 Photo' : (audioUrl ? '🎤 Voice message' : '')),
+        lastSenderId: user.uid,
+        lastMessageReadBy: [user.uid],
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    } catch (err) {
+      console.error('[Send Message Error]', err);
+    } finally {
+      isSendingRef.current = false;
+    }
   };
 
   const handlePickImage = async () => {

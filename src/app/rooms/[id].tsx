@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Animated, Modal, Alert, BackHandler, TextInput, KeyboardAvoidingView, ActivityIndicator, PermissionsAndroid, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Animated, Modal, Alert, BackHandler, TextInput, KeyboardAvoidingView, ActivityIndicator, PermissionsAndroid, Platform, Dimensions } from 'react-native';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -464,9 +466,71 @@ export default function RoomScreen() {
   const [cpProposeTarget, setCpProposeTarget] = useState<{ uid: string; name: string; avatarUrl: string } | null>(null);
   const [aiVoiceAnnouncements, setAiVoiceAnnouncements] = useState<any[]>([]);
 
-  // Global Broadcast Patti ("Patti") state
-  const [activeBroadcast, setActiveBroadcast] = useState<any>(null);
-  const pattiTranslateY = useRef(new Animated.Value(-120)).current;
+  // Global Broadcast Patti ("Patti") state — Stacked Queues (Gift at 95, Loot at 140)
+  const [activeGiftBroadcast, setActiveGiftBroadcast] = useState<any>(null);
+  const [activeLootBroadcast, setActiveLootBroadcast] = useState<any>(null);
+  const giftTranslateX = useRef(new Animated.Value(SCREEN_WIDTH)).current;
+  const lootTranslateX = useRef(new Animated.Value(SCREEN_WIDTH)).current;
+
+  const giftQueueRef = useRef<any[]>([]);
+  const lootQueueRef = useRef<any[]>([]);
+  const isGiftAnimatingRef = useRef(false);
+  const isLootAnimatingRef = useRef(false);
+  const processedBroadcastIds = useRef<Set<string>>(new Set());
+
+  const processGiftQueue = useCallback(() => {
+    if (isGiftAnimatingRef.current || giftQueueRef.current.length === 0) return;
+    isGiftAnimatingRef.current = true;
+    const nextItem = giftQueueRef.current.shift();
+    setActiveGiftBroadcast(nextItem);
+
+    giftTranslateX.setValue(SCREEN_WIDTH);
+    Animated.spring(giftTranslateX, {
+      toValue: 0,
+      tension: 70,
+      friction: 12,
+      useNativeDriver: true,
+    }).start();
+
+    setTimeout(() => {
+      Animated.timing(giftTranslateX, {
+        toValue: -SCREEN_WIDTH,
+        duration: 400,
+        useNativeDriver: true,
+      }).start(() => {
+        setActiveGiftBroadcast(null);
+        isGiftAnimatingRef.current = false;
+        processGiftQueue();
+      });
+    }, 5000);
+  }, [giftTranslateX]);
+
+  const processLootQueue = useCallback(() => {
+    if (isLootAnimatingRef.current || lootQueueRef.current.length === 0) return;
+    isLootAnimatingRef.current = true;
+    const nextItem = lootQueueRef.current.shift();
+    setActiveLootBroadcast(nextItem);
+
+    lootTranslateX.setValue(SCREEN_WIDTH);
+    Animated.spring(lootTranslateX, {
+      toValue: 0,
+      tension: 70,
+      friction: 12,
+      useNativeDriver: true,
+    }).start();
+
+    setTimeout(() => {
+      Animated.timing(lootTranslateX, {
+        toValue: -SCREEN_WIDTH,
+        duration: 400,
+        useNativeDriver: true,
+      }).start(() => {
+        setActiveLootBroadcast(null);
+        isLootAnimatingRef.current = false;
+        processLootQueue();
+      });
+    }, 5000);
+  }, [lootTranslateX]);
 
   const processedGateBroadcastIds = useRef<Set<string>>(new Set());
 
@@ -478,70 +542,66 @@ export default function RoomScreen() {
       collection(firestore, 'globalBroadcasts'),
       where('expiresAt', '>', Timestamp.fromDate(new Date())),
       orderBy('expiresAt', 'desc'),
-      limit(5)
+      limit(10)
     );
 
     const unsubscribe = onSnapshot(q, (snap: any) => {
       if (!snap || snap.docs.length === 0) return;
 
-      // Process ALL recent broadcasts for gate events in THIS room
+      let hasNewGifts = false;
+      let hasNewLoots = false;
+
+      // Process all snapshot documents to fill queues without missing any
       snap.docs.forEach((docSnap: any) => {
         const data = docSnap.data();
         if (!data || !data.id) return;
-        if (processedGateBroadcastIds.current.has(data.id)) return;
 
         // Handle gate_open: Show LootGate popup for THIS room's members
         if (data.type === 'gate_open' && data.roomId === id) {
-          processedGateBroadcastIds.current.add(data.id);
-          setCurrentGateIndex(data.gateIndex || 0);
-          setCurrentGateLevelName(data.levelName || 'Home');
-          setShowLootGate(true);
+          if (!processedGateBroadcastIds.current.has(data.id)) {
+            processedGateBroadcastIds.current.add(data.id);
+            setCurrentGateIndex(data.gateIndex || 0);
+            setCurrentGateLevelName(data.levelName || 'Home');
+            setShowLootGate(true);
+          }
           return;
         }
 
         // Handle gate_cracked: Close LootGate + Show Level Animation for THIS room
         if (data.type === 'gate_cracked' && data.roomId === id) {
-          processedGateBroadcastIds.current.add(data.id);
-          setShowLootGate(false);
-          setCurrentGateIndex(data.gateIndex || 0);
-          setCurrentGateLevelName(data.levelName || 'Home');
-          setTimeout(() => {
-            setShowLevelAnimation(true);
-          }, 350);
+          if (!processedGateBroadcastIds.current.has(data.id)) {
+            processedGateBroadcastIds.current.add(data.id);
+            setShowLootGate(false);
+            setCurrentGateIndex(data.gateIndex || 0);
+            setCurrentGateLevelName(data.levelName || 'Home');
+            setTimeout(() => {
+              setShowLevelAnimation(true);
+            }, 350);
+          }
           return;
+        }
+
+        // Handle broadcast strips (gifts vs loot level banners)
+        if (data.type !== 'gate_open' && data.type !== 'gate_cracked') {
+          if (!processedBroadcastIds.current.has(data.id)) {
+            processedBroadcastIds.current.add(data.id);
+            if (data.type === 'loot') {
+              lootQueueRef.current.push(data);
+              hasNewLoots = true;
+            } else {
+              giftQueueRef.current.push(data);
+              hasNewGifts = true;
+            }
+          }
         }
       });
 
-      // Handle regular gift/loot broadcast banner (first doc)
-      const data = snap.docs[0].data();
-      if (data && data.type !== 'gate_open' && data.type !== 'gate_cracked') {
-        setActiveBroadcast(data);
-
-        // Slide in
-        Animated.spring(pattiTranslateY, {
-          toValue: 0,
-          tension: 80,
-          friction: 12,
-          useNativeDriver: true,
-        }).start();
-
-        // Slide out after 7 seconds
-        const timer = setTimeout(() => {
-          Animated.timing(pattiTranslateY, {
-            toValue: -120,
-            duration: 400,
-            useNativeDriver: true,
-          }).start(() => {
-            setActiveBroadcast(null);
-          });
-        }, 7000);
-
-        return () => clearTimeout(timer);
-      }
+      if (hasNewGifts) processGiftQueue();
+      if (hasNewLoots) processLootQueue();
     }, () => {});
 
     return () => unsubscribe();
-  }, [firestore, id]);
+  }, [firestore, id, processGiftQueue, processLootQueue]);
 
   const roomDocRef = useMemo(() => {
     if (!firestore || !id) return null;
@@ -1258,7 +1318,19 @@ export default function RoomScreen() {
         return;
       }
     } catch (e) {}
-    await setDocumentNonBlocking(doc(firestore, 'chatRooms', id, 'participants', occupant.uid), { seatIndex: 0, isMuted: true }, { merge: true });
+    setShowSeatMenu(false);
+    // Show kick duration choices — same flow as audience list kick
+    Alert.alert(
+      'Kick User',
+      `Select ban duration for ${occupant.name || 'this user'}:`,
+      [
+        { text: '2 Hours', onPress: () => executeRoomKick(occupant.uid, 2 * 60 * 60 * 1000) },
+        { text: '1 Day', onPress: () => executeRoomKick(occupant.uid, 24 * 60 * 60 * 1000) },
+        { text: '30 Days', onPress: () => executeRoomKick(occupant.uid, 30 * 24 * 60 * 60 * 1000) },
+        { text: 'Permanent', onPress: () => executeRoomKick(occupant.uid, 99 * 365 * 24 * 60 * 60 * 1000) },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
   };
 
   const handleSendInvite = async (targetUid: string, targetName: string, targetAvatar: string | null, seatIdx: number) => {
@@ -1290,7 +1362,9 @@ export default function RoomScreen() {
 
     try {
       // 1. Log the action in room entry log history
-      await addDocumentNonBlocking(collection(firestore, 'chatRooms', id, 'entryLogs'), {
+      const logDocRef = doc(collection(firestore, 'chatRooms', id, 'entryLogs'));
+      await setDoc(logDocRef, {
+        id: logDocRef.id,
         type: isLongTermBan ? 'ban' : 'kick',
         userId: targetUid,
         targetName,
@@ -1321,7 +1395,10 @@ export default function RoomScreen() {
       }, { merge: true });
 
       Alert.alert('Success', isLongTermBan ? 'User has been banned from the room.' : 'User has been kicked from the room.');
-    } catch (e) {}
+    } catch (e) {
+      console.error('[executeRoomKick] failed:', e);
+      Alert.alert('Error', 'Failed to kick user. Please try again.');
+    }
   };
 
 
@@ -1483,154 +1560,196 @@ export default function RoomScreen() {
 
         <RoomHeader roomTitle={displayRoom.name || displayRoom.title || 'Room'} roomId={displayRoom.id} roomNumber={displayRoom.roomNumber} onlineCount={participants.length} coverUrl={displayRoom.coverUrl} isOwner={isOwner} isFollowing={isFollowing} onOpenInfo={() => setIsInfoOpen(true)} onFollow={undefined} onOpenSettings={() => setIsSettingsOpen(true)} onOpenShare={() => setIsShareOpen(true)} onExit={() => setShowExitDialog(true)} onOpenUserList={() => setIsUserListOpen(true)} />
 
-        {/* Global Gift Patti Banner */}
-        {isGiftEffects && activeBroadcast && (() => {
-          const isLoot = activeBroadcast.type === 'loot';
-          const borderColors = isLoot 
-            ? ['#facc15', '#f59e0b', '#ef4444', '#f59e0b', '#facc15']
-            : ['#7c3aed', '#6366f1', '#22d3ee', '#6366f1', '#7c3aed'];
-          const bgColors = isLoot
-            ? ['#fef08a', '#fde047', '#f59e0b', '#b45309']
-            : ['#a5f3fc', '#c4b5fd', '#8b5cf6', '#6d28d9'];
-          const shadowColor = isLoot ? '#f59e0b' : '#67e8f9';
-          const textColor = isLoot ? '#451a03' : '#1e1b4b';
+        {/* Global Gift Patti Banner (Top: 95) */}
+        {isGiftEffects && activeGiftBroadcast && (() => {
+          const borderColors = ['transparent', '#7c3aed', '#6366f1', '#22d3ee', '#6366f1', '#7c3aed', 'transparent'];
+          const bgColors = ['transparent', '#a5f3fc', '#c4b5fd', '#8b5cf6', '#6d28d9', 'transparent'];
+          const shadowColor = '#67e8f9';
+          const textColor = '#1e1b4b';
 
           return (
             <Animated.View
               style={{
                 position: 'absolute',
                 top: 95,
-                left: 10,
-                right: 10,
+                left: 0,
+                right: 0,
                 zIndex: 999,
-                transform: [{ translateY: pattiTranslateY }],
+                transform: [{ translateX: giftTranslateX }],
               }}
             >
               <TouchableOpacity
                 activeOpacity={0.9}
                 onPress={() => {
-                  router.push(`/rooms/${activeBroadcast.roomId}`);
+                  router.push(`/rooms/${activeGiftBroadcast.roomId}`);
                 }}
               >
-                {/* Outer glow layer */}
                 <View style={{
-                  borderRadius: 6,
+                  borderRadius: 0,
                   shadowColor: shadowColor,
                   shadowOffset: { width: 0, height: 0 },
                   shadowOpacity: 0.65,
                   shadowRadius: 16,
                   elevation: 10,
                 }}>
-                  {/* Ornamental border frame */}
                   <LinearGradient
                     colors={borderColors}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
-                    style={{
-                      borderRadius: 6,
-                      padding: 2,
-                    }}
+                    style={{ paddingVertical: 1 }}
                   >
-                    {/* Inner content gradient bg */}
                     <LinearGradient
                       colors={bgColors}
-                      start={{ x: 0.5, y: 0 }}
-                      end={{ x: 0.5, y: 1 }}
+                      start={{ x: 0, y: 0.5 }}
+                      end={{ x: 1, y: 0.5 }}
                       style={{
-                        borderRadius: 4,
-                        paddingHorizontal: 12,
+                        paddingHorizontal: 16,
                         paddingVertical: 4,
                         flexDirection: 'row',
                         alignItems: 'center',
-                        justifyContent: 'space-between',
+                        justify: 'space-between',
                         overflow: 'hidden',
                       }}
                     >
-                      {/* Top edge metallic shine line */}
-                      <View style={{
-                        position: 'absolute', top: 0, left: 20, right: 20, height: 1,
-                        backgroundColor: 'rgba(255,255,255,0.6)',
-                      }} />
-                      {/* Bottom edge metallic shine line */}
-                      <View style={{
-                        position: 'absolute', bottom: 0, left: 20, right: 20, height: 1,
-                        backgroundColor: isLoot ? 'rgba(239,68,68,0.5)' : 'rgba(139,92,246,0.5)',
-                      }} />
+                      <View style={{ position: 'absolute', top: 0, left: 20, right: 20, height: 1, backgroundColor: 'rgba(255,255,255,0.6)' }} />
+                      <View style={{ position: 'absolute', bottom: 0, left: 20, right: 20, height: 1, backgroundColor: 'rgba(139,92,246,0.5)' }} />
 
-                      {/* Corner ornaments — Top Left */}
-                      <View style={{ position: 'absolute', top: -2, left: -2 }}>
-                        <Text style={{ fontSize: 14, color: isLoot ? '#fde047' : '#c4b5fd', textShadowColor: shadowColor, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 4 }}>◆</Text>
-                      </View>
-                      {/* Corner ornaments — Top Right */}
-                      <View style={{ position: 'absolute', top: -2, right: -2 }}>
-                        <Text style={{ fontSize: 14, color: isLoot ? '#fde047' : '#c4b5fd', textShadowColor: shadowColor, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 4 }}>◆</Text>
-                      </View>
-                      {/* Corner ornaments — Bottom Left */}
-                      <View style={{ position: 'absolute', bottom: -2, left: -2 }}>
-                        <Text style={{ fontSize: 14, color: isLoot ? '#fde047' : '#c4b5fd', textShadowColor: shadowColor, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 4 }}>◆</Text>
-                      </View>
-                      {/* Corner ornaments — Bottom Right */}
-                      <View style={{ position: 'absolute', bottom: -2, right: -2 }}>
-                        <Text style={{ fontSize: 14, color: isLoot ? '#fde047' : '#c4b5fd', textShadowColor: shadowColor, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 4 }}>◆</Text>
-                      </View>
-
-                      {/* Top center crest ornament */}
                       <View style={{ position: 'absolute', top: -6, left: 0, right: 0, alignItems: 'center' }}>
-                        <Text style={{ fontSize: 16, color: isLoot ? '#fff' : '#e0e7ff', textShadowColor: shadowColor, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 8 }}>{isLoot ? '🔥' : '♛'}</Text>
+                        <Text style={{ fontSize: 16, color: '#e0e7ff', textShadowColor: shadowColor, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 8 }}>♛</Text>
                       </View>
 
-                      {/* Content Row */}
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 }}>
-                        {/* Left side: Room DP for Loot, User DP for Gift */}
-                        {isLoot ? (
-                          (activeBroadcast.roomCoverUrl || displayRoom?.coverUrl) ? (
-                            <View style={{ width: 38, height: 38, borderRadius: 19, overflow: 'hidden' }}>
-                              <Image cachePolicy="memory-disk" source={{ uri: toCDN(activeBroadcast.roomCoverUrl || displayRoom?.coverUrl) }} style={{ width: 38, height: 38, borderRadius: 19 }} contentFit="cover" />
-                            </View>
-                          ) : (
-                            <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' }}>
-                              <Text style={{ fontSize: 18 }}>🏠</Text>
-                            </View>
-                          )
-                        ) : (
-                          <BroadcastUserAvatar broadcast={activeBroadcast} />
-                        )}
-
-                        {/* Middle: Broadcast Text */}
+                        <BroadcastUserAvatar broadcast={activeGiftBroadcast} />
                         <View style={{ flex: 1 }}>
                           <Text style={{ fontSize: 11, fontWeight: '800', color: textColor, textShadowColor: 'rgba(255,255,255,0.4)', textShadowOffset: { width: 0, height: 0.5 }, textShadowRadius: 1 }} numberOfLines={1}>
-                            {isLoot
-                              ? `${activeBroadcast.senderName} unlocked Loot Level: ${activeBroadcast.giftName} in Room #${activeBroadcast.roomNumber}`
-                              : `${activeBroadcast.senderName} sent ${activeBroadcast.qty}x ${activeBroadcast.giftName} in Room #${activeBroadcast.roomNumber}`}
+                            {`${activeGiftBroadcast.senderName} sent ${activeGiftBroadcast.qty}x ${activeGiftBroadcast.giftName} in Room #${activeGiftBroadcast.roomNumber}`}
                           </Text>
                         </View>
-
-                        {/* Right side (just before Enter button): Loot Level Icon or Gift Image */}
-                        {isLoot ? (
+                        {activeGiftBroadcast.giftImageUrl ? (
                           <View style={{ width: 44, height: 32, justifyContent: 'center', alignItems: 'center' }}>
-                            <Image
-                              cachePolicy="memory-disk"
-                              source={LOOT_LEVEL_IMAGES[activeBroadcast.levelKey || 'home'] || { uri: toCDN(activeBroadcast.giftImageUrl) }}
-                              style={{ width: 44, height: 32 }}
-                              contentFit="contain"
-                            />
+                            <Image cachePolicy="memory-disk" source={{ uri: toCDN(activeGiftBroadcast.giftImageUrl) }} style={{ width: 44, height: 32 }} contentFit="contain" />
                           </View>
                         ) : (
-                          activeBroadcast.giftImageUrl ? (
-                            <View style={{ width: 44, height: 32, justifyContent: 'center', alignItems: 'center' }}>
-                              <Image cachePolicy="memory-disk" source={{ uri: toCDN(activeBroadcast.giftImageUrl) }} style={{ width: 44, height: 32 }} contentFit="contain" />
-                            </View>
-                          ) : (
-                            <View style={{ width: 36, height: 32, justifyContent: 'center', alignItems: 'center' }}>
-                              <Text style={{ fontSize: 20 }}>🎁</Text>
-                            </View>
-                          )
+                          <View style={{ width: 36, height: 32, justifyContent: 'center', alignItems: 'center' }}>
+                            <Text style={{ fontSize: 20 }}>🎁</Text>
+                          </View>
                         )}
                       </View>
 
-                      {/* Enter button */}
                       <LinearGradient
-                        colors={isLoot ? ['#fef08a', '#facc15', '#ea580c'] : ['#e0e7ff', '#c4b5fd', '#8b5cf6']}
+                        colors={['#e0e7ff', '#c4b5fd', '#8b5cf6']}
+                        start={{ x: 0.5, y: 0 }}
+                        end={{ x: 0.5, y: 1 }}
+                        style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 5,
+                          borderRadius: 4,
+                          borderWidth: 1,
+                          borderColor: 'rgba(255,255,255,0.4)',
+                          shadowColor: shadowColor,
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.4,
+                          shadowRadius: 4,
+                          elevation: 3,
+                        }}
+                      >
+                        <Text style={{ fontSize: 9, fontWeight: '900', color: textColor, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          Enter
+                        </Text>
+                      </LinearGradient>
+                    </LinearGradient>
+                  </LinearGradient>
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+          );
+        })()}
+
+        {/* Global Loot Level Patti Banner (Stacked at Top: 140) */}
+        {isGiftEffects && activeLootBroadcast && (() => {
+          const borderColors = ['transparent', '#facc15', '#f59e0b', '#ef4444', '#f59e0b', '#facc15', 'transparent'];
+          const bgColors = ['transparent', '#fef08a', '#fde047', '#f59e0b', '#b45309', 'transparent'];
+          const shadowColor = '#f59e0b';
+          const textColor = '#451a03';
+
+          return (
+            <Animated.View
+              style={{
+                position: 'absolute',
+                top: 140,
+                left: 0,
+                right: 0,
+                zIndex: 998,
+                transform: [{ translateX: lootTranslateX }],
+              }}
+            >
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => {
+                  router.push(`/rooms/${activeLootBroadcast.roomId}`);
+                }}
+              >
+                <View style={{
+                  borderRadius: 0,
+                  shadowColor: shadowColor,
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.65,
+                  shadowRadius: 16,
+                  elevation: 10,
+                }}>
+                  <LinearGradient
+                    colors={borderColors}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={{ paddingVertical: 1 }}
+                  >
+                    <LinearGradient
+                      colors={bgColors}
+                      start={{ x: 0, y: 0.5 }}
+                      end={{ x: 1, y: 0.5 }}
+                      style={{
+                        paddingHorizontal: 16,
+                        paddingVertical: 4,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justify: 'space-between',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <View style={{ position: 'absolute', top: 0, left: 20, right: 20, height: 1, backgroundColor: 'rgba(255,255,255,0.6)' }} />
+                      <View style={{ position: 'absolute', bottom: 0, left: 20, right: 20, height: 1, backgroundColor: 'rgba(239,68,68,0.5)' }} />
+
+                      <View style={{ position: 'absolute', top: -6, left: 0, right: 0, alignItems: 'center' }}>
+                        <Text style={{ fontSize: 16, color: '#fff', textShadowColor: shadowColor, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 8 }}>🔥</Text>
+                      </View>
+
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 }}>
+                        {(activeLootBroadcast.roomCoverUrl || displayRoom?.coverUrl) ? (
+                          <View style={{ width: 38, height: 38, borderRadius: 19, overflow: 'hidden' }}>
+                            <Image cachePolicy="memory-disk" source={{ uri: toCDN(activeLootBroadcast.roomCoverUrl || displayRoom?.coverUrl) }} style={{ width: 38, height: 38, borderRadius: 19 }} contentFit="cover" />
+                          </View>
+                        ) : (
+                          <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={{ fontSize: 18 }}>🏠</Text>
+                          </View>
+                        )}
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 11, fontWeight: '800', color: textColor, textShadowColor: 'rgba(255,255,255,0.4)', textShadowOffset: { width: 0, height: 0.5 }, textShadowRadius: 1 }} numberOfLines={1}>
+                            {`${activeLootBroadcast.senderName} unlocked Loot Level: ${activeLootBroadcast.giftName} in Room #${activeLootBroadcast.roomNumber}`}
+                          </Text>
+                        </View>
+                        <View style={{ width: 44, height: 32, justifyContent: 'center', alignItems: 'center' }}>
+                          <Image
+                            cachePolicy="memory-disk"
+                            source={LOOT_LEVEL_IMAGES[activeLootBroadcast.levelKey || 'home'] || { uri: toCDN(activeLootBroadcast.giftImageUrl) }}
+                            style={{ width: 44, height: 32 }}
+                            contentFit="contain"
+                          />
+                        </View>
+                      </View>
+
+                      <LinearGradient
+                        colors={['#fef08a', '#facc15', '#ea580c']}
                         start={{ x: 0.5, y: 0 }}
                         end={{ x: 0.5, y: 1 }}
                         style={{
@@ -2018,7 +2137,7 @@ export default function RoomScreen() {
           }, 350);
         }}
       />
-      <LootingRoom visible={showLootingRoom} onClose={() => setShowLootingRoom(false)} roomId={id} levelIndex={currentGateIndex} isOwner={isOwner} />
+      <LootingRoom visible={showLootingRoom} onClose={() => setShowLootingRoom(false)} roomId={id} levelIndex={currentGateIndex} isOwner={isOwner} topSupporters={safeTopSupporters} ownerUid={room?.ownerId} />
       <MountOverlay visible={showMountOverlay} type="car" username={user?.displayName || 'Someone'} onComplete={() => setShowMountOverlay(false)} />
       <RoomEchoDialog visible={showEcho} onClose={() => { setShowEcho(false); setEchoTarget(null); }} targetUser={echoTarget} />
       <RoomThemeArchitectDialog visible={showThemeArchitect} onClose={() => setShowThemeArchitect(false)} roomId={id} isOwner={isOwner} />

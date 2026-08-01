@@ -109,10 +109,10 @@ export function GiftAnimationOverlay({ events }: GiftAnimationOverlayProps) {
   const isLegendary = latestEvent.tier === 'legendary';
   const resolvedVideoUrl = cachedVideoUrl || vUrl;
 
-  const topOffset = Math.round(height * 0.20);
+  const topOffset = Math.round(height * 0.12);
 
   return (
-    <View style={{ position: 'absolute', top: topOffset, left: 0, right: 0, bottom: 0, backgroundColor: 'transparent', zIndex: 50, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }} pointerEvents="none">
+    <View style={{ position: 'absolute', top: topOffset, left: 0, right: 0, bottom: Math.round(height * 0.12), backgroundColor: 'transparent', zIndex: 50, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }} pointerEvents="none">
       <Animated.View
         style={{
           transform: [{ scale: scaleAnim }],
@@ -164,7 +164,7 @@ export function GiftAnimationOverlay({ events }: GiftAnimationOverlayProps) {
           </View>
         )}
 
-        <View style={{ position: 'absolute', bottom: 160, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16, paddingHorizontal: 24, paddingVertical: 12, alignItems: 'center', flexDirection: 'row', gap: 10 }}>
+        <View style={{ position: 'absolute', bottom: 120, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16, paddingHorizontal: 24, paddingVertical: 12, alignItems: 'center', flexDirection: 'row', gap: 10 }}>
           {latestEvent.senderAvatar ? (
             <Image source={{ uri: latestEvent.senderAvatar }} style={{ width: 32, height: 32, borderRadius: 16 }} cachePolicy="memory-disk" />
           ) : null}
