@@ -155,11 +155,12 @@ export function RewardsTab() {
     const d = parseInt(days) || 7;
     setUpdating(true);
     try {
+      const uRef = firestore().collection('users').doc(foundUser.id);
       const pRef = firestore().collection('users').doc(foundUser.id).collection('profile').doc(foundUser.id);
       const expiry = new Date();
       expiry.setDate(expiry.getDate() + d);
 
-      await pRef.set({
+      const assetData = {
         inventory: {
           ownedItems: firestore.FieldValue.arrayUnion(assetId.trim()),
           expiries: {
@@ -167,7 +168,9 @@ export function RewardsTab() {
           }
         },
         updatedAt: firestore.FieldValue.serverTimestamp(),
-      }, { merge: true });
+      };
+      await uRef.set(assetData, { merge: true });
+      await pRef.set(assetData, { merge: true });
 
       const selectedItem = allItems.find(i => i.id === assetId.trim());
       Alert.alert('Success', `${selectedItem?.name || assetId} sent to ${foundUser.username} for ${d} Days.`);

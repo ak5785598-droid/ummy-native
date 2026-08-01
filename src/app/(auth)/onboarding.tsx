@@ -75,7 +75,9 @@ export default function OnboardingScreen() {
         inventory: {
           activeFrame: 'aristocracy_knight_frame',
           activeFrameMediaUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_knight_frame.png?alt=media',
-          frameExpiry: Date.now() + 3 * 24 * 60 * 60 * 1000,
+          expiries: {
+            aristocracy_knight_frame: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+          },
           ownedItems: ['aristocracy_knight_frame'],
         },
         updatedAt: serverTimestamp(),

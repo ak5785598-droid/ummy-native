@@ -15,6 +15,8 @@ import { GoldenCoin } from '@/components/GoldenCoin';
 import { PinkDiamondIDBadgeIcon, SilverBlueIDBadgeIcon, IDBadgeIcon } from '@/components/native-id-badge';
 import { ChatMessageBubble } from '@/components/chat-message-bubble';
 import { isInventoryItemExpired } from '@/lib/types';
+import { ROOM_THEMES } from '@/lib/themes';
+import { toCDN } from '@/lib/cdn';
 
 const LOCAL_FRAME_ASSETS: Record<string, any> = {
   'sea_sands': require('../../../assets/images/sea_sands_frame.png'),
@@ -295,6 +297,7 @@ export default function StoreScreen() {
   const [activeTab, setActiveTab] = useState('Store');
   const [storeItems, setStoreItems] = useState<any[]>([]);
   const [roomThemes, setRoomThemes] = useState<any[]>([]);
+  const [medalsList, setMedalsList] = useState<any[]>([]);
   const [isLoadingStore, setIsLoadingStore] = useState(true);
   const [previewItem, setPreviewItem] = useState<any>(null);
   const [selectedDuration, setSelectedDuration] = useState(7);
@@ -416,6 +419,16 @@ export default function StoreScreen() {
     return () => unsub();
   }, [firestore]);
 
+  // Fetch medals list (for My Items medal display)
+  useEffect(() => {
+    if (!firestore) return;
+    const q = query(collection(firestore, 'medalsList'));
+    const unsub = onSnapshot(q, (snap: any) => {
+      setMedalsList(snap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
+    }, () => {});
+    return () => unsub();
+  }, [firestore]);
+
   // Combine all items
   const allItems = useMemo(() => {
     const dynamic = storeItems.map(item => {
@@ -474,21 +487,84 @@ export default function StoreScreen() {
     return [...regularItems, ...notForSaleItems];
   }, [allItemsWithFlags, activeType]);
 
-  // My Items: owned + valid
+  // My Items: every owned asset (catalog-matched OR fallback) + SVIP privileges + medals
   const purchasedItems = useMemo(() => {
     const inventory = userProfile?.inventory as any;
-    if (!inventory?.ownedItems) return [];
-    const ownedIds: string[] = inventory.ownedItems;
-    const expiries = inventory.expiries || {};
+    const svip = (userProfile as any)?.svipPrivileges || null;
+    const expiries = inventory?.expiries || {};
     const now = new Date();
-    const validIds = ownedIds.filter(id => {
+    const isValid = (id: string) => {
       const exp = expiries[id];
       if (!exp) return true;
       const expDate = exp?.toDate ? exp.toDate() : new Date(exp);
       return expDate > now;
-    });
-    return allItems.filter(i => validIds.includes(i.id));
-  }, [userProfile, allItems]);
+    };
+
+    const catalogMap = new Map(allItems.map(i => [i.id, i]));
+    const themeCatalog = [...ROOM_THEMES, ...roomThemes];
+    const ownedIds: string[] = Array.isArray(inventory?.ownedItems) ? inventory.ownedItems : [];
+    const result: any[] = [];
+
+    // Resolve owned IDs that are NOT in the store catalog (reward/event frames etc.)
+    const resolveFallback = (id: string): any => {
+      const weeklyMatch = id.match(/^(.+)_(honor|charm|room|family|cp)_rank([123])_(weekly|monthly)$/i);
+      if (weeklyMatch) {
+        const themeId = weeklyMatch[1];
+        const category = weeklyMatch[2];
+        const rank = weeklyMatch[3];
+        const period = weeklyMatch[4];
+        const theme = themeCatalog.find(t => t.id === themeId);
+        const catNames: Record<string, string> = { honor: 'Honor', charm: 'Charm', room: 'Room', family: 'Family', cp: 'CP' };
+        const themeName = theme?.name ? `${theme.name} ` : '';
+        return {
+          id,
+          name: `${themeName}Top ${rank} ${catNames[category.toLowerCase()] || category} ${period === 'weekly' ? 'Weekly' : 'Monthly'} Frame`,
+          type: 'Frame',
+          mediaUrl: theme && typeof theme.url === 'string' ? theme.url : null,
+          notForSale: true,
+          eventBased: true,
+          rewardInfo: true,
+          source: 'inventory',
+        };
+      }
+      const levelMatch = id.match(/^level_(\d+)_frame$/i);
+      if (levelMatch) {
+        return { id, name: `Level ${levelMatch[1]} Reward Frame`, type: 'Frame', mediaUrl: null, notForSale: true, rewardInfo: true, source: 'inventory' };
+      }
+      return { id, name: id, type: 'Frame', mediaUrl: null, notForSale: true, rewardInfo: true, source: 'inventory' };
+    };
+
+    for (const id of ownedIds) {
+      if (!isValid(id)) continue;
+      const cat = catalogMap.get(id);
+      result.push(cat ? { ...cat, source: 'inventory' } : resolveFallback(id));
+    }
+
+    // SVIP privilege pseudo-items (skip if the same asset is already owned via inventory)
+    if (svip) {
+      if (svip.frameUrl && !ownedIds.includes('__svip_frame__')) {
+        result.push({ id: '__svip_frame__', name: 'SVIP Frame', type: 'Frame', mediaUrl: svip.frameUrl, notForSale: true, source: 'svip' });
+      }
+      if (svip.bubbleId && !ownedIds.includes(svip.bubbleId)) {
+        result.push({ id: svip.bubbleId, name: 'SVIP Bubble', type: 'Bubble', mediaUrl: svip.bubbleUrl || null, notForSale: true, source: 'svip' });
+      }
+      if (svip.waveId && !ownedIds.includes(svip.waveId)) {
+        result.push({ id: svip.waveId, name: 'SVIP Wave', type: 'Wave', mediaUrl: null, color: '#c084fc', notForSale: true, source: 'svip' });
+      }
+      if (svip.entranceType) {
+        result.push({ id: '__svip_entry__', name: 'SVIP Entrance', type: 'Entry', entryType: svip.entranceType, mediaUrl: svip.entranceUrl || null, notForSale: true, source: 'svip' });
+      }
+    }
+
+    // Medals (display-only cards)
+    const ownedMedals: string[] = Array.isArray(userProfile?.medals) ? (userProfile?.medals as string[]) : [];
+    for (const mid of ownedMedals) {
+      const m = medalsList.find(x => x.id === mid);
+      result.push({ id: `medal_${mid}`, name: m?.name || mid, type: 'Medal', mediaUrl: m?.imageUrl || null, notForSale: true, source: 'medal' });
+    }
+
+    return result;
+  }, [userProfile, allItems, roomThemes, medalsList]);
 
   const isItemOwned = (itemId: string) => {
     const inventory = userProfile?.inventory as any;
@@ -752,9 +828,15 @@ export default function StoreScreen() {
         else if (name.includes('lion')) entryType = 'lion';
         else entryType = 'line';
       }
-      const videoUrl = item.videoUrl || item.imageUrl || null;
+      const videoUrl = item.videoUrl || item.imageUrl || item.mediaUrl || null;
       const profileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
+      const userRef = doc(firestore, 'users', user.uid);
       await updateDoc(profileRef, {
+        'inventory.activeEntryEffect': entryType,
+        'inventory.activeEntryVideoUrl': videoUrl,
+        updatedAt: serverTimestamp(),
+      });
+      await updateDoc(userRef, {
         'inventory.activeEntryEffect': entryType,
         'inventory.activeEntryVideoUrl': videoUrl,
         updatedAt: serverTimestamp(),
@@ -783,7 +865,7 @@ export default function StoreScreen() {
       const userRef = doc(firestore, 'users', user.uid);
       // For local assets (require'd), use item ID as media URL so AvatarFrame can resolve from LOCAL_FRAME_ASSETS
       const isLocalAsset = item.imageUrl && typeof item.imageUrl === 'number';
-      const itemUrl = isLocalAsset ? item.id : (item.videoUrl || item.imageUrl || null);
+      const itemUrl = isLocalAsset ? item.id : (item.videoUrl || item.imageUrl || item.mediaUrl || null);
       let field: string;
       if (item.type === 'Frame') { field = 'inventory.activeFrame'; }
       else if (item.type === 'Wave') { field = 'inventory.activeWave'; }
@@ -845,8 +927,8 @@ export default function StoreScreen() {
   };
 
   const renderItem = ({ item, index }: { item: any; index: number }) => {
-    const owned = isItemOwned(item.id);
-    const rawMediaUrl = item.imageUrl || item.url || item.videoUrl || null;
+    const owned = isItemOwned(item.id) || item.source === 'svip' || item.source === 'medal';
+    const rawMediaUrl = item.imageUrl || item.url || item.videoUrl || item.mediaUrl || null;
     const mediaUrl = (typeof rawMediaUrl === 'string' && rawMediaUrl.startsWith('http')) ? rawMediaUrl : null;
     const isVideo = mediaUrl && (mediaUrl.includes('.mp4') || mediaUrl.includes('.mov') || mediaUrl.includes('.webm') || mediaUrl.includes('video'));
     const isEntryItem = item.type === 'Entry';
@@ -871,7 +953,7 @@ export default function StoreScreen() {
       <>
         <TouchableOpacity
           style={[styles.itemCard, owned && styles.itemCardOwned, isAnyActive && { borderColor: '#fbbf24', borderWidth: 2 }]}
-          onPress={() => { setPreviewItem(item); setSelectedDuration(7); }}
+          onPress={() => { if (item.type === 'Medal') return; setPreviewItem(item); setSelectedDuration(7); }}
           activeOpacity={0.8}
         >
         {/* Media Preview */}
@@ -905,6 +987,14 @@ export default function StoreScreen() {
                 <Text style={{ fontSize: 9, color: '#fff', fontWeight: 'bold' }}>Hello! 💬</Text>
               </ChatMessageBubble>
             </View>
+          ) : item.type === 'Medal' ? (
+            mediaUrl ? (
+              <Image cachePolicy="memory-disk" source={{ uri: toCDN(mediaUrl) }} style={styles.mediaFill} contentFit="contain" />
+            ) : (
+              <View style={styles.mediaPlaceholder}>
+                <Text style={{ fontSize: 40 }}>🏅</Text>
+              </View>
+            )
           ) : localAsset ? (
             <Image source={localAsset} style={styles.mediaFill} contentFit="contain" />
           ) : mediaUrl ? (
@@ -935,7 +1025,15 @@ export default function StoreScreen() {
         <View style={styles.itemInfo}>
           <Text style={styles.itemName} numberOfLines={1}>{cleanItemName(item.name)}</Text>
           <Text style={styles.itemType}>{item.type}</Text>
-          {owned && isUsableItem ? (
+          {owned && (item.type === 'Medal' || item.type === 'Theme') ? (
+            <View style={{ alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#10b981' }} />
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#059669' }}>OWNED</Text>
+              </View>
+              {item.type === 'Theme' && <Text style={{ fontSize: 8, fontWeight: '600', color: '#94a3b8', marginTop: 2 }}>Apply in Room Settings</Text>}
+            </View>
+          ) : owned && isUsableItem ? (
             isAnyActive ? (
               <TouchableOpacity
                 onPress={() => handleRemoveItem(item)}
@@ -1093,7 +1191,7 @@ export default function StoreScreen() {
             <View style={styles.centerBox}>
               <ShoppingBag size={48} color="#cbd5e1" />
               <Text style={styles.emptyTitle}>No Items Yet</Text>
-              <Text style={styles.emptyDesc}>Purchase items from the Store to see them here.</Text>
+              <Text style={styles.emptyDesc}>Items you own from purchases, gifts, rewards or VIP will appear here.</Text>
             </View>
           ) : (
             <FlatList
@@ -1130,7 +1228,7 @@ export default function StoreScreen() {
                   {previewItem.type === 'Frame' ? (
                     <AvatarFrame
                       size={120}
-                      frameMediaUrl={LOCAL_FRAME_ASSETS[previewItem.id] ? previewItem.id : (((typeof previewItem.videoUrl === 'string' && previewItem.videoUrl.startsWith('http')) ? previewItem.videoUrl : null) || ((typeof previewItem.imageUrl === 'string' && previewItem.imageUrl.startsWith('http')) ? previewItem.imageUrl : null))}
+                      frameMediaUrl={LOCAL_FRAME_ASSETS[previewItem.id] ? previewItem.id : (((typeof previewItem.videoUrl === 'string' && previewItem.videoUrl.startsWith('http')) ? previewItem.videoUrl : null) || ((typeof previewItem.imageUrl === 'string' && previewItem.imageUrl.startsWith('http')) ? previewItem.imageUrl : null) || ((typeof previewItem.mediaUrl === 'string' && previewItem.mediaUrl.startsWith('http')) ? previewItem.mediaUrl : null))}
                     >
                       {userProfile?.avatarUrl && typeof userProfile.avatarUrl === 'string' && userProfile.avatarUrl.startsWith('http') ? (
                         <Image cachePolicy="memory-disk" source={{ uri: userProfile.avatarUrl }} style={{ width: '100%', height: '100%' }} />
@@ -1152,7 +1250,7 @@ export default function StoreScreen() {
                     <View style={{ width: '100%', padding: 6, alignItems: 'center', justifyContent: 'center' }}>
                       <ChatMessageBubble
                         bubbleId={previewItem.id}
-                        bubbleMediaUrl={((typeof previewItem.videoUrl === 'string' && previewItem.videoUrl.startsWith('http')) ? previewItem.videoUrl : null) || ((typeof previewItem.imageUrl === 'string' && previewItem.imageUrl.startsWith('http')) ? previewItem.imageUrl : null)}
+                        bubbleMediaUrl={((typeof previewItem.videoUrl === 'string' && previewItem.videoUrl.startsWith('http')) ? previewItem.videoUrl : null) || ((typeof previewItem.imageUrl === 'string' && previewItem.imageUrl.startsWith('http')) ? previewItem.imageUrl : null) || ((typeof previewItem.mediaUrl === 'string' && previewItem.mediaUrl.startsWith('http')) ? previewItem.mediaUrl : null)}
                         isMe={false}
                         showTail={false}
                         style={{ alignSelf: 'center', transform: [{ scale: 1.4 }] }}
@@ -1219,7 +1317,7 @@ export default function StoreScreen() {
                   ))}
                 </View>
 
-                {previewItem.type !== 'ID' && isItemOwned(previewItem.id) ? (
+                {previewItem.type !== 'ID' && (isItemOwned(previewItem.id) || previewItem.source === 'svip') ? (
                   <View style={{ gap: 10 }}>
                     {(previewItem.type === 'Frame' && activeFrameId === previewItem.id) ||
                      (previewItem.type === 'Wave' && activeWaveId === previewItem.id) ||
@@ -1229,6 +1327,11 @@ export default function StoreScreen() {
                       <View style={styles.ownedBox}>
                         <Check size={16} color="#10b981" />
                         <Text style={styles.ownedText}>Active</Text>
+                      </View>
+                    ) : previewItem.type === 'Theme' ? (
+                      <View style={styles.ownedBox}>
+                        <Check size={16} color="#10b981" />
+                        <Text style={styles.ownedText}>Owned</Text>
                       </View>
                     ) : (
                       <TouchableOpacity
