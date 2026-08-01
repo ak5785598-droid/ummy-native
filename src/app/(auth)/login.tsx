@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, ScrollView, Animated, Dimensions, Alert, Platform, StatusBar } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Modal, ScrollView, Animated, Dimensions, Alert, Platform, StatusBar, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -259,6 +259,12 @@ export default function LoginScreen() {
         return;
       }
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      
+      // Force signOut before starting signIn so Google Account Picker modal ALWAYS pops up
+      try {
+        await GoogleSignin.signOut();
+      } catch (_) {}
+
       const res: any = await GoogleSignin.signIn();
       const data = res?.data || res;
       const idToken = data?.idToken || (data as any)?.authentication?.idToken || (res as any)?.idToken;
@@ -270,11 +276,13 @@ export default function LoginScreen() {
         const result = await auth.signInWithCredential(googleCredential);
         if (result.user) await handlePostAuth(result.user);
       } else {
-        throw new Error('Google Sign In succeeded but ID Token is missing. Object: ' + JSON.stringify(res));
+        throw new Error('Google Sign In succeeded but ID Token is missing.');
       }
     } catch (error: any) {
       console.error('[Google Signin Error]:', error);
-      Alert.alert('Google Sign In Failed', error?.message || 'Please try again.');
+      if (error?.code !== 'SIGN_IN_CANCELLED' && error?.code !== '12501') {
+        Alert.alert('Google Sign In Failed', error?.message || 'Please try again.');
+      }
     } finally {
       setIsSigningIn(false);
     }
@@ -414,6 +422,22 @@ export default function LoginScreen() {
           </Text>
         </View>
       </View>
+
+      {/* ============================================================ */}
+      {/* ⚡ FULLSCREEN LOADING OVERLAY SPINNER ⚡ */}
+      {/* ============================================================ */}
+      {isSigningIn && (
+        <View 
+          className="absolute inset-0 items-center justify-center z-50"
+          style={{ backgroundColor: 'rgba(10, 0, 38, 0.85)' }}
+        >
+          <View className="bg-white/10 border border-white/20 p-6 rounded-3xl items-center shadow-2xl backdrop-blur-md">
+            <ActivityIndicator size="large" color="#FFCC00" />
+            <Text className="text-white font-bold text-base mt-4">Signing in...</Text>
+            <Text className="text-white/60 text-xs mt-1">Authenticating your profile</Text>
+          </View>
+        </View>
+      )}
 
       {/* ============================================================ */}
       {/* ⚡ PHONE LOGIN MODAL ⚡ */}
