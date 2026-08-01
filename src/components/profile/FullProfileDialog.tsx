@@ -9,10 +9,12 @@ import { Video, ResizeMode } from 'expo-av';
 import { useUser, useFirestore } from '../../firebase/provider';
 import { useUserProfile } from '../../hooks/use-user-profile';
 import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, getDoc, limit, deleteDoc, updateDoc, addDoc, orderBy, onSnapshot, increment } from '@/firebase/firestore-compat';
-import { AvatarFrame } from './AvatarFrame';
+import { AvatarFrame, resolveFrameImage } from './AvatarFrame';
 import { toCDN } from '../../lib/cdn';
 import { isInventoryItemExpired } from '../../lib/types';
 import { ActiveIDBadge, SovereignIDBadge } from '@/components/native-id-badge';
+import { ROOM_THEMES } from '@/lib/themes';
+import { LEVEL_REWARDS } from '@/lib/level-rewards';
 
 const ARISTOCRACY_FRAME_URLS: Record<string, string> = {
   aristocracy_knight_frame: 'https://firebasestorage.googleapis.com/v0/b/studio-7826224327-e0efc.firebasestorage.app/o/frames%2Faristocracy_knight_frame_v2.png?alt=media',
@@ -574,15 +576,56 @@ export function FullProfileDialog({
   }, [profile?.inventory?.ownedItems, storeItemsMap]);
   const ownedFrames = useMemo(() => {
     const owned = profile?.inventory?.ownedItems || [];
-    const frames = owned.filter((id: string) => {
+    const svip = (profile as any)?.svipPrivileges || null;
+    const WEEKLY_REWARD_REGEX = /^(.+)_(honor|charm|room|family|cp)_rank([123])_(weekly|monthly)$/i;
+    const LOCAL_FRAME_NAMES: Record<string, string> = {
+      sea_sands: 'Sea Sands', sea_sands_frame: 'Sea Sands',
+      basra: 'Basra Golden', basra_frame: 'Basra Golden',
+      top3family_topuser: 'Top 3 Family', top2family_topuser: 'Top 2 Family',
+      event_rank1_frame: 'Event Rank 1', event_rank2_frame: 'Event Rank 2', event_rank3_frame: 'Event Rank 3',
+      cp_king_frame: 'CP King', cp_queen_frame: 'CP Queen',
+    };
+    const catNames: Record<string, string> = { honor: 'Honor', charm: 'Charm', room: 'Room', family: 'Family', cp: 'CP' };
+    const entries: { id: string; name: string; img: string | number | null; local?: boolean }[] = [];
+    const seen = new Set<string>();
+    const add = (id: string, name: string, img: string | number | null, local?: boolean) => {
+      if (seen.has(id) || !img) return;
+      seen.add(id);
+      entries.push({ id, name, img, local });
+    };
+
+    for (const id of owned) {
+      // 1. Store catalog frame
       const item = storeItemsMap[id];
-      if (item && (item.category === 'Frame' || item.type === 'Frame')) return true;
-      return id.includes('frame') || id.includes('ring');
-    });
-    if ((profile as any)?.svipPrivileges?.frameUrl && !frames.includes('__svip_frame__')) {
-      frames.unshift('__svip_frame__');
+      if (item && (item.category === 'Frame' || item.type === 'Frame')) {
+        const itemImg = item.imageUrl || item.videoUrl || null;
+        if (typeof itemImg === 'string' && itemImg.startsWith('http')) {
+          add(id, item.name || id, itemImg);
+          continue;
+        }
+      }
+      // 2. Aristocracy frame
+      if (ARISTOCRACY_FRAME_URLS[id]) {
+        add(id, id.replace('aristocracy_', '').replace('_frame', '').replace('_', ' '), ARISTOCRACY_FRAME_URLS[id]);
+        continue;
+      }
+      // 3. Real image from any other source (local assets + weekly/monthly theme frames)
+      const localImg = resolveFrameImage(id);
+      if (localImg) {
+        const weeklyMatch = id.match(WEEKLY_REWARD_REGEX);
+        if (weeklyMatch) {
+          const theme = ROOM_THEMES.find(t => t.id === weeklyMatch[1]);
+          const themeName = theme?.name ? `${theme.name} ` : '';
+          add(id, `${themeName}Top ${weeklyMatch[3]} ${catNames[weeklyMatch[2].toLowerCase()] || weeklyMatch[2]} ${weeklyMatch[4] === 'weekly' ? 'Weekly' : 'Monthly'} Frame`, localImg, true);
+        } else {
+          add(id, LOCAL_FRAME_NAMES[id] || id, localImg, true);
+        }
+      }
+      // Frames with no real image anywhere (e.g. level_*_frame) are intentionally skipped — no fallback shown
     }
-    return frames;
+
+    if (svip?.frameUrl) add('__svip_frame__', 'SVIP Frame', svip.frameUrl);
+    return entries;
   }, [profile?.inventory?.ownedItems, storeItemsMap, (profile as any)?.svipPrivileges?.frameUrl]);
 
   return (
@@ -1143,24 +1186,25 @@ export function FullProfileDialog({
               {activeTab === 'frame' && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {ownedFrames.length > 0 ? (
-                    ownedFrames.map((id: string, idx: number) => {
-                      const isSvip = id === '__svip_frame__';
-                      const itemData = isSvip ? null : storeItemsMap[id];
-                      const aristocracyUrl = ARISTOCRACY_FRAME_URLS[id] || null;
-                      const img = isSvip ? ((profile as any)?.svipPrivileges?.frameUrl || null) : (aristocracyUrl || itemData?.imageUrl || itemData?.videoUrl || null);
-                      const name = isSvip ? 'SVIP Frame' : (itemData?.name || (aristocracyUrl ? id.replace('aristocracy_', '').replace('_frame', '').replace('_', ' ') : id));
+                    ownedFrames.map((entry, idx) => {
+                      const isSvip = entry.id === '__svip_frame__';
+                      const img = isSvip ? ((profile as any)?.svipPrivileges?.frameUrl || null) : entry.img;
+                      const name = entry.name;
                       const isActive = isSvip
                         ? (profile.inventory?.activeFrame === '__svip_frame__' || (!profile.inventory?.activeFrame || profile.inventory.activeFrame === 'None') && profile.inventory?.activeFrameMediaUrl === (profile as any)?.svipPrivileges?.frameUrl)
-                        : profile.inventory?.activeFrame === id;
+                        : profile.inventory?.activeFrame === entry.id;
                       const frameWidth = (SCREEN_WIDTH - 56) / 4;
+                      const useValue: string | null = entry.local ? entry.id : (typeof img === 'string' ? img : null);
                       return (
                         <View key={idx} style={{ width: frameWidth, alignItems: 'center' }}>
                           {/* Frame image */}
                           <View style={{ padding: 6, backgroundColor: isActive ? 'rgba(16,185,129,0.1)' : '#F8FAFC', borderRadius: 10, width: '100%', alignItems: 'center', borderWidth: isActive ? 1.5 : 1, borderColor: isActive ? '#10B981' : '#E2E8F0' }}>
-                            {img ? (
+                            {typeof img === 'number' ? (
+                              <Image source={img} style={{ width: 44, height: 44, borderRadius: 6 }} contentFit="contain" />
+                            ) : img ? (
                               <Image cachePolicy="memory-disk" source={{ uri: toCDN(img) }} style={{ width: 44, height: 44, borderRadius: 6 }} contentFit="contain" />
                             ) : (
-                              <Text style={{ fontSize: 18 }}>🖼️</Text>
+                              <Text style={{ fontSize: 7, fontWeight: '800', color: '#94A3B8' }}>{name}</Text>
                             )}
                             <Text style={{ fontSize: 7, fontWeight: '800', color: isActive ? '#10B981' : '#64748B', marginTop: 3, textAlign: 'center' }} numberOfLines={1}>{name}</Text>
                           </View>
@@ -1173,7 +1217,7 @@ export function FullProfileDialog({
                                   <Text style={{ fontSize: 7, fontWeight: '800', color: '#EF4444' }}>Remove</Text>
                                 </TouchableOpacity>
                               ) : (
-                                <TouchableOpacity onPress={() => onChangeFrame?.(id, img)}
+                                <TouchableOpacity onPress={() => useValue && onChangeFrame?.(entry.id, useValue)}
                                   style={{ flex: 1, paddingVertical: 3, borderRadius: 6, backgroundColor: 'rgba(16,185,129,0.1)', borderWidth: 1, borderColor: 'rgba(16,185,129,0.3)', alignItems: 'center' }}>
                                   <Text style={{ fontSize: 7, fontWeight: '800', color: '#10B981' }}>Use</Text>
                                 </TouchableOpacity>

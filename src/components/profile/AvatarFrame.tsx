@@ -6,6 +6,7 @@ import LottieView from 'lottie-react-native';
 import { getCachedFile } from '../../lib/cache-manager';
 import { Sparkles, Crown, Shield } from 'lucide-react-native';
 import { toCDN } from '../../lib/cdn';
+import { ROOM_THEMES } from '../../lib/themes';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, G, Circle as SvgCircle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 
@@ -16,7 +17,7 @@ interface AvatarFrameProps {
   containerStyle?: ViewStyle;
 }
 
-const LOCAL_FRAME_ASSETS: Record<string, any> = {
+export const LOCAL_FRAME_ASSETS: Record<string, any> = {
   'sea_sands': require('../../../assets/images/sea_sands_frame.png'),
   'sea_sands_frame': require('../../../assets/images/sea_sands_frame.png'),
   'basra': require('../../../assets/images/basra_frame.png'),
@@ -29,6 +30,22 @@ const LOCAL_FRAME_ASSETS: Record<string, any> = {
   'cp_king_frame': require('../../../assets/animations/frame_cp_king_1-ezgif.com-effects.gif'),
   'cp_queen_frame': require('../../../assets/animations/frame_cp_queen-ezgif.com-effects.gif'),
 };
+
+const WEEKLY_REWARD_REGEX = /^(.+)_(honor|charm|room|family|cp)_rank([123])_(weekly|monthly)$/i;
+
+// Resolve any owned frame ID to a real-time image (local asset or http URL)
+export function resolveFrameImage(frameId: string): string | number | null {
+  if (!frameId) return null;
+  if (typeof frameId === 'number') return frameId;
+  if ((LOCAL_FRAME_ASSETS as any)[frameId]) return (LOCAL_FRAME_ASSETS as any)[frameId];
+  if (frameId.startsWith('http://') || frameId.startsWith('https://')) return frameId;
+  const weeklyMatch = frameId.match(WEEKLY_REWARD_REGEX);
+  if (weeklyMatch) {
+    const theme = ROOM_THEMES.find(t => t.id === weeklyMatch[1]);
+    if (theme) return theme.url;
+  }
+  return null;
+}
 
 function FrameDecorationAnimation({ type, frameSize }: { type: string; frameSize: number }) {
   const animVal = useRef(new Animated.Value(0)).current;
@@ -203,7 +220,8 @@ export const AvatarFrame = memo(function AvatarFrame({
   const hasFrame = !!frameMediaUrl && frameMediaUrl !== 'None' && frameMediaUrl !== '';
   const isLocalNumber = typeof frameMediaUrl === 'number';
   const isLocalAsset = isLocalNumber || (typeof frameMediaUrl === 'string' && !!(LOCAL_FRAME_ASSETS as any)[frameMediaUrl]);
-  const isHttpUrl = typeof frameMediaUrl === 'string' && !isLocalAsset && (frameMediaUrl.startsWith('http://') || frameMediaUrl.startsWith('https://'));
+  const isLocalResolvable = typeof frameMediaUrl === 'string' && !isLocalAsset && !!resolveFrameImage(frameMediaUrl);
+  const isHttpUrl = typeof frameMediaUrl === 'string' && !isLocalAsset && !isLocalResolvable && (frameMediaUrl.startsWith('http://') || frameMediaUrl.startsWith('https://'));
 
   const isVideo = isHttpUrl && (
     frameMediaUrl.includes('.mp4') ||
@@ -263,8 +281,7 @@ export const AvatarFrame = memo(function AvatarFrame({
     ? frameMediaUrl
     : (isLocalAsset
         ? (LOCAL_FRAME_ASSETS as any)[frameMediaUrl as string]
-        : (cachedFrameUrl || (isHttpUrl ? frameMediaUrl : null)));
-
+        : (resolveFrameImage(frameMediaUrl as string) || cachedFrameUrl || (isHttpUrl ? frameMediaUrl : null)));
   return (
     <View style={[{ width: size, height: size, alignItems: 'center', justifyContent: 'center', position: 'relative' }, containerStyle]}>
       {/* Avatar Image container (rendered below frame) */}

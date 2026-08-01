@@ -516,11 +516,13 @@ export default function StoreScreen() {
         const theme = themeCatalog.find(t => t.id === themeId);
         const catNames: Record<string, string> = { honor: 'Honor', charm: 'Charm', room: 'Room', family: 'Family', cp: 'CP' };
         const themeName = theme?.name ? `${theme.name} ` : '';
+        const themeAsset = theme?.url ?? null;
         return {
           id,
           name: `${themeName}Top ${rank} ${catNames[category.toLowerCase()] || category} ${period === 'weekly' ? 'Weekly' : 'Monthly'} Frame`,
           type: 'Frame',
-          mediaUrl: theme && typeof theme.url === 'string' ? theme.url : null,
+          mediaUrl: typeof themeAsset === 'string' ? themeAsset : null,
+          localAsset: typeof themeAsset === 'number' ? themeAsset : null,
           notForSale: true,
           eventBased: true,
           rewardInfo: true,
@@ -864,7 +866,7 @@ export default function StoreScreen() {
       const profileRef = doc(firestore, 'users', user.uid, 'profile', user.uid);
       const userRef = doc(firestore, 'users', user.uid);
       // For local assets (require'd), use item ID as media URL so AvatarFrame can resolve from LOCAL_FRAME_ASSETS
-      const isLocalAsset = item.imageUrl && typeof item.imageUrl === 'number';
+      const isLocalAsset = (item.imageUrl && typeof item.imageUrl === 'number') || (item.localAsset && typeof item.localAsset === 'number');
       const itemUrl = isLocalAsset ? item.id : (item.videoUrl || item.imageUrl || item.mediaUrl || null);
       let field: string;
       if (item.type === 'Frame') { field = 'inventory.activeFrame'; }
@@ -947,7 +949,7 @@ export default function StoreScreen() {
     const isAnyActive = isActiveEntry || isActiveFrame || isActiveWave || isActiveBubble;
     const isUsableItem = isEntryItem || isFrameItem || item.type === 'Wave' || item.type === 'Bubble';
 
-    const localAsset = LOCAL_FRAME_ASSETS[item.id];
+    const localAsset = LOCAL_FRAME_ASSETS[item.id] || item.localAsset;
 
     return (
       <>
@@ -1228,7 +1230,7 @@ export default function StoreScreen() {
                   {previewItem.type === 'Frame' ? (
                     <AvatarFrame
                       size={120}
-                      frameMediaUrl={LOCAL_FRAME_ASSETS[previewItem.id] ? previewItem.id : (((typeof previewItem.videoUrl === 'string' && previewItem.videoUrl.startsWith('http')) ? previewItem.videoUrl : null) || ((typeof previewItem.imageUrl === 'string' && previewItem.imageUrl.startsWith('http')) ? previewItem.imageUrl : null) || ((typeof previewItem.mediaUrl === 'string' && previewItem.mediaUrl.startsWith('http')) ? previewItem.mediaUrl : null))}
+                      frameMediaUrl={LOCAL_FRAME_ASSETS[previewItem.id] || previewItem.localAsset ? previewItem.id : (((typeof previewItem.videoUrl === 'string' && previewItem.videoUrl.startsWith('http')) ? previewItem.videoUrl : null) || ((typeof previewItem.imageUrl === 'string' && previewItem.imageUrl.startsWith('http')) ? previewItem.imageUrl : null) || ((typeof previewItem.mediaUrl === 'string' && previewItem.mediaUrl.startsWith('http')) ? previewItem.mediaUrl : null))}
                     >
                       {userProfile?.avatarUrl && typeof userProfile.avatarUrl === 'string' && userProfile.avatarUrl.startsWith('http') ? (
                         <Image cachePolicy="memory-disk" source={{ uri: userProfile.avatarUrl }} style={{ width: '100%', height: '100%' }} />
