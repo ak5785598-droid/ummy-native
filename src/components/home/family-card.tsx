@@ -15,12 +15,45 @@ const CARD_BG = require('../../../assets/images/home_cards/bg_card_family.png');
 export function FamilyCard({ onPress }: FamilyCardProps) {
   const { firestore, isHydrated } = useFirebase();
 
-  const topFamiliesQuery = useMemo(() => {
+  const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+
+  // Real-time Firestore Queries for Daily, Weekly, and Monthly Family Leaderboards
+  const topFamiliesDailyQuery = useMemo(() => {
+    if (!firestore || !isHydrated) return null;
+    return query(collection(firestore, 'families'), orderBy('dailyWealth', 'desc'), limit(3));
+  }, [firestore, isHydrated]);
+
+  const topFamiliesWeeklyQuery = useMemo(() => {
+    if (!firestore || !isHydrated) return null;
+    return query(collection(firestore, 'families'), orderBy('weeklyWealth', 'desc'), limit(3));
+  }, [firestore, isHydrated]);
+
+  const topFamiliesMonthlyQuery = useMemo(() => {
+    if (!firestore || !isHydrated) return null;
+    return query(collection(firestore, 'families'), orderBy('monthlyWealth', 'desc'), limit(3));
+  }, [firestore, isHydrated]);
+
+  const topFamiliesTotalQuery = useMemo(() => {
     if (!firestore || !isHydrated) return null;
     return query(collection(firestore, 'families'), orderBy('totalWealth', 'desc'), limit(3));
   }, [firestore, isHydrated]);
 
-  const { data: topFamilies } = useCollection(topFamiliesQuery);
+  const { data: dailyFamilies } = useCollection(topFamiliesDailyQuery);
+  const { data: weeklyFamilies } = useCollection(topFamiliesWeeklyQuery);
+  const { data: monthlyFamilies } = useCollection(topFamiliesMonthlyQuery);
+  const { data: totalFamilies } = useCollection(topFamiliesTotalQuery);
+
+  // Filter top families based on selected active tab (Daily / Weekly / Monthly)
+  const topFamilies = useMemo(() => {
+    let list: any[] = [];
+    if (activeTab === 'daily') list = dailyFamilies || [];
+    else if (activeTab === 'weekly') list = weeklyFamilies || [];
+    else if (activeTab === 'monthly') list = monthlyFamilies || [];
+
+    if (list && list.length > 0) return list;
+    return totalFamilies || [];
+  }, [activeTab, dailyFamilies, weeklyFamilies, monthlyFamilies, totalFamilies]);
+
   const [mode, setMode] = useState<'carousel' | 'podium'>('carousel');
   const [activeIndex, setActiveIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -104,7 +137,7 @@ export function FamilyCard({ onPress }: FamilyCardProps) {
       />
 
       <View style={styles.content}>
-        {/* Header */}
+        {/* Clean Original Header */}
         <View style={styles.header}>
           <Users size={12} color="#38bdf8" fill="#38bdf8" />
           <Text style={styles.headerText}>Family</Text>
@@ -118,12 +151,12 @@ export function FamilyCard({ onPress }: FamilyCardProps) {
                 <View style={[styles.avatarWrapper, { borderColor: frameColor }]}>
                   <Image
                     cachePolicy="memory-disk"
-                    source={{ uri: currentFamily.bannerUrl || 'https://picsum.photos/100' }}
+                    source={{ uri: currentFamily.bannerUrl || currentFamily.avatarUrl || 'https://picsum.photos/100' }}
                     style={styles.avatar}
                   />
                 </View>
                 <Text numberOfLines={1} style={styles.nameText}>{currentFamily.name || 'Family'}</Text>
-                <Text style={styles.wealthText}>🛡️ {currentFamily.totalWealth?.toLocaleString() || 0}</Text>
+                <Text style={styles.wealthText}>🛡️ {(currentFamily.weeklyWealth ?? currentFamily.monthlyWealth ?? currentFamily.totalWealth ?? 0).toLocaleString()}</Text>
               </View>
             ) : (
               <View style={styles.familyContainer}>

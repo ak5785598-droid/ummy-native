@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
-    transform: [{ translateY: 6 }],
+    transform: [{ translateY: 2 }],
   },
   avatarWrapper: {
     width: 42,
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
     backgroundColor: 'rgba(0,0,0,0.3)',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   avatar: {
     width: 34,
@@ -406,6 +406,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     textAlign: 'center',
+    maxWidth: '90%',
+    lineHeight: 13,
+    includeFontPadding: false,
   },
   spentText: {
     color: '#fbbf24',

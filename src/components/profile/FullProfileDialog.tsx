@@ -243,6 +243,8 @@ const LivePartnerItem = React.memo(function LivePartnerItem({ partner }: { partn
   );
 });
 
+import { useRouter } from 'expo-router';
+
 export function FullProfileDialog({
 
   open,
@@ -262,6 +264,7 @@ export function FullProfileDialog({
   onReport,
   onViewProfile,
 }: any) {
+  const router = useRouter();
   const { user } = useUser();
   const firestore = useFirestore();
   const { profile: ownProfile } = useUserProfile(user?.uid);
@@ -270,27 +273,92 @@ export function FullProfileDialog({
   const [activeCpPair, setActiveCpPair] = useState<any>(null);
   const targetUid = profile?.id || profile?.uid;
 
-  useEffect(() => {
-    if (!open || !targetUid) return;
-    let unsub: (() => void) | undefined;
-    try {
-      const db = require('@react-native-firebase/firestore').default;
-      unsub = db()
-        .collection('cpPairs')
-        .where('participantIds', 'array-contains', targetUid)
-        .limit(1)
-        .onSnapshot((snap: any) => {
-          if (snap && !snap.empty) {
-            setActiveCpPair({ id: snap.docs[0].id, ...snap.docs[0].data() });
-          } else {
-            setActiveCpPair(null);
-          }
-        }, (err: any) => {});
-    } catch (e) {}
-    return () => { if (unsub) unsub(); };
-  }, [open, targetUid]);
-
+  // Real-time listener for current user's live room presence & room details
+  const [liveRoomData, setLiveRoomData] = useState<{ currentRoomId: string | null; roomName?: string } | null>(null);
   const { profile: targetLiveProfile } = useUserProfile(targetUid);
+
+  // Real-time listener for user's family data
+  const [userFamilyData, setUserFamilyData] = useState<{
+    familyId: string;
+    name: string;
+    avatarUrl?: string;
+    bannerUrl?: string;
+    role?: string;
+    memberCount?: number;
+    maxMembers?: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const rawFamId = targetLiveProfile?.familyId || profile?.familyId || targetLiveProfile?.family?.id || profile?.family?.id;
+    if (!open || !rawFamId || !firestore) {
+      setUserFamilyData(null);
+      return;
+    }
+
+    const famRef = doc(firestore, 'families', rawFamId);
+    const unsub = onSnapshot(famRef, (snap: any) => {
+      if (snap.exists()) {
+        const f = snap.data();
+        const memberCount = f?.membersCount || f?.memberCount || (f?.members ? Object.keys(f.members).length : 1);
+        const userRole = f?.ownerId === targetUid ? (f?.creatorTitle || 'Owner') : (f?.members?.[targetUid]?.role || 'Member');
+        const resolvedAvatar = f?.avatarUrl || f?.logoUrl || f?.bannerUrl || f?.icon || f?.image || f?.avatar || f?.familyAvatar || '';
+        setUserFamilyData({
+          familyId: snap.id,
+          name: f?.name || f?.familyName || 'Family',
+          avatarUrl: resolvedAvatar,
+          bannerUrl: f?.bannerUrl || resolvedAvatar,
+          role: userRole,
+          memberCount: memberCount,
+          maxMembers: f?.maxMembers || f?.capacity || 100,
+        });
+      } else {
+        setUserFamilyData(null);
+      }
+    }, () => setUserFamilyData(null));
+
+    return () => unsub();
+  }, [open, targetUid, targetLiveProfile?.familyId, profile?.familyId, firestore]);
+
+  // Dynamic currentRoomId resolution with 3-way fallback (targetLiveProfile -> profile prop -> live room snapshot)
+  const currentActiveRoomId = useMemo(() => {
+    return targetLiveProfile?.currentRoomId || profile?.currentRoomId || liveRoomData?.currentRoomId || null;
+  }, [targetLiveProfile?.currentRoomId, profile?.currentRoomId, liveRoomData?.currentRoomId]);
+
+  // 3 lightweight native-driven out-of-phase equalizer animations
+  const bar1Anim = useRef(new Animated.Value(0.4)).current;
+  const bar2Anim = useRef(new Animated.Value(0.9)).current;
+  const bar3Anim = useRef(new Animated.Value(0.5)).current;
+
+  useEffect(() => {
+    if (currentActiveRoomId) {
+      const loop1 = Animated.loop(
+        Animated.sequence([
+          Animated.timing(bar1Anim, { toValue: 1.2, duration: 400, useNativeDriver: true }),
+          Animated.timing(bar1Anim, { toValue: 0.3, duration: 400, useNativeDriver: true }),
+        ])
+      );
+      const loop2 = Animated.loop(
+        Animated.sequence([
+          Animated.timing(bar2Anim, { toValue: 0.4, duration: 350, useNativeDriver: true }),
+          Animated.timing(bar2Anim, { toValue: 1.3, duration: 450, useNativeDriver: true }),
+        ])
+      );
+      const loop3 = Animated.loop(
+        Animated.sequence([
+          Animated.timing(bar3Anim, { toValue: 1.1, duration: 500, useNativeDriver: true }),
+          Animated.timing(bar3Anim, { toValue: 0.2, duration: 350, useNativeDriver: true }),
+        ])
+      );
+      loop1.start();
+      loop2.start();
+      loop3.start();
+      return () => {
+        loop1.stop();
+        loop2.stop();
+        loop3.stop();
+      };
+    }
+  }, [currentActiveRoomId]);
 
   const resolvedPartnerUid = useMemo(() => {
     if (profile?.relationship?.partnerUid) return profile.relationship.partnerUid;
@@ -557,10 +625,73 @@ export function FullProfileDialog({
               )}
             </View>
 
-            {/* White Card â€” shifted up to overlap cover */}
-            <View style={{ marginTop: -32, paddingHorizontal: 20, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#FFFFFF', paddingTop: 10, paddingBottom: 20 }}>
+            {/* White Card — shifted up to overlap cover */}
+            <View style={{ marginTop: -32, paddingHorizontal: 20, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#FFFFFF', paddingTop: 10, paddingBottom: 20, position: 'relative' }}>
 
-            {/* Avatar â€” straddles cover and card */}
+            {/* Live "In Room" Status Pill Tag (Wafa App exact style) */}
+            <View style={{ position: 'absolute', top: 14, left: 16, zIndex: 40 }}>
+              {currentActiveRoomId ? (
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    if (currentActiveRoomId) {
+                      onOpenChange(false);
+                      router.push(`/rooms/${currentActiveRoomId}` as any);
+                    }
+                  }}
+                >
+                  <LinearGradient
+                    colors={['#38bdf8', '#0284c7']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      borderRadius: 14,
+                      gap: 5,
+                      shadowColor: '#0284c7',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.35,
+                      shadowRadius: 4,
+                      elevation: 4,
+                    }}
+                  >
+                    {/* Dynamic Out-of-Phase Audio Equalizer Motion */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2.5, height: 14, justifyContent: 'center' }}>
+                      <Animated.View style={{ width: 2.5, height: 10, backgroundColor: '#FFFFFF', borderRadius: 1.5, transform: [{ scaleY: bar1Anim }] }} />
+                      <Animated.View style={{ width: 2.5, height: 14, backgroundColor: '#FFFFFF', borderRadius: 1.5, transform: [{ scaleY: bar2Anim }] }} />
+                      <Animated.View style={{ width: 2.5, height: 9, backgroundColor: '#FFFFFF', borderRadius: 1.5, transform: [{ scaleY: bar3Anim }] }} />
+                    </View>
+                    <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '800', letterSpacing: 0.3 }}>
+                      In Room
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              ) : (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: '#e2e8f0',
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 14,
+                    gap: 5,
+                  }}
+                >
+                  <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: '#cbd5e1', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 8 }}>🏛️</Text>
+                  </View>
+                  <Text style={{ color: '#64748b', fontSize: 11, fontWeight: '700' }}>
+                    In Room
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Avatar — straddles cover and card */}
             <View style={{ alignItems: 'center', marginTop: -40, marginBottom: 10, zIndex: 30 }}>
               <View>
                 <AvatarFrame frameMediaUrl={(() => {
@@ -612,6 +743,30 @@ export function FullProfileDialog({
                 )}
               </TouchableOpacity>
               <LevelBadge level={getLevelFromSpent(profile.wallet?.totalSpent || 0)} type="rich" />
+              {/* Small SVG Family Tag Pill (shown if user belongs to a family) */}
+              {userFamilyData && (
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: '#064e3b',
+                  paddingHorizontal: 8,
+                  paddingVertical: 3,
+                  borderRadius: 10,
+                  gap: 3,
+                  borderWidth: 1,
+                  borderColor: '#10b981',
+                  maxWidth: 120,
+                }}>
+                  <Text style={{ fontSize: 9 }}>🛡️</Text>
+                  <Text 
+                    style={{ fontSize: 9, fontWeight: '800', color: '#6ee7b7' }}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {userFamilyData.name}
+                  </Text>
+                </View>
+              )}
               <SVIPBadge level={profile.svip || 0} />
             </View>
 
@@ -655,6 +810,92 @@ export function FullProfileDialog({
                 </React.Fragment>
               ))}
             </View>
+
+            {/* Wafa-style Premium Family Banner Strip */}
+            {userFamilyData && (
+              <View style={{ marginTop: 12, borderRadius: 16, overflow: 'hidden' }}>
+                <LinearGradient
+                  colors={['#1c3d32', '#2d5a49', '#1a332a']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={{
+                    padding: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255, 255, 255, 0.15)',
+                  }}
+                >
+                  {/* Left: Family Hexagon/Circle Avatar */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                    <View style={{ width: 44, height: 44, borderRadius: 22, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.1)' }}>
+                      <Image
+                        cachePolicy="memory-disk"
+                        source={{
+                          uri: toCDN(
+                            userFamilyData?.avatarUrl ||
+                            userFamilyData?.bannerUrl ||
+                            profile?.family?.avatarUrl ||
+                            profile?.family?.logoUrl ||
+                            targetLiveProfile?.family?.avatarUrl ||
+                            ''
+                          ) || 'https://picsum.photos/120'
+                        }}
+                        style={{ width: '100%', height: '100%' }}
+                        contentFit="cover"
+                      />
+                    </View>
+                    
+                    {/* Family Name & Details */}
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '800', color: '#FFFFFF' }} numberOfLines={1}>
+                        {userFamilyData.name}
+                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                        {/* Role tag */}
+                        <View style={{ backgroundColor: '#065f46', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                          <Text style={{ fontSize: 8 }}>🛡️</Text>
+                          <Text style={{ fontSize: 9, fontWeight: '800', color: '#6ee7b7' }}>
+                            {userFamilyData.role || 'Member'}
+                          </Text>
+                        </View>
+                        {/* Member count tag */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                          <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.8)' }}>👥</Text>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.9)' }}>
+                            {userFamilyData.memberCount}/{userFamilyData.maxMembers}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Right: Apply Button */}
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      if (userFamilyData.familyId) {
+                        onOpenChange(false);
+                        router.push(`/families` as any);
+                      }
+                    }}
+                    style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(255, 255, 255, 0.4)',
+                      borderRadius: 20,
+                      paddingHorizontal: 16,
+                      paddingVertical: 7,
+                    }}
+                  >
+                    <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '800' }}>
+                      Apply
+                    </Text>
+                  </TouchableOpacity>
+                </LinearGradient>
+              </View>
+            )}
 
             {/* Rich & Charm Level Cards */}
             <View style={{ flexDirection: 'row', gap: 6, marginTop: 12, alignItems: 'stretch' }}>

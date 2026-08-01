@@ -19,13 +19,35 @@ export default function FamiliesIndex() {
   const { profile: userProfile } = useUserProfile(user?.uid);
   const [searchQuery, setSearchQuery] = useState('');
   const [showInfo, setShowInfo] = useState(false);
+  const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'monthly' | 'total'>('total');
 
   const familiesQuery = useMemo(() => {
+    if (!firestore || !isHydrated) return null;
+    if (activeTab === 'daily') {
+      return query(collection(firestore, 'families'), orderBy('dailyWealth', 'desc'), limit(50));
+    }
+    if (activeTab === 'weekly') {
+      return query(collection(firestore, 'families'), orderBy('weeklyWealth', 'desc'), limit(50));
+    }
+    if (activeTab === 'monthly') {
+      return query(collection(firestore, 'families'), orderBy('monthlyWealth', 'desc'), limit(50));
+    }
+    return query(collection(firestore, 'families'), orderBy('totalWealth', 'desc'), limit(50));
+  }, [firestore, isHydrated, activeTab]);
+
+  const fallbackFamiliesQuery = useMemo(() => {
     if (!firestore || !isHydrated) return null;
     return query(collection(firestore, 'families'), orderBy('totalWealth', 'desc'), limit(50));
   }, [firestore, isHydrated]);
 
-  const { data: families, isLoading } = useCollection(familiesQuery);
+  const { data: primaryFamilies, isLoading } = useCollection(familiesQuery);
+  const { data: fallbackFamilies } = useCollection(fallbackFamiliesQuery);
+
+  const families = useMemo(() => {
+    if (activeTab === 'total') return primaryFamilies || fallbackFamilies || [];
+    if (primaryFamilies && primaryFamilies.length > 0) return primaryFamilies;
+    return fallbackFamilies || [];
+  }, [activeTab, primaryFamilies, fallbackFamilies]);
 
   const filteredFamilies = useMemo(() => {
     if (!families) return [];
@@ -109,12 +131,42 @@ export default function FamiliesIndex() {
             </View>
           </View>
 
+          {/* ── DAILY / WEEKLY / MONTHLY / TOTAL TABS ── */}
+          <View style={{ flexDirection: 'row', justifyContent: 'center', marginVertical: 12, paddingHorizontal: 16 }}>
+            <View style={{ flexDirection: 'row', backgroundColor: 'rgba(255, 255, 255, 0.08)', borderRadius: 20, padding: 3, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.12)' }}>
+              {(['daily', 'weekly', 'monthly', 'total'] as const).map((tab) => {
+                const isActive = activeTab === tab;
+                return (
+                  <TouchableOpacity
+                    key={tab}
+                    onPress={() => setActiveTab(tab)}
+                    style={{
+                      paddingHorizontal: 14,
+                      paddingVertical: 7,
+                      borderRadius: 16,
+                      backgroundColor: isActive ? '#a855f7' : 'transparent',
+                    }}
+                  >
+                    <Text style={{
+                      fontSize: 11,
+                      fontWeight: '800',
+                      color: isActive ? '#FFFFFF' : 'rgba(255, 255, 255, 0.6)',
+                      textTransform: 'capitalize',
+                    }}>
+                      {tab === 'total' ? 'All / Total' : tab}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
           {/* ── SECTION LABEL ── */}
           <View style={styles.sectionLabelRow}>
             <View style={styles.sectionLine} />
             <View style={styles.sectionChip}>
               <Trophy size={10} color="#fbbf24" fill="#fbbf24" />
-              <Text style={styles.sectionChipText}>Hall of Dynasties</Text>
+              <Text style={styles.sectionChipText}>{activeTab === 'total' ? 'ALL TIME' : activeTab.toUpperCase()} HALL OF DYNASTIES</Text>
               <Trophy size={10} color="#fbbf24" fill="#fbbf24" />
             </View>
             <View style={styles.sectionLine} />
@@ -219,9 +271,14 @@ export default function FamiliesIndex() {
                   <View style={styles.powerBlock}>
                     <View style={styles.powerRow}>
                       <Flame size={12} color="#f97316" />
-                      <Text style={styles.powerText}>{(family.totalWealth || 0).toLocaleString()}</Text>
+                      <Text style={styles.powerText}>
+                        {(() => {
+                          const val = activeTab === 'daily' ? family.dailyWealth : activeTab === 'weekly' ? family.weeklyWealth : family.monthlyWealth;
+                          return (val ?? family.totalWealth ?? 0).toLocaleString();
+                        })()}
+                      </Text>
                     </View>
-                    <Text style={styles.powerLabel}>POWER</Text>
+                    <Text style={styles.powerLabel}>{activeTab.toUpperCase()} POWER</Text>
                   </View>
 
                   <ChevronRight size={16} color="rgba(255,255,255,0.15)" style={{ marginLeft: 4 }} />

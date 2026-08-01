@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
-    transform: [{ translateY: 6 }],
+    transform: [{ translateY: 2 }],
   },
   doubleAvatarWrapper: {
     flexDirection: 'row',
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
     height: 42,
     position: 'relative',
     justifyContent: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   avatar: {
     width: 32,
@@ -299,6 +299,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     textAlign: 'center',
+    maxWidth: '90%',
+    lineHeight: 13,
+    includeFontPadding: false,
   },
   cpValueText: {
     color: '#f43f5e',

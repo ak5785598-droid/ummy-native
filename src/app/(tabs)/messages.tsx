@@ -1128,11 +1128,31 @@ function ChatRoomScreen({ chatId, recipientUid, onBack, onAvatarPress }: { chatI
         try {
           const familySnap = await getDoc(familyRef);
           if (familySnap.exists()) {
-            const currentWealth = familySnap.data()?.totalWealth || 0;
+            const fData = familySnap.data() as any;
+            const currentWealth = fData?.totalWealth || 0;
             const newWealth = currentWealth + totalCost;
             const newFamilyLevel = getFamilyLevel(newWealth);
+
+            // Check Daily, ISO Week, and Monthly reset triggers
+            const now = new Date();
+            const todayStr = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+            const isNewDay = fData?.lastDailyResetDate !== todayStr;
+
+            const startOfYear = new Date(now.getFullYear(), 0, 1);
+            const currentWeek = Math.ceil((((now.getTime() - startOfYear.getTime()) / 86400000) + startOfYear.getDay() + 1) / 7);
+            const isNewWeek = fData?.lastWeeklyResetWeek !== currentWeek;
+
+            const monthStr = `${now.getFullYear()}-${now.getMonth() + 1}`;
+            const isNewMonth = fData?.lastMonthlyResetMonth !== monthStr;
+
             updateDocumentNonBlocking(familyRef, {
               totalWealth: increment(totalCost),
+              dailyWealth: isNewDay ? totalCost : increment(totalCost),
+              weeklyWealth: isNewWeek ? totalCost : increment(totalCost),
+              monthlyWealth: isNewMonth ? totalCost : increment(totalCost),
+              lastDailyResetDate: todayStr,
+              lastWeeklyResetWeek: currentWeek,
+              lastMonthlyResetMonth: monthStr,
               [`contributions.${user.uid}`]: increment(totalCost),
               level: newFamilyLevel,
               updatedAt: serverTimestamp(),

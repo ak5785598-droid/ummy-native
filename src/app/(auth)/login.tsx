@@ -420,24 +420,24 @@ export default function LoginScreen() {
           <Text className="text-[11px] text-white/70 leading-snug mt-6 text-center">
             By continuing you agree to the User Agreement & Privacy Policy
           </Text>
+
+          {/* Integrated Seamless Borderless Loading Text */}
+          {isSigningIn && (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              marginTop: 14,
+            }}>
+              <ActivityIndicator size="small" color="#fbbf24" />
+              <Text style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: 12, fontWeight: '600' }}>
+                Signing in, please wait...
+              </Text>
+            </View>
+          )}
         </View>
       </View>
-
-      {/* ============================================================ */}
-      {/* ⚡ FULLSCREEN LOADING OVERLAY SPINNER ⚡ */}
-      {/* ============================================================ */}
-      {isSigningIn && (
-        <View 
-          className="absolute inset-0 items-center justify-center z-50"
-          style={{ backgroundColor: 'rgba(10, 0, 38, 0.85)' }}
-        >
-          <View className="bg-white/10 border border-white/20 p-6 rounded-3xl items-center shadow-2xl backdrop-blur-md">
-            <ActivityIndicator size="large" color="#FFCC00" />
-            <Text className="text-white font-bold text-base mt-4">Signing in...</Text>
-            <Text className="text-white/60 text-xs mt-1">Authenticating your profile</Text>
-          </View>
-        </View>
-      )}
 
       {/* ============================================================ */}
       {/* ⚡ PHONE LOGIN MODAL ⚡ */}
